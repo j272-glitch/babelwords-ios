@@ -1,10 +1,16 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    ext.kotlin_version = '1.8.10'
+    ext.agp_version = '8.1.4'
+    ext.compile_sdk = 34
+    ext.min_sdk = 21
+    ext.target_sdk = 34
+}
+
 plugins {
     id 'com.android.application' version '8.1.4' apply false
     id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
 }
-
-// Repositories are now managed in settings.gradle
 
 task clean(type: Delete) {
     delete rootProject.buildDir
