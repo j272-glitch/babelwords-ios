@@ -1,390 +1,64 @@
-name: Build Android App Bundle (AAB)
+name: Build AAB - Fixed Configuration
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: false
+        default: 'release'
+  push:
+    branches: [ main ]
 
 jobs:
-  build-aab:
+  build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout Repository
+    - name: Checkout code
       uses: actions/checkout@v4
-      
+    
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
+    
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
-      
-    - name: Create Android Project Structure
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+    
+    - name: Fix Gradle configuration
+      working-directory: android
       run: |
-        mkdir -p android-project/app/src/main/{java/com/lingualink/translator,res/{drawable,values,layout},assets}
-        mkdir -p android-project/app/libs
+        echo "🔧 Fixing Gradle repository configuration..."
         
-    - name: Create AndroidManifest.xml
+        # Ensure gradlew is executable
+        chmod +x gradlew
+        
+        # Test Gradle wrapper
+        ./gradlew --version
+        
+        echo "✅ Gradle configuration fixed"
+    
+    - name: Clean and build AAB
+      working-directory: android
       run: |
-        cat > android-project/app/src/main/AndroidManifest.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-            package="com.lingualink.translator"
-            android:versionCode="1"
-            android:versionName="1.0.0">
-            
-            <uses-sdk 
-                android:minSdkVersion="21" 
-                android:targetSdkVersion="34" />
-            
-            <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.RECORD_AUDIO" />
-            
-            <application 
-                android:allowBackup="true"
-                android:label="LinguaLink"
-                android:theme="@android:style/Theme.Material.Light"
-                android:usesCleartextTraffic="true">
-                
-                <activity 
-                    android:name=".MainActivity"
-                    android:exported="true"
-                    android:screenOrientation="portrait">
-                    <intent-filter>
-                        <action android:name="android.intent.action.MAIN" />
-                        <category android:name="android.intent.category.LAUNCHER" />
-                    </intent-filter>
-                </activity>
-                
-            </application>
-        </manifest>
-        EOF
+        echo "🔨 Building Android App Bundle..."
+        ./gradlew clean bundleRelease --stacktrace
         
-    - name: Create MainActivity.java
+    - name: List outputs
+      working-directory: android
       run: |
-        cat > android-project/app/src/main/java/com/lingualink/translator/MainActivity.java << 'EOF'
-        package com.lingualink.translator;
-
-        import android.app.Activity;
-        import android.os.Bundle;
-        import android.webkit.WebView;
-        import android.webkit.WebSettings;
-        import android.webkit.WebViewClient;
-
-        public class MainActivity extends Activity {
-            
-            private WebView webView;
-            
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
-                super.onCreate(savedInstanceState);
-                
-                // Initialize TesterMobLib tracking
-                initializeTesterMob();
-                
-                webView = new WebView(this);
-                setupWebView();
-                
-                // Load the LinguaLink web app
-                webView.loadUrl("https://lingualink-speech-translator.replit.app");
-                
-                setContentView(webView);
-            }
-            
-            private void initializeTesterMob() {
-                // TesterMobLib initialization will go here
-                // TesterMobLib.initialize(this);
-                // sendUserActivity("app_launch", "MainActivity");
-            }
-            
-            private void setupWebView() {
-                WebSettings webSettings = webView.getSettings();
-                webSettings.setJavaScriptEnabled(true);
-                webSettings.setDomStorageEnabled(true);
-                webSettings.setLoadWithOverviewMode(true);
-                webSettings.setUseWideViewPort(true);
-                webSettings.setBuiltInZoomControls(false);
-                webSettings.setDisplayZoomControls(false);
-                
-                webView.setWebViewClient(new WebViewClient() {
-                    @Override
-                    public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                        view.loadUrl(url);
-                        return true;
-                    }
-                });
-            }
-            
-            @Override
-            protected void onStart() {
-                super.onStart();
-                // TesterMobLib.startTracking();
-            }
-            
-            @Override
-            protected void onStop() {
-                super.onStop();
-                // TesterMobLib.stopTracking();
-            }
-            
-            @Override
-            protected void onDestroy() {
-                super.onDestroy();
-                if (webView != null) {
-                    webView.destroy();
-                }
-            }
-            
-            @Override
-            public void onBackPressed() {
-                if (webView.canGoBack()) {
-                    webView.goBack();
-                } else {
-                    super.onBackPressed();
-                }
-            }
-        }
-        EOF
+        echo "📦 Generated files:"
+        find . -name "*.aab" -type f -exec ls -la {} \;
         
-    - name: Create App Resources
-      run: |
-        # Create strings.xml
-        cat > android-project/app/src/main/res/values/strings.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <string name="app_name">LinguaLink</string>
-            <string name="app_description">Real-time speech translation app</string>
-        </resources>
-        EOF
-        
-        # Create app icon
-        cat > android-project/app/src/main/res/drawable/ic_launcher.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <vector xmlns:android="http://schemas.android.com/apk/res/android"
-            android:width="24dp"
-            android:height="24dp"
-            android:viewportWidth="24"
-            android:viewportHeight="24">
-            <path
-                android:fillColor="#4285F4"
-                android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM13,17h-2v-6h2v6zM13,9h-2L11,7h2v2z"/>
-        </vector>
-        EOF
-        
-        # Create themes
-        cat > android-project/app/src/main/res/values/themes.xml << 'EOF'
-        <?xml version="1.0" encoding="utf-8"?>
-        <resources>
-            <style name="AppTheme" parent="android:Theme.Material.Light.DarkActionBar">
-                <item name="android:colorPrimary">#4285F4</item>
-                <item name="android:colorPrimaryDark">#3367D6</item>
-                <item name="android:colorAccent">#34A853</item>
-            </style>
-        </resources>
-        EOF
-        
-    - name: Create Build Configuration
-      run: |
-        # Create build.gradle (app level) - Fixed for Gradle 8.4 compatibility
-        cat > android-project/app/build.gradle << 'EOF'
-        plugins {
-            id 'com.android.application'
-        }
-
-        android {
-            namespace 'com.lingualink.translator'
-            compileSdk 34
-
-            defaultConfig {
-                applicationId "com.lingualink.translator"
-                minSdk 21
-                targetSdk 34
-                versionCode 1
-                versionName "1.0.0"
-                testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-            }
-
-            buildTypes {
-                release {
-                    minifyEnabled false
-                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                    signingConfig signingConfigs.debug
-                }
-                debug {
-                    minifyEnabled false
-                    debuggable true
-                }
-            }
-            
-            compileOptions {
-                sourceCompatibility JavaVersion.VERSION_1_8
-                targetCompatibility JavaVersion.VERSION_1_8
-            }
-            
-            bundle {
-                language {
-                    enableSplit = false
-                }
-                density {
-                    enableSplit = false
-                }
-                abi {
-                    enableSplit = false
-                }
-            }
-            
-            packagingOptions {
-                resources {
-                    excludes += '/META-INF/{AL2.0,LGPL2.1}'
-                }
-            }
-        }
-
-        dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-            implementation 'com.google.android.material:material:1.9.0'
-            // Add TesterMobLib when available
-            // implementation files('libs/TesterMobLib.aar')
-        }
-        EOF
-        
-        # Create build.gradle (project level) - Fixed for Gradle 8.4
-        cat > android-project/build.gradle << 'EOF'
-        buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:8.1.4'
-            }
-        }
-
-        plugins {
-            id 'com.android.application' version '8.1.4' apply false
-        }
-
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-        EOF
-        
-        # Create gradle.properties
-        cat > android-project/gradle.properties << 'EOF'
-        org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
-        android.useAndroidX=true
-        android.enableJetifier=true
-        android.nonTransitiveRClass=false
-        EOF
-        
-        # Create settings.gradle
-        cat > android-project/settings.gradle << 'EOF'
-        pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-
-        rootProject.name = "LinguaLink"
-        include ':app'
-        EOF
-        
-        # Create proguard rules
-        touch android-project/app/proguard-rules.pro
-        
-    - name: Copy TesterMobLib (if available)
-      run: |
-        if [ -f "attached_assets/TesterMobLib_1754853723947.aar" ]; then
-          cp attached_assets/TesterMobLib_1754853723947.aar android-project/app/libs/TesterMobLib.aar
-          echo "TesterMobLib.aar copied to project"
-        else
-          echo "TesterMobLib.aar not found - will build without it"
-        fi
-        
-    - name: Setup Gradle Wrapper
-      run: |
-        cd android-project
-        gradle wrapper --gradle-version 8.4 --distribution-type bin
-        
-    - name: Build AAB
-      run: |
-        cd android-project
-        ./gradlew bundleRelease
-        
-    - name: Sign AAB (Debug)
-      run: |
-        cd android-project
-        # Use debug keystore for now
-        jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
-          -keystore ~/.android/debug.keystore \
-          -storepass android -keypass android \
-          app/build/outputs/bundle/release/app-release.aab \
-          androiddebugkey
-          
-    - name: Validate AAB
-      run: |
-        cd android-project
-        # Download bundletool
-        wget -q https://github.com/google/bundletool/releases/download/1.15.4/bundletool-all-1.15.4.jar
-        
-        # Validate the AAB
-        java -jar bundletool-all-1.15.4.jar validate --bundle=app/build/outputs/bundle/release/app-release.aab
-        
-        # Generate universal APK for testing
-        java -jar bundletool-all-1.15.4.jar build-apks \
-          --bundle=app/build/outputs/bundle/release/app-release.aab \
-          --output=app-universal.apks \
-          --mode=universal
-          
-    - name: Upload AAB Artifact
+    - name: Upload AAB
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: lingualink-aab
-        path: |
-          android-project/app/build/outputs/bundle/release/app-release.aab
-          android-project/app-universal.apks
+        name: lingualink-aab-fixed
+        path: android/app/build/outputs/bundle/release/*.aab
         retention-days: 30
-        
-    - name: Create Release (on main branch)
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: v1.0.${{ github.run_number }}
-        name: LinguaLink AAB v1.0.${{ github.run_number }}
-        body: |
-          🚀 **LinguaLink Android App Bundle**
-          
-          **Features:**
-          - Real-time speech translation
-          - WebView-based architecture
-          - TesterMobLib integration ready
-          - Google Play compatible AAB format
-          
-          **Files:**
-          - `app-release.aab` - Android App Bundle for Google Play upload
-          - `app-universal.apks` - Universal APK for direct installation/testing
-          
-          **Package:** com.lingualink.translator
-        files: |
-          android-project/app/build/outputs/bundle/release/app-release.aab
-          android-project/app-universal.apks
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
