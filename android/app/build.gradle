@@ -1,0 +1,56 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.lingualink.translator'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.lingualink.translator"
+        minSdk 21
+        targetSdk 34
+        versionCode 61
+        versionName "1.0.61"
+        
+        // NDK configuration for native libraries
+        ndk {
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    
+    // Disable lint checking for faster build
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+}
+
+dependencies {
+    // Core Android dependencies only
+    implementation 'androidx.core:core-ktx:1.9.0'
+    implementation 'androidx.activity:activity-ktx:1.6.1'
+    implementation 'androidx.webkit:webkit:1.5.0'
+}
