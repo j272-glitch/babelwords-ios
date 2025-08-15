@@ -120,9 +120,32 @@ class MainActivity : BaseActivity() {
             }
         }
         
-        // Load the LinguaLink web application
-        // Replace with your actual web app URL
-        val webAppUrl = "https://your-replit-app.replit.app"
+        // Load the LinguaLink web application from Replit
+        val webAppUrl = "https://b74c4c68-0c5b-42df-9cdb-c158e6a65d80-00-9dkf2rm3ayxq.kirk.replit.dev"
+        println("Loading LinguaLink web app from: $webAppUrl")
+        
+        // Add error handling and debugging
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                println("WebView started loading: $url")
+                super.onPageStarted(view, url, favicon)
+            }
+            
+            override fun onPageFinished(view: WebView?, url: String?) {
+                println("WebView finished loading: $url")
+                super.onPageFinished(view, url)
+            }
+            
+            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                println("WebView error: ${error?.description}")
+                super.onReceivedError(view, request, error)
+            }
+            
+            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
+                return false // Let WebView handle the URL
+            }
+        }
+        
         webView.loadUrl(webAppUrl)
         
         setContentView(webView)
