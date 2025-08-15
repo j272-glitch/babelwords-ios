@@ -1,0 +1,58 @@
+name: Build Skeleton Native App
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android-skeleton/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Create Gradle wrapper
+      working-directory: android-skeleton
+      run: |
+        gradle wrapper --gradle-version 8.3
+        chmod +x gradlew
+        
+    - name: Build Debug APK
+      working-directory: android-skeleton
+      run: ./gradlew assembleDebug --stacktrace --info
+      
+    - name: Build Debug AAB
+      working-directory: android-skeleton
+      run: ./gradlew bundleDebug --stacktrace --info
+      
+    - name: Copy artifacts
+      working-directory: android-skeleton
+      run: |
+        mkdir -p ../skeleton-outputs
+        find . -name "*.apk" -path "*/debug/*" -exec cp {} ../skeleton-outputs/LinguaLink-Skeleton-v1.0.0.apk \;
+        find . -name "*.aab" -path "*/debug/*" -exec cp {} ../skeleton-outputs/LinguaLink-Skeleton-v1.0.0.aab \;
+        ls -la ../skeleton-outputs/
+        
+    - name: Upload Skeleton APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: lingualink-skeleton-apk
+        path: skeleton-outputs/LinguaLink-Skeleton-v1.0.0.apk
+        
+    - name: Upload Skeleton AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: lingualink-skeleton-aab
+        path: skeleton-outputs/LinguaLink-Skeleton-v1.0.0.aab
