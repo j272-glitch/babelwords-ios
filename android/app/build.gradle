@@ -3,26 +3,25 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-// Ensure Java 17 compatibility
-compileOptions {
-    sourceCompatibility JavaVersion.VERSION_17
-    targetCompatibility JavaVersion.VERSION_17
-}
-
-kotlinOptions {
-    jvmTarget = '17'
-}
-
 android {
+    compileSdk 34
     namespace 'com.lingualink.translator'
-    compileSdk rootProject.ext.compile_sdk
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 
     defaultConfig {
         applicationId "com.lingualink.translator"
-        minSdk rootProject.ext.min_sdk
-        targetSdk rootProject.ext.target_sdk
-        versionCode 62
-        versionName "1.0.62"
+        minSdk 21
+        targetSdk 34
+        versionCode 67
+        versionName "1.0.67"
         
         // NDK configuration for native libraries
         ndk {
@@ -34,7 +33,6 @@ android {
         debug {
             minifyEnabled false
             debuggable true
-            signingConfig signingConfigs.debug
         }
         release {
             minifyEnabled false
