@@ -1,0 +1,66 @@
+name: Build Main Android AAB
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'android/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      
+    - name: Make gradlew executable
+      working-directory: android
+      run: chmod +x gradlew
+      
+    - name: Verify Gradle setup
+      working-directory: android
+      run: |
+        ls -la gradlew gradle/wrapper/
+        ./gradlew --version
+        
+    - name: Clean project
+      working-directory: android
+      run: ./gradlew clean --stacktrace
+        
+    - name: Build Debug APK
+      working-directory: android
+      run: ./gradlew assembleDebug --stacktrace --info
+      
+    - name: Build Debug AAB
+      working-directory: android
+      run: ./gradlew bundleDebug --stacktrace --info
+      
+    - name: Copy artifacts
+      working-directory: android
+      run: |
+        mkdir -p ../final-outputs
+        find . -name "*.apk" -path "*/debug/*" -exec cp {} ../final-outputs/LinguaLink-Native-Final-v1.0.67.apk \;
+        find . -name "*.aab" -path "*/debug/*" -exec cp {} ../final-outputs/LinguaLink-Native-Final-v1.0.67.aab \;
+        ls -la ../final-outputs/
+        
+    - name: Upload Final APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: lingualink-native-final-apk
+        path: final-outputs/LinguaLink-Native-Final-v1.0.67.apk
+        
+    - name: Upload Final AAB
+      uses: actions/upload-artifact@v4
+      with:
+        name: lingualink-native-final-aab
+        path: final-outputs/LinguaLink-Native-Final-v1.0.67.aab
