@@ -27,10 +27,17 @@ jobs:
       working-directory: android
       run: chmod +x gradlew
       
+    - name: Download Gradle wrapper JAR
+      working-directory: android  
+      run: |
+        curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.3.0/gradle/wrapper/gradle-wrapper.jar
+        chmod +x gradlew
+        
     - name: Verify Gradle setup
       working-directory: android
       run: |
         ls -la gradlew gradle/wrapper/
+        file gradle/wrapper/gradle-wrapper.jar
         ./gradlew --version
         
     - name: Cache Gradle dependencies
