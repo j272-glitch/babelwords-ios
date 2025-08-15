@@ -14,7 +14,7 @@ jobs:
     - name: Verify native APK exists
       run: |
         echo "Checking for ready-to-deploy APK files..."
-        ls -la *.apk | head -10
+        find . -name "*.apk" -type f | head -10
         
     - name: Create deployment summary
       run: |
@@ -35,7 +35,7 @@ jobs:
         echo "- Emergency fallback interfaces" >> deployment-summary.md
         echo "" >> deployment-summary.md
         echo "### Available APK Files:" >> deployment-summary.md
-        ls -la *.apk | awk '{print "- " $9 " (" $5 " bytes)"}' >> deployment-summary.md
+        find . -name "*.apk" -type f -exec ls -la {} \; | awk '{print "- " $9 " (" $5 " bytes)"}' >> deployment-summary.md
         echo "" >> deployment-summary.md
         echo "### Recommended for Testing:" >> deployment-summary.md
         echo "- LinguaLink-Testrigor-Final.apk" >> deployment-summary.md
@@ -52,8 +52,29 @@ jobs:
     - name: Package final deployment
       run: |
         mkdir -p lingualink-deployment
-        cp LinguaLink-Testrigor-Final.apk lingualink-deployment/
-        cp LinguaLink-Testrigor-Fixed-v1.0.67.apk lingualink-deployment/ 2>/dev/null || echo "Backup APK not found, using primary"
+        
+        # Find and copy the main APK file
+        if [ -f "attached_assets/LinguaLink-Testrigor-FINAL_1755271398235.apk" ]; then
+          cp "attached_assets/LinguaLink-Testrigor-FINAL_1755271398235.apk" lingualink-deployment/LinguaLink-Testrigor-Final.apk
+          echo "✅ Copied main APK from attached_assets"
+        elif [ -f "LinguaLink-Testrigor-Final.apk" ]; then
+          cp LinguaLink-Testrigor-Final.apk lingualink-deployment/
+          echo "✅ Copied main APK from root"
+        else
+          # Find any available APK and use it
+          FIRST_APK=$(find . -name "*.apk" -type f | head -1)
+          if [ -n "$FIRST_APK" ]; then
+            cp "$FIRST_APK" lingualink-deployment/LinguaLink-Native-Ready.apk
+            echo "✅ Copied available APK: $FIRST_APK"
+          else
+            echo "❌ No APK files found"
+            exit 1
+          fi
+        fi
+        
+        # Copy backup APKs if available
+        find attached_assets/ -name "*Testrigor*.apk" -exec cp {} lingualink-deployment/ \; 2>/dev/null || echo "No backup APKs found"
+        
         cp deployment-summary.md lingualink-deployment/
         
         echo "DEPLOYMENT PACKAGE CONTENTS:" 
