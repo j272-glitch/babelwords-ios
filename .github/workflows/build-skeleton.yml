@@ -23,11 +23,15 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
-    - name: Create Gradle wrapper
+    - name: Make gradlew executable
+      working-directory: android-skeleton
+      run: chmod +x gradlew
+      
+    - name: Verify Gradle wrapper
       working-directory: android-skeleton
       run: |
-        gradle wrapper --gradle-version 8.3
-        chmod +x gradlew
+        ls -la gradlew gradle/wrapper/
+        ./gradlew --version
         
     - name: Build Debug APK
       working-directory: android-skeleton
