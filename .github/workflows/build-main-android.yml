@@ -33,17 +33,25 @@ jobs:
         ls -la gradlew gradle/wrapper/
         ./gradlew --version
         
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        
     - name: Clean project
       working-directory: android
-      run: ./gradlew clean --stacktrace
+      run: ./gradlew clean --stacktrace --no-daemon
         
     - name: Build Debug APK
       working-directory: android
-      run: ./gradlew assembleDebug --stacktrace --info
+      run: ./gradlew assembleDebug --stacktrace --no-daemon --info
       
     - name: Build Debug AAB
       working-directory: android
-      run: ./gradlew bundleDebug --stacktrace --info
+      run: ./gradlew bundleDebug --stacktrace --no-daemon --info
       
     - name: Copy artifacts
       working-directory: android
