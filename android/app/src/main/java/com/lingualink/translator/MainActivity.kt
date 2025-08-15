@@ -104,8 +104,15 @@ class MainActivity : BaseActivity() {
         webSettings.loadWithOverviewMode = true
         webSettings.useWideViewPort = true
         
-        // Enable media playback
+        // Enable media playback and ensure proper rendering for Testrigor
         webSettings.mediaPlaybackRequiresUserGesture = false
+        webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        webSettings.cacheMode = WebSettings.LOAD_DEFAULT
+        webSettings.setSupportMultipleWindows(false)
+        
+        // Ensure proper scaling and visibility for automation
+        webSettings.textZoom = 100
+        webSettings.minimumFontSize = 8
         
         // Set up WebView clients
         webView.webViewClient = object : WebViewClient() {
@@ -120,9 +127,12 @@ class MainActivity : BaseActivity() {
             }
         }
         
-        // Load the LinguaLink web application from Replit
+        // Load the LinguaLink web application from Replit - CORRECTED FOR TESTRIGOR
         val webAppUrl = "https://b74c4c68-0c5b-42df-9cdb-c158e6a65d80-00-9dkf2rm3ayxq.kirk.replit.dev"
-        println("Loading LinguaLink web app from: $webAppUrl")
+        println("TESTRIGOR DEBUG: Loading LinguaLink web app from: $webAppUrl")
+        
+        // Add content description for Testrigor automation
+        webView.contentDescription = "LinguaLink Translation App WebView"
         
         // Add error handling and debugging
         webView.webViewClient = object : WebViewClient() {
@@ -132,7 +142,39 @@ class MainActivity : BaseActivity() {
             }
             
             override fun onPageFinished(view: WebView?, url: String?) {
-                println("WebView finished loading: $url")
+                println("TESTRIGOR DEBUG: WebView finished loading: $url")
+                
+                // Inject JavaScript to ensure UI elements are accessible to Testrigor
+                val jsCode = """
+                    javascript:(function(){
+                        console.log('TESTRIGOR: Page loaded - adding accessibility attributes');
+                        
+                        // Add data-testid attributes to key elements for Testrigor
+                        setTimeout(function() {
+                            var micButton = document.querySelector('[data-testid="record-button"], button[aria-label*="microphone"], button[aria-label*="record"]');
+                            if (micButton) {
+                                micButton.setAttribute('data-testid', 'microphone-button');
+                                micButton.setAttribute('id', 'testrigor-microphone-button');
+                                console.log('TESTRIGOR: Microphone button found and labeled');
+                            }
+                            
+                            var translationArea = document.querySelector('[data-testid="translation-output"], [data-testid="translation-result"], .translation-output');
+                            if (translationArea) {
+                                translationArea.setAttribute('data-testid', 'translation-result');
+                                translationArea.setAttribute('id', 'testrigor-translation-result');
+                                console.log('TESTRIGOR: Translation result area found and labeled');
+                            }
+                            
+                            var appTitle = document.querySelector('h1, .app-title, [data-testid="app-title"]');
+                            if (appTitle) {
+                                appTitle.setAttribute('data-testid', 'translation-app-title');
+                                console.log('TESTRIGOR: App title found and labeled');
+                            }
+                        }, 2000);
+                    })();
+                """
+                
+                view?.evaluateJavascript(jsCode, null)
                 super.onPageFinished(view, url)
             }
             
