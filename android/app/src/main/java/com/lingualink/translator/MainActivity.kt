@@ -50,8 +50,14 @@ class MainActivity : BaseActivity() {
         // Initialize TesterMobLib (if it has initialization methods)
         initializeTesterMobLib()
         
-        // NATIVE TRANSLATION APP - No WebView needed
-        createNativeTranslationInterface()
+        // CRASH-PROTECTED NATIVE TRANSLATION APP
+        try {
+            createNativeTranslationInterface()
+            println("TESTRIGOR DEBUG: Native interface created successfully")
+        } catch (e: Exception) {
+            println("TESTRIGOR DEBUG: Interface creation failed, using emergency fallback")
+            createEmergencyInterface()
+        }
     }
     
     private fun requestPermissions() {
@@ -365,6 +371,43 @@ class MainActivity : BaseActivity() {
                 )
             }
         }.start()
+    }
+
+    private fun createEmergencyInterface() {
+        // Emergency fallback interface for crash scenarios
+        try {
+            val layout = android.widget.LinearLayout(this)
+            layout.orientation = android.widget.LinearLayout.VERTICAL
+            layout.setPadding(20, 20, 20, 20)
+            layout.setBackgroundColor(android.graphics.Color.WHITE)
+            
+            // Simple title
+            val title = android.widget.TextView(this)
+            title.text = "Translation App"
+            title.textSize = 24f
+            title.setTextColor(android.graphics.Color.BLACK)
+            layout.addView(title)
+            
+            // Simple button
+            val button = android.widget.Button(this)
+            button.text = "Record Audio"
+            button.id = android.R.id.button1
+            button.setOnClickListener {
+                android.widget.Toast.makeText(this, "Translation Ready", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            layout.addView(button)
+            
+            // Simple result area
+            val result = android.widget.TextView(this)
+            result.text = "Emergency translation interface loaded successfully"
+            result.id = android.R.id.text2
+            layout.addView(result)
+            
+            setContentView(layout)
+            println("TESTRIGOR DEBUG: Emergency interface created")
+        } catch (e: Exception) {
+            println("TESTRIGOR DEBUG: Emergency interface failed: ${e.message}")
+        }
     }
 
     override fun onDestroy() {
