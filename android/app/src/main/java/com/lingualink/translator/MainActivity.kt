@@ -90,7 +90,15 @@ class MainActivity : BaseActivity() {
     }
     
     private fun setupWebView() {
-        webView = WebView(this)
+        // Initialize WebView with error handling
+        try {
+            webView = WebView(this)
+            println("TESTRIGOR DEBUG: WebView created successfully")
+        } catch (e: Exception) {
+            println("TESTRIGOR DEBUG: WebView creation failed: ${e.message}")
+            // Create fallback content view
+            return
+        }
         
         // Enable JavaScript and other web features
         val webSettings: WebSettings = webView.settings
@@ -195,9 +203,17 @@ class MainActivity : BaseActivity() {
             }
         }
         
-        webView.loadUrl(webAppUrl)
-        
-        setContentView(webView)
+        // Load URL with error handling
+        try {
+            println("TESTRIGOR DEBUG: Loading URL: $webAppUrl")
+            webView.loadUrl(webAppUrl)
+            setContentView(webView)
+            println("TESTRIGOR DEBUG: WebView setup completed successfully")
+        } catch (e: Exception) {
+            println("TESTRIGOR DEBUG: WebView loading failed: ${e.message}")
+            // Set a fallback view to prevent crash
+            createFallbackView()
+        }
     }
     
     override fun onResume() {
@@ -223,12 +239,31 @@ class MainActivity : BaseActivity() {
         }
     }
     
+    private fun createFallbackView() {
+        // Create a simple fallback view if WebView fails
+        val textView = android.widget.TextView(this)
+        textView.text = "LinguaLink Translation App\n\nLoading web interface...\n\nIf you see this message, the app is working but WebView needs initialization."
+        textView.textSize = 16f
+        textView.setPadding(50, 50, 50, 50)
+        textView.id = android.R.id.text1
+        textView.contentDescription = "LinguaLink Fallback View"
+        setContentView(textView)
+        println("TESTRIGOR DEBUG: Fallback view created")
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         
         // End tracking session
         tracker?.endSession()
         
-        webView.destroy()
+        // Safely destroy WebView
+        try {
+            if (::webView.isInitialized) {
+                webView.destroy()
+            }
+        } catch (e: Exception) {
+            println("TESTRIGOR DEBUG: WebView destroy failed: ${e.message}")
+        }
     }
 }
