@@ -29,6 +29,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
     - name: Verify Java Installation
       run: |
         echo "JAVA_HOME: $JAVA_HOME"
@@ -91,9 +94,16 @@ jobs:
         mkdir -p gradle-download-temp
         cd gradle-download-temp
         
-        # Download Gradle 8.3 distribution
+        # Download Gradle 8.3 distribution with checksum verification
         echo "Downloading Gradle 8.3..."
         curl -L -o gradle-8.3-bin.zip https://services.gradle.org/distributions/gradle-8.3-bin.zip
+        
+        # Verify checksum (SHA256 for Gradle 8.3 bin)
+        echo "Verifying checksum..."
+        echo "f2d1b7399a3d84486b4183b614a12a83aa80e46a5f8ef86ec4a8f6b2242b411c  gradle-8.3-bin.zip" | sha256sum -c || {
+          echo "Checksum verification failed!"
+          exit 1
+        }
         
         # Extract Gradle
         echo "Extracting Gradle..."
@@ -102,76 +112,46 @@ jobs:
         # Verify extraction
         GRADLE_HOME="$(pwd)/gradle-8.3"
         echo "Gradle Home: $GRADLE_HOME"
-        echo "Contents of lib directory:"
-        ls -la "$GRADLE_HOME/lib/" | grep wrapper || echo "No wrapper files found"
-        
-        # Find ALL wrapper-related JARs
-        echo "All wrapper-related files:"
-        find "$GRADLE_HOME" -name "*wrapper*" -type f
+        if [ -f "$GRADLE_HOME/lib/gradle-wrapper.jar" ]; then
+          echo "Wrapper JAR found: $GRADLE_HOME/lib/gradle-wrapper.jar"
+          ls -la "$GRADLE_HOME/lib/gradle-wrapper.jar"
+        else
+          echo "ERROR: gradle-wrapper.jar not found in $GRADLE_HOME/lib/"
+          exit 1
+        fi
         
         cd ..
 
-    - name: Extract Correct Wrapper JAR Using Multiple Methods
+    - name: Extract Correct Wrapper JAR
       run: |
         echo "=== EXTRACTING CORRECT WRAPPER JAR ==="
         
-        # Method 1: Try standard Gradle wrapper JAR from lib
         GRADLE_HOME="gradle-download-temp/gradle-8.3"
         
+        # Use standard gradle-wrapper.jar
         if [ -f "$GRADLE_HOME/lib/gradle-wrapper.jar" ]; then
-          echo "Method 1: Found standard gradle-wrapper.jar"
-          cp "$GRADLE_HOME/lib/gradle-wrapper.jar" gradle-wrapper-method1.jar
-          ls -la gradle-wrapper-method1.jar
-        fi
-        
-        # Method 2: Extract from gradle-wrapper distribution JAR
-        if [ -f "$GRADLE_HOME/lib/gradle-wrapper-8.3.jar" ]; then
-          echo "Method 2: Found versioned gradle-wrapper-8.3.jar"
-          cp "$GRADLE_HOME/lib/gradle-wrapper-8.3.jar" gradle-wrapper-method2.jar
-          ls -la gradle-wrapper-method2.jar
-        fi
-        
-        # Method 3: Find and extract the wrapper main class JAR
-        echo "Method 3: Finding JAR containing GradleWrapperMain..."
-        for jar in "$GRADLE_HOME"/lib/*.jar; do
-          if unzip -l "$jar" 2>/dev/null | grep -q "org/gradle/wrapper/GradleWrapperMain"; then
-            echo "Found GradleWrapperMain in: $jar"
-            cp "$jar" gradle-wrapper-method3.jar
-            ls -la gradle-wrapper-method3.jar
-            break
+          echo "Found gradle-wrapper.jar"
+          cp "$GRADLE_HOME/lib/gradle-wrapper.jar" gradle-wrapper.jar
+          ls -la gradle-wrapper.jar
+          
+          # Verify JAR contains GradleWrapperMain
+          if unzip -l gradle-wrapper.jar | grep -q "org/gradle/wrapper/GradleWrapperMain"; then
+            echo "✅ JAR contains GradleWrapperMain"
+          else
+            echo "❌ JAR missing GradleWrapperMain"
+            exit 1
           fi
-        done
-        
-        # Method 4: Use our known working JAR if others fail
-        if [ -f "../gradle-wrapper-fixed.jar" ]; then
-          echo "Method 4: Using known working JAR"
-          cp ../gradle-wrapper-fixed.jar gradle-wrapper-method4.jar
-          ls -la gradle-wrapper-method4.jar
-        fi
-        
-        # Select the best JAR (largest, most likely to be complete)
-        echo "Selecting best wrapper JAR..."
-        BEST_JAR=""
-        BEST_SIZE=0
-        
-        for method_jar in gradle-wrapper-method*.jar; do
-          if [ -f "$method_jar" ]; then
-            size=$(stat -f%z "$method_jar" 2>/dev/null || stat -c%s "$method_jar")
-            echo "$method_jar: $size bytes"
-            if [ "$size" -gt "$BEST_SIZE" ]; then
-              BEST_SIZE=$size
-              BEST_JAR=$method_jar
-            fi
-          fi
-        done
-        
-        if [ -n "$BEST_JAR" ] && [ "$BEST_SIZE" -gt 50000 ]; then
-          echo "Selected: $BEST_JAR ($BEST_SIZE bytes)"
-          cp "$BEST_JAR" gradle-wrapper.jar
-          echo "Final JAR ready: $(ls -la gradle-wrapper.jar)"
         else
-          echo "CRITICAL: No suitable wrapper JAR found"
-          exit 1
+          echo "ERROR: gradle-wrapper.jar not found in $GRADLE_HOME/lib/"
+          # Fallback to repo's gradle-wrapper.jar if available
+          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Using repository's gradle-wrapper.jar as fallback"
+            cp "gradle/wrapper/gradle-wrapper.jar" gradle-wrapper.jar
+            ls -la gradle-wrapper.jar
+          else
+            echo "CRITICAL: No suitable wrapper JAR found"
+            exit 1
+          fi
         fi
 
     - name: Generate Fresh Wrapper with Verified JAR
@@ -209,69 +189,41 @@ jobs:
         cat > gradlew << 'EOF'
         #!/usr/bin/env sh
 
-        # Determine the Java executable to use to start the JVM.
+        # Determine the Java executable to use
         if [ -n "$JAVA_HOME" ] ; then
             if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
-                # IBM's JDK on AIX uses strange locations for the executables
+                # IBM's JDK on AIX uses strange locations
                 JAVACMD="$JAVA_HOME/jre/sh/java"
             else
                 JAVACMD="$JAVA_HOME/bin/java"
             fi
             if [ ! -x "$JAVACMD" ] ; then
-                die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
-
-        Please set the JAVA_HOME variable in your environment to match the
-        location of your Java installation."
+                echo "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
+                exit 1
             fi
         else
             JAVACMD="java"
-            which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
-
-        Please set the JAVA_HOME variable in your environment to match the
-        location of your Java installation."
-        fi
-
-        # Increase the maximum file descriptors if we can
-        if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
-            MAX_FD_LIMIT=$(ulimit -H -n)
-            if [ $? -eq 0 ] ; then
-                if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
-                    MAX_FD="$MAX_FD_LIMIT"
-                fi
-                ulimit -n $MAX_FD >/dev/null 2>&1
-                if [ $? -ne 0 ] ; then
-                    warn "Could not set maximum file descriptor limit: $MAX_FD"
-                fi
-            else
-                warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
+            if ! which java >/dev/null 2>&1 ; then
+                echo "ERROR: JAVA_HOME is not set and no 'java' command found in PATH"
+                exit 1
             fi
         fi
 
-        # For Darwin, add options to specify how the application appears in the dock
-        if [ "$darwin" = "true" ] ; then
-            GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=Gradle\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
-        fi
-
-        # For Cygwin or MSYS, switch paths to Windows format before running java
-        if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
-            APP_HOME=$(cygpath --path --mixed "$APP_HOME")
-            CLASSPATH=$(cygpath --path --mixed "$CLASSPATH")
-            
-            JAVACMD=$(cygpath --unix "$JAVACMD")
+        # Increase file descriptors if possible
+        MAX_FD_LIMIT=$(ulimit -H -n)
+        if [ $? -eq 0 ] ; then
+            ulimit -n "$MAX_FD_LIMIT" >/dev/null 2>&1 || echo "Could not set max file descriptors"
         fi
 
         # Determine script location
         APP_HOME=$(cd "${0%/*}" && pwd)
 
-        # Collect all arguments for the java command, escape spaces
-        set -- \
-                "-Dorg.gradle.appname=gradlew" \
-                -classpath "\"$APP_HOME/gradle/wrapper/gradle-wrapper.jar\"" \
-                org.gradle.wrapper.GradleWrapperMain \
-                "$@"
-
-        # Use "xargs" to parse quoted args.
-        exec "$JAVACMD" "$@"
+        # Execute Gradle
+        exec "$JAVACMD" \
+            -Dorg.gradle.appname=gradlew \
+            -classpath "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" \
+            org.gradle.wrapper.GradleWrapperMain \
+            "$@"
         EOF
         
         chmod +x gradlew
