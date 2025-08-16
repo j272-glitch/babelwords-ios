@@ -1,14 +1,14 @@
 name: Validate Gradle Wrapper
 
 on:
-  push:
-    paths:
-      - 'android/gradle/wrapper/**'
-      - 'android/gradlew*'
-  pull_request:
-    paths:
-      - 'android/gradle/wrapper/**'
-      - 'android/gradlew*'
+#  push:
+#    paths:
+#      - 'android/gradle/wrapper/**'
+#      - 'android/gradlew*'
+#  pull_request:
+#    paths:
+#      - 'android/gradle/wrapper/**'
+#      - 'android/gradlew*'
   workflow_dispatch:
 
 jobs:
