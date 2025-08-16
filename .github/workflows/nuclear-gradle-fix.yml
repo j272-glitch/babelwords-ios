@@ -2,9 +2,9 @@ name: Nuclear Gradle Fix
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'android/**'
+#  push:
+#    paths:
+#      - 'android/**'
 
 jobs:
   nuclear-fix:
