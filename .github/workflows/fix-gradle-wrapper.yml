@@ -16,6 +16,10 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: 'gradle'  # Cache Gradle dependencies
+        cache-dependency-path: |
+          **/*.gradle*
+          **/gradle-wrapper.properties
         
     - name: Resolve Container Java Path Conflicts
       run: |
@@ -40,11 +44,79 @@ jobs:
         echo ""
         
         echo "=== GRADLE OPTS CONFIGURATION ==="
-        # Force Gradle to use correct Java from setup-java, overriding any hardcoded paths
-        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false -Xmx4g"
         echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
         echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
         echo "✅ Container path conflict resolution configured"
+        
+    - name: Test Classpath Resolution
+      working-directory: android
+      run: |
+        echo "=== CLASSPATH RESOLUTION TESTING ==="
+        echo "Testing Gradle Wrapper classpath integrity..."
+        
+        # Verify gradle-wrapper.jar exists and is valid
+        if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+            echo "gradle-wrapper.jar found, checking integrity..."
+            jar tvf gradle/wrapper/gradle-wrapper.jar | grep GradleWrapperMain.class || {
+                echo "❌ GradleWrapperMain.class missing in JAR"
+                exit 1
+            }
+            echo "✅ GradleWrapperMain.class found in JAR"
+        else
+            echo "❌ gradle-wrapper.jar missing"
+            exit 1
+        fi
+        
+        # Test JAR extraction
+        echo "Testing JAR extraction..."
+        mkdir -p /tmp/gradle-wrapper-test
+        unzip -q gradle/wrapper/gradle-wrapper.jar -d /tmp/gradle-wrapper-test
+        if [ -f /tmp/gradle-wrapper-test/org/gradle/cli/GradleWrapperMain.class ]; then
+            echo "✅ JAR extraction successful"
+        else
+            echo "❌ JAR extraction failed"
+            exit 1
+        fi
+        rm -rf /tmp/gradle-wrapper-test
+        
+        # Run Gradle with --debug to inspect classpath
+        echo "Running Gradle with debug to verify classpath..."
+        ./gradlew --version --no-daemon --debug > gradle-classpath.log 2>&1
+        echo "Classpath debug log:"
+        grep "CLASSPATH" gradle-classpath.log || echo "No CLASSPATH entries found"
+        echo "✅ Classpath resolution test completed"
+      
+    - name: Download and Install Working Gradle Wrapper
+      working-directory: android
+      run: |
+        echo "Removing corrupted wrapper files..."
+        rm -rf gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties
+        
+        echo "Creating wrapper directory..."
+        mkdir -p gradle/wrapper
+        
+        echo "Downloading gradle-wrapper.jar from official source..."
+        curl -L -o gradle/wrapper/gradle-wrapper.jar \
+          "https://github.com/gradle/gradle/raw/v8.3.0/gradle/wrapper/gradle-wrapper.jar"
+        
+        echo "Creating gradle-wrapper.properties..."
+        cat << EOF > gradle/wrapper/gradle-wrapper.properties
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https://services.gradle.org/distributions/gradle-8.3-bin.zip
+networkTimeout=30000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+        
+        echo "Making gradlew executable..."
+        chmod +x gradlew
+        
+        echo "Verifying wrapper files..."
+        ls -la gradle/wrapper/
+        file gradle/wrapper/gradle-wrapper.jar
         
     - name: Fix Java Home Configuration
       run: |
@@ -109,27 +181,26 @@ EOF
       working-directory: android
       run: |
         echo "Testing Gradle wrapper with fixed configuration..."
-        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
         echo "Using GRADLE_OPTS: $GRADLE_OPTS"
-        
-        ./gradlew --version --no-daemon
+        ./gradlew --version --no-daemon --stacktrace
         
     - name: Clean Project
       working-directory: android
       run: |
         echo "Running clean with working wrapper..."
-        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
         ./gradlew clean --no-daemon --stacktrace
         
     - name: Build Debug APK
       working-directory: android
       env:
         JAVA_HOME: ${{ env.JAVA_HOME }}
-        GRADLE_OPTS: "-Dorg.gradle.java.home=${{ env.JAVA_HOME }} -Dfile.encoding=UTF-8"
+        GRADLE_OPTS: "-Dorg.gradle.java.home=${{ env.JAVA_HOME }} -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
       run: |
         echo "Building debug APK with explicit Java configuration..."
         echo "Using JAVA_HOME: $JAVA_HOME"
-        echo "Using GRADLE_OPTS: $GRADLE_OPTS" 
+        echo "Using GRADLE_OPTS: $GRADLE_OPTS"
         ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: Upload Fixed APK
@@ -143,9 +214,10 @@ EOF
         echo "SUCCESS: Gradle wrapper issues resolved!"
         echo ""
         echo "Fixes applied:"
-        echo "1. Downloaded working gradle-wrapper.jar from official source"
-        echo "2. Fixed Java home configuration with GRADLE_OPTS"
-        echo "3. Pre-downloaded Gradle distribution to avoid runtime downloads"
-        echo "4. Verified wrapper functionality with test build"
+        echo "1. Validated and fixed classpath resolution"
+        echo "2. Downloaded working gradle-wrapper.jar from official source"
+        echo "3. Fixed Java home configuration with GRADLE_OPTS"
+        echo "4. Pre-downloaded Gradle distribution to avoid runtime downloads"
+        echo "5. Verified wrapper functionality with test build"
         echo ""
         echo "APK built successfully with fixed wrapper configuration."
