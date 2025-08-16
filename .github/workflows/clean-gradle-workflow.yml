@@ -2,9 +2,9 @@ name: Clean Gradle Workflow
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'android/**'
+ # push:
+ #   paths:
+ #     - 'android/**'
 
 jobs:
   clean-build:
