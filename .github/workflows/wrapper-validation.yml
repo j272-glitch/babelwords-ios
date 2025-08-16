@@ -1,0 +1,41 @@
+name: Validate Gradle Wrapper
+
+on:
+  push:
+    paths:
+      - 'android/gradle/wrapper/**'
+      - 'android/gradlew*'
+  pull_request:
+    paths:
+      - 'android/gradle/wrapper/**'
+      - 'android/gradlew*'
+  workflow_dispatch:
+
+jobs:
+  validate-wrapper:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate Gradle Wrapper
+      uses: gradle/actions/wrapper-validation@v3
+      
+    - name: Verify Wrapper Files
+      run: |
+        echo "Checking required wrapper files..."
+        ls -la android/gradlew android/gradlew.bat android/gradle/wrapper/gradle-wrapper.jar android/gradle/wrapper/gradle-wrapper.properties
+        
+        echo "Checking wrapper JAR integrity..."
+        cd android
+        sha256sum gradle/wrapper/gradle-wrapper.jar
+        
+        echo "Testing wrapper functionality..."
+        chmod +x gradlew
+        ./gradlew --version --no-daemon
+        
+    - name: Validation Success
+      run: |
+        echo "✅ Gradle wrapper validation completed successfully"
+        echo "All wrapper files are present and functional"
