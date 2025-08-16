@@ -1,0 +1,210 @@
+name: Android CI Ultimate Fix
+
+on:
+  workflow_dispatch:
+    inputs:
+      debug_mode:
+        description: 'Enable debug logging'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Verify Java Installation
+      run: |
+        echo "=== JAVA VERIFICATION ==="
+        echo "JAVA_HOME: $JAVA_HOME"
+        echo "Java binary location: $(which java)"
+        echo "Java version:"
+        $JAVA_HOME/bin/java -version
+        echo "Directory contents:"
+        ls -la $JAVA_HOME/bin/ | head -5
+        
+    - name: Nuclear Cache Destruction
+      run: |
+        echo "=== NUCLEAR CACHE DESTRUCTION ==="
+        
+        # Destroy all possible Gradle cache locations
+        sudo rm -rf /home/runner/.gradle/ || true
+        sudo rm -rf /root/.gradle/ || true
+        sudo rm -rf ~/.gradle/ || true
+        sudo rm -rf $HOME/.gradle/ || true
+        sudo rm -rf /tmp/.gradle* || true
+        sudo rm -rf /var/tmp/.gradle* || true
+        sudo rm -rf /opt/.gradle* || true
+        sudo rm -rf /etc/gradle/ || true
+        sudo rm -rf /usr/share/gradle/ || true
+        
+        # Kill any running processes
+        sudo pkill -f gradle || true
+        sudo pkill -f java || true
+        
+        echo "Cache destruction complete"
+        
+    - name: Setup Isolated Environment
+      run: |
+        echo "=== SETUP ISOLATED ENVIRONMENT ==="
+        
+        # Create completely isolated environment with timestamp
+        export GRADLE_USER_HOME="/tmp/isolated-gradle-$(date +%s)"
+        mkdir -p "$GRADLE_USER_HOME"
+        
+        # Force explicit Java path with multiple override methods
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false -Dorg.gradle.caching=false"
+        export JAVA_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
+        
+        # Create minimal gradle.properties with NO hardcoded paths
+        cat > "$GRADLE_USER_HOME/gradle.properties" << 'EOF'
+        # Gradle configuration - NO hardcoded Java paths
+        org.gradle.daemon=false
+        org.gradle.caching=false
+        org.gradle.parallel=false
+        org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+        EOF
+        
+        # Export for subsequent steps
+        echo "GRADLE_USER_HOME=$GRADLE_USER_HOME" >> $GITHUB_ENV
+        echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
+        echo "JAVA_OPTS=$JAVA_OPTS" >> $GITHUB_ENV
+        
+        echo "Environment setup complete:"
+        echo "  JAVA_HOME: $JAVA_HOME"
+        echo "  GRADLE_USER_HOME: $GRADLE_USER_HOME"
+        echo "  GRADLE_OPTS: $GRADLE_OPTS"
+        
+    - name: Generate Fresh Wrapper
+      working-directory: android
+      run: |
+        echo "=== GENERATE FRESH WRAPPER ==="
+        
+        # Complete wrapper destruction
+        rm -rf gradle/ gradlew* .gradle/ build/ */build/
+        
+        # Download official Gradle and generate wrapper
+        curl -L -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-8.3-bin.zip"
+        unzip -q /tmp/gradle.zip -d /tmp/
+        
+        # Generate wrapper using downloaded Gradle
+        /tmp/gradle-8.3/bin/gradle wrapper --gradle-version 8.3 --no-daemon
+        chmod +x gradlew
+        
+        echo "Fresh wrapper generated successfully"
+        ls -la gradlew gradle/wrapper/
+        
+    - name: Test Gradle with Explicit Override
+      working-directory: android
+      run: |
+        echo "=== TEST GRADLE WITH EXPLICIT OVERRIDE ==="
+        echo "Environment check:"
+        echo "  GRADLE_OPTS: $GRADLE_OPTS"
+        echo "  GRADLE_USER_HOME: $GRADLE_USER_HOME"
+        echo "  JAVA_HOME: $JAVA_HOME"
+        
+        # Test Gradle version with explicit Java home
+        echo "Testing Gradle version with explicit override..."
+        ./gradlew --version --no-daemon -Dorg.gradle.java.home="$JAVA_HOME"
+        
+        # Test project tasks
+        echo "Testing project tasks..."
+        ./gradlew tasks --no-daemon -Dorg.gradle.java.home="$JAVA_HOME" --quiet
+        
+    - name: Build APK with Ultimate Overrides
+      working-directory: android
+      run: |
+        echo "=== BUILD APK WITH ULTIMATE OVERRIDES ==="
+        
+        # Build with comprehensive Java home overrides
+        BUILD_ARGS=(
+          "assembleDebug"
+          "--no-daemon"
+          "--stacktrace"
+          "-Dorg.gradle.java.home=$JAVA_HOME"
+          "-Dfile.encoding=UTF-8"
+          "--gradle-user-home=$GRADLE_USER_HOME"
+        )
+        
+        # Add debug logging if requested
+        if [ "${{ inputs.debug_mode }}" = "true" ]; then
+          BUILD_ARGS+=("--info" "--debug")
+        else
+          BUILD_ARGS+=("--info")
+        fi
+        
+        echo "Building with arguments: ${BUILD_ARGS[@]}"
+        
+        # Execute build with timeout
+        timeout 900 ./gradlew "${BUILD_ARGS[@]}"
+        
+        # Verify APK was created
+        APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+        if [ -f "$APK_FILE" ]; then
+          cp "$APK_FILE" "lingualink-ultimate-fix.apk"
+          APK_SIZE=$(stat -c%s lingualink-ultimate-fix.apk)
+          echo "SUCCESS: APK built successfully"
+          echo "  File: lingualink-ultimate-fix.apk"
+          echo "  Size: $APK_SIZE bytes ($(( APK_SIZE / 1024 / 1024 )) MB)"
+          
+          # Verify APK validity
+          if [ "$APK_SIZE" -gt 1000000 ]; then
+            echo "APK size validation: PASSED"
+          else
+            echo "WARNING: APK size seems small: $APK_SIZE bytes"
+          fi
+        else
+          echo "FAILURE: APK not found"
+          echo "Searching for any APK files..."
+          find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+          echo "Build directory contents:"
+          find app/build -type f -name "*.apk" 2>/dev/null || echo "No APK in build outputs"
+          exit 1
+        fi
+        
+    - name: Upload Ultimate APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: lingualink-ultimate-fix-apk
+        path: android/lingualink-ultimate-fix.apk
+        retention-days: 30
+        
+    - name: Build Summary
+      if: always()
+      run: |
+        echo "=== ULTIMATE BUILD SUMMARY ==="
+        
+        if [ -f "android/lingualink-ultimate-fix.apk" ]; then
+          APK_SIZE=$(stat -c%s "android/lingualink-ultimate-fix.apk")
+          echo "SUCCESS: Ultimate fix approach resolved the issue"
+          echo "  APK: lingualink-ultimate-fix.apk"
+          echo "  Size: $(( APK_SIZE / 1024 / 1024 )) MB"
+          echo "  Status: READY FOR TESTRIGOR TESTING"
+        else
+          echo "FAILURE: Ultimate approach failed"
+          echo "  Status: Issue requires deeper investigation"
+        fi
+        
+        echo ""
+        echo "Fix Actions Applied:"
+        echo "✅ Java toolchain configuration in build.gradle"
+        echo "✅ Nuclear cache destruction (all locations)"
+        echo "✅ Isolated environment with timestamp"
+        echo "✅ Explicit command-line Java home override"
+        echo "✅ Fresh wrapper from official Gradle source"
+        echo "✅ No hardcoded paths in any configuration"
+        echo "✅ Disabled all caching mechanisms"
+        echo ""
+        echo "If successful: Download APK for Testrigor testing"
+        echo "If failed: Issue is beyond GitHub Actions scope"
