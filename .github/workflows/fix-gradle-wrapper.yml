@@ -11,11 +11,40 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Set up JDK 17
+    - name: Set up JDK 17 for Android Gradle Plugin
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
+        
+    - name: Resolve Container Java Path Conflicts
+      run: |
+        echo "=== CONTAINER ENVIRONMENT ANALYSIS ==="
+        echo "JAVA_HOME from setup-java: $JAVA_HOME"
+        echo "Java version: $(java -version 2>&1 | head -1)"
+        echo "Java executable location: $(which java)"
+        echo ""
+        
+        echo "=== PATH CONFLICT DETECTION ==="
+        HARDCODED_PATH="/usr/lib/jvm/java-17-openjdk-amd64"
+        echo "Expected hardcoded path: $HARDCODED_PATH"
+        echo "Actual setup-java path: $JAVA_HOME"
+        
+        if [ "$HARDCODED_PATH" = "$JAVA_HOME" ]; then
+            echo "✅ No path conflict detected"
+        else
+            echo "⚠️  PATH CONFLICT: Hardcoded vs actual Java paths differ"
+            echo "   Hardcoded exists: $([ -d "$HARDCODED_PATH" ] && echo 'YES' || echo 'NO')"
+            echo "   Actual exists: $([ -d "$JAVA_HOME" ] && echo 'YES' || echo 'NO')"
+        fi
+        echo ""
+        
+        echo "=== GRADLE OPTS CONFIGURATION ==="
+        # Force Gradle to use correct Java from setup-java, overriding any hardcoded paths
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
+        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+        echo "✅ Container path conflict resolution configured"
         
     - name: Fix Java Home Configuration
       run: |
@@ -94,9 +123,13 @@ EOF
         
     - name: Build Debug APK
       working-directory: android
+      env:
+        JAVA_HOME: ${{ env.JAVA_HOME }}
+        GRADLE_OPTS: "-Dorg.gradle.java.home=${{ env.JAVA_HOME }} -Dfile.encoding=UTF-8"
       run: |
-        echo "Building debug APK..."
-        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        echo "Building debug APK with explicit Java configuration..."
+        echo "Using JAVA_HOME: $JAVA_HOME"
+        echo "Using GRADLE_OPTS: $GRADLE_OPTS" 
         ./gradlew assembleDebug --no-daemon --stacktrace
         
     - name: Upload Fixed APK
