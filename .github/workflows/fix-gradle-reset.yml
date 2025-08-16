@@ -2,10 +2,10 @@ name: Fixed Gradle Reset
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/fix-gradle-wrapper.yml'
-      - 'android/**'
+#  push:
+#    paths:
+#      - '.github/workflows/fix-gradle-wrapper.yml'
+#      - 'android/**'
 
 jobs:
   gradle-reset:
