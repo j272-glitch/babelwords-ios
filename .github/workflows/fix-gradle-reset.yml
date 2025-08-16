@@ -1,0 +1,129 @@
+name: Fixed Gradle Reset
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/fix-gradle-wrapper.yml'
+      - 'android/**'
+
+jobs:
+  gradle-reset:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'gradle'
+        
+    - name: Complete Gradle Reset
+      run: |
+        echo "=== COMPLETE GRADLE RESET ==="
+        echo "Current JAVA_HOME: $JAVA_HOME"
+        
+        # Clear all Gradle caches
+        rm -rf ~/.gradle/
+        rm -rf $HOME/.gradle/
+        rm -rf /tmp/.gradle*
+        
+        cd android
+        rm -rf .gradle/
+        rm -rf build/
+        rm -rf app/build/
+        
+        # Set environment variables
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        export GRADLE_USER_HOME="/tmp/gradle-fresh"
+        mkdir -p "$GRADLE_USER_HOME"
+        
+        # Create fresh gradle.properties
+        echo "org.gradle.java.home=$JAVA_HOME" > "$GRADLE_USER_HOME/gradle.properties"
+        echo "org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8" >> "$GRADLE_USER_HOME/gradle.properties"
+        echo "org.gradle.daemon=false" >> "$GRADLE_USER_HOME/gradle.properties"
+        
+        echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
+        echo "GRADLE_USER_HOME=$GRADLE_USER_HOME" >> $GITHUB_ENV
+        
+        echo "✅ Gradle environment reset complete"
+        
+    - name: Regenerate Wrapper
+      working-directory: android
+      run: |
+        echo "=== REGENERATE WRAPPER ==="
+        
+        # Remove existing wrapper
+        rm -rf gradle/
+        rm -rf gradlew*
+        
+        # Create wrapper directory
+        mkdir -p gradle/wrapper
+        
+        # Download and extract Gradle temporarily
+        GRADLE_TMP="/tmp/gradle-init"
+        mkdir -p "$GRADLE_TMP"
+        cd "$GRADLE_TMP"
+        
+        curl -L -o gradle-8.3-bin.zip "https://services.gradle.org/distributions/gradle-8.3-bin.zip"
+        unzip -q gradle-8.3-bin.zip
+        
+        # Generate wrapper in project
+        cd "$GITHUB_WORKSPACE/android"
+        "$GRADLE_TMP/gradle-8.3/bin/gradle" wrapper --gradle-version 8.3
+        chmod +x gradlew
+        
+        echo "✅ Fresh wrapper generated"
+        
+    - name: Build APK
+      working-directory: android
+      env:
+        GRADLE_OPTS: "-Dorg.gradle.java.home=/opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64 -Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        GRADLE_USER_HOME: "/tmp/gradle-fresh"
+      run: |
+        echo "=== BUILD APK ==="
+        echo "GRADLE_OPTS: $GRADLE_OPTS"
+        echo "JAVA_HOME: $JAVA_HOME"
+        
+        # Test Gradle first
+        ./gradlew --version --no-daemon
+        
+        # Build debug APK
+        if timeout 900 ./gradlew assembleDebug --no-daemon --stacktrace --info; then
+          echo "✅ Debug APK build successful"
+          
+          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
+          if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+            cp "$APK_PATH" "lingualink-reset-fix.apk"
+            echo "APK ready: lingualink-reset-fix.apk"
+            echo "Size: $(stat -c%s "$APK_PATH") bytes"
+          fi
+          
+        else
+          echo "❌ APK build failed"
+          exit 1
+        fi
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: lingualink-reset-fix-apk
+        path: android/lingualink-reset-fix.apk
+        retention-days: 30
+        
+    - name: Build Summary
+      if: always()
+      run: |
+        echo "=== BUILD SUMMARY ==="
+        if [ -f "android/lingualink-reset-fix.apk" ]; then
+          APK_SIZE=$(stat -c%s "android/lingualink-reset-fix.apk")
+          echo "✅ SUCCESS: APK generated ($(( APK_SIZE / 1024 / 1024 )) MB)"
+          echo "✅ Cached Java path issue resolved"
+        else
+          echo "❌ FAILED: APK not generated"
+        fi
