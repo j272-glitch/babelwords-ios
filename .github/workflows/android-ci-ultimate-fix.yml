@@ -207,4 +207,4 @@ jobs:
         echo "✅ Disabled all caching mechanisms"
         echo ""
         echo "If successful: Download APK for Testrigor testing"
-        echo "If failed: Issue is beyond GitHub Actions scope"
+        echo "If failed: Issue is beyond GitHub Actions scope" ##
