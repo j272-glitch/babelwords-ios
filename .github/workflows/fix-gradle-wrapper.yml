@@ -1,0 +1,118 @@
+name: Fix Gradle Wrapper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-wrapper:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Fix Java Home Configuration
+      run: |
+        echo "Current JAVA_HOME: $JAVA_HOME"
+        echo "Java location: $(which java)"
+        echo "Java version: $(java -version)"
+        
+        # Set correct Java home for Gradle
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
+        echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
+        
+    - name: Download and Install Working Gradle Wrapper
+      working-directory: android
+      run: |
+        echo "Removing corrupted wrapper files..."
+        rm -rf gradle/wrapper/gradle-wrapper.jar
+        rm -rf gradle/wrapper/gradle-wrapper.properties
+        
+        echo "Creating wrapper directory..."
+        mkdir -p gradle/wrapper
+        
+        echo "Downloading gradle-wrapper.jar from official source..."
+        curl -L -o gradle/wrapper/gradle-wrapper.jar \
+          "https://github.com/gradle/gradle/raw/v8.3.0/gradle/wrapper/gradle-wrapper.jar"
+        
+        echo "Creating gradle-wrapper.properties..."
+        cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.3-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+        
+        echo "Making gradlew executable..."
+        chmod +x gradlew
+        
+        echo "Verifying wrapper files..."
+        ls -la gradle/wrapper/
+        file gradle/wrapper/gradle-wrapper.jar
+        
+    - name: Pre-download Gradle Distribution
+      working-directory: android
+      run: |
+        echo "Pre-downloading Gradle distribution to avoid runtime download..."
+        mkdir -p ~/.gradle/wrapper/dists
+        
+        echo "Downloading gradle-8.3-bin.zip..."
+        curl -L -o ~/.gradle/wrapper/dists/gradle-8.3-bin.zip \
+          "https://services.gradle.org/distributions/gradle-8.3-bin.zip"
+        
+        echo "Extracting Gradle distribution..."
+        cd ~/.gradle/wrapper/dists
+        unzip -q gradle-8.3-bin.zip
+        mv gradle-8.3 gradle-8.3-bin
+        
+        echo "Gradle distribution ready at: $(ls -la ~/.gradle/wrapper/dists/)"
+        
+    - name: Test Gradle Wrapper
+      working-directory: android
+      run: |
+        echo "Testing Gradle wrapper with fixed configuration..."
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        echo "Using GRADLE_OPTS: $GRADLE_OPTS"
+        
+        ./gradlew --version --no-daemon
+        
+    - name: Clean Project
+      working-directory: android
+      run: |
+        echo "Running clean with working wrapper..."
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        ./gradlew clean --no-daemon --stacktrace
+        
+    - name: Build Debug APK
+      working-directory: android
+      run: |
+        echo "Building debug APK..."
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8"
+        ./gradlew assembleDebug --no-daemon --stacktrace
+        
+    - name: Upload Fixed APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: lingualink-fixed-wrapper-apk
+        path: android/app/build/outputs/apk/debug/*.apk
+        
+    - name: Success Summary
+      run: |
+        echo "SUCCESS: Gradle wrapper issues resolved!"
+        echo ""
+        echo "Fixes applied:"
+        echo "1. Downloaded working gradle-wrapper.jar from official source"
+        echo "2. Fixed Java home configuration with GRADLE_OPTS"
+        echo "3. Pre-downloaded Gradle distribution to avoid runtime downloads"
+        echo "4. Verified wrapper functionality with test build"
+        echo ""
+        echo "APK built successfully with fixed wrapper configuration."
