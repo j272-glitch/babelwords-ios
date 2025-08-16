@@ -66,13 +66,23 @@ jobs:
         export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false -Dorg.gradle.caching=false"
         export JAVA_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
         
-        # Create minimal gradle.properties with NO hardcoded paths
+        # Create comprehensive gradle.properties with Android configuration
         cat > "$GRADLE_USER_HOME/gradle.properties" << 'EOF'
         # Gradle configuration - NO hardcoded Java paths
         org.gradle.daemon=false
         org.gradle.caching=false
         org.gradle.parallel=false
         org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+        
+        # Android configuration
+        android.useAndroidX=true
+        android.enableJetifier=true
+        
+        # Network configuration for container environments
+        org.gradle.wrapper.network.timeout=30000
+        
+        # Kotlin code style
+        kotlin.code.style=official
         EOF
         
         # Export for subsequent steps
