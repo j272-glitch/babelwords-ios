@@ -1,5 +1,5 @@
 name: Android CI Ultimate Fix
-#
+
 on:
   workflow_dispatch:
     inputs:
@@ -148,13 +148,43 @@ jobs:
         # Execute build with timeout
         timeout 900 ./gradlew "${BUILD_ARGS[@]}"
         
-        # Verify APK was created
-        APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-        if [ -f "$APK_FILE" ]; then
+        # Search for APK in multiple locations
+        echo "=== SEARCHING FOR BUILT APK ==="
+        APK_FILE=""
+        
+        # Search common APK locations
+        SEARCH_PATHS=(
+          "app/build/outputs/apk/debug"
+          "app/build/outputs/apk"
+          "build/outputs/apk/debug"
+          "build/outputs/apk"
+          "."
+        )
+        
+        for path in "${SEARCH_PATHS[@]}"; do
+          if [ -d "$path" ]; then
+            echo "Searching in: $path"
+            FOUND_APK=$(find "$path" -name "*.apk" -type f | head -1)
+            if [ -n "$FOUND_APK" ]; then
+              APK_FILE="$FOUND_APK"
+              echo "Found APK: $APK_FILE"
+              break
+            fi
+          fi
+        done
+        
+        # If still not found, search everywhere
+        if [ -z "$APK_FILE" ]; then
+          echo "Searching entire build directory..."
+          APK_FILE=$(find . -name "*.apk" -type f | grep -v "lingualink-ultimate-fix.apk" | head -1)
+        fi
+        
+        if [ -n "$APK_FILE" ] && [ -f "$APK_FILE" ]; then
           cp "$APK_FILE" "lingualink-ultimate-fix.apk"
           APK_SIZE=$(stat -c%s lingualink-ultimate-fix.apk)
           echo "SUCCESS: APK built successfully"
-          echo "  File: lingualink-ultimate-fix.apk"
+          echo "  Source: $APK_FILE"
+          echo "  Target: lingualink-ultimate-fix.apk"
           echo "  Size: $APK_SIZE bytes ($(( APK_SIZE / 1024 / 1024 )) MB)"
           
           # Verify APK validity
@@ -164,11 +194,11 @@ jobs:
             echo "WARNING: APK size seems small: $APK_SIZE bytes"
           fi
         else
-          echo "FAILURE: APK not found"
-          echo "Searching for any APK files..."
-          find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
-          echo "Build directory contents:"
-          find app/build -type f -name "*.apk" 2>/dev/null || echo "No APK in build outputs"
+          echo "FAILURE: APK not found anywhere"
+          echo "Build completed but APK missing - checking build results..."
+          find . -name "*.apk" -type f -exec ls -la {} \; 2>/dev/null || echo "No APK files found in entire directory"
+          echo "Build directory structure:"
+          find . -type d -name "*apk*" -o -name "*build*" -o -name "*output*" 2>/dev/null | head -10
           exit 1
         fi
         
@@ -207,4 +237,4 @@ jobs:
         echo "✅ Disabled all caching mechanisms"
         echo ""
         echo "If successful: Download APK for Testrigor testing"
-        echo "If failed: Issue is beyond GitHub Actions scope" ##
+        echo "If failed: Issue is beyond GitHub Actions scope"
