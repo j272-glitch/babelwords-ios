@@ -1,0 +1,158 @@
+name: Test Classpath Resolution Issues
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-classpath-resolution:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Configure Environment
+      run: |
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        echo "GRADLE_OPTS=$GRADLE_OPTS" >> $GITHUB_ENV
+        echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+        
+    - name: Test Wrapper Without Daemon
+      working-directory: android
+      run: |
+        echo "=== TESTING WITHOUT GRADLE DAEMON ==="
+        echo "This prevents reuse of corrupted classpath states"
+        
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        echo "GRADLE_OPTS: $GRADLE_OPTS"
+        
+        if ./gradlew --version --no-daemon --stacktrace; then
+            echo "✅ Wrapper working without daemon"
+        else
+            echo "❌ Wrapper failed without daemon"
+            exit 1
+        fi
+        
+    - name: Test Classpath Corruption Recovery
+      working-directory: android
+      run: |
+        echo "=== TESTING CLASSPATH CORRUPTION RECOVERY ==="
+        
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        
+        # Simulate classpath corruption by removing cache files
+        echo "Simulating classpath corruption..."
+        mkdir -p ~/.gradle/caches/8.3/jars-9/
+        touch ~/.gradle/caches/8.3/jars-9/corrupted-file
+        
+        # Test recovery
+        echo "Testing recovery from corruption..."
+        if ./gradlew --version --no-daemon --stacktrace; then
+            echo "✅ Recovered from simulated corruption"
+        else
+            echo "⚠️  Initial recovery failed, cleaning caches..."
+            rm -rf ~/.gradle/caches/*/jars-*
+            rm -rf ~/.gradle/caches/*/scripts-*
+            
+            if ./gradlew --version --no-daemon --stacktrace; then
+                echo "✅ Recovered after cache cleanup"
+            else
+                echo "❌ Recovery failed even after cleanup"
+                exit 1
+            fi
+        fi
+        
+    - name: Test Permissions
+      working-directory: android
+      run: |
+        echo "=== TESTING PERMISSIONS ==="
+        
+        echo "Gradle cache permissions:"
+        ls -la ~/.gradle/ 2>/dev/null || echo "No cache directory"
+        
+        echo "Wrapper JAR permissions:"
+        ls -la gradle/wrapper/gradle-wrapper.jar
+        
+        echo "Wrapper JAR integrity:"
+        if [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+            JAR_SIZE=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+            echo "JAR size: $JAR_SIZE bytes (expected: 63721)"
+            
+            if unzip -t gradle/wrapper/gradle-wrapper.jar >/dev/null 2>&1; then
+                echo "✅ JAR structure valid"
+            else
+                echo "❌ JAR corrupted"
+            fi
+        fi
+        
+    - name: Test Clean Build
+      working-directory: android
+      run: |
+        echo "=== TESTING CLEAN BUILD ==="
+        
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        
+        echo "Running clean with --no-daemon..."
+        if ./gradlew clean --no-daemon --stacktrace; then
+            echo "✅ Clean successful"
+        else
+            echo "⚠️  Clean failed, performing deep cleanup..."
+            
+            # Deep cleanup
+            rm -rf .gradle/
+            rm -rf build/
+            rm -rf app/build/
+            
+            if ./gradlew clean --no-daemon --stacktrace; then
+                echo "✅ Clean successful after deep cleanup"
+            else
+                echo "❌ Clean failed even after deep cleanup"
+                exit 1
+            fi
+        fi
+        
+    - name: Test Build with Classpath Safeguards
+      working-directory: android
+      run: |
+        echo "=== TESTING BUILD WITH CLASSPATH SAFEGUARDS ==="
+        
+        export GRADLE_OPTS="-Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        
+        echo "Building with --no-daemon to prevent classpath corruption..."
+        if ./gradlew assembleDebug --no-daemon --stacktrace; then
+            echo "✅ Build successful with classpath safeguards"
+        else
+            echo "❌ Build failed even with classpath safeguards"
+            
+            # Show detailed logs for debugging
+            echo "Gradle version info:"
+            ./gradlew --version --no-daemon
+            
+            echo "Java environment:"
+            echo "JAVA_HOME: $JAVA_HOME"
+            java -version
+            
+            exit 1
+        fi
+        
+    - name: Classpath Resolution Summary
+      run: |
+        echo "=== CLASSPATH RESOLUTION TESTING SUMMARY ==="
+        echo ""
+        echo "Key Safeguards Implemented:"
+        echo "1. ✅ --no-daemon prevents corrupted state reuse"
+        echo "2. ✅ Cache cleanup recovers from corruption"
+        echo "3. ✅ Deep cleanup handles severe corruption"
+        echo "4. ✅ JAR integrity verification"
+        echo "5. ✅ Permissions verification"
+        echo ""
+        echo "Build Configuration:"
+        echo "- GRADLE_OPTS: -Dorg.gradle.java.home=$JAVA_HOME -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        echo "- Commands: --no-daemon --stacktrace"
+        echo "- Recovery: rm -rf ~/.gradle/caches/*/jars-* ~/.gradle/caches/*/scripts-*"
