@@ -395,14 +395,23 @@ jobs:
         ./gradlew clean --no-daemon
         echo "SUCCESS: Clean completed"
     
+    - name: Discover Available Tasks
+      run: |
+        echo "=== DISCOVERING AVAILABLE GRADLE TASKS ==="
+        ./gradlew tasks --all --no-daemon | head -50
+        echo ""
+        echo "=== SPECIFIC ANDROID TASKS ==="
+        ./gradlew tasks --all --no-daemon | grep -i assemble || echo "No assemble tasks found"
+        ./gradlew tasks --all --no-daemon | grep -i bundle || echo "No bundle tasks found"
+    
     - name: Build Android APK
       if: matrix.build-type == 'debug' || matrix.build-type == 'release'
       run: |
         echo "=== BUILDING ANDROID APK (${{ matrix.build-type }}) ==="
         if [ "${{ matrix.build-type }}" = "debug" ]; then
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew app:assembleDebug --no-daemon
         else
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew app:assembleRelease --no-daemon
         fi
         echo "SUCCESS: APK build completed"
     
@@ -410,7 +419,7 @@ jobs:
       if: matrix.build-type == 'release'
       run: |
         echo "=== BUILDING ANDROID AAB (release) ==="
-        ./gradlew bundleRelease --no-daemon
+        ./gradlew app:bundleRelease --no-daemon
         echo "SUCCESS: AAB build completed"
     
     - name: Collect Build Artifacts
