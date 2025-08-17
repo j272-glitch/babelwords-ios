@@ -346,7 +346,7 @@ Changes applied:
 Source: android/ directory reference files
 Verified: gradle wrapper functionality tested
 
-Fixed on $(date)"
+Fixed on $(date '+%Y-%m-%d %H:%M:%S UTC')"
           
           echo "SUCCESS: Committed gradle wrapper fixes"
           
