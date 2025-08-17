@@ -1,0 +1,85 @@
+name: Fix Gradlew Permissions
+
+on:
+  workflow_dispatch:
+    inputs:
+      fix_type:
+        description: 'Fix type'
+        required: true
+        default: 'permissions'
+        type: choice
+        options:
+          - permissions
+          - complete
+
+jobs:
+  fix-gradlew:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Fix gradlew permissions
+      run: |
+        echo "=== FIXING GRADLEW PERMISSIONS ==="
+        
+        # Check current state
+        if [ -f "gradlew" ]; then
+          echo "✅ gradlew exists"
+          ls -la gradlew
+        else
+          echo "❌ gradlew not found"
+          exit 1
+        fi
+        
+        # Make gradlew executable
+        chmod +x gradlew
+        echo "✅ Made gradlew executable"
+        
+        # Verify the fix
+        if [ -x "gradlew" ]; then
+          echo "✅ gradlew is now executable"
+          ls -la gradlew
+        else
+          echo "❌ Failed to make gradlew executable"
+          exit 1
+        fi
+        
+    - name: Commit and push changes
+      run: |
+        # Configure git
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        # Check if there are changes to commit
+        if git diff --exit-code --quiet; then
+          echo "No changes to commit (permissions may already be correct in git)"
+        else
+          # Add and commit the permission changes
+          git add gradlew
+          git commit -m "Fix gradlew executable permissions
+
+- Set executable bit on gradlew script
+- Fixes GitHub Actions workflow verification step
+- Automated fix via GitHub Actions"
+          
+          # Push the changes
+          git push origin main
+          echo "✅ Pushed permission fix to repository"
+        fi
+        
+    - name: Verify final state
+      run: |
+        echo "=== FINAL VERIFICATION ==="
+        echo "gradlew file status:"
+        ls -la gradlew
+        
+        if [ -f "gradlew" ] && [ -x "gradlew" ]; then
+          echo "✅ gradlew is executable - ready for Android CI workflow"
+        else
+          echo "❌ gradlew verification failed"
+          exit 1
+        fi
