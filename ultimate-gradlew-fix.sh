@@ -208,11 +208,22 @@ while [ $retry_count -lt $max_retries ]; do
         print_warning "Push attempt $retry_count failed"
         
         if [ $retry_count -lt $max_retries ]; then
-            echo "Trying pull and push again..."
-            git pull origin main --rebase || git pull origin main
+            echo "📥 Pulling latest changes before retry..."
+            if git pull origin main --allow-unrelated-histories; then
+                print_status "Pull successful, retrying push..."
+            else
+                print_warning "Pull failed, trying rebase..."
+                git pull origin main --rebase || git pull origin main
+            fi
         else
-            print_error "All push attempts failed"
-            exit 1
+            print_error "All push attempts failed, trying force push..."
+            if git push origin main --force; then
+                print_warning "Force push successful (overwrote remote)"
+                break
+            else
+                print_error "Even force push failed"
+                exit 1
+            fi
         fi
     fi
 done

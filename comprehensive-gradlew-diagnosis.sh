@@ -218,9 +218,18 @@ Auto-fix applied by comprehensive-gradlew-diagnosis.sh
         print_ok "Committed permission fixes"
     fi
     
-    # Fix 4: Sync with remote
+    # Fix 4: Sync with remote (pull before push)
     if [ "$needs_sync" = true ]; then
-        echo "Syncing with remote..."
+        echo "📥 Pulling latest changes first..."
+        if git pull origin main --allow-unrelated-histories; then
+            print_ok "Pull successful"
+        else
+            print_warning "Pull had issues, trying fetch and merge..."
+            git fetch origin main
+            git merge origin/main --allow-unrelated-histories -m "Merge remote changes before gradlew fix" || print_warning "Merge had conflicts"
+        fi
+        
+        echo "📤 Pushing to remote..."
         if git push origin main; then
             print_ok "Successfully pushed to remote"
         else

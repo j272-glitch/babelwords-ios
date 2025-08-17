@@ -64,7 +64,21 @@ Technical details:
 - This forces git to recognize the executable permissions
 - File content is identical, only permissions updated"
 
-# Step 5: Push with verification
+# Step 5: Pull then Push with verification
+echo "📥 Pulling latest changes from repository..."
+if git pull origin main --allow-unrelated-histories; then
+    echo "✅ Pull successful"
+else
+    echo "⚠️ Pull had conflicts, attempting to resolve..."
+    # If pull fails, try to merge with strategy
+    git fetch origin main
+    if git merge origin/main --allow-unrelated-histories -m "Merge remote changes before gradlew fix"; then
+        echo "✅ Merge successful"
+    else
+        echo "❌ Merge failed, attempting force push"
+    fi
+fi
+
 echo "🚀 Pushing to repository..."
 if git push origin main; then
     echo "✅ Push successful!"
@@ -76,6 +90,11 @@ if git push origin main; then
     echo "🎯 The GitHub Actions workflow should now pass the gradlew verification."
     echo "   Go test it: https://github.com/j272-glitch/lingualink-android2/actions"
 else
-    echo "❌ Push failed"
-    exit 1
+    echo "❌ Push failed, attempting force push..."
+    if git push origin main --force; then
+        echo "✅ Force push successful!"
+    else
+        echo "❌ Force push also failed"
+        exit 1
+    fi
 fi
