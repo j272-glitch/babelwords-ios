@@ -1,0 +1,42 @@
+﻿2025-08-17T01:27:14.8420648Z ##[debug]Evaluating condition for step: 'Post Set up JDK 17'
+2025-08-17T01:27:14.8422342Z ##[debug]Evaluating: always()
+2025-08-17T01:27:14.8422764Z ##[debug]Evaluating always:
+2025-08-17T01:27:14.8423091Z ##[debug]=> true
+2025-08-17T01:27:14.8423401Z ##[debug]Result: true
+2025-08-17T01:27:14.8423925Z ##[debug]Starting: Post Set up JDK 17
+2025-08-17T01:27:14.8449853Z ##[debug]Loading inputs
+2025-08-17T01:27:14.8456254Z ##[debug]Evaluating: job.status
+2025-08-17T01:27:14.8456510Z ##[debug]Evaluating Index:
+2025-08-17T01:27:14.8456744Z ##[debug]..Evaluating job:
+2025-08-17T01:27:14.8456985Z ##[debug]..=> Object
+2025-08-17T01:27:14.8457204Z ##[debug]..Evaluating String:
+2025-08-17T01:27:14.8457440Z ##[debug]..=> 'status'
+2025-08-17T01:27:14.8457730Z ##[debug]=> 'failure'
+2025-08-17T01:27:14.8457941Z ##[debug]Result: 'failure'
+2025-08-17T01:27:14.8459667Z ##[debug]Evaluating: (((github.server_url == 'https://github.com') && github.token) || '')
+2025-08-17T01:27:14.8460120Z ##[debug]Evaluating Or:
+2025-08-17T01:27:14.8460378Z ##[debug]..Evaluating And:
+2025-08-17T01:27:14.8460613Z ##[debug]....Evaluating Equal:
+2025-08-17T01:27:14.8460845Z ##[debug]......Evaluating Index:
+2025-08-17T01:27:14.8461072Z ##[debug]........Evaluating github:
+2025-08-17T01:27:14.8461340Z ##[debug]........=> Object
+2025-08-17T01:27:14.8461575Z ##[debug]........Evaluating String:
+2025-08-17T01:27:14.8461812Z ##[debug]........=> 'server_url'
+2025-08-17T01:27:14.8462076Z ##[debug]......=> 'https://github.com'
+2025-08-17T01:27:14.8462347Z ##[debug]......Evaluating String:
+2025-08-17T01:27:14.8462589Z ##[debug]......=> 'https://github.com'
+2025-08-17T01:27:14.8462839Z ##[debug]....=> true
+2025-08-17T01:27:14.8463043Z ##[debug]....Evaluating Index:
+2025-08-17T01:27:14.8463267Z ##[debug]......Evaluating github:
+2025-08-17T01:27:14.8463508Z ##[debug]......=> Object
+2025-08-17T01:27:14.8463720Z ##[debug]......Evaluating String:
+2025-08-17T01:27:14.8463941Z ##[debug]......=> 'token'
+2025-08-17T01:27:14.8464347Z ##[debug]....=> '***'
+2025-08-17T01:27:14.8464648Z ##[debug]..=> '***'
+2025-08-17T01:27:14.8464939Z ##[debug]=> '***'
+2025-08-17T01:27:14.8465457Z ##[debug]Expanded: ((('https://github.com' == 'https://github.com') && '***') || '')
+2025-08-17T01:27:14.8465911Z ##[debug]Result: '***'
+2025-08-17T01:27:14.8467227Z ##[debug]Loading env
+2025-08-17T01:27:14.8470902Z Post job cleanup.
+2025-08-17T01:27:15.0161833Z ##[debug]Node Action run completed with exit code 0
+2025-08-17T01:27:15.0163852Z ##[debug]Finishing: Post Set up JDK 17

@@ -1,0 +1,126 @@
+﻿2025-08-17T01:27:14.1775675Z ##[debug]Evaluating condition for step: 'Upload Build Artifacts'
+2025-08-17T01:27:14.1777325Z ##[debug]Evaluating: always()
+2025-08-17T01:27:14.1777647Z ##[debug]Evaluating always:
+2025-08-17T01:27:14.1778631Z ##[debug]=> true
+2025-08-17T01:27:14.1779028Z ##[debug]Result: true
+2025-08-17T01:27:14.1779480Z ##[debug]Starting: Upload Build Artifacts
+2025-08-17T01:27:14.1808503Z ##[debug]Loading inputs
+2025-08-17T01:27:14.1812935Z ##[debug]Evaluating: format('android-repo-ready-{0}-{1}', github.event.inputs.build_type, github.run_number)
+2025-08-17T01:27:14.1813419Z ##[debug]Evaluating format:
+2025-08-17T01:27:14.1816643Z ##[debug]..Evaluating String:
+2025-08-17T01:27:14.1816977Z ##[debug]..=> 'android-repo-ready-{0}-{1}'
+2025-08-17T01:27:14.1834202Z ##[debug]..Evaluating Index:
+2025-08-17T01:27:14.1834479Z ##[debug]....Evaluating Index:
+2025-08-17T01:27:14.1834718Z ##[debug]......Evaluating Index:
+2025-08-17T01:27:14.1834952Z ##[debug]........Evaluating github:
+2025-08-17T01:27:14.1835235Z ##[debug]........=> Object
+2025-08-17T01:27:14.1835508Z ##[debug]........Evaluating String:
+2025-08-17T01:27:14.1835746Z ##[debug]........=> 'event'
+2025-08-17T01:27:14.1836008Z ##[debug]......=> Object
+2025-08-17T01:27:14.1836243Z ##[debug]......Evaluating String:
+2025-08-17T01:27:14.1836485Z ##[debug]......=> 'inputs'
+2025-08-17T01:27:14.1836772Z ##[debug]....=> Object
+2025-08-17T01:27:14.1836978Z ##[debug]....Evaluating String:
+2025-08-17T01:27:14.1837215Z ##[debug]....=> 'build_type'
+2025-08-17T01:27:14.1837458Z ##[debug]..=> 'debug'
+2025-08-17T01:27:14.1838281Z ##[debug]..Evaluating Index:
+2025-08-17T01:27:14.1838763Z ##[debug]....Evaluating github:
+2025-08-17T01:27:14.1839001Z ##[debug]....=> Object
+2025-08-17T01:27:14.1839215Z ##[debug]....Evaluating String:
+2025-08-17T01:27:14.1839444Z ##[debug]....=> 'run_number'
+2025-08-17T01:27:14.1839675Z ##[debug]..=> '2'
+2025-08-17T01:27:14.1839973Z ##[debug]=> 'android-repo-ready-debug-2'
+2025-08-17T01:27:14.1840263Z ##[debug]Result: 'android-repo-ready-debug-2'
+2025-08-17T01:27:14.1842733Z ##[debug]Loading env
+2025-08-17T01:27:14.1846118Z ##[group]Run actions/upload-artifact@v4
+2025-08-17T01:27:14.1846357Z with:
+2025-08-17T01:27:14.1846539Z   name: android-repo-ready-debug-2
+2025-08-17T01:27:14.1847178Z   path: **/*.apk
+**/*.aab
+build_summary.txt
+gradle/wrapper/gradle-wrapper.jar
+gradle/wrapper/gradle-wrapper.properties
+gradlew*
+local.properties
+gradle.properties
+
+2025-08-17T01:27:14.1847805Z   retention-days: 30
+2025-08-17T01:27:14.1848000Z   if-no-files-found: warn
+2025-08-17T01:27:14.1848207Z   compression-level: 6
+2025-08-17T01:27:14.1848621Z   overwrite: false
+2025-08-17T01:27:14.1848824Z   include-hidden-files: false
+2025-08-17T01:27:14.1849028Z env:
+2025-08-17T01:27:14.1849305Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
+2025-08-17T01:27:14.1849752Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
+2025-08-17T01:27:14.1850107Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2025-08-17T01:27:14.1850384Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2025-08-17T01:27:14.1850627Z ##[endgroup]
+2025-08-17T01:27:14.4317588Z ##[debug]followSymbolicLinks 'true'
+2025-08-17T01:27:14.4318907Z ##[debug]implicitDescendants 'true'
+2025-08-17T01:27:14.4319821Z ##[debug]omitBrokenSymbolicLinks 'true'
+2025-08-17T01:27:14.4320742Z ##[debug]excludeHiddenFiles 'true'
+2025-08-17T01:27:14.4340867Z ##[debug]followSymbolicLinks 'true'
+2025-08-17T01:27:14.4341794Z ##[debug]implicitDescendants 'true'
+2025-08-17T01:27:14.4342862Z ##[debug]matchDirectories 'true'
+2025-08-17T01:27:14.4343774Z ##[debug]omitBrokenSymbolicLinks 'true'
+2025-08-17T01:27:14.4344746Z ##[debug]excludeHiddenFiles 'true'
+2025-08-17T01:27:14.4361557Z ##[debug]Search path '/home/runner/work/lingualink-android2/lingualink-android2'
+2025-08-17T01:27:14.4747190Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/LinguaLink-Testrigor-Final-v1.0.46.aab was found using the provided searchPath
+2025-08-17T01:27:14.4752858Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/LinguaLink-Testrigor-Final-v1.0.46.apk was found using the provided searchPath
+2025-08-17T01:27:14.4761609Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/gradle/wrapper/gradle-wrapper.jar was found using the provided searchPath
+2025-08-17T01:27:14.4777044Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/gradle/wrapper/gradle-wrapper.properties was found using the provided searchPath
+2025-08-17T01:27:14.4779546Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/gradlew was found using the provided searchPath
+2025-08-17T01:27:14.4781391Z ##[debug]File:/home/runner/work/lingualink-android2/lingualink-android2/gradlew.bat was found using the provided searchPath
+2025-08-17T01:27:14.4782886Z With the provided path, there will be 6 files uploaded
+2025-08-17T01:27:14.4784195Z ##[debug]Root artifact directory is /home/runner/work/lingualink-android2/lingualink-android2
+2025-08-17T01:27:14.4796214Z Artifact name is valid!
+2025-08-17T01:27:14.4796965Z Root directory input is valid!
+2025-08-17T01:27:14.4798110Z ##[debug]Workflow Run Backend ID: 71b2a23e-b3dd-48d5-957c-29ec49d369af
+2025-08-17T01:27:14.4799774Z ##[debug]Workflow Job Run Backend ID: c752d07b-c37c-5c18-980d-5ec53d504ecc
+2025-08-17T01:27:14.4809009Z ##[debug][Request] CreateArtifact https://results-receiver.actions.githubusercontent.com/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact
+2025-08-17T01:27:14.5982957Z ##[debug][Response] - 200
+2025-08-17T01:27:14.5984968Z ##[debug]Headers: {
+2025-08-17T01:27:14.5985296Z ##[debug]  "content-length": "582",
+2025-08-17T01:27:14.5985711Z ##[debug]  "content-type": "application/json",
+2025-08-17T01:27:14.5986177Z ##[debug]  "date": "Sun, 17 Aug 2025 01:27:14 GMT",
+2025-08-17T01:27:14.5986621Z ##[debug]  "x-github-backend": "Kubernetes",
+2025-08-17T01:27:14.5987133Z ##[debug]  "x-github-request-id": "3808:299751:1D26DCE:2B04786:68A12FF2"
+2025-08-17T01:27:14.5987642Z ##[debug]}
+2025-08-17T01:27:14.5991460Z ::add-mask::***
+2025-08-17T01:27:14.5995183Z ::add-mask::***
+2025-08-17T01:27:14.5997405Z ##[debug]Body: {
+2025-08-17T01:27:14.5997751Z ##[debug]  "ok": true,
+2025-08-17T01:27:14.6003991Z ##[debug]  "signed_upload_url": "https://productionresultssa8.blob.core.windows.net/actions-results/71b2a23e-b3dd-48d5-957c-29ec49d369af/workflow-job-run-c752d07b-c37c-5c18-980d-5ec53d504ecc/artifacts/8331d80993fe7686a5b9bebf498095db19edae6934ae51541678e7519418f6c9.zip?se=2025-08-17T02%3A27%3A14Z&sig=***&ske=2025-08-17T10%3A23%3A42Z&skoid=ca7593d4-ee42-46cd-af88-8b886a2f84eb&sks=b&skt=2025-08-16T22%3A23%3A42Z&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skv=2025-05-05&sp=cw&spr=https&sr=b&st=2025-08-17T01%3A27%3A09Z&sv=2025-05-05"
+2025-08-17T01:27:14.6007290Z ##[debug]}
+2025-08-17T01:27:14.6008124Z ##[debug]Creating Artifact archive with compressionLevel: 6
+2025-08-17T01:27:14.6023411Z ##[debug]Zip write high watermark value 8388608
+2025-08-17T01:27:14.6026060Z ##[debug]Zip read high watermark value 8388608
+2025-08-17T01:27:14.6081214Z ##[debug]Uploading artifact zip to blob storage with maxConcurrency: 5, bufferSize: 8388608
+2025-08-17T01:27:14.6090742Z Beginning upload of artifact content to blob storage
+2025-08-17T01:27:14.6475532Z ##[debug]Zip stream for upload has ended.
+2025-08-17T01:27:14.6478750Z ##[debug]Zip stream for upload has finished.
+2025-08-17T01:27:14.7351925Z Uploaded bytes 370369
+2025-08-17T01:27:14.7558291Z Finished uploading artifact content to blob storage!
+2025-08-17T01:27:14.7562491Z SHA256 digest of uploaded artifact zip is dbb711337553cbb1b098aa26443733f341a1725308efc51abf1cefb34b8cad9e
+2025-08-17T01:27:14.7564859Z Finalizing artifact upload
+2025-08-17T01:27:14.7568836Z ##[debug][Request] FinalizeArtifact https://results-receiver.actions.githubusercontent.com/twirp/github.actions.results.api.v1.ArtifactService/FinalizeArtifact
+2025-08-17T01:27:14.8269304Z ##[debug][Response] - 200
+2025-08-17T01:27:14.8270378Z ##[debug]Headers: {
+2025-08-17T01:27:14.8270734Z ##[debug]  "content-length": "39",
+2025-08-17T01:27:14.8271738Z ##[debug]  "content-type": "application/json",
+2025-08-17T01:27:14.8272234Z ##[debug]  "date": "Sun, 17 Aug 2025 01:27:14 GMT",
+2025-08-17T01:27:14.8272719Z ##[debug]  "x-github-backend": "Kubernetes",
+2025-08-17T01:27:14.8273286Z ##[debug]  "x-github-request-id": "3808:299751:1D26DED:2B047C0:68A12FF2"
+2025-08-17T01:27:14.8273806Z ##[debug]}
+2025-08-17T01:27:14.8274555Z ##[debug]Body: {
+2025-08-17T01:27:14.8274856Z ##[debug]  "ok": true,
+2025-08-17T01:27:14.8275211Z ##[debug]  "artifact_id": "3781275798"
+2025-08-17T01:27:14.8275606Z ##[debug]}
+2025-08-17T01:27:14.8276677Z Artifact android-repo-ready-debug-2.zip successfully finalized. Artifact ID 3781275798
+2025-08-17T01:27:14.8278446Z Artifact android-repo-ready-debug-2 has been successfully uploaded! Final size is 370369 bytes. Artifact ID is 3781275798
+2025-08-17T01:27:14.8287897Z Artifact download URL: https://github.com/j272-glitch/lingualink-android2/actions/runs/17015005794/artifacts/3781275798
+2025-08-17T01:27:14.8409144Z ##[debug]Node Action run completed with exit code 0
+2025-08-17T01:27:14.8411202Z ##[debug]Set output artifact-id = 3781275798
+2025-08-17T01:27:14.8411699Z ##[debug]Set output artifact-digest = dbb711337553cbb1b098aa26443733f341a1725308efc51abf1cefb34b8cad9e
+2025-08-17T01:27:14.8412458Z ##[debug]Set output artifact-url = https://github.com/j272-glitch/lingualink-android2/actions/runs/17015005794/artifacts/3781275798
+2025-08-17T01:27:14.8413184Z ##[debug]Finishing: Upload Build Artifacts
