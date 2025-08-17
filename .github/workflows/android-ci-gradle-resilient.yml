@@ -325,19 +325,20 @@ jobs:
         else
           # Create commit
           jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
           
           git commit -m "Auto-fix gradle wrapper corruption
 
-GitHub Actions automated fix:
+GitHub Actions automated fix applied
 
 Issues resolved:
-- gradle-wrapper.jar corruption/missing data
-- gradlew script permissions and availability
+- gradle-wrapper.jar corruption and missing data
+- gradlew script permissions and availability  
 - gradle-wrapper.properties completeness
 - Build configuration files synchronization
 
 Changes applied:
-- Updated gradle-wrapper.jar ($jar_size bytes)
+- Updated gradle-wrapper.jar (${jar_size} bytes)
 - Set gradlew executable permissions
 - Synchronized gradle-wrapper.properties
 - Added gradlew.bat for Windows compatibility
@@ -345,8 +346,7 @@ Changes applied:
 
 Source: android/ directory reference files
 Verified: gradle wrapper functionality tested
-
-Fixed on $(date '+%Y-%m-%d %H:%M:%S UTC')"
+Fixed on: ${timestamp}"
           
           echo "SUCCESS: Committed gradle wrapper fixes"
           
