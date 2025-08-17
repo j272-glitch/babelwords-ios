@@ -1,0 +1,186 @@
+name: Android CI - Simple Repository Wrapper
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+        - debug
+        - release
+        - both
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        repository: j272-glitch/lingualink-android2
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        accept-android-sdk-licenses: true
+        log-accepted-android-sdk-licenses: true
+
+    - name: Clean Environment
+      run: |
+        echo "=== CLEANING ENVIRONMENT ==="
+        rm -rf ~/.gradle/
+        rm -rf .gradle/
+        rm -rf */build/
+        rm -rf build/
+        echo "Clean complete"
+
+    - name: Verify Repository Assets
+      run: |
+        echo "=== VERIFYING REPOSITORY ASSETS ==="
+        
+        # Check gradle wrapper JAR
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          echo "✅ gradle-wrapper.jar found ($(stat -c%s gradle/wrapper/gradle-wrapper.jar) bytes)"
+          
+          # Quick JAR verification
+          if unzip -l gradle/wrapper/gradle-wrapper.jar | grep -q "GradleWrapperMain"; then
+            echo "✅ JAR contains GradleWrapperMain class"
+          else
+            echo "❌ Invalid JAR - missing GradleWrapperMain"
+            exit 1
+          fi
+        else
+          echo "❌ gradle-wrapper.jar not found in repository"
+          exit 1
+        fi
+        
+        # Check wrapper properties
+        if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+          echo "✅ gradle-wrapper.properties found"
+          cat gradle/wrapper/gradle-wrapper.properties
+        else
+          echo "❌ gradle-wrapper.properties missing"
+          exit 1
+        fi
+        
+        # Check gradlew script
+        if [ -f "gradlew" ] && [ -x "gradlew" ]; then
+          echo "✅ gradlew script executable"
+        else
+          echo "❌ gradlew script missing or not executable"
+          exit 1
+        fi
+
+    - name: Create Build Configuration
+      run: |
+        echo "=== CREATING BUILD CONFIGURATION ==="
+        
+        # Create local.properties
+        cat > local.properties << EOF
+        sdk.dir=$ANDROID_HOME
+        ndk.dir=$ANDROID_NDK_ROOT
+        EOF
+        
+        # Create gradle.properties with conservative settings
+        cat > gradle.properties << EOF
+        org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8
+        org.gradle.daemon=false
+        org.gradle.caching=false
+        org.gradle.parallel=false
+        android.useAndroidX=true
+        android.enableJetifier=true
+        kotlin.code.style=official
+        EOF
+        
+        echo "Build configuration created"
+
+    - name: Test Gradle Wrapper
+      run: |
+        echo "=== TESTING GRADLE WRAPPER ==="
+        
+        # Test basic wrapper functionality
+        timeout 60 ./gradlew --version --no-daemon || {
+          echo "❌ Gradle wrapper test failed"
+          exit 1
+        }
+        
+        echo "✅ Gradle wrapper working"
+
+    - name: Build Android APK
+      run: |
+        echo "=== BUILDING ANDROID APK ==="
+        
+        export GRADLE_OPTS="-Xmx4g -Dfile.encoding=UTF-8 -Dorg.gradle.daemon=false"
+        export JAVA_OPTS="-Dorg.gradle.java.home=$JAVA_HOME"
+        
+        build_type="${{ github.event.inputs.build_type }}"
+        
+        # Build debug APK
+        if [ "$build_type" = "debug" ] || [ "$build_type" = "both" ]; then
+          echo "Building debug APK..."
+          ./gradlew assembleDebug --stacktrace --no-daemon || {
+            echo "Debug build failed - checking for outputs..."
+            find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+          }
+        fi
+        
+        # Build release APK
+        if [ "$build_type" = "release" ] || [ "$build_type" = "both" ]; then
+          echo "Building release APK..."
+          ./gradlew assembleRelease --stacktrace --no-daemon || {
+            echo "Release build failed - checking for outputs..."
+            find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+          }
+        fi
+
+    - name: Find Build Outputs
+      run: |
+        echo "=== FINDING BUILD OUTPUTS ==="
+        
+        echo "APK files:"
+        find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+        
+        echo "AAB files:"
+        find . -name "*.aab" -type f -exec ls -la {} \; || echo "No AAB files found"
+        
+        echo "Build outputs:"
+        find . -path "*/build/outputs/*" -type f 2>/dev/null | head -20 || echo "No build outputs found"
+        
+        # Create build summary
+        echo "=== SIMPLE REPOSITORY WRAPPER BUILD ===" > build_summary.txt
+        echo "Build type: ${{ github.event.inputs.build_type }}" >> build_summary.txt
+        echo "Timestamp: $(date)" >> build_summary.txt
+        echo "" >> build_summary.txt
+        echo "APK files:" >> build_summary.txt
+        find . -name "*.apk" -type f >> build_summary.txt || echo "None found" >> build_summary.txt
+        echo "" >> build_summary.txt
+        echo "AAB files:" >> build_summary.txt
+        find . -name "*.aab" -type f >> build_summary.txt || echo "None found" >> build_summary.txt
+        
+        cat build_summary.txt
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: android-simple-repo-wrapper-${{ github.event.inputs.build_type }}-${{ github.run_number }}
+        path: |
+          **/*.apk
+          **/*.aab
+          build_summary.txt
+          gradle/wrapper/gradle-wrapper.jar
+          gradle/wrapper/gradle-wrapper.properties
+          gradlew
+          local.properties
+          gradle.properties
+        retention-days: 30
