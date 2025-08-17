@@ -1,0 +1,128 @@
+name: Android CI - Enhanced with Gradlew Fix
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/fix-gradlew-permissions.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Ensure Gradlew Permissions (Failsafe)
+      run: |
+        echo "=== ENSURING GRADLEW PERMISSIONS ==="
+        
+        # Always ensure gradlew is executable as failsafe
+        if [ ! -f "gradlew" ] && [ -f "android/gradlew" ]; then
+          echo "📁 Copying gradlew from android/ directory..."
+          cp android/gradlew .
+        fi
+        
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+          echo "✅ Ensured gradlew is executable"
+          ls -la gradlew
+        else
+          echo "❌ No gradlew file found"
+          exit 1
+        fi
+        
+        # Ensure gradlew.bat exists
+        if [ ! -f "gradlew.bat" ] && [ -f "android/gradlew.bat" ]; then
+          cp android/gradlew.bat .
+          echo "✅ Added gradlew.bat"
+        fi
+    
+    - name: Verify Repository Gradle Wrapper
+      run: |
+        echo "=== VERIFYING REPOSITORY GRADLE WRAPPER ==="
+        
+        # Check gradle wrapper JAR
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "✅ gradle-wrapper.jar found ($jar_size bytes)"
+          
+          if [ "$jar_size" -gt 40000 ]; then
+            echo "✅ JAR size valid (expected ~43KB)"
+          else
+            echo "❌ JAR too small ($jar_size bytes), may be corrupted"
+            exit 1
+          fi
+        else
+          echo "❌ gradle-wrapper.jar not found in repository"
+          exit 1
+        fi
+        
+        # Check wrapper properties
+        if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+          echo "✅ gradle-wrapper.properties found"
+          cat gradle/wrapper/gradle-wrapper.properties
+        else
+          echo "❌ gradle-wrapper.properties missing"
+          exit 1
+        fi
+        
+        # Check gradlew script (should now pass)
+        if [ -f "gradlew" ] && [ -x "gradlew" ]; then
+          echo "✅ gradlew script executable"
+        else
+          echo "❌ gradlew script missing or not executable"
+          exit 1
+        fi
+    
+    - name: Test Gradle Wrapper
+      run: |
+        echo "=== TESTING GRADLE WRAPPER ==="
+        ./gradlew --version
+        echo "✅ Gradle wrapper test successful"
+    
+    - name: Clean Previous Builds
+      run: |
+        echo "=== CLEANING PREVIOUS BUILDS ==="
+        ./gradlew clean
+        echo "✅ Clean completed"
+    
+    - name: Build Android APK
+      run: |
+        echo "=== BUILDING ANDROID APK ==="
+        cd android
+        ../gradlew assembleRelease
+        echo "✅ APK build completed"
+    
+    - name: Build Android AAB
+      run: |
+        echo "=== BUILDING ANDROID AAB ==="
+        cd android
+        ../gradlew bundleRelease
+        echo "✅ AAB build completed"
+    
+    - name: Collect Build Results
+      run: |
+        echo "=== COLLECTING BUILD RESULTS ==="
+        find android -name "*.apk" -o -name "*.aab" | head -10
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-builds
+        path: |
+          android/app/build/outputs/apk/**/*.apk
+          android/app/build/outputs/bundle/**/*.aab
+        retention-days: 30
