@@ -1,0 +1,242 @@
+name: Auto-Fix Gradle Wrapper 2
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_fix:
+        description: 'Force fix even if wrapper appears valid'
+        required: false
+        default: 'false'
+        type: boolean
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/auto-fix-gradle-wrapper.yml'
+
+jobs:
+  auto-fix-gradle-wrapper:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Diagnose and Fix Gradle Wrapper
+      id: diagnose-fix
+      run: |
+        echo "=== GRADLE WRAPPER DIAGNOSTIC AND AUTO-FIX ==="
+        echo "=============================================="
+        
+        # Check current state
+        echo "Current gradle wrapper status:"
+        
+        needs_fix=false
+        
+        # Check gradle-wrapper.jar
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "gradle-wrapper.jar: $jar_size bytes"
+          
+          if [ "$jar_size" -lt 60000 ]; then
+            echo "ERROR: gradle-wrapper.jar too small (corrupted)"
+            needs_fix=true
+          elif ! unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+            echo "ERROR: gradle-wrapper.jar corrupted (failed integrity check)"
+            needs_fix=true
+          else
+            echo "SUCCESS: gradle-wrapper.jar appears valid"
+          fi
+        else
+          echo "ERROR: gradle-wrapper.jar missing"
+          needs_fix=true
+        fi
+        
+        # Check gradlew
+        if [ -f "gradlew" ] && [ -x "gradlew" ]; then
+          echo "SUCCESS: gradlew script executable"
+        else
+          echo "ERROR: gradlew script missing or not executable"
+          needs_fix=true
+        fi
+        
+        # Check if force fix is requested
+        if [ "${{ inputs.force_fix }}" = "true" ]; then
+          echo "INFO: Force fix requested"
+          needs_fix=true
+        fi
+        
+        # Apply fixes if needed
+        if [ "$needs_fix" = "true" ]; then
+          echo ""
+          echo "=== APPLYING GRADLE WRAPPER FIXES ==="
+          echo "===================================="
+          
+          # Ensure gradle/wrapper directory exists
+          mkdir -p gradle/wrapper
+          
+          # Fix gradle-wrapper.jar
+          if [ -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "Copying gradle-wrapper.jar from android/ directory..."
+            cp android/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
+            new_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+            echo "SUCCESS: Updated gradle-wrapper.jar ($new_size bytes)"
+            
+            # Verify the fix
+            if unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+              echo "SUCCESS: gradle-wrapper.jar integrity verified"
+            else
+              echo "ERROR: gradle-wrapper.jar still corrupted after fix"
+              exit 1
+            fi
+          else
+            echo "ERROR: Source gradle-wrapper.jar not found in android/"
+            exit 1
+          fi
+          
+          # Fix gradle-wrapper.properties
+          if [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+            cp android/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
+            echo "SUCCESS: Updated gradle-wrapper.properties"
+          fi
+          
+          # Fix gradlew
+          if [ -f "android/gradlew" ]; then
+            cp android/gradlew .
+            chmod +x gradlew
+            echo "SUCCESS: Updated and fixed gradlew script"
+          else
+            echo "ERROR: Source gradlew not found in android/"
+            exit 1
+          fi
+          
+          # Fix gradlew.bat
+          if [ -f "android/gradlew.bat" ]; then
+            cp android/gradlew.bat .
+            echo "SUCCESS: Updated gradlew.bat"
+          fi
+          
+          echo ""
+          echo "=== TESTING FIXED GRADLE WRAPPER ==="
+          echo "=================================="
+          
+          # Test the gradle wrapper
+          if timeout 60 ./gradlew --version --no-daemon; then
+            echo "SUCCESS: Gradle wrapper test PASSED"
+          else
+            echo "ERROR: Gradle wrapper test failed"
+            echo "Debug info:"
+            ls -la gradle/wrapper/
+            ls -la gradlew*
+            exit 1
+          fi
+          
+        else
+          echo ""
+          echo "SUCCESS: Gradle wrapper is already in good state, no fixes needed"
+          
+          # Still test it to make sure
+          echo ""
+          echo "=== TESTING EXISTING GRADLE WRAPPER ==="
+          echo "====================================="
+          
+          if timeout 60 ./gradlew --version --no-daemon; then
+            echo "SUCCESS: Gradle wrapper test PASSED"
+          else
+            echo "ERROR: Gradle wrapper test failed despite appearing valid"
+            echo "Forcing fix..."
+            needs_fix=true
+          fi
+        fi
+        
+        # Set output for subsequent steps
+        echo "needs_fix=$needs_fix" >> $GITHUB_OUTPUT
+    
+    - name: Commit and Push Fixes
+      if: steps.diagnose-fix.outputs.needs_fix == 'true'
+      run: |
+        echo "=== COMMITTING GRADLE WRAPPER FIXES ==="
+        echo "====================================="
+        
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "Auto-Fix Gradle Wrapper"
+        
+        # Add files
+        git add gradle/wrapper/gradle-wrapper.jar
+        git add gradle/wrapper/gradle-wrapper.properties
+        git add gradlew
+        git add gradlew.bat
+        
+        # Check if there are changes to commit
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+        else
+          # Create comprehensive commit message
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          
+          git commit -m "Auto-fix gradle wrapper corruption and permissions
+
+Automated fix applied by GitHub Actions:
+
+Issues resolved:
+- gradle-wrapper.jar corruption (was missing data)
+- gradlew script permissions  
+- ClassNotFoundException: org.gradle.wrapper.GradleWrapperMain
+
+Changes made:
+- Replace gradle-wrapper.jar with valid version ($jar_size bytes)
+- Set gradlew executable permissions (chmod +x)
+- Update gradle-wrapper.properties from android/ source
+- Add gradlew.bat for Windows compatibility
+- Verified gradle wrapper functionality
+
+Source: Copied from android/gradle/wrapper/ directory
+Test: ./gradlew --version passed successfully
+
+This should resolve GitHub Actions build failures.
+Auto-fixed on $(date)"
+          
+          echo "SUCCESS: Committed gradle wrapper fixes"
+        fi
+        
+        # Push changes
+        git push origin main
+        echo "SUCCESS: Pushed fixes to repository"
+    
+    - name: Final Verification
+      run: |
+        echo "=== FINAL VERIFICATION ==="
+        echo "========================"
+        
+        # Verify all components
+        echo "gradle-wrapper.jar: $(stat -c%s gradle/wrapper/gradle-wrapper.jar) bytes"
+        echo "gradlew executable: $([ -x gradlew ] && echo 'YES' || echo 'NO')"
+        
+        # Test integrity
+        if unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+          echo "SUCCESS: gradle-wrapper.jar integrity verified"
+        else
+          echo "ERROR: gradle-wrapper.jar integrity failed"
+          exit 1
+        fi
+        
+        # Test gradle wrapper
+        if ./gradlew --version --no-daemon > /dev/null 2>&1; then
+          echo "SUCCESS: Gradle wrapper functionality verified"
+        else
+          echo "ERROR: Gradle wrapper functionality failed"
+          exit 1
+        fi
+        
+        echo ""
+        echo "SUCCESS: Auto-fix completed successfully!"
+        echo "The gradle wrapper is now ready for Android builds."
