@@ -369,10 +369,10 @@ jobs:
             
             # Step 2: Verify APK structure
             echo "  🔍 Verifying APK structure..."
-            unzip -l "$apk" | grep -E "(AndroidManifest.xml|resources.arsc)" || {
+            if ! unzip -l "$apk" | grep -E "(AndroidManifest.xml|resources.arsc)" > /dev/null; then
               echo "  ❌ APK missing critical files!"
               continue
-            }
+            fi
             
             # Step 3: Fix manifest if needed
             if [ -f "./aapt2" ]; then
