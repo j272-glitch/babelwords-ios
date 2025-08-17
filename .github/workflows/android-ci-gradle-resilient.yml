@@ -323,30 +323,10 @@ jobs:
         if git diff --cached --quiet; then
           echo "No changes to commit - files were already correct"
         else
-          # Create commit
+          # Create commit with simple message to avoid YAML issues
           jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
-          timestamp=$(date '+%Y-%m-%d %H:%M:%S UTC')
           
-          git commit -m "Auto-fix gradle wrapper corruption
-
-GitHub Actions automated fix applied
-
-Issues resolved:
-- gradle-wrapper.jar corruption and missing data
-- gradlew script permissions and availability  
-- gradle-wrapper.properties completeness
-- Build configuration files synchronization
-
-Changes applied:
-- Updated gradle-wrapper.jar (${jar_size} bytes)
-- Set gradlew executable permissions
-- Synchronized gradle-wrapper.properties
-- Added gradlew.bat for Windows compatibility
-- Copied missing build configuration files
-
-Source: android/ directory reference files
-Verified: gradle wrapper functionality tested
-Fixed on: ${timestamp}"
+          git commit -m "Auto-fix gradle wrapper corruption - GitHub Actions automated fix"
           
           echo "SUCCESS: Committed gradle wrapper fixes"
           
