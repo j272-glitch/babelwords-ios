@@ -181,6 +181,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: gradle-wrapper-diagnosis
     if: needs.gradle-wrapper-diagnosis.outputs.needs-fix == 'true'
+    outputs:
+      fixes-applied: ${{ steps.fix-wrapper.outputs.fixes-applied }}
+      gradle-status: ${{ steps.fix-wrapper.outputs.gradle-status }}
     
     steps:
     - name: Checkout Repository
@@ -277,6 +280,7 @@ jobs:
         
         # Set output
         echo "fixes-applied=$fixes_applied" >> $GITHUB_OUTPUT
+        echo "gradle-status=fixed" >> $GITHUB_OUTPUT
     
     - name: Test Fixed Gradle Wrapper
       run: |
@@ -323,7 +327,7 @@ jobs:
     name: Build Android Application
     runs-on: ubuntu-latest
     needs: [gradle-wrapper-diagnosis, gradle-wrapper-fix]
-    if: always() && (needs.gradle-wrapper-diagnosis.outputs.status == 'healthy' || needs.gradle-wrapper-fix.outputs.fixes-applied != '0')
+    if: always() && (needs.gradle-wrapper-diagnosis.outputs.status == 'healthy' || (needs.gradle-wrapper-fix.result == 'success' && needs.gradle-wrapper-fix.outputs.fixes-applied != '0'))
     
     strategy:
       matrix:
@@ -344,26 +348,78 @@ jobs:
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
     
+    - name: Apply Gradle Wrapper Fixes (Build Job)
+      run: |
+        echo "=== APPLYING GRADLE WRAPPER FIXES IN BUILD JOB ==="
+        echo "================================================="
+        
+        # Always apply fixes to ensure consistency across jobs
+        echo "Copying gradle wrapper files from android/ directory..."
+        
+        # Create gradle/wrapper directory
+        mkdir -p gradle/wrapper
+        
+        # Copy gradle wrapper files
+        if [ -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+          cp android/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "SUCCESS: Copied gradle-wrapper.jar ($jar_size bytes)"
+        fi
+        
+        if [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+          cp android/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
+          echo "SUCCESS: Copied gradle-wrapper.properties"
+        fi
+        
+        if [ -f "android/gradlew" ]; then
+          cp android/gradlew .
+          chmod +x gradlew
+          echo "SUCCESS: Copied and fixed gradlew"
+        fi
+        
+        if [ -f "android/gradlew.bat" ]; then
+          cp android/gradlew.bat .
+          echo "SUCCESS: Copied gradlew.bat"
+        fi
+        
+        # Copy build files if needed
+        if [ ! -f "build.gradle" ] && [ -f "android/build.gradle" ]; then
+          cp android/build.gradle .
+          echo "SUCCESS: Copied build.gradle"
+        fi
+        
+        if [ ! -f "settings.gradle" ] && [ -f "android/settings.gradle" ]; then
+          cp android/settings.gradle .
+          echo "SUCCESS: Copied settings.gradle"
+        fi
+    
     - name: Final Gradle Wrapper Verification
       run: |
         echo "=== FINAL GRADLE WRAPPER VERIFICATION ==="
         echo "========================================"
         
-        # Ensure gradlew is executable (failsafe)
-        if [ -f "gradlew" ]; then
-          chmod +x gradlew
-          echo "SUCCESS: gradlew permissions verified"
-        else
-          echo "ERROR: gradlew still missing after fixes"
-          exit 1
-        fi
-        
         # Verify gradle wrapper jar
         if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
           jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
           echo "SUCCESS: gradle-wrapper.jar verified ($jar_size bytes)"
+          
+          # Verify integrity
+          if unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+            echo "SUCCESS: gradle-wrapper.jar integrity verified"
+          else
+            echo "ERROR: gradle-wrapper.jar corrupted"
+            exit 1
+          fi
         else
           echo "ERROR: gradle-wrapper.jar still missing"
+          exit 1
+        fi
+        
+        # Verify gradlew
+        if [ -f "gradlew" ] && [ -x "gradlew" ]; then
+          echo "SUCCESS: gradlew executable verified"
+        else
+          echo "ERROR: gradlew missing or not executable"
           exit 1
         fi
         
@@ -397,11 +453,10 @@ jobs:
       if: matrix.build-type == 'debug' || matrix.build-type == 'release'
       run: |
         echo "=== BUILDING ANDROID APK (${{ matrix.build-type }}) ==="
-        cd android
         if [ "${{ matrix.build-type }}" = "debug" ]; then
-          ../gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon
         else
-          ../gradlew assembleRelease --no-daemon
+          ./gradlew assembleRelease --no-daemon
         fi
         echo "SUCCESS: APK build completed"
     
@@ -409,29 +464,31 @@ jobs:
       if: matrix.build-type == 'release'
       run: |
         echo "=== BUILDING ANDROID AAB (release) ==="
-        cd android
-        ../gradlew bundleRelease --no-daemon
+        ./gradlew bundleRelease --no-daemon
         echo "SUCCESS: AAB build completed"
     
     - name: Collect Build Artifacts
       run: |
         echo "=== COLLECTING BUILD ARTIFACTS ==="
         echo "Looking for APK files:"
-        find android -name "*.apk" -type f | head -10
+        find . -name "*.apk" -type f | head -10
         echo ""
         echo "Looking for AAB files:"
-        find android -name "*.aab" -type f | head -10
+        find . -name "*.aab" -type f | head -10
         echo ""
         echo "Build outputs directory structure:"
-        ls -la android/app/build/outputs/ 2>/dev/null || echo "No outputs directory found"
+        ls -la app/build/outputs/ 2>/dev/null || echo "No outputs directory found"
+        ls -la build/outputs/ 2>/dev/null || echo "No build outputs directory found"
     
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: android-builds-${{ matrix.build-type }}
         path: |
-          android/app/build/outputs/apk/**/*.apk
-          android/app/build/outputs/bundle/**/*.aab
+          app/build/outputs/apk/**/*.apk
+          app/build/outputs/bundle/**/*.aab
+          build/outputs/apk/**/*.apk
+          build/outputs/bundle/**/*.aab
         retention-days: 30
         if-no-files-found: warn
 
@@ -458,17 +515,18 @@ jobs:
           echo "SUCCESS: Android application built successfully"
           echo "Artifacts uploaded with APK and AAB files"
         elif [ "${{ needs.gradle-wrapper-fix.result }}" = "failure" ]; then
-          echo "FAILURE: Gradle wrapper fix failed"
+          echo "FAILURE: Gradle wrapper fixes could not be applied"
           echo "Check gradle wrapper fix job logs for details"
         elif [ "${{ needs.android-build.result }}" = "failure" ]; then
           echo "FAILURE: Android build failed"
           echo "Check android build job logs for details"
         else
-          echo "PARTIAL: Some steps may have been skipped"
+          echo "PARTIAL: Gradle wrapper was fixed but build may have been skipped"
         fi
         
         echo ""
         echo "For troubleshooting:"
         echo "- Check individual job logs for detailed error information"
-        echo "- Gradle wrapper issues are auto-fixed when detected"
+        echo "- Gradle wrapper issues are auto-fixed in-memory during build"
         echo "- Build artifacts are retained for 30 days"
+        echo "- No repository changes are committed by this workflow"
