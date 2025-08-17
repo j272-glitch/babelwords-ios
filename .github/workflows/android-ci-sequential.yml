@@ -238,11 +238,20 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-gradle-
     
+    - name: Discover Available Tasks
+      run: |
+        echo "=== DISCOVERING AVAILABLE GRADLE TASKS ==="
+        ./gradlew tasks --all --no-daemon | head -50
+        echo ""
+        echo "=== SPECIFIC ANDROID TASKS ==="
+        ./gradlew tasks --all --no-daemon | grep -i assemble || echo "No assemble tasks found"
+        ./gradlew tasks --all --no-daemon | grep -i bundle || echo "No bundle tasks found"
+    
     - name: Clean and Build Debug APK
       run: |
         echo "=== BUILDING DEBUG APK ==="
         ./gradlew clean --no-daemon
-        ./gradlew assembleDebug --no-daemon
+        ./gradlew app:assembleDebug --no-daemon
         echo "SUCCESS: Debug APK build completed"
     
     - name: Upload Debug APK
@@ -327,8 +336,8 @@ jobs:
       run: |
         echo "=== BUILDING RELEASE APK AND AAB ==="
         ./gradlew clean --no-daemon
-        ./gradlew assembleRelease --no-daemon
-        ./gradlew bundleRelease --no-daemon
+        ./gradlew app:assembleRelease --no-daemon
+        ./gradlew app:bundleRelease --no-daemon
         echo "SUCCESS: Release builds completed"
     
     - name: Upload Release Artifacts
