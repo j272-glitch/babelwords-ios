@@ -371,7 +371,7 @@ jobs:
                   
                   # Create minimal resources.arsc 
                   echo "    📋 Creating minimal resource table..."
-                  cat > AndroidManifest_fixed.xml << 'EOF'
+                  cat > AndroidManifest_fixed.xml << 'MANIFEST_EOF'
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.lingualink.translator" android:versionCode="69" android:versionName="1.0.69-manifest-fix">
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -389,7 +389,7 @@ jobs:
         </activity>
     </application>
 </manifest>
-EOF
+MANIFEST_EOF
                   
                   mv AndroidManifest_fixed.xml AndroidManifest.xml
                   
