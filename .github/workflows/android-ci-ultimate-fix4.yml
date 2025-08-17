@@ -1,0 +1,569 @@
+name: Ultimate Android CI Fix - Single Workflow Solution
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type (debug/release/both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+        - debug
+        - release
+        - both
+      force_clean:
+        description: 'Force clean gradle cache'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2 -Dorg.gradle.parallel=false -Dorg.gradle.configureondemand=false
+  ANDROID_COMPILE_SDK: "34"
+  ANDROID_BUILD_TOOLS: "34.0.0"
+  ANDROID_SDK_TOOLS: "4333796"
+
+jobs:
+  ultimate-android-build:
+    name: Ultimate Android Build Fix
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK 17 with Explicit Configuration
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Configure Java Environment Variables
+      run: |
+        echo "=== CONFIGURING JAVA ENVIRONMENT ==="
+        
+        # Use the JAVA_HOME set by actions/setup-java@v4
+        echo "JAVA_HOME: $JAVA_HOME"
+        echo "PATH: $PATH"
+        
+        # Verify Java installation
+        java -version
+        javac -version
+        
+        # Update PATH to prioritize our Java
+        echo "$JAVA_HOME/bin" >> $GITHUB_PATH
+        
+        # Set explicit Gradle properties to override any conflicts
+        echo "org.gradle.java.home=$JAVA_HOME" >> gradle.properties
+        
+        echo "✅ Java environment configured correctly"
+
+    - name: Set up Android SDK with Full Components
+      uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: 12266719
+        accept-android-sdk-licenses: true
+        log-accepted-android-sdk-licenses: false
+        packages: |
+          platforms;android-34
+          build-tools;34.0.0
+          platform-tools
+          cmake;3.22.1
+          ndk;25.1.8937393
+
+    - name: Validate and Fix Android SDK Installation
+      run: |
+        echo "=== VALIDATING AND FIXING ANDROID SDK INSTALLATION ==="
+        echo "ANDROID_HOME: $ANDROID_HOME"
+        echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+        
+        # Create missing directories if needed
+        mkdir -p "$ANDROID_HOME/licenses"
+        
+        # Accept all licenses
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+        
+        # Install required SDK components explicitly
+        echo "Installing required SDK components..."
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          "platforms;android-34" \
+          "build-tools;34.0.0" \
+          "platform-tools" \
+          "tools" || true
+        
+        # Verify installations
+        echo ""
+        echo "Installed platforms:"
+        ls -la "$ANDROID_HOME/platforms/" 2>/dev/null || echo "No platforms directory"
+        
+        echo ""
+        echo "Installed build-tools:"
+        ls -la "$ANDROID_HOME/build-tools/" 2>/dev/null || echo "No build-tools directory"
+        
+        echo "✅ Android SDK validation completed"
+
+    - name: Setup Complete Android Project with Path Resolution
+      run: |
+        echo "=== SETTING UP COMPLETE ANDROID PROJECT WITH PATH RESOLUTION ==="
+        
+        # Backup and display original structure
+        echo "Original project structure:"
+        ls -la
+        
+        echo ""
+        echo "Android directory contents:"
+        ls -la android/
+        
+        # Copy complete Android project structure
+        echo ""
+        echo "Copying complete Android project structure..."
+        cp -rv android/* .
+        
+        # Ensure gradle wrapper is executable and fix permissions
+        chmod +x gradlew
+        chmod +x android/gradlew 2>/dev/null || true
+        
+        # Verify the copy was successful
+        echo ""
+        echo "Project structure after copy:"
+        ls -la
+        
+        # Verify critical Android project files
+        echo ""
+        echo "Critical file verification:"
+        [ -f "build.gradle" ] && echo "✅ Root build.gradle" || echo "❌ Missing root build.gradle"
+        [ -f "settings.gradle" ] && echo "✅ settings.gradle" || echo "❌ Missing settings.gradle"
+        [ -f "app/build.gradle" ] && echo "✅ App build.gradle" || echo "❌ Missing app/build.gradle"
+        [ -f "gradle/wrapper/gradle-wrapper.jar" ] && echo "✅ Gradle wrapper JAR" || echo "❌ Missing gradle wrapper JAR"
+        [ -f "gradle/wrapper/gradle-wrapper.properties" ] && echo "✅ Gradle wrapper properties" || echo "❌ Missing gradle wrapper properties"
+        
+        # Check app source structure
+        echo ""
+        echo "App source structure:"
+        if [ -d "app/src" ]; then
+          find app/src -type f -name "*.kt" -o -name "*.java" | head -10
+          echo "✅ App source files found"
+        else
+          echo "❌ App source directory missing"
+        fi
+        
+        # Display gradle wrapper size for verification
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "✅ Gradle wrapper: $jar_size bytes"
+          if [ "$jar_size" -lt 50000 ]; then
+            echo "⚠️  Gradle wrapper seems small, may be corrupted"
+          fi
+        fi
+        
+        echo "✅ Android project structure setup completed"
+
+    - name: Fix Gradle Configuration and Java Paths
+      run: |
+        echo "=== FIXING GRADLE CONFIGURATION AND JAVA PATHS ==="
+        
+        # Ensure gradle.properties exists and is correctly configured
+        echo "Creating/updating gradle.properties..."
+        cat > gradle.properties << EOF
+        # Java configuration
+        org.gradle.java.home=$JAVA_HOME
+        
+        # Performance optimizations  
+        org.gradle.daemon=false
+        org.gradle.parallel=false
+        org.gradle.configureondemand=false
+        org.gradle.workers.max=2
+        
+        # Android configuration
+        android.useAndroidX=true
+        android.enableJetifier=true
+        
+        # Build optimizations
+        org.gradle.caching=false
+        org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        EOF
+        
+        # Display the configuration
+        echo ""
+        echo "Gradle properties configuration:"
+        cat gradle.properties
+        
+        # Ensure local.properties includes SDK path
+        echo ""
+        echo "Creating/updating local.properties..."
+        cat > local.properties << EOF
+        sdk.dir=$ANDROID_HOME
+        EOF
+        
+        echo ""
+        echo "Local properties configuration:"
+        cat local.properties
+        
+        echo "✅ Gradle configuration completed"
+
+    - name: Test Gradle Wrapper and Environment
+      run: |
+        echo "=== TESTING GRADLE WRAPPER AND ENVIRONMENT ==="
+        
+        # Test basic gradle wrapper functionality
+        echo "Testing Gradle wrapper..."
+        if timeout 120 ./gradlew --version --no-daemon; then
+          echo "✅ Gradle wrapper functional"
+        else
+          echo "❌ Gradle wrapper failed - attempting to regenerate"
+          
+          # Try to regenerate wrapper
+          gradle wrapper --gradle-version 8.3 --no-daemon || true
+          chmod +x gradlew
+          
+          # Test again
+          if timeout 120 ./gradlew --version --no-daemon; then
+            echo "✅ Gradle wrapper fixed and functional"
+          else
+            echo "❌ Gradle wrapper still failing"
+            exit 1
+          fi
+        fi
+        
+        # Display environment info
+        echo ""
+        echo "Gradle environment:"
+        ./gradlew --no-daemon properties | grep -E "(java\.home|java\.version|gradle\.version)" || true
+        
+        # Test project recognition
+        echo ""
+        echo "Testing project structure recognition:"
+        if timeout 180 ./gradlew projects --no-daemon; then
+          echo "✅ Project structure recognized"
+        else
+          echo "⚠️  Project structure issues detected"
+        fi
+        
+        echo "✅ Gradle wrapper testing completed"
+
+    - name: Setup Gradle Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.android/build-cache
+        key: ${{ runner.os }}-gradle-ultimate-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-ultimate-
+          ${{ runner.os }}-gradle-
+
+    - name: Clean Previous Builds
+      run: |
+        echo "=== CLEANING PREVIOUS BUILDS ==="
+        
+        # Force clean if requested
+        if [ "${{ inputs.force_clean }}" = "true" ]; then
+          echo "Force clean requested - clearing gradle cache"
+          rm -rf ~/.gradle/caches/ || true
+          rm -rf ~/.android/build-cache/ || true
+        fi
+        
+        # Clean project
+        timeout 300 ./gradlew clean --no-daemon --info --stacktrace || echo "Clean completed with warnings"
+        
+        echo "✅ Build cleaning completed"
+
+    - name: Discover and Verify Android Tasks
+      run: |
+        echo "=== DISCOVERING AND VERIFYING ANDROID TASKS ==="
+        
+        # First, try to get all available tasks
+        echo "All project tasks:"
+        timeout 180 ./gradlew tasks --no-daemon || echo "Failed to get tasks list"
+        
+        echo ""
+        echo "App module tasks specifically:"
+        timeout 180 ./gradlew :app:tasks --no-daemon || echo "Failed to get app tasks"
+        
+        echo ""
+        echo "Searching for Android build tasks:"
+        timeout 180 ./gradlew tasks --all --no-daemon | grep -E "(assemble|bundle|build)" || echo "No Android build tasks found yet"
+        
+        # Try to trigger Android plugin initialization
+        echo ""
+        echo "Attempting to initialize Android plugin..."
+        timeout 300 ./gradlew :app:preBuild --no-daemon --info || echo "PreBuild initialization attempt completed"
+        
+        # Check again for tasks after initialization
+        echo ""
+        echo "Checking for Android tasks after plugin initialization:"
+        timeout 180 ./gradlew tasks --no-daemon | grep -E "(assemble|bundle)" || echo "Still no Android tasks - will attempt direct build"
+        
+        echo "✅ Task discovery completed"
+
+    - name: Build Android Debug APK  
+      if: inputs.build_type == 'debug' || inputs.build_type == 'both' || inputs.build_type == ''
+      run: |
+        echo "=== BUILDING ANDROID DEBUG APK ==="
+        
+        build_success=false
+        
+        # Method 1: Try standard assembleDebug
+        echo "Attempt 1: Using assembleDebug task"
+        if timeout 600 ./gradlew assembleDebug --no-daemon --info --stacktrace; then
+          build_success=true
+          echo "✅ Debug APK built successfully with assembleDebug"
+        else
+          echo "Method 1 failed, trying Method 2..."
+        fi
+        
+        # Method 2: Try with app module prefix
+        if [ "$build_success" = false ]; then
+          echo "Attempt 2: Using :app:assembleDebug task"
+          if timeout 600 ./gradlew :app:assembleDebug --no-daemon --info --stacktrace; then
+            build_success=true
+            echo "✅ Debug APK built successfully with :app:assembleDebug"
+          else
+            echo "Method 2 failed, trying Method 3..."
+          fi
+        fi
+        
+        # Method 3: Try build task which includes assemble
+        if [ "$build_success" = false ]; then
+          echo "Attempt 3: Using :app:build task"
+          if timeout 600 ./gradlew :app:build --no-daemon --info --stacktrace; then
+            build_success=true
+            echo "✅ Debug APK built successfully with :app:build"
+          else
+            echo "Method 3 failed, trying Method 4..."
+          fi
+        fi
+        
+        # Method 4: Try without module prefix but with explicit configuration
+        if [ "$build_success" = false ]; then
+          echo "Attempt 4: Direct build with explicit Android configuration"
+          if timeout 600 ./gradlew build --no-daemon --info --stacktrace -Pandroid.useAndroidX=true; then
+            build_success=true
+            echo "✅ Debug APK built successfully with explicit Android configuration"
+          else
+            echo "❌ All debug build attempts failed"
+          fi
+        fi
+        
+        # Verify APK was created
+        if [ "$build_success" = true ]; then
+          echo ""
+          echo "Searching for generated Debug APK files:"
+          find . -name "*debug*.apk" -type f -exec ls -la {} \; || echo "No debug APK files found in standard locations"
+          find . -path "*/build/outputs/apk/*" -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files in build outputs"
+          
+          echo "✅ DEBUG BUILD COMPLETED SUCCESSFULLY"
+        else
+          echo "❌ DEBUG BUILD FAILED - All methods exhausted"
+          exit 1
+        fi
+
+    - name: Build Android Release APK and AAB
+      if: inputs.build_type == 'release' || inputs.build_type == 'both' || inputs.build_type == ''
+      run: |
+        echo "=== BUILDING ANDROID RELEASE APK AND AAB ==="
+        
+        apk_success=false
+        aab_success=false
+        
+        # Build Release APK
+        echo "Building Release APK..."
+        
+        # Method 1: Try standard assembleRelease
+        echo "APK Attempt 1: Using assembleRelease task"
+        if timeout 600 ./gradlew assembleRelease --no-daemon --info --stacktrace; then
+          apk_success=true
+          echo "✅ Release APK built successfully with assembleRelease"
+        else
+          echo "APK Method 1 failed, trying Method 2..."
+        fi
+        
+        # Method 2: Try with app module prefix
+        if [ "$apk_success" = false ]; then
+          echo "APK Attempt 2: Using :app:assembleRelease task"
+          if timeout 600 ./gradlew :app:assembleRelease --no-daemon --info --stacktrace; then
+            apk_success=true
+            echo "✅ Release APK built successfully with :app:assembleRelease"
+          else
+            echo "APK Method 2 failed, trying build task..."
+          fi
+        fi
+        
+        # Method 3: Try build task
+        if [ "$apk_success" = false ]; then
+          echo "APK Attempt 3: Using :app:build task for release"
+          if timeout 600 ./gradlew :app:build --no-daemon --info --stacktrace -PbuildType=release; then
+            apk_success=true
+            echo "✅ Release APK built successfully with :app:build"
+          else
+            echo "❌ Release APK build failed with all methods"
+          fi
+        fi
+        
+        # Build Release AAB (only if APK succeeded)
+        if [ "$apk_success" = true ]; then
+          echo ""
+          echo "Building Release AAB..."
+          
+          # Method 1: Try standard bundleRelease
+          echo "AAB Attempt 1: Using bundleRelease task"
+          if timeout 600 ./gradlew bundleRelease --no-daemon --info --stacktrace; then
+            aab_success=true
+            echo "✅ Release AAB built successfully with bundleRelease"
+          else
+            echo "AAB Method 1 failed, trying Method 2..."
+          fi
+          
+          # Method 2: Try with app module prefix
+          if [ "$aab_success" = false ]; then
+            echo "AAB Attempt 2: Using :app:bundleRelease task"
+            if timeout 600 ./gradlew :app:bundleRelease --no-daemon --info --stacktrace; then
+              aab_success=true
+              echo "✅ Release AAB built successfully with :app:bundleRelease"
+            else
+              echo "⚠️  Release AAB build failed, but APK succeeded"
+            fi
+          fi
+        fi
+        
+        # Final verification
+        if [ "$apk_success" = true ]; then
+          echo ""
+          echo "Searching for generated Release files:"
+          echo "APK files:"
+          find . -name "*release*.apk" -type f -exec ls -la {} \; || echo "No release APK files found"
+          
+          if [ "$aab_success" = true ]; then
+            echo ""
+            echo "AAB files:"
+            find . -name "*release*.aab" -type f -exec ls -la {} \; || echo "No release AAB files found"
+            echo "✅ RELEASE BUILD COMPLETED SUCCESSFULLY (APK + AAB)"
+          else
+            echo "✅ RELEASE APK BUILD COMPLETED SUCCESSFULLY (AAB failed)"
+          fi
+        else
+          echo "❌ RELEASE BUILD FAILED - APK build unsuccessful"
+          exit 1
+        fi
+
+    - name: Collect and Verify Build Artifacts
+      if: always()
+      run: |
+        echo "=== COLLECTING AND VERIFYING BUILD ARTIFACTS ==="
+        
+        # Find all APK files
+        echo "All APK files in project:"
+        find . -name "*.apk" -type f -exec ls -la {} \; || echo "No APK files found"
+        
+        echo ""
+        echo "All AAB files in project:"
+        find . -name "*.aab" -type f -exec ls -la {} \; || echo "No AAB files found"
+        
+        # Check build output directories
+        echo ""
+        echo "Build output directories:"
+        find . -path "*/build/outputs*" -type d 2>/dev/null | while read dir; do
+          echo "Directory: $dir"
+          ls -la "$dir" 2>/dev/null || echo "Cannot list $dir"
+        done
+        
+        # Count total artifacts
+        apk_count=$(find . -name "*.apk" -type f | wc -l)
+        aab_count=$(find . -name "*.aab" -type f | wc -l)
+        
+        echo ""
+        echo "ARTIFACT SUMMARY:"
+        echo "================="
+        echo "APK files: $apk_count"
+        echo "AAB files: $aab_count"
+        echo "Total artifacts: $((apk_count + aab_count))"
+        
+        if [ $((apk_count + aab_count)) -gt 0 ]; then
+          echo "✅ BUILD ARTIFACTS SUCCESSFULLY GENERATED"
+        else
+          echo "❌ NO BUILD ARTIFACTS FOUND"
+        fi
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: android-ultimate-build-artifacts-${{ inputs.build_type || 'both' }}-${{ github.run_number }}
+        path: |
+          **/*.apk
+          **/*.aab
+          app/build/outputs/apk/**/*
+          app/build/outputs/bundle/**/*
+          build/outputs/apk/**/*
+          build/outputs/bundle/**/*
+          gradle.properties
+          local.properties
+          gradlew*
+          gradle/wrapper/gradle-wrapper.jar
+          gradle/wrapper/gradle-wrapper.properties
+        retention-days: 30
+        if-no-files-found: warn
+
+    - name: Ultimate Build Summary
+      if: always()
+      run: |
+        echo "========================================"
+        echo "ULTIMATE ANDROID BUILD SUMMARY"
+        echo "========================================"
+        echo ""
+        echo "Build Configuration:"
+        echo "- Build Type: ${{ inputs.build_type || 'both' }}"
+        echo "- Force Clean: ${{ inputs.force_clean }}"
+        echo "- Java Version: $(java -version 2>&1 | head -1)"
+        echo "- Android SDK: $ANDROID_HOME"
+        echo "- Gradle Version: $(./gradlew --version --no-daemon | grep 'Gradle' | head -1)"
+        echo ""
+        
+        # Final artifact count
+        apk_count=$(find . -name "*.apk" -type f | wc -l)
+        aab_count=$(find . -name "*.aab" -type f | wc -l)
+        total_artifacts=$((apk_count + aab_count))
+        
+        echo "Final Results:"
+        echo "- APK Files Generated: $apk_count"
+        echo "- AAB Files Generated: $aab_count"
+        echo "- Total Artifacts: $total_artifacts"
+        echo ""
+        
+        if [ "$total_artifacts" -gt 0 ]; then
+          echo "✅ ULTIMATE ANDROID BUILD: SUCCESS"
+          echo ""
+          echo "Generated Artifacts:"
+          find . -name "*.apk" -o -name "*.aab" -type f | while read file; do
+            size=$(stat -c%s "$file" 2>/dev/null || echo "unknown")
+            echo "  - $file ($size bytes)"
+          done
+        else
+          echo "❌ ULTIMATE ANDROID BUILD: FAILED"
+          echo "No artifacts were generated despite all attempts"
+        fi
+        
+        echo ""
+        echo "Gradle Wrapper Status:"
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "✅ Gradle Wrapper: $jar_size bytes"
+        else
+          echo "❌ Gradle Wrapper: Missing"
+        fi
+        
+        echo ""
+        echo "========================================"
+        echo "ULTIMATE ANDROID BUILD COMPLETE"
+        echo "========================================"
