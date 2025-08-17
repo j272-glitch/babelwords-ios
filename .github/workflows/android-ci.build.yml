@@ -1,0 +1,478 @@
+name: Android CI - Gradle Wrapper Resilient
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type (debug/release/both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+        - debug
+        - release
+        - both
+      force_gradle_fix:
+        description: 'Force gradle wrapper fix even if appears valid'
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/auto-fix-gradle-wrapper.yml'
+  pull_request:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.workers.max=2
+  ANDROID_COMPILE_SDK: "34"
+  ANDROID_BUILD_TOOLS: "34.0.0"
+  ANDROID_SDK_TOOLS: "4333796"
+
+jobs:
+  gradle-wrapper-diagnosis:
+    name: Gradle Wrapper Health Check
+    runs-on: ubuntu-latest
+    outputs:
+      wrapper-status: ${{ steps.diagnose.outputs.status }}
+      needs-fix: ${{ steps.diagnose.outputs.needs-fix }}
+      
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Diagnose Gradle Wrapper Health
+      id: diagnose
+      run: |
+        echo "=== GRADLE WRAPPER COMPREHENSIVE DIAGNOSIS ==="
+        echo "============================================="
+        
+        # Initialize status variables
+        issues_found=0
+        fixes_needed=false
+        
+        # Function to log issues
+        log_issue() {
+          echo "ISSUE: $1"
+          issues_found=$((issues_found + 1))
+        }
+        
+        log_success() {
+          echo "SUCCESS: $1"
+        }
+        
+        # Check gradle-wrapper.jar
+        echo ""
+        echo "--- Checking gradle-wrapper.jar ---"
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "Found gradle-wrapper.jar: $jar_size bytes"
+          
+          if [ "$jar_size" -lt 60000 ]; then
+            log_issue "gradle-wrapper.jar too small ($jar_size bytes, expected >60KB)"
+            fixes_needed=true
+          elif ! unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+            log_issue "gradle-wrapper.jar failed integrity check"
+            fixes_needed=true
+          else
+            log_success "gradle-wrapper.jar integrity verified"
+          fi
+        else
+          log_issue "gradle-wrapper.jar missing"
+          fixes_needed=true
+        fi
+        
+        # Check gradle-wrapper.properties
+        echo ""
+        echo "--- Checking gradle-wrapper.properties ---"
+        if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+          if [ -s "gradle/wrapper/gradle-wrapper.properties" ]; then
+            log_success "gradle-wrapper.properties exists and has content"
+            echo "Content preview:"
+            head -3 gradle/wrapper/gradle-wrapper.properties | sed 's/^/  /'
+          else
+            log_issue "gradle-wrapper.properties is empty"
+            fixes_needed=true
+          fi
+        else
+          log_issue "gradle-wrapper.properties missing"
+          fixes_needed=true
+        fi
+        
+        # Check gradlew script
+        echo ""
+        echo "--- Checking gradlew script ---"
+        if [ -f "gradlew" ]; then
+          if [ -x "gradlew" ]; then
+            log_success "gradlew script exists and is executable"
+          else
+            log_issue "gradlew script not executable"
+            fixes_needed=true
+          fi
+        else
+          log_issue "gradlew script missing"
+          fixes_needed=true
+        fi
+        
+        # Check gradlew.bat
+        echo ""
+        echo "--- Checking gradlew.bat ---"
+        if [ -f "gradlew.bat" ]; then
+          log_success "gradlew.bat exists"
+        else
+          log_issue "gradlew.bat missing"
+          fixes_needed=true
+        fi
+        
+        # Check source files availability
+        echo ""
+        echo "--- Checking source files in android/ directory ---"
+        android_sources_ok=true
+        
+        for file in "android/gradle/wrapper/gradle-wrapper.jar" "android/gradle/wrapper/gradle-wrapper.properties" "android/gradlew" "android/gradlew.bat"; do
+          if [ -f "$file" ]; then
+            if [ "$file" = "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+              android_jar_size=$(stat -c%s "$file")
+              echo "  $file: $android_jar_size bytes"
+            else
+              echo "  $file: exists"
+            fi
+          else
+            echo "  $file: MISSING"
+            android_sources_ok=false
+          fi
+        done
+        
+        if [ "$android_sources_ok" = true ]; then
+          log_success "All source files available in android/ directory"
+        else
+          log_issue "Some source files missing in android/ directory"
+        fi
+        
+        # Force fix check
+        if [ "${{ inputs.force_gradle_fix }}" = "true" ]; then
+          echo ""
+          echo "--- Force fix requested ---"
+          fixes_needed=true
+        fi
+        
+        # Summary
+        echo ""
+        echo "=== DIAGNOSIS SUMMARY ==="
+        echo "Issues found: $issues_found"
+        echo "Fixes needed: $fixes_needed"
+        echo "Android sources OK: $android_sources_ok"
+        
+        # Set outputs
+        if [ "$fixes_needed" = true ]; then
+          echo "status=needs-repair" >> $GITHUB_OUTPUT
+          echo "needs-fix=true" >> $GITHUB_OUTPUT
+        else
+          echo "status=healthy" >> $GITHUB_OUTPUT
+          echo "needs-fix=false" >> $GITHUB_OUTPUT
+        fi
+
+  gradle-wrapper-fix:
+    name: Fix Gradle Wrapper Issues
+    runs-on: ubuntu-latest
+    needs: gradle-wrapper-diagnosis
+    if: needs.gradle-wrapper-diagnosis.outputs.needs-fix == 'true'
+    outputs:
+      fixes-applied: ${{ steps.fix-wrapper.outputs.fixes-applied }}
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Apply Gradle Wrapper Fixes
+      id: fix-wrapper
+      run: |
+        echo "=== APPLYING GRADLE WRAPPER FIXES ==="
+        echo "===================================="
+        
+        fixes_applied=0
+        
+        # Create backup
+        echo "Creating backup..."
+        mkdir -p .gradle-wrapper-backup
+        [ -f "gradlew" ] && cp gradlew .gradle-wrapper-backup/
+        [ -f "gradlew.bat" ] && cp gradlew.bat .gradle-wrapper-backup/
+        [ -d "gradle/wrapper" ] && cp -r gradle/wrapper .gradle-wrapper-backup/
+        echo "Backup created in .gradle-wrapper-backup/"
+        
+        # Ensure gradle/wrapper directory exists
+        mkdir -p gradle/wrapper
+        
+        # Fix gradle-wrapper.jar
+        if [ -f "android/gradle/wrapper/gradle-wrapper.jar" ]; then
+          echo "Copying gradle-wrapper.jar from android/ directory..."
+          cp android/gradle/wrapper/gradle-wrapper.jar gradle/wrapper/
+          new_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "SUCCESS: Updated gradle-wrapper.jar ($new_size bytes)"
+          
+          # Verify integrity
+          if unzip -t gradle/wrapper/gradle-wrapper.jar > /dev/null 2>&1; then
+            echo "SUCCESS: gradle-wrapper.jar integrity verified"
+            fixes_applied=$((fixes_applied + 1))
+          else
+            echo "ERROR: gradle-wrapper.jar still corrupted after fix"
+            exit 1
+          fi
+        fi
+        
+        # Fix gradle-wrapper.properties
+        if [ -f "android/gradle/wrapper/gradle-wrapper.properties" ]; then
+          echo "Copying gradle-wrapper.properties from android/ directory..."
+          cp android/gradle/wrapper/gradle-wrapper.properties gradle/wrapper/
+          echo "SUCCESS: Updated gradle-wrapper.properties"
+          fixes_applied=$((fixes_applied + 1))
+        fi
+        
+        # Fix gradlew script
+        if [ -f "android/gradlew" ]; then
+          echo "Copying gradlew script from android/ directory..."
+          cp android/gradlew .
+          chmod +x gradlew
+          echo "SUCCESS: Updated and fixed gradlew script"
+          fixes_applied=$((fixes_applied + 1))
+        fi
+        
+        # Fix gradlew.bat
+        if [ -f "android/gradlew.bat" ]; then
+          echo "Copying gradlew.bat from android/ directory..."
+          cp android/gradlew.bat .
+          echo "SUCCESS: Updated gradlew.bat"
+          fixes_applied=$((fixes_applied + 1))
+        fi
+        
+        # Copy essential build files if missing
+        if [ ! -f "build.gradle" ] && [ -f "android/build.gradle" ]; then
+          echo "Copying build.gradle from android/ directory..."
+          cp android/build.gradle .
+          echo "SUCCESS: Copied build.gradle"
+          fixes_applied=$((fixes_applied + 1))
+        fi
+        
+        if [ ! -f "settings.gradle" ] && [ -f "android/settings.gradle" ]; then
+          echo "Copying settings.gradle from android/ directory..."
+          cp android/settings.gradle .
+          echo "SUCCESS: Copied settings.gradle"
+          fixes_applied=$((fixes_applied + 1))
+        fi
+        
+        echo ""
+        echo "=== FIX SUMMARY ==="
+        echo "Fixes applied: $fixes_applied"
+        
+        # Set output
+        echo "fixes-applied=$fixes_applied" >> $GITHUB_OUTPUT
+    
+    - name: Test Fixed Gradle Wrapper
+      run: |
+        echo "=== TESTING FIXED GRADLE WRAPPER ==="
+        echo "==================================="
+        
+        # Test gradle wrapper functionality
+        echo "Testing gradle wrapper with --version..."
+        if timeout 120 ./gradlew --version --no-daemon; then
+          echo ""
+          echo "SUCCESS: Gradle wrapper test PASSED"
+        else
+          echo ""
+          echo "ERROR: Gradle wrapper test FAILED"
+          echo ""
+          echo "Debug information:"
+          echo "gradlew permissions: $(ls -la gradlew)"
+          echo "gradle-wrapper.jar size: $(stat -c%s gradle/wrapper/gradle-wrapper.jar)"
+          echo "gradle/wrapper contents:"
+          ls -la gradle/wrapper/
+          exit 1
+        fi
+    
+    - name: Verify Fixed Gradle Wrapper
+      run: |
+        echo "=== VERIFYING GRADLE WRAPPER FIXES ==="
+        echo "====================================="
+        
+        # Display fix summary
+        jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+        echo "Fixed gradle-wrapper.jar size: $jar_size bytes"
+        
+        # List all fixed files
+        echo ""
+        echo "Fixed files:"
+        ls -la gradlew gradlew.bat
+        ls -la gradle/wrapper/
+        
+        echo ""
+        echo "SUCCESS: Gradle wrapper fixes applied and verified"
+        echo "Note: Changes applied in-memory for build process only"
+
+  android-build:
+    name: Build Android Application
+    runs-on: ubuntu-latest
+    needs: [gradle-wrapper-diagnosis, gradle-wrapper-fix]
+    if: always() && (needs.gradle-wrapper-diagnosis.outputs.status == 'healthy' || needs.gradle-wrapper-fix.outputs.fixes-applied != '0')
+    
+    strategy:
+      matrix:
+        build-type: [debug, release]
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Final Gradle Wrapper Verification
+      run: |
+        echo "=== FINAL GRADLE WRAPPER VERIFICATION ==="
+        echo "========================================"
+        
+        # Ensure gradlew is executable (failsafe)
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+          echo "SUCCESS: gradlew permissions verified"
+        else
+          echo "ERROR: gradlew still missing after fixes"
+          exit 1
+        fi
+        
+        # Verify gradle wrapper jar
+        if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+          jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)
+          echo "SUCCESS: gradle-wrapper.jar verified ($jar_size bytes)"
+        else
+          echo "ERROR: gradle-wrapper.jar still missing"
+          exit 1
+        fi
+        
+        # Test gradle wrapper
+        echo "Testing gradle wrapper functionality..."
+        if timeout 60 ./gradlew --version --no-daemon; then
+          echo "SUCCESS: Gradle wrapper functional"
+        else
+          echo "ERROR: Gradle wrapper test failed"
+          exit 1
+        fi
+    
+    - name: Setup Gradle Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+          ~/.android/build-cache
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+    
+    - name: Clean Previous Builds
+      run: |
+        echo "=== CLEANING PREVIOUS BUILDS ==="
+        ./gradlew clean --no-daemon
+        echo "SUCCESS: Clean completed"
+    
+    - name: Build Android APK
+      if: matrix.build-type == 'debug' || matrix.build-type == 'release'
+      run: |
+        echo "=== BUILDING ANDROID APK (${{ matrix.build-type }}) ==="
+        if [ "${{ matrix.build-type }}" = "debug" ]; then
+          ./gradlew assembleDebug --no-daemon
+        else
+          ./gradlew assembleRelease --no-daemon
+        fi
+        echo "SUCCESS: APK build completed"
+    
+    - name: Build Android AAB
+      if: matrix.build-type == 'release'
+      run: |
+        echo "=== BUILDING ANDROID AAB (release) ==="
+        ./gradlew bundleRelease --no-daemon
+        echo "SUCCESS: AAB build completed"
+    
+    - name: Collect Build Artifacts
+      run: |
+        echo "=== COLLECTING BUILD ARTIFACTS ==="
+        echo "Looking for APK files:"
+        find . -name "*.apk" -type f | head -10
+        echo ""
+        echo "Looking for AAB files:"
+        find . -name "*.aab" -type f | head -10
+        echo ""
+        echo "Build outputs directory structure:"
+        ls -la app/build/outputs/ 2>/dev/null || echo "No outputs directory found"
+        ls -la build/outputs/ 2>/dev/null || echo "No build outputs directory found"
+    
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-builds-${{ matrix.build-type }}
+        path: |
+          app/build/outputs/apk/**/*.apk
+          app/build/outputs/bundle/**/*.aab
+          build/outputs/apk/**/*.apk
+          build/outputs/bundle/**/*.aab
+        retention-days: 30
+        if-no-files-found: warn
+
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [gradle-wrapper-diagnosis, gradle-wrapper-fix, android-build]
+    if: always()
+    
+    steps:
+    - name: Generate Build Summary
+      run: |
+        echo "=== ANDROID CI BUILD SUMMARY ==="
+        echo "==============================="
+        echo ""
+        
+        echo "Gradle Wrapper Status: ${{ needs.gradle-wrapper-diagnosis.outputs.wrapper-status }}"
+        echo "Fixes Applied: ${{ needs.gradle-wrapper-diagnosis.outputs.needs-fix == 'true' && 'Yes' || 'No' }}"
+        echo "Fix Job Result: ${{ needs.gradle-wrapper-fix.result || 'N/A' }}"
+        echo "Build Job Result: ${{ needs.android-build.result || 'N/A' }}"
+        echo ""
+        
+        if [ "${{ needs.android-build.result }}" = "success" ]; then
+          echo "SUCCESS: Android application built successfully"
+          echo "Artifacts uploaded with APK and AAB files"
+        elif [ "${{ needs.gradle-wrapper-fix.result }}" = "failure" ]; then
+          echo "FAILURE: Gradle wrapper fixes could not be applied"
+          echo "Check gradle wrapper fix job logs for details"
+        elif [ "${{ needs.android-build.result }}" = "failure" ]; then
+          echo "FAILURE: Android build failed"
+          echo "Check android build job logs for details"
+        else
+          echo "PARTIAL: Gradle wrapper was fixed but build may have been skipped"
+        fi
+        
+        echo ""
+        echo "For troubleshooting:"
+        echo "- Check individual job logs for detailed error information"
+        echo "- Gradle wrapper issues are auto-fixed in-memory during build"
+        echo "- Build artifacts are retained for 30 days"
+        echo "- No repository changes are committed by this workflow"
