@@ -187,7 +187,7 @@ jobs:
         
         # Build optimizations
         org.gradle.caching=false
-        org.gradle.jvmargs=-Xmx2048m -XX:MaxPermSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+        org.gradle.jvmargs=-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
         EOF
         
         # Display the configuration
