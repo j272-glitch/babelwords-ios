@@ -345,6 +345,7 @@ jobs:
               
               # Create temporary working directory
               temp_dir="apk_manifest_fix_$$"
+              original_dir=$(pwd)
               mkdir -p "$temp_dir"
               cd "$temp_dir"
               
@@ -425,7 +426,7 @@ MANIFEST_EOF
               fi
               
               # Clean up
-              cd ..
+              cd "$original_dir"
               rm -rf "$temp_dir"
             fi
             
@@ -578,4 +579,4 @@ MANIFEST_EOF
         echo ""
         echo "========================================="
         echo "TESTRIGOR MANIFEST FIX COMPLETE - V69"
-        echo "========================================="
+        echo "========================================"
