@@ -374,7 +374,6 @@ steps:
               # Create minimal resources.arsc 
               echo "    📋 Creating minimal resource table..."
               cat > AndroidManifest_fixed.xml << 'MANIFEST_EOF'
-```
 
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
 
