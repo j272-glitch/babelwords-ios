@@ -34,7 +34,7 @@ name: Testrigor Manifest Fix Build v69
 runs-on: ubuntu-24.04
 timeout-minutes: 45
 
-```
+
 steps:
 - name: Checkout Repository
   uses: actions/checkout@v4
