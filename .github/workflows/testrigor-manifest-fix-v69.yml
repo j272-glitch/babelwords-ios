@@ -50,7 +50,7 @@ steps:
       cmdline-tools-version: 12266719
       accept-android-sdk-licenses: true
       log-accepted-android-sdk-licenses: true
-      packages: 'tools platform-tools'
+      packages: tools platform-tools
       
   - name: Cache Gradle Dependencies
     uses: actions/cache@v4
