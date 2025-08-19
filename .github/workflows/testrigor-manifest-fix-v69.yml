@@ -323,16 +323,16 @@ Common fixes for your build issues:
 1. NAMESPACE (Required for AGP 8.0+):
    Add to app/build.gradle inside android block:
    
-   ```
+   
    android {
        namespace 'com.yourcompany.lingualink'
        ...
    }
-   ```
+   
 1. JAVA VERSION COMPATIBILITY:
    Ensure in app/build.gradle:
    
-   ```
+  
    android {
        compileOptions {
            sourceCompatibility JavaVersion.VERSION_17
@@ -342,13 +342,13 @@ Common fixes for your build issues:
            jvmTarget = '17'
        }
    }
-   ```
+  
 1. REMOVE CONFLICTING JAVA HOME:
    Remove from gradle.properties:
    
-   ```
+   
    org.gradle.java.home=/path/to/java
-   ```
+   
 1. GRADLE/AGP VERSION COMPATIBILITY:
 - Gradle 8.3 works with AGP 8.0.2
 - Gradle 8.7 works with AGP 8.3.x
@@ -356,7 +356,7 @@ Common fixes for your build issues:
 Check the build logs attached for specific errors.
 EOF
 
-```
+
         exit 1
       fi
       
@@ -488,4 +488,4 @@ EOF
         exit 1
       fi
       echo "========================================="
-```
+
