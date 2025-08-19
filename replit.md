@@ -56,6 +56,7 @@ Preferred communication style: Simple, everyday language.
 - **aapt2**: Android Asset Packaging Tool for resource compilation with multi-version support (8.1.4 and 7.4.2)
 - **ProGuard**: Code shrinking and obfuscation for release builds
 - **Testrigor Manifest Fix v69**: Advanced workflow for resolving "chunk type:16188" APK manifest corruption errors
+- **TestRigor Build v71 Fixed**: Updated workflow addressing AGP 8.1+ compatibility issues and deprecated properties
 
 ### Development Tools
 - **Semgrep**: Static analysis security scanning with custom Bicep rules
