@@ -1,4 +1,4 @@
-name: TestRigor Build v71
+name: TestRigor Build v71 Fixed
 
 on:
   workflow_dispatch:
@@ -73,7 +73,7 @@ jobs:
           # Create local.properties for SDK path
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           
-          # Fix gradle.properties - remove conflicting Java home and add TestRigor settings
+          # Fix gradle.properties - remove deprecated and conflicting properties
           echo "Fixing gradle.properties..."
           
           # Backup existing gradle.properties if it exists
@@ -81,23 +81,23 @@ jobs:
             cp gradle.properties gradle.properties.backup
             echo "Backed up existing gradle.properties"
             
-            # Remove any existing org.gradle.java.home setting that conflicts
+            # Remove deprecated and conflicting properties
             sed -i '/org.gradle.java.home/d' gradle.properties
-            echo "Removed conflicting Java home settings"
+            sed -i '/android.bundle.enableUncompressedNativeLibs/d' gradle.properties
+            sed -i '/android.enableResourceOptimizations/d' gradle.properties
+            sed -i '/android.enablePngCrunchInReleaseBuilds/d' gradle.properties
+            echo "Removed deprecated and conflicting properties"
           else
             echo "Creating new gradle.properties"
             touch gradle.properties
           fi
           
-          # Ensure TestRigor compatibility settings are present
+          # Add only compatible TestRigor settings
           echo "" >> gradle.properties
-          echo "# TestRigor compatibility settings" >> gradle.properties
+          echo "# TestRigor compatibility settings (AGP 8.1+ compatible)" >> gradle.properties
           
-          # Add settings if they don't exist
+          # Add settings if they don't exist - only compatible ones
           grep -q "android.useLegacyPackaging" gradle.properties || echo "android.useLegacyPackaging=true" >> gradle.properties
-          grep -q "android.enableResourceOptimizations" gradle.properties || echo "android.enableResourceOptimizations=false" >> gradle.properties
-          grep -q "android.enablePngCrunchInReleaseBuilds" gradle.properties || echo "android.enablePngCrunchInReleaseBuilds=false" >> gradle.properties
-          grep -q "android.bundle.enableUncompressedNativeLibs" gradle.properties || echo "android.bundle.enableUncompressedNativeLibs=false" >> gradle.properties
           
           # Add performance settings if not present
           grep -q "org.gradle.jvmargs" gradle.properties || echo "org.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC" >> gradle.properties
@@ -105,6 +105,10 @@ jobs:
           grep -q "org.gradle.caching" gradle.properties || echo "org.gradle.caching=true" >> gradle.properties
           grep -q "android.useAndroidX" gradle.properties || echo "android.useAndroidX=true" >> gradle.properties
           grep -q "android.enableJetifier" gradle.properties || echo "android.enableJetifier=true" >> gradle.properties
+          
+          # Add modern AGP 8.1+ compatible settings
+          grep -q "android.suppressUnsupportedCompileSdk" gradle.properties || echo "android.suppressUnsupportedCompileSdk=true" >> gradle.properties
+          grep -q "android.nonTransitiveRClass" gradle.properties || echo "android.nonTransitiveRClass=true" >> gradle.properties
           
           echo ""
           echo "Final gradle.properties content:"
@@ -114,8 +118,8 @@ jobs:
           # Ensure gradle wrapper is executable
           chmod +x gradlew
           
-          # Don't update gradle wrapper - use existing version
-          echo "Using existing Gradle wrapper version..."
+          # Check gradle wrapper version
+          echo "Gradle wrapper version:"
           ./gradlew --version || true
           
           echo "✅ Project setup complete"
@@ -202,15 +206,15 @@ jobs:
           
           echo "✅ Build environment cleaned"
 
-      - name: Fix Missing Namespace (if needed)
+      - name: Fix Missing Namespace and Compatibility Issues
         run: |
-          echo "=== CHECKING AND FIXING NAMESPACE ==="
+          echo "=== FIXING NAMESPACE AND COMPATIBILITY ISSUES ==="
           
           # Check if namespace is missing in app/build.gradle
           if [ -f "app/build.gradle" ]; then
             if ! grep -q "namespace" app/build.gradle; then
               echo "⚠️  Namespace not found in app/build.gradle"
-              echo "Adding namespace based on applicationId..."
+              echo "Adding namespace..."
               
               # Extract applicationId - using awk to avoid quote issues
               APP_ID=$(awk -F'"' '/applicationId.*"/ {print $2; exit}' app/build.gradle)
@@ -220,26 +224,54 @@ jobs:
               
               if [ -n "$APP_ID" ]; then
                 echo "Found applicationId: $APP_ID"
-                
-                # Add namespace after android {
-                # Export for awk to access via ENVIRON
-                export APP_ID
-                awk '/android[[:space:]]*{/{print; printf "    namespace \"%s\"\n", ENVIRON["APP_ID"]; next}1' app/build.gradle > app/build.gradle.tmp
-                mv app/build.gradle.tmp app/build.gradle
-                
-                echo "✅ Added namespace to app/build.gradle"
-                echo "Updated content:"
-                grep -A 2 "android {" app/build.gradle
+                # Use the same namespace as applicationId
+                NAMESPACE="$APP_ID"
               else
-                echo "❌ Could not extract applicationId, using default"
-                # Use your actual package name here instead of com.example.lingualink
-                export DEFAULT_NAMESPACE="com.lingualink.app"
-                awk '/android[[:space:]]*{/{print; printf "    namespace \"%s\"\n", ENVIRON["DEFAULT_NAMESPACE"]; next}1' app/build.gradle > app/build.gradle.tmp
-                mv app/build.gradle.tmp app/build.gradle
-                echo "Used default namespace: $DEFAULT_NAMESPACE"
+                echo "❌ Could not extract applicationId, using default LinguaLink namespace"
+                NAMESPACE="com.lingualink.translator"
               fi
+              
+              # Add namespace after android {
+              export NAMESPACE
+              awk '/android[[:space:]]*{/{print; printf "    namespace \"%s\"\n", ENVIRON["NAMESPACE"]; next}1' app/build.gradle > app/build.gradle.tmp
+              mv app/build.gradle.tmp app/build.gradle
+              
+              echo "✅ Added namespace: $NAMESPACE"
+              echo "Updated content:"
+              grep -A 5 "android {" app/build.gradle
             else
               echo "✅ Namespace already present"
+            fi
+            
+            # Ensure Java compatibility settings are correct
+            echo ""
+            echo "Checking Java compatibility settings..."
+            if ! grep -q "JavaVersion.VERSION_17" app/build.gradle; then
+              echo "⚠️  Adding Java 17 compatibility settings..."
+              
+              # Find and update compileOptions block or add it
+              if grep -q "compileOptions" app/build.gradle; then
+                echo "Updating existing compileOptions block..."
+                sed -i '/compileOptions/,/}/ {
+                  s/sourceCompatibility.*/        sourceCompatibility JavaVersion.VERSION_17/
+                  s/targetCompatibility.*/        targetCompatibility JavaVersion.VERSION_17/
+                }' app/build.gradle
+              else
+                echo "Adding compileOptions block..."
+                # Add after android block starts
+                awk '/android[[:space:]]*{/{
+                  print
+                  print "    compileOptions {"
+                  print "        sourceCompatibility JavaVersion.VERSION_17"
+                  print "        targetCompatibility JavaVersion.VERSION_17"
+                  print "    }"
+                  next
+                }1' app/build.gradle > app/build.gradle.tmp
+                mv app/build.gradle.tmp app/build.gradle
+              fi
+              echo "✅ Java 17 compatibility settings added/updated"
+            else
+              echo "✅ Java compatibility settings already correct"
             fi
           fi
 
@@ -272,7 +304,12 @@ jobs:
               # Extract specific error patterns
               if grep -q "Namespace not specified" build_${name}.log; then
                 echo "⚠️  NAMESPACE ERROR DETECTED"
-                echo "Fix: Add 'namespace \"com.yourcompany.lingualink\"' to android block in app/build.gradle"
+                echo "Fix: Add 'namespace \"com.lingualink.translator\"' to android block in app/build.gradle"
+              fi
+              
+              if grep -q "deprecated" build_${name}.log; then
+                echo "⚠️  DEPRECATED PROPERTIES DETECTED"
+                grep "deprecated" build_${name}.log | head -5
               fi
               
               if grep -q "java.home" build_${name}.log; then
@@ -321,41 +358,44 @@ jobs:
             
             # Create diagnostic report
             echo "Creating diagnostic report..."
-            DIAGNOSTIC_CONTENT: |
-              BUILD FAILURE DIAGNOSTIC REPORT
-              ================================
+            cat > build_diagnostic.txt << 'EOF'
+BUILD FAILURE DIAGNOSTIC REPORT
+================================
 
-              Common fixes for your build issues:
+Common fixes for your build issues:
 
-              1. NAMESPACE (Required for AGP 8.0+):
-               Add to app/build.gradle inside android block:
-   
-               android {
-                 namespace 'com.yourcompany.lingualink'
-                 ...
-               }
+1. NAMESPACE (Required for AGP 8.0+):
+   Add to app/build.gradle inside android block:
 
-              2. JAVA VERSION COMPATIBILITY:
-               Ensure in app/build.gradle:
-   
-               android {
-                 compileOptions {
-                   sourceCompatibility JavaVersion.VERSION_17
-                   targetCompatibility JavaVersion.VERSION_17
-                 }
-                 kotlinOptions {
-                   jvmTarget = '17'
-                 }
-               }
+   android {
+       namespace 'com.lingualink.translator'
+       ...
+   }
 
-              3. REMOVE CONFLICTING JAVA HOME:
-                 Remove from gradle.properties:
-   
-                 org.gradle.java.home=/path/to/java
+2. JAVA VERSION COMPATIBILITY:
+   Ensure in app/build.gradle:
 
-              4. GRADLE/AGP VERSION COMPATIBILITY:
-                 - Gradle 8.3 works with AGP 8.0.2
-                 - Gradle 8.7 works with AGP 8.3.x
+   android {
+       compileOptions {
+           sourceCompatibility JavaVersion.VERSION_17
+           targetCompatibility JavaVersion.VERSION_17
+       }
+       kotlinOptions {
+           jvmTarget = '17'
+       }
+   }
+
+3. REMOVE DEPRECATED PROPERTIES from gradle.properties:
+   - android.bundle.enableUncompressedNativeLibs (removed in AGP 8.1)
+   - android.enableResourceOptimizations (deprecated)
+
+4. GRADLE/AGP VERSION COMPATIBILITY:
+   - Gradle 8.3 works with AGP 8.0.2
+   - Gradle 8.7 works with AGP 8.3.x
+
+5. ENSURE VALID GRADLE.PROPERTIES:
+   Only include compatible properties for your AGP version.
+EOF
             
             exit 1
           fi
@@ -418,7 +458,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: testrigor-build-v71-${{ github.run_number }}
+          name: testrigor-build-v71-fixed-${{ github.run_number }}
           path: |
             app/build/outputs/LinguaLink-*.apk
             app/build/outputs/LinguaLink-*.aab
@@ -435,7 +475,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: debug-logs-v71-${{ github.run_number }}
+          name: debug-logs-v71-fixed-${{ github.run_number }}
           path: |
             build_*.log
             build_diagnostic.txt
@@ -448,7 +488,7 @@ jobs:
         if: always()
         run: |
           echo "========================================="
-          echo "TESTRIGOR BUILD SUMMARY"
+          echo "TESTRIGOR BUILD SUMMARY - V71 FIXED"
           echo "========================================="
           echo ""
           echo "Configuration:"
@@ -460,7 +500,7 @@ jobs:
           
           echo "TestRigor Settings Applied:"
           if [ -f gradle.properties ]; then
-            grep -E "android.useLegacyPackaging|android.enableResourceOptimizations|android.enablePngCrunch" gradle.properties | sed 's/^/  /'
+            grep -E "android.useLegacyPackaging|android.suppressUnsupportedCompileSdk" gradle.properties | sed 's/^/  /'
           else
             echo "  ❌ gradle.properties not found!"
           fi
@@ -481,10 +521,12 @@ jobs:
           else
             echo "❌ BUILD FAILED - Check logs for details"
             echo ""
-            echo "Most common fixes:"
-            echo "1. Add namespace to app/build.gradle"
-            echo "2. Remove org.gradle.java.home from gradle.properties"
-            echo "3. Ensure Java 17 compatibility in build.gradle"
+            echo "Key fixes applied in this version:"
+            echo "1. Removed deprecated android.bundle.enableUncompressedNativeLibs property"
+            echo "2. Removed deprecated android.enableResourceOptimizations property"  
+            echo "3. Added automatic namespace detection and insertion"
+            echo "4. Added Java 17 compatibility settings"
+            echo "5. Improved error detection and reporting"
             exit 1
           fi
           echo "========================================="
