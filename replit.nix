@@ -1,0 +1,10 @@
+{ pkgs }: {
+  deps = [
+    pkgs.nodejs-18_x
+    pkgs.nodePackages.npm
+    pkgs.git
+    pkgs.curl
+    pkgs.openssh
+    pkgs.docker
+  ];
+}
