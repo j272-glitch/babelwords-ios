@@ -314,7 +314,7 @@ steps:
         
         # Create diagnostic report
         cat > build_diagnostic.txt << 'EOF'
-```
+
 
 # BUILD FAILURE DIAGNOSTIC REPORT
 
