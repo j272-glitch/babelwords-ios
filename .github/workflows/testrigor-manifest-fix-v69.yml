@@ -372,25 +372,26 @@ jobs:
                     
                     # Create minimal resources.arsc 
                     echo "    📋 Creating minimal resource table..."
-                    cat > AndroidManifest_fixed.xml << 'MANIFEST_EOF'
-<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.lingualink.translator" android:versionCode="69" android:versionName="1.0.69-manifest-fix">
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
-    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>
-    <application android:allowBackup="true" android:icon="@drawable/ic_launcher_globe" android:label="@string/app_name" android:theme="@style/AppTheme" android:exported="true" android:hardwareAccelerated="true" android:usesCleartextTraffic="true" android:name="com.lingualink.translator.LinguaLinkApplication">
-        <activity android:name="com.lingualink.translator.MainActivity" android:exported="true" android:launchMode="singleTop" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-    </application>
-</manifest>
-MANIFEST_EOF
+                    # Create AndroidManifest.xml using echo to avoid heredoc YAML issues
+                    {
+                      echo '<?xml version="1.0" encoding="utf-8" standalone="no"?>'
+                      echo '<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.lingualink.translator" android:versionCode="69" android:versionName="1.0.69-manifest-fix">'
+                      echo '    <uses-permission android:name="android.permission.INTERNET"/>'
+                      echo '    <uses-permission android:name="android.permission.RECORD_AUDIO"/>'
+                      echo '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>'
+                      echo '    <uses-permission android:name="android.permission.WAKE_LOCK"/>'
+                      echo '    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>'
+                      echo '    <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34"/>'
+                      echo '    <application android:allowBackup="true" android:icon="@drawable/ic_launcher_globe" android:label="@string/app_name" android:theme="@style/AppTheme" android:exported="true" android:hardwareAccelerated="true" android:usesCleartextTraffic="true" android:name="com.lingualink.translator.LinguaLinkApplication">'
+                      echo '        <activity android:name="com.lingualink.translator.MainActivity" android:exported="true" android:launchMode="singleTop" android:screenOrientation="portrait" android:windowSoftInputMode="adjustResize">'
+                      echo '            <intent-filter>'
+                      echo '                <action android:name="android.intent.action.MAIN"/>'
+                      echo '                <category android:name="android.intent.category.LAUNCHER"/>'
+                      echo '            </intent-filter>'
+                      echo '        </activity>'
+                      echo '    </application>'
+                      echo '</manifest>'
+                    } > AndroidManifest_fixed.xml
                     mv AndroidManifest_fixed.xml AndroidManifest.xml
                     
                     # Rebuild APK with fixed manifest
