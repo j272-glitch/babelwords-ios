@@ -320,47 +320,42 @@ jobs:
             echo "❌ All builds failed"
             
             # Create diagnostic report
-            cat > build_diagnostic.txt << 'EOF'
-BUILD FAILURE DIAGNOSTIC REPORT
-================================
+            echo "Creating diagnostic report..."
+            DIAGNOSTIC_CONTENT: |
+              BUILD FAILURE DIAGNOSTIC REPORT
+              ================================
 
-Common fixes for your build issues:
+              Common fixes for your build issues:
 
-1. NAMESPACE (Required for AGP 8.0+):
-   Add to app/build.gradle inside android block:
-key: |
-   android {
-       namespace 'com.yourcompany.lingualink'
-       ...
-   }
+              1. NAMESPACE (Required for AGP 8.0+):
+               Add to app/build.gradle inside android block:
    
+               android {
+                 namespace 'com.yourcompany.lingualink'
+                 ...
+               }
 
-2. JAVA VERSION COMPATIBILITY:
-   Ensure in app/build.gradle:
-key: |
-   android {
-       compileOptions {
-           sourceCompatibility JavaVersion.VERSION_17
-           targetCompatibility JavaVersion.VERSION_17
-       }
-       kotlinOptions {
-           jvmTarget = '17'
-       }
-   }
+              2. JAVA VERSION COMPATIBILITY:
+               Ensure in app/build.gradle:
    
+               android {
+                 compileOptions {
+                   sourceCompatibility JavaVersion.VERSION_17
+                   targetCompatibility JavaVersion.VERSION_17
+                 }
+                 kotlinOptions {
+                   jvmTarget = '17'
+                 }
+               }
 
-3. REMOVE CONFLICTING JAVA HOME:
-   Remove from gradle.properties:
-key: |
-   org.gradle.java.home=/path/to/java
+              3. REMOVE CONFLICTING JAVA HOME:
+                 Remove from gradle.properties:
    
+                 org.gradle.java.home=/path/to/java
 
-4. GRADLE/AGP VERSION COMPATIBILITY:
-   - Gradle 8.3 works with AGP 8.0.2
-   - Gradle 8.7 works with AGP 8.3.x
-
-Check the build logs attached for specific errors.
-EOF
+              4. GRADLE/AGP VERSION COMPATIBILITY:
+                 - Gradle 8.3 works with AGP 8.0.2
+                 - Gradle 8.7 works with AGP 8.3.x
             
             exit 1
           fi
