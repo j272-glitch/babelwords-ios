@@ -1,0 +1,169 @@
+﻿2025-08-17T01:42:34.2709909Z ##[debug]Evaluating condition for step: 'Checkout code'
+2025-08-17T01:42:34.2748208Z ##[debug]Evaluating: success()
+2025-08-17T01:42:34.2753646Z ##[debug]Evaluating success:
+2025-08-17T01:42:34.2771424Z ##[debug]=> true
+2025-08-17T01:42:34.2778673Z ##[debug]Result: true
+2025-08-17T01:42:34.2802391Z ##[debug]Starting: Checkout code
+2025-08-17T01:42:34.2894928Z ##[debug]Register post job cleanup for action: actions/checkout@v4
+2025-08-17T01:42:34.2983881Z ##[debug]Loading inputs
+2025-08-17T01:42:34.3009061Z ##[debug]Evaluating: github.token
+2025-08-17T01:42:34.3010767Z ##[debug]Evaluating Index:
+2025-08-17T01:42:34.3013124Z ##[debug]..Evaluating github:
+2025-08-17T01:42:34.3015004Z ##[debug]..=> Object
+2025-08-17T01:42:34.3021298Z ##[debug]..Evaluating String:
+2025-08-17T01:42:34.3022565Z ##[debug]..=> 'token'
+2025-08-17T01:42:34.3027562Z ##[debug]=> '***'
+2025-08-17T01:42:34.3029705Z ##[debug]Result: '***'
+2025-08-17T01:42:34.3055959Z ##[debug]Loading env
+2025-08-17T01:42:34.3132968Z ##[group]Run actions/checkout@v4
+2025-08-17T01:42:34.3134561Z with:
+2025-08-17T01:42:34.3135420Z   repository: j272-glitch/lingualink-android2
+2025-08-17T01:42:34.3136719Z   token: ***
+2025-08-17T01:42:34.3137528Z   ssh-strict: true
+2025-08-17T01:42:34.3138322Z   ssh-user: git
+2025-08-17T01:42:34.3139056Z   persist-credentials: true
+2025-08-17T01:42:34.3139982Z   clean: true
+2025-08-17T01:42:34.3140733Z   sparse-checkout-cone-mode: true
+2025-08-17T01:42:34.3141722Z   fetch-depth: 1
+2025-08-17T01:42:34.3142586Z   fetch-tags: false
+2025-08-17T01:42:34.3143367Z   show-progress: true
+2025-08-17T01:42:34.3144155Z   lfs: false
+2025-08-17T01:42:34.3145000Z   submodules: false
+2025-08-17T01:42:34.3145814Z   set-safe-directory: true
+2025-08-17T01:42:34.3146957Z ##[endgroup]
+2025-08-17T01:42:34.4223653Z ##[debug]GITHUB_WORKSPACE = '/home/runner/work/lingualink-android2/lingualink-android2'
+2025-08-17T01:42:34.4228924Z ##[debug]qualified repository = 'j272-glitch/lingualink-android2'
+2025-08-17T01:42:34.4232525Z ##[debug]ref = 'refs/heads/main'
+2025-08-17T01:42:34.4235908Z ##[debug]commit = '32b09be9b6001352fefd0fbb956536bd4cd3e894'
+2025-08-17T01:42:34.4239000Z ##[debug]clean = true
+2025-08-17T01:42:34.4241531Z ##[debug]filter = undefined
+2025-08-17T01:42:34.4244042Z ##[debug]fetch depth = 1
+2025-08-17T01:42:34.4247856Z ##[debug]fetch tags = false
+2025-08-17T01:42:34.4250356Z ##[debug]show progress = true
+2025-08-17T01:42:34.4253164Z ##[debug]lfs = false
+2025-08-17T01:42:34.4255888Z ##[debug]submodules = false
+2025-08-17T01:42:34.4258633Z ##[debug]recursive submodules = false
+2025-08-17T01:42:34.4265415Z ##[debug]GitHub Host URL = 
+2025-08-17T01:42:34.4269474Z ::add-matcher::/home/runner/work/_actions/actions/checkout/v4/dist/problem-matcher.json
+2025-08-17T01:42:34.4398382Z ##[debug]Added matchers: 'checkout-git'. Problem matchers scan action output for known warning or error strings and report these inline.
+2025-08-17T01:42:34.4408171Z Syncing repository: j272-glitch/lingualink-android2
+2025-08-17T01:42:34.4411994Z ::group::Getting Git version info
+2025-08-17T01:42:34.4425949Z ##[group]Getting Git version info
+2025-08-17T01:42:34.4428508Z Working directory is '/home/runner/work/lingualink-android2/lingualink-android2'
+2025-08-17T01:42:34.4432239Z ##[debug]Getting git version
+2025-08-17T01:42:34.4433899Z [command]/usr/bin/git version
+2025-08-17T01:42:34.4435890Z git version 2.50.1
+2025-08-17T01:42:34.4442529Z ##[debug]0
+2025-08-17T01:42:34.4445088Z ##[debug]git version 2.50.1
+2025-08-17T01:42:34.4446582Z ##[debug]
+2025-08-17T01:42:34.4452047Z ##[debug]Set git useragent to: git/2.50.1 (github-actions-checkout)
+2025-08-17T01:42:34.4455367Z ::endgroup::
+2025-08-17T01:42:34.4456515Z ##[endgroup]
+2025-08-17T01:42:34.4462432Z ::add-mask::***
+2025-08-17T01:42:34.4466953Z Temporarily overriding HOME='/home/runner/work/_temp/b79c80b3-6555-44d5-8f7f-a023d28a9d8a' before making global git config changes
+2025-08-17T01:42:34.4471437Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-17T01:42:34.4475802Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/lingualink-android2/lingualink-android2
+2025-08-17T01:42:34.4508834Z ##[debug]0
+2025-08-17T01:42:34.4517324Z ##[debug]
+2025-08-17T01:42:34.4523305Z Deleting the contents of '/home/runner/work/lingualink-android2/lingualink-android2'
+2025-08-17T01:42:34.4530287Z ::group::Initializing the repository
+2025-08-17T01:42:34.4531959Z ##[group]Initializing the repository
+2025-08-17T01:42:34.4535007Z [command]/usr/bin/git init /home/runner/work/lingualink-android2/lingualink-android2
+2025-08-17T01:42:34.4593024Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-08-17T01:42:34.4596862Z hint: is subject to change. To configure the initial branch name to use in all
+2025-08-17T01:42:34.4603496Z hint: of your new repositories, which will suppress this warning, call:
+2025-08-17T01:42:34.4611581Z hint:
+2025-08-17T01:42:34.4613229Z hint: 	git config --global init.defaultBranch <name>
+2025-08-17T01:42:34.4615447Z hint:
+2025-08-17T01:42:34.4617124Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-08-17T01:42:34.4620213Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-08-17T01:42:34.4622450Z hint:
+2025-08-17T01:42:34.4623670Z hint: 	git branch -m <name>
+2025-08-17T01:42:34.4625462Z hint:
+2025-08-17T01:42:34.4627372Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-08-17T01:42:34.4630974Z Initialized empty Git repository in /home/runner/work/lingualink-android2/lingualink-android2/.git/
+2025-08-17T01:42:34.4635456Z ##[debug]0
+2025-08-17T01:42:34.4639096Z ##[debug]Initialized empty Git repository in /home/runner/work/lingualink-android2/lingualink-android2/.git/
+2025-08-17T01:42:34.4642667Z ##[debug]
+2025-08-17T01:42:34.4644962Z [command]/usr/bin/git remote add origin https://github.com/j272-glitch/lingualink-android2
+2025-08-17T01:42:34.4652289Z ##[debug]0
+2025-08-17T01:42:34.4660718Z ##[debug]
+2025-08-17T01:42:34.4662955Z ::endgroup::
+2025-08-17T01:42:34.4664139Z ##[endgroup]
+2025-08-17T01:42:34.4667668Z ::group::Disabling automatic garbage collection
+2025-08-17T01:42:34.4669661Z ##[group]Disabling automatic garbage collection
+2025-08-17T01:42:34.4671592Z [command]/usr/bin/git config --local gc.auto 0
+2025-08-17T01:42:34.4693879Z ##[debug]0
+2025-08-17T01:42:34.4701341Z ##[debug]
+2025-08-17T01:42:34.4703443Z ::endgroup::
+2025-08-17T01:42:34.4707419Z ##[endgroup]
+2025-08-17T01:42:34.4709565Z ::group::Setting up auth
+2025-08-17T01:42:34.4710923Z ##[group]Setting up auth
+2025-08-17T01:42:34.4714627Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-17T01:42:34.4735025Z ##[debug]1
+2025-08-17T01:42:34.4738508Z ##[debug]
+2025-08-17T01:42:34.4746852Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-17T01:42:34.5017556Z ##[debug]0
+2025-08-17T01:42:34.5019736Z ##[debug]
+2025-08-17T01:42:34.5025710Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-17T01:42:34.5058156Z ##[debug]1
+2025-08-17T01:42:34.5065604Z ##[debug]
+2025-08-17T01:42:34.5070270Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-17T01:42:34.5296279Z ##[debug]0
+2025-08-17T01:42:34.5299901Z ##[debug]
+2025-08-17T01:42:34.5307960Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-08-17T01:42:34.5338890Z ##[debug]0
+2025-08-17T01:42:34.5343374Z ##[debug]
+2025-08-17T01:42:34.5349409Z ::endgroup::
+2025-08-17T01:42:34.5350690Z ##[endgroup]
+2025-08-17T01:42:34.5353675Z ::group::Fetching the repository
+2025-08-17T01:42:34.5355641Z ##[group]Fetching the repository
+2025-08-17T01:42:34.5374109Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +32b09be9b6001352fefd0fbb956536bd4cd3e894:refs/remotes/origin/main
+2025-08-17T01:42:35.6731566Z From https://github.com/j272-glitch/lingualink-android2
+2025-08-17T01:42:35.6733054Z  * [new ref]         32b09be9b6001352fefd0fbb956536bd4cd3e894 -> origin/main
+2025-08-17T01:42:35.6735749Z ##[debug]0
+2025-08-17T01:42:35.6738300Z ##[debug]
+2025-08-17T01:42:35.6741381Z ::endgroup::
+2025-08-17T01:42:35.6742047Z ##[endgroup]
+2025-08-17T01:42:35.6742980Z ::group::Determining the checkout info
+2025-08-17T01:42:35.6743736Z ##[group]Determining the checkout info
+2025-08-17T01:42:35.6745161Z ::endgroup::
+2025-08-17T01:42:35.6745753Z ##[endgroup]
+2025-08-17T01:42:35.6746642Z [command]/usr/bin/git sparse-checkout disable
+2025-08-17T01:42:35.6747888Z ##[debug]0
+2025-08-17T01:42:35.6748818Z ##[debug]
+2025-08-17T01:42:35.6751282Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-08-17T01:42:35.6780026Z ##[debug]0
+2025-08-17T01:42:35.6781740Z ##[debug]
+2025-08-17T01:42:35.6783746Z ::group::Checking out the ref
+2025-08-17T01:42:35.6784684Z ##[group]Checking out the ref
+2025-08-17T01:42:35.6787074Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-08-17T01:42:35.8106068Z Switched to a new branch 'main'
+2025-08-17T01:42:35.8106892Z branch 'main' set up to track 'origin/main'.
+2025-08-17T01:42:35.8108144Z ##[debug]0
+2025-08-17T01:42:35.8109121Z ##[debug]branch 'main' set up to track 'origin/main'.
+2025-08-17T01:42:35.8109759Z ##[debug]
+2025-08-17T01:42:35.8110769Z ::endgroup::
+2025-08-17T01:42:35.8111235Z ##[endgroup]
+2025-08-17T01:42:35.8112991Z ##[debug]0
+2025-08-17T01:42:35.8114051Z ##[debug]commit 32b09be9b6001352fefd0fbb956536bd4cd3e894
+2025-08-17T01:42:35.8115117Z ##[debug]Author: j272-glitch <j_2@fastmail.com>
+2025-08-17T01:42:35.8115870Z ##[debug]Date:   Sat Aug 16 21:14:59 2025 -0400
+2025-08-17T01:42:35.8116571Z ##[debug]
+2025-08-17T01:42:35.8117157Z ##[debug]    Add files via upload
+2025-08-17T01:42:35.8117708Z ##[debug]
+2025-08-17T01:42:35.8118269Z [command]/usr/bin/git log -1 --format=%H
+2025-08-17T01:42:35.8118876Z 32b09be9b6001352fefd0fbb956536bd4cd3e894
+2025-08-17T01:42:35.8119926Z ##[debug]0
+2025-08-17T01:42:35.8120791Z ##[debug]32b09be9b6001352fefd0fbb956536bd4cd3e894
+2025-08-17T01:42:35.8121450Z ##[debug]
+2025-08-17T01:42:35.8122269Z ##[debug]Unsetting HOME override
+2025-08-17T01:42:35.8126595Z ::remove-matcher owner=checkout-git::
+2025-08-17T01:42:35.8138942Z ##[debug]Removed matchers: 'checkout-git'
+2025-08-17T01:42:35.8157403Z ##[debug]Node Action run completed with exit code 0
+2025-08-17T01:42:35.8258346Z ##[debug]Save intra-action state isPost = true
+2025-08-17T01:42:35.8259310Z ##[debug]Save intra-action state setSafeDirectory = true
+2025-08-17T01:42:35.8260427Z ##[debug]Save intra-action state repositoryPath = /home/runner/work/lingualink-android2/lingualink-android2
+2025-08-17T01:42:35.8266356Z ##[debug]Set output commit = 32b09be9b6001352fefd0fbb956536bd4cd3e894
+2025-08-17T01:42:35.8267338Z ##[debug]Set output ref = refs/heads/main
+2025-08-17T01:42:35.8273558Z ##[debug]Finishing: Checkout code

@@ -1,0 +1,65 @@
+﻿2025-08-17T01:42:57.7745962Z ##[debug]Evaluating condition for step: 'Verify Repository Gradle Wrapper'
+2025-08-17T01:42:57.7747782Z ##[debug]Evaluating: success()
+2025-08-17T01:42:57.7748141Z ##[debug]Evaluating success:
+2025-08-17T01:42:57.7748582Z ##[debug]=> true
+2025-08-17T01:42:57.7748893Z ##[debug]Result: true
+2025-08-17T01:42:57.7749405Z ##[debug]Starting: Verify Repository Gradle Wrapper
+2025-08-17T01:42:57.7758562Z ##[debug]Loading inputs
+2025-08-17T01:42:57.7759449Z ##[debug]Loading env
+2025-08-17T01:42:57.7774670Z ##[group]Run echo "=== VERIFYING REPOSITORY GRADLE WRAPPER ==="
+2025-08-17T01:42:57.7775138Z [36;1mecho "=== VERIFYING REPOSITORY GRADLE WRAPPER ==="[0m
+2025-08-17T01:42:57.7775441Z [36;1m[0m
+2025-08-17T01:42:57.7775619Z [36;1m# Check gradle wrapper JAR[0m
+2025-08-17T01:42:57.7775913Z [36;1mif [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then[0m
+2025-08-17T01:42:57.7776283Z [36;1m  jar_size=$(stat -c%s gradle/wrapper/gradle-wrapper.jar)[0m
+2025-08-17T01:42:57.7776643Z [36;1m  echo "✅ gradle-wrapper.jar found ($jar_size bytes)"[0m
+2025-08-17T01:42:57.7776953Z [36;1m  [0m
+2025-08-17T01:42:57.7777145Z [36;1m  if [ "$jar_size" -gt 40000 ]; then[0m
+2025-08-17T01:42:57.7777417Z [36;1m    echo "✅ JAR size valid (expected ~43KB)"[0m
+2025-08-17T01:42:57.7777667Z [36;1m  else[0m
+2025-08-17T01:42:57.7777908Z [36;1m    echo "❌ JAR too small ($jar_size bytes), may be corrupted"[0m
+2025-08-17T01:42:57.7778203Z [36;1m    exit 1[0m
+2025-08-17T01:42:57.7778370Z [36;1m  fi[0m
+2025-08-17T01:42:57.7778528Z [36;1melse[0m
+2025-08-17T01:42:57.7778747Z [36;1m  echo "❌ gradle-wrapper.jar not found in repository"[0m
+2025-08-17T01:42:57.7779027Z [36;1m  exit 1[0m
+2025-08-17T01:42:57.7779191Z [36;1mfi[0m
+2025-08-17T01:42:57.7779340Z [36;1m[0m
+2025-08-17T01:42:57.7779514Z [36;1m# Check wrapper properties[0m
+2025-08-17T01:42:57.7780019Z [36;1mif [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then[0m
+2025-08-17T01:42:57.7780363Z [36;1m  echo "✅ gradle-wrapper.properties found"[0m
+2025-08-17T01:42:57.7780682Z [36;1m  cat gradle/wrapper/gradle-wrapper.properties[0m
+2025-08-17T01:42:57.7780949Z [36;1melse[0m
+2025-08-17T01:42:57.7781159Z [36;1m  echo "❌ gradle-wrapper.properties missing"[0m
+2025-08-17T01:42:57.7781406Z [36;1m  exit 1[0m
+2025-08-17T01:42:57.7781567Z [36;1mfi[0m
+2025-08-17T01:42:57.7781721Z [36;1m[0m
+2025-08-17T01:42:57.7781890Z [36;1m# Check gradlew script[0m
+2025-08-17T01:42:57.7782138Z [36;1mif [ -f "gradlew" ] && [ -x "gradlew" ]; then[0m
+2025-08-17T01:42:57.7782419Z [36;1m  echo "✅ gradlew script executable"[0m
+2025-08-17T01:42:57.7782651Z [36;1melse[0m
+2025-08-17T01:42:57.7782868Z [36;1m  echo "❌ gradlew script missing or not executable"[0m
+2025-08-17T01:42:57.7783139Z [36;1m  exit 1[0m
+2025-08-17T01:42:57.7783300Z [36;1mfi[0m
+2025-08-17T01:42:57.7851102Z shell: /usr/bin/bash -e {0}
+2025-08-17T01:42:57.7851394Z env:
+2025-08-17T01:42:57.7851675Z   JAVA_HOME: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
+2025-08-17T01:42:57.7852128Z   JAVA_HOME_17_X64: /opt/hostedtoolcache/Java_Temurin-Hotspot_jdk/17.0.16-8/x64
+2025-08-17T01:42:57.7852496Z   ANDROID_HOME: /usr/local/lib/android/sdk
+2025-08-17T01:42:57.7852754Z   ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+2025-08-17T01:42:57.7852996Z ##[endgroup]
+2025-08-17T01:42:57.7915738Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/4c8154b7-a487-4ee5-a1ec-026e9afa122a.sh
+2025-08-17T01:42:57.7940273Z === VERIFYING REPOSITORY GRADLE WRAPPER ===
+2025-08-17T01:42:57.7956689Z ✅ gradle-wrapper.jar found (55719 bytes)
+2025-08-17T01:42:57.7958177Z ✅ JAR size valid (expected ~43KB)
+2025-08-17T01:42:57.7958758Z ✅ gradle-wrapper.properties found
+2025-08-17T01:42:57.7968279Z distributionBase=GRADLE_USER_HOME
+2025-08-17T01:42:57.7969049Z distributionPath=wrapper/dists
+2025-08-17T01:42:57.7973265Z distributionUrl=https\://services.gradle.org/distributions/gradle-8.3-bin.zip
+2025-08-17T01:42:57.7973968Z networkTimeout=10000
+2025-08-17T01:42:57.7974703Z validateDistributionUrl=true
+2025-08-17T01:42:57.7975166Z zipStoreBase=GRADLE_USER_HOME
+2025-08-17T01:42:57.7975934Z zipStorePath=wrapper/dists
+2025-08-17T01:42:57.7976540Z ❌ gradlew script missing or not executable
+2025-08-17T01:42:57.7988339Z ##[error]Process completed with exit code 1.
+2025-08-17T01:42:57.8000315Z ##[debug]Finishing: Verify Repository Gradle Wrapper

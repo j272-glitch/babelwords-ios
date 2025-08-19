@@ -1,0 +1,50 @@
+﻿2025-08-17T01:42:59.0353468Z ##[debug]Evaluating condition for step: 'Post Checkout code'
+2025-08-17T01:42:59.0355942Z ##[debug]Evaluating: always()
+2025-08-17T01:42:59.0356513Z ##[debug]Evaluating always:
+2025-08-17T01:42:59.0357059Z ##[debug]=> true
+2025-08-17T01:42:59.0357594Z ##[debug]Result: true
+2025-08-17T01:42:59.0358345Z ##[debug]Starting: Post Checkout code
+2025-08-17T01:42:59.0400471Z ##[debug]Loading inputs
+2025-08-17T01:42:59.0402456Z ##[debug]Evaluating: github.token
+2025-08-17T01:42:59.0402939Z ##[debug]Evaluating Index:
+2025-08-17T01:42:59.0403370Z ##[debug]..Evaluating github:
+2025-08-17T01:42:59.0403790Z ##[debug]..=> Object
+2025-08-17T01:42:59.0404164Z ##[debug]..Evaluating String:
+2025-08-17T01:42:59.0404790Z ##[debug]..=> 'token'
+2025-08-17T01:42:59.0405465Z ##[debug]=> '***'
+2025-08-17T01:42:59.0406019Z ##[debug]Result: '***'
+2025-08-17T01:42:59.0421238Z ##[debug]Loading env
+2025-08-17T01:42:59.0427124Z Post job cleanup.
+2025-08-17T01:42:59.1956453Z ##[debug]Getting git version
+2025-08-17T01:42:59.1981447Z [command]/usr/bin/git version
+2025-08-17T01:42:59.2054253Z git version 2.50.1
+2025-08-17T01:42:59.2095425Z ##[debug]0
+2025-08-17T01:42:59.2097480Z ##[debug]git version 2.50.1
+2025-08-17T01:42:59.2097855Z ##[debug]
+2025-08-17T01:42:59.2098831Z ##[debug]Set git useragent to: git/2.50.1 (github-actions-checkout)
+2025-08-17T01:42:59.2100364Z ::add-mask::***
+2025-08-17T01:42:59.2121346Z Temporarily overriding HOME='/home/runner/work/_temp/3c1511df-f1bb-421a-89a4-a46e4dd688ef' before making global git config changes
+2025-08-17T01:42:59.2122739Z Adding repository directory to the temporary git global config as a safe directory
+2025-08-17T01:42:59.2128594Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/lingualink-android2/lingualink-android2
+2025-08-17T01:42:59.2173719Z ##[debug]0
+2025-08-17T01:42:59.2175809Z ##[debug]
+2025-08-17T01:42:59.2198552Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-08-17T01:42:59.2246198Z ##[debug]1
+2025-08-17T01:42:59.2253802Z ##[debug]
+2025-08-17T01:42:59.2258173Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-08-17T01:42:59.2607532Z ##[debug]0
+2025-08-17T01:42:59.2609449Z ##[debug]
+2025-08-17T01:42:59.2617690Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-08-17T01:42:59.2644273Z http.https://github.com/.extraheader
+2025-08-17T01:42:59.2654874Z ##[debug]0
+2025-08-17T01:42:59.2655926Z ##[debug]http.https://github.com/.extraheader
+2025-08-17T01:42:59.2656399Z ##[debug]
+2025-08-17T01:42:59.2661691Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-08-17T01:42:59.2691064Z ##[debug]0
+2025-08-17T01:42:59.2692015Z ##[debug]
+2025-08-17T01:42:59.2699186Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-08-17T01:42:59.2932101Z ##[debug]0
+2025-08-17T01:42:59.2935182Z ##[debug]
+2025-08-17T01:42:59.2935849Z ##[debug]Unsetting HOME override
+2025-08-17T01:42:59.3002071Z ##[debug]Node Action run completed with exit code 0
+2025-08-17T01:42:59.3005528Z ##[debug]Finishing: Post Checkout code
