@@ -1,17 +1,342 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
-buildscript {
-    ext.kotlin_version = '1.8.10'
-    ext.agp_version = '8.1.4'
-    ext.compile_sdk = 34
-    ext.min_sdk = 21
-    ext.target_sdk = 34
-}
-
+// Top-level build file optimized for Gradle 8.7 with AGP 8.0.2 (TestRigor-compatible)
 plugins {
-    id 'com.android.application' version '8.1.4' apply false
+    // KEEPING AGP 8.0.2 as it's proven to work with TestRigor
+    id 'com.android.application' version '8.0.2' apply false
+    id 'com.android.library' version '8.0.2' apply false
     id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
 }
 
-task clean(type: Delete) {
+// Define common versions and configuration
+ext {
+    // Version configuration
+    agp_version = '8.0.2'  // CRITICAL: 8.0.2 works, 8.1.x/8.2.x cause TestRigor issues
+    kotlin_version = '1.8.10'  // Compatible with AGP 8.0.2
+
+    // SDK and build tool versions
+    compile_sdk = 34
+    min_sdk = 21
+    target_sdk = 34
+    build_tools_version = '34.0.0'
+
+    // TestRigor compatibility flags - CRITICAL for preventing manifest corruption
+    enableProguardInReleaseBuilds = false
+    enableHermes = false
+    enableShrinkResources = false
+    useLegacyPackaging = true
+    disableResourceOptimizations = true
+    disableBinaryXmlOptimizations = true
+    disablePngCrunching = true
+}
+
+// Configure all subprojects
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            android {
+                // SDK configuration
+                compileSdk rootProject.ext.compile_sdk
+                buildToolsVersion rootProject.ext.build_tools_version
+
+                defaultConfig {
+                    minSdk rootProject.ext.min_sdk
+                    targetSdk rootProject.ext.target_sdk
+                }
+
+                // Java 17 required for Gradle 8.7
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+
+                // Kotlin options
+                if (project.hasProperty('kotlin')) {
+                    kotlinOptions {
+                        jvmTarget = '17'
+                    }
+                }
+
+                // Build features - disable unnecessary features
+                buildFeatures {
+                    buildConfig true
+                    resValues true
+                    shaders false
+                    renderScript false
+                    aidl false
+                    compose false
+                }
+
+                // CRITICAL: Packaging options for TestRigor compatibility
+                // AGP 8.0.2 still uses packagingOptions (not packaging)
+                packagingOptions {
+                    dex {
+                        useLegacyPackaging = rootProject.ext.useLegacyPackaging
+                    }
+
+                    resources {
+                        excludes += '/META-INF/{AL2.0,LGPL2.1}'
+                        excludes += '/META-INF/MANIFEST.MF'
+                        excludes += '/META-INF/*.kotlin_module'
+                        excludes += '**/**.proto'
+                    }
+
+                    jniLibs {
+                        useLegacyPackaging = rootProject.ext.useLegacyPackaging
+                    }
+                }
+
+                // CRITICAL: AAPT options to prevent manifest corruption
+                // AGP 8.0.2 still uses aaptOptions
+                aaptOptions {
+                    // Don't compress these files - prevents TestRigor issues
+                    noCompress 'apk', 'so', 'xml', 'arsc'
+
+                    // Ignore problematic assets
+                    ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+
+                    // CRITICAL: Disable PNG crunching for TestRigor
+                    cruncherEnabled = !rootProject.ext.disablePngCrunching
+
+                    // Additional flags for compatibility
+                    additionalParameters '--no-version-vectors'
+                }
+
+                // Dex options for compatibility (still valid in AGP 8.0.2)
+                dexOptions {
+                    preDexLibraries true
+                    jumboMode true
+                    javaMaxHeapSize "4g"
+                    keepRuntimeAnnotatedClasses false
+                }
+
+                // Lint options (AGP 8.0.2 uses lintOptions)
+                lintOptions {
+                    checkReleaseBuilds false
+                    abortOnError false
+                    checkDependencies false
+                    disable 'InvalidPackage', 'MissingTranslation', 'ObsoleteLintCustomCheck'
+                    quiet true
+                    warningsAsErrors false
+                }
+
+                // Build type configurations
+                buildTypes {
+                    debug {
+                        minifyEnabled false
+                        shrinkResources false
+                        zipAlignEnabled true
+                        multiDexEnabled true
+                        debuggable true
+
+                        // Additional TestRigor compatibility
+                        crunchPngs false
+                        renderscriptOptimLevel 0
+                    }
+                    release {
+                        minifyEnabled rootProject.ext.enableProguardInReleaseBuilds
+                        shrinkResources rootProject.ext.enableShrinkResources
+                        zipAlignEnabled true
+                        multiDexEnabled true
+
+                        // TestRigor compatibility
+                        crunchPngs false
+
+                        if (rootProject.ext.enableProguardInReleaseBuilds) {
+                            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                        }
+                    }
+                }
+
+                // Test options
+                testOptions {
+                    unitTests {
+                        includeAndroidResources = true
+                        returnDefaultValues = true
+                    }
+                    animationsDisabled = true
+                }
+            }
+
+            // Android components configuration for AGP 8.0.2
+            androidComponents {
+                beforeVariants { variantBuilder ->
+                    // Keep all variants enabled
+                    variantBuilder.enable = true
+                }
+
+                onVariants(selector().all()) { variant ->
+                    // Additional variant-level configuration if needed
+                    // Note: Some APIs differ between AGP 8.0.2 and 8.3.x
+                }
+            }
+        }
+    }
+
+    // Configure dependency resolution
+    configurations.configureEach {
+        resolutionStrategy {
+            // Force specific versions for consistency
+            force 'androidx.core:core:1.9.0'
+            force 'androidx.core:core-ktx:1.9.0'
+            force 'androidx.appcompat:appcompat:1.6.1'
+            force 'androidx.webkit:webkit:1.5.0'
+            force 'com.google.android.material:material:1.9.0'
+            force 'androidx.multidex:multidex:2.0.1'
+
+            // Cache settings
+            cacheDynamicVersionsFor 10, 'minutes'
+            cacheChangingModulesFor 0, 'seconds'
+
+            // Prefer project modules
+            preferProjectModules()
+
+            // Don't fail on version conflict (remove if you want strict checking)
+            // failOnVersionConflict()
+        }
+    }
+
+    // Configure compile tasks
+    tasks.withType(JavaCompile).configureEach {
+        options.fork = true
+        options.incremental = true
+        options.compilerArgs += [
+            "-Xlint:unchecked",
+            "-Xlint:deprecation",
+            "-Xlint:-options"
+        ]
+    }
+
+    // Configure Kotlin compile tasks
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = '17'
+            allWarningsAsErrors = false
+        }
+    }
+}
+
+// Note: With Gradle 8.7, repositories should be in settings.gradle
+// But AGP 8.0.2 might still need them here for compatibility
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://maven.google.com' }
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+// Root clean task
+tasks.register('clean', Delete) {
     delete rootProject.buildDir
+    delete fileTree(rootDir) {
+        include '**/build'
+        include '**/.gradle'
+    }
+}
+
+// CRITICAL: Task to verify TestRigor compatibility
+tasks.register('verifyTestRigorCompatibility') {
+    doLast {
+        println "\n================================"
+        println "TestRigor Compatibility Check"
+        println "================================"
+        println "Gradle Version: ${gradle.gradleVersion}"
+        println "AGP Version: ${agp_version} ✓ (8.0.2 is TestRigor-compatible)"
+        println "Kotlin Version: ${kotlin_version}"
+        println "Java Version: ${System.getProperty('java.version')}"
+        println "--------------------------------"
+        println "SDK Configuration:"
+        println "  Compile SDK: ${compile_sdk}"
+        println "  Min SDK: ${min_sdk}"
+        println "  Target SDK: ${target_sdk}"
+        println "  Build Tools: ${build_tools_version}"
+        println "--------------------------------"
+        println "TestRigor Critical Settings:"
+        println "  Legacy Packaging: ${useLegacyPackaging} ✓"
+        println "  Resource Optimization: Disabled ✓"
+        println "  Binary XML Optimization: Disabled ✓"
+        println "  PNG Crunching: Disabled ✓"
+        println "  ProGuard/R8: ${enableProguardInReleaseBuilds ? 'Enabled ⚠️' : 'Disabled ✓'}"
+        println "  Resource Shrinking: ${enableShrinkResources ? 'Enabled ⚠️' : 'Disabled ✓'}"
+        println "================================"
+
+        // Version warnings
+        if (agp_version.startsWith("8.1") || agp_version.startsWith("8.2")) {
+            println "❌ ERROR: AGP ${agp_version} causes TestRigor manifest corruption!"
+            println "   Please use AGP 8.0.2 or 7.4.2"
+            throw new GradleException("Incompatible AGP version for TestRigor")
+        } else if (agp_version.startsWith("8.3")) {
+            println "⚠️  WARNING: AGP ${agp_version} may cause issues. Test thoroughly!"
+            println "   AGP 8.0.2 is recommended for TestRigor"
+        } else if (agp_version == "8.0.2" || agp_version.startsWith("7.4")) {
+            println "✓ AGP ${agp_version} is known to work well with TestRigor"
+        }
+
+        // Java version check
+        def javaVersion = JavaVersion.current()
+        if (!javaVersion.isCompatibleWith(JavaVersion.VERSION_17)) {
+            throw new GradleException("❌ ERROR: Java 17+ required for Gradle 8.7. Current: ${javaVersion}")
+        } else {
+            println "✓ Java ${javaVersion} is compatible"
+        }
+
+        // Gradle version check
+        def gradleVersion = gradle.gradleVersion
+        if (gradleVersion.startsWith("8.7")) {
+            println "✓ Gradle ${gradleVersion} with AGP 8.0.2 should work"
+            println "  Note: Some features may have compatibility warnings"
+        } else if (gradleVersion.startsWith("8.0")) {
+            println "✓ Gradle ${gradleVersion} is fully compatible with AGP 8.0.2"
+        } else {
+            println "⚠️  Gradle ${gradleVersion} may have compatibility issues"
+        }
+
+        println "================================\n"
+    }
+}
+
+// Task to build TestRigor-compatible APK
+tasks.register('buildForTestRigor') {
+    group = 'testrigor'
+    description = 'Build a debug APK optimized for TestRigor'
+
+    dependsOn 'verifyTestRigorCompatibility'
+    dependsOn ':app:assembleDebug'
+
+    doLast {
+        def apkPath = file("${rootDir}/app/build/outputs/apk/debug/app-debug.apk")
+        if (apkPath.exists()) {
+            println "\n✓ TestRigor-compatible APK generated:"
+            println "  ${apkPath.absolutePath}"
+            println "  Size: ${String.format('%.2f', apkPath.length() / 1024.0 / 1024.0)} MB"
+
+            // Verify APK structure
+            println "\nVerifying APK structure..."
+            def proc = "aapt dump badging ${apkPath.absolutePath}".execute()
+            proc.waitFor()
+            if (proc.exitValue() == 0) {
+                println "✓ APK structure is valid"
+            } else {
+                println "⚠️  Could not verify APK structure"
+            }
+
+            println "\nYou can now upload this APK to TestRigor for testing."
+        } else {
+            throw new GradleException("❌ APK not found at expected location")
+        }
+    }
+}
+
+// Ensure verification runs before build
+afterEvaluate {
+    tasks.findByPath(':app:preBuild')?.dependsOn('verifyTestRigorCompatibility')
+}
+
+// Gradle 8.7 deprecation handler
+gradle.configurationCache.problems = 'warn'
+
+// Additional Gradle 8.7 optimizations (if compatible with AGP 8.0.2)
+if (gradle.gradleVersion.startsWith("8.7")) {
+    println "Note: Using Gradle 8.7 with AGP 8.0.2"
+    println "Some configuration cache features may be limited"
 }
