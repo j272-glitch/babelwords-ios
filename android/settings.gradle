@@ -1,18 +1,53 @@
+// settings.gradle - Simplified and fixed for TestRigor compatibility
+// CRITICAL: This configuration is tested to prevent manifest corruption errors
+
 pluginManagement {
     repositories {
         google()
         mavenCentral()
         gradlePluginPortal()
     }
-}
-dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
+
+    // CRITICAL: Force specific plugin versions to prevent TestRigor issues
+    resolutionStrategy {
+        eachPlugin {
+            // Force Android Gradle Plugin to 8.0.2 (8.1.x/8.2.x cause manifest corruption)
+            if (requested.id.id.startsWith("com.android.")) {
+                useModule("com.android.tools.build:gradle:8.0.2")
+            }
+            // Force Kotlin plugin version
+            if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10")
+            }
+        }
     }
 }
 
+dependencyResolutionManagement {
+    // Use PREFER_SETTINGS for flexibility
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+
+// Root project name
 rootProject.name = "LinguaLink"
+
+// Include app module
 include ':app'
+
+// Print configuration info
+println """
+╔════════════════════════════════════════════════════════════╗
+║                 TESTRIGOR BUILD CONFIGURATION               ║
+╠════════════════════════════════════════════════════════════╣
+║ Project: ${rootProject.name}                                
+║ AGP Version: 8.0.2 (locked)                                
+║ Kotlin Version: 1.8.10 (locked)                            
+║ Gradle Version: ${gradle.gradleVersion}                     
+╚════════════════════════════════════════════════════════════╝
+"""
