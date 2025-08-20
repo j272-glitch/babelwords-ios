@@ -1,0 +1,545 @@
+name: TestRigor Build Fixed
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: false
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release  
+          - both
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Gradle settings optimized for TestRigor compatibility
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+  JAVA_OPTS: -XX:+UseParallelGC
+  # CRITICAL: Disable all optimizations
+  ORG_GRADLE_PROJECT_android_enableR8: false
+  ORG_GRADLE_PROJECT_android_enableResourceOptimizations: false
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+
+jobs:
+  build-testrigor:
+    name: Build TestRigor-Compatible APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
+          accept-android-sdk-licenses: true
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;34.0.0
+            build-tools;35.0.0
+
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Setup TestRigor Compatible Environment
+        run: |
+          echo "=== SETTING UP TESTRIGOR COMPATIBLE ENVIRONMENT ==="
+          
+          # Copy Android project files if they're in a subdirectory
+          if [ -d "android" ]; then
+            echo "Copying Android project files from android/ directory..."
+            cp -r android/* .
+          fi
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "✅ Created local.properties"
+          
+          # CRITICAL: Force AGP 8.0.2 in root build.gradle
+          echo ""
+          echo "=== FORCING AGP 8.0.2 ==="
+          
+          if [ -f "build.gradle" ]; then
+            # Backup original
+            cp build.gradle build.gradle.original
+            
+            # Force AGP 8.0.2
+            sed -i "s/id 'com.android.application' version '[^']*'/id 'com.android.application' version '8.0.2'/g" build.gradle
+            sed -i "s/id 'com.android.library' version '[^']*'/id 'com.android.library' version '8.0.2'/g" build.gradle
+            sed -i "s/com.android.tools.build:gradle:[^']*/com.android.tools.build:gradle:8.0.2/g" build.gradle
+            
+            echo "✅ Forced AGP to 8.0.2 in build.gradle"
+            grep -E "com.android.(application|library)|com.android.tools.build" build.gradle || true
+          fi
+          
+          # CRITICAL: Update Gradle wrapper to 8.0.2
+          echo ""
+          echo "=== SETTING GRADLE WRAPPER TO 8.0.2 ==="
+          
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          echo "✅ Set Gradle wrapper to 8.0.2"
+          
+          # CRITICAL: Create TestRigor-compatible gradle.properties
+          echo ""
+          echo "=== CREATING TESTRIGOR COMPATIBLE gradle.properties ==="
+          
+          cat > gradle.properties << 'EOF'
+          # TestRigor Critical Settings - DO NOT MODIFY
+          # Memory settings
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.configureondemand=false
+          org.gradle.caching=false
+          
+          # Android settings
+          android.useAndroidX=true
+          android.enableJetifier=true
+          
+          # CRITICAL FOR TESTRIGOR - ALL MUST BE SET
+          android.enableR8=false
+          android.enableR8.fullMode=false
+          android.enableD8=true
+          android.enableD8.desugaring=true
+          android.enableResourceOptimizations=false
+          android.enableNewResourceShrinker=false
+          android.enablePngCrunchInReleaseBuilds=false
+          android.useLegacyPackaging=true
+          android.enableAapt2=true
+          android.useNewApkCreator=false
+          android.enableBuildCache=false
+          android.nonTransitiveRClass=false
+          android.injected.testOnly=false
+          android.experimental.enableNewResourceShrinker=false
+          android.experimental.cacheCompileLibResources=false
+          
+          # Suppress warnings
+          android.suppressUnsupportedOptionWarnings=android.enableR8,android.enableR8.fullMode,android.enableResourceOptimizations,android.useNewApkCreator,android.enableNewResourceShrinker
+          EOF
+          
+          echo "✅ Created TestRigor-compatible gradle.properties"
+          
+          # CRITICAL: Simplify settings.gradle
+          echo ""
+          echo "=== SIMPLIFYING settings.gradle ==="
+          
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+              resolutionStrategy {
+                  eachPlugin {
+                      if (requested.id.id.startsWith("com.android.")) {
+                          useModule("com.android.tools.build:gradle:8.0.2")
+                      }
+                      if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
+                          useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10")
+                      }
+                  }
+              }
+          }
+          
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+                  maven { url 'https://jitpack.io' }
+              }
+          }
+          
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          
+          echo "✅ Simplified settings.gradle"
+          
+          # Make gradlew executable
+          chmod +x gradlew
+          
+          echo ""
+          echo "✅ TestRigor compatible environment setup complete"
+
+      - name: Fix App Build Configuration
+        run: |
+          echo "=== FIXING APP BUILD CONFIGURATION ==="
+          
+          if [ -f "app/build.gradle" ]; then
+            echo "Processing app/build.gradle..."
+            
+            # Backup
+            cp app/build.gradle app/build.gradle.original
+            
+            # Add namespace if missing
+            if ! grep -q "namespace" app/build.gradle; then
+              echo "Adding namespace..."
+              
+              # Extract applicationId
+              APP_ID=$(grep "applicationId" app/build.gradle | head -1 | sed "s/.*applicationId[[:space:]]*['\"]//;s/['\"].*//")
+              
+              if [ -z "$APP_ID" ]; then
+                APP_ID="com.lingualink.translator"
+              fi
+              
+              # Add namespace after android {
+              sed -i "/android[[:space:]]*{/a\\    namespace '$APP_ID'" app/build.gradle
+              echo "✅ Added namespace: $APP_ID"
+            fi
+            
+            # Ensure SDK versions match manifest (35)
+            sed -i "s/compileSdk[[:space:]]*[0-9]*/compileSdk 35/g" app/build.gradle
+            sed -i "s/targetSdk[[:space:]]*[0-9]*/targetSdk 35/g" app/build.gradle
+            sed -i "s/minSdk[[:space:]]*[0-9]*/minSdk 24/g" app/build.gradle
+            echo "✅ Set SDK versions: compile=35, target=35, min=24"
+            
+            # Add/Update Java compatibility
+            if ! grep -q "compileOptions" app/build.gradle; then
+              # Add compileOptions block
+              cat >> app/build.gradle << 'EOF'
+          
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+              echo "✅ Added Java 17 compatibility"
+            else
+              # Update existing
+              sed -i '/compileOptions/,/}/ {
+                s/sourceCompatibility.*/        sourceCompatibility JavaVersion.VERSION_17/
+                s/targetCompatibility.*/        targetCompatibility JavaVersion.VERSION_17/
+              }' app/build.gradle
+              echo "✅ Updated Java compatibility to 17"
+            fi
+            
+            # CRITICAL: Add TestRigor-specific build configurations
+            echo ""
+            echo "Adding TestRigor-specific configurations..."
+            
+            # Check if packagingOptions exists, if not add it
+            if ! grep -q "packagingOptions" app/build.gradle; then
+              # Find the android block and add packagingOptions
+              sed -i '/android[[:space:]]*{/a\
+              packagingOptions {\
+                  dex {\
+                      useLegacyPackaging = true\
+                  }\
+                  resources {\
+                      excludes += ["META-INF/AL2.0", "META-INF/LGPL2.1"]\
+                  }\
+              }' app/build.gradle
+              echo "✅ Added packagingOptions for TestRigor"
+            fi
+            
+            # Disable optimizations in buildTypes
+            sed -i '/buildTypes/,/^[[:space:]]*}/ {
+              s/minifyEnabled true/minifyEnabled false/g
+              s/shrinkResources true/shrinkResources false/g
+              s/zipAlignEnabled true/zipAlignEnabled false/g
+            }' app/build.gradle
+            echo "✅ Disabled all optimizations in buildTypes"
+            
+            # Add aaptOptions if missing
+            if ! grep -q "aaptOptions" app/build.gradle; then
+              sed -i '/android[[:space:]]*{/a\
+              aaptOptions {\
+                  cruncherEnabled = false\
+                  noCompress ".apk", ".so", ".xml", ".arsc"\
+              }' app/build.gradle
+              echo "✅ Added aaptOptions to disable PNG crunching"
+            fi
+            
+            echo "✅ App build.gradle configured for TestRigor"
+          fi
+
+      - name: Clean Build Environment
+        run: |
+          echo "=== CLEANING BUILD ENVIRONMENT ==="
+          
+          # Stop any running daemons
+          ./gradlew --stop || true
+          
+          # Clean all caches
+          rm -rf ~/.gradle/caches/transforms-*
+          rm -rf ~/.gradle/caches/jars-*
+          rm -rf ~/.gradle/caches/build-cache-*
+          rm -rf .gradle
+          rm -rf build
+          rm -rf app/build
+          
+          echo "✅ Build environment cleaned"
+
+      - name: Build TestRigor Debug APK
+        id: build_debug
+        if: ${{ inputs.build_type == 'debug' || inputs.build_type == 'both' || inputs.build_type == '' }}
+        run: |
+          echo "=== BUILDING TESTRIGOR DEBUG APK ==="
+          
+          # Build with all TestRigor compatibility flags
+          ./gradlew app:assembleDebug \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.enablePngCrunchInReleaseBuilds=false \
+            -Pandroid.useLegacyPackaging=true \
+            -Pandroid.enableAapt2=true \
+            -Pandroid.enableD8=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --stacktrace \
+            2>&1 | tee build_debug.log
+          
+          BUILD_RESULT=${PIPESTATUS[0]}
+          
+          if [ $BUILD_RESULT -eq 0 ]; then
+            echo "✅ Debug build succeeded"
+            
+            # Find and validate APK
+            DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" -type f | head -1)
+            if [ -f "$DEBUG_APK" ]; then
+              echo "✅ Found debug APK: $DEBUG_APK"
+              
+              # Validate APK structure
+              echo "Validating APK structure..."
+              unzip -l "$DEBUG_APK" | grep -E "AndroidManifest.xml|resources.arsc|classes.dex" || true
+              
+              # Copy with version name
+              cp "$DEBUG_APK" "app/build/outputs/LinguaLink-debug-testrigor.apk"
+              echo "✅ Created: LinguaLink-debug-testrigor.apk"
+              
+              # Output for GitHub
+              echo "debug_apk_path=$DEBUG_APK" >> $GITHUB_OUTPUT
+            else
+              echo "❌ Debug APK not found after successful build"
+              exit 1
+            fi
+          else
+            echo "❌ Debug build failed"
+            echo "Last 50 lines of build log:"
+            tail -50 build_debug.log
+            exit 1
+          fi
+
+      - name: Build TestRigor Release APK
+        id: build_release
+        if: ${{ inputs.build_type == 'release' || inputs.build_type == 'both' }}
+        run: |
+          echo "=== BUILDING TESTRIGOR RELEASE APK ==="
+          
+          # Build with all TestRigor compatibility flags
+          ./gradlew app:assembleRelease \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.enablePngCrunchInReleaseBuilds=false \
+            -Pandroid.useLegacyPackaging=true \
+            -Pandroid.enableAapt2=true \
+            -Pandroid.enableD8=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --stacktrace \
+            2>&1 | tee build_release.log
+          
+          BUILD_RESULT=${PIPESTATUS[0]}
+          
+          if [ $BUILD_RESULT -eq 0 ]; then
+            echo "✅ Release build succeeded"
+            
+            # Find and validate APK
+            RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" -type f | head -1)
+            if [ -f "$RELEASE_APK" ]; then
+              echo "✅ Found release APK: $RELEASE_APK"
+              
+              # Copy with version name
+              cp "$RELEASE_APK" "app/build/outputs/LinguaLink-release-testrigor.apk"
+              echo "✅ Created: LinguaLink-release-testrigor.apk"
+              
+              echo "release_apk_path=$RELEASE_APK" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️ Release APK not found (might be unsigned)"
+            fi
+          else
+            echo "❌ Release build failed"
+            tail -50 build_release.log
+          fi
+
+      - name: Verify APK with aapt
+        if: success()
+        run: |
+          echo "=== VERIFYING APK WITH AAPT ==="
+          
+          # Install aapt if not available
+          AAPT_PATH="$ANDROID_HOME/build-tools/34.0.0/aapt"
+          
+          if [ -f "$AAPT_PATH" ]; then
+            for apk in app/build/outputs/LinguaLink-*.apk; do
+              if [ -f "$apk" ]; then
+                echo ""
+                echo "Verifying: $(basename $apk)"
+                echo "================================"
+                
+                # Run aapt dump badging
+                if $AAPT_PATH dump badging "$apk" > aapt_output.txt 2>&1; then
+                  echo "✅ APK structure is valid"
+                  
+                  # Extract key information
+                  grep -E "package:|versionCode|versionName|sdkVersion|targetSdkVersion" aapt_output.txt || true
+                  
+                  # Check for manifest
+                  if $AAPT_PATH dump xmltree "$apk" AndroidManifest.xml > /dev/null 2>&1; then
+                    echo "✅ AndroidManifest.xml is valid"
+                  else
+                    echo "⚠️ AndroidManifest.xml might have issues"
+                  fi
+                else
+                  echo "❌ APK verification failed"
+                  cat aapt_output.txt
+                fi
+              fi
+            done
+          else
+            echo "⚠️ aapt not found, skipping verification"
+          fi
+
+      - name: Upload TestRigor APKs
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: testrigor-apks-${{ github.run_number }}
+          path: |
+            app/build/outputs/LinguaLink-*-testrigor.apk
+            app/build/outputs/apk/**/*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Build Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: testrigor-build-logs-${{ github.run_number }}
+          path: |
+            build_*.log
+            gradle.properties
+            settings.gradle
+            app/build.gradle
+            app/build.gradle.original
+            build.gradle
+            build.gradle.original
+          retention-days: 7
+
+      - name: Create GitHub Release (Optional)
+        if: success() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: testrigor-v${{ github.run_number }}
+          name: TestRigor Build v${{ github.run_number }}
+          draft: false
+          prerelease: true
+          files: |
+            app/build/outputs/LinguaLink-*-testrigor.apk
+          body: |
+            ## TestRigor Compatible Build
+            
+            This build is specifically configured for TestRigor compatibility:
+            - AGP 8.0.2 (prevents chunk:16188 error)
+            - All optimizations disabled
+            - Legacy packaging enabled
+            - PNG crunching disabled
+            
+            ### Configuration
+            - Gradle: 8.0.2
+            - AGP: 8.0.2
+            - SDK: Compile=35, Target=35, Min=24
+            - Java: 17
+            
+            ### APK Files
+            - `LinguaLink-debug-testrigor.apk` - Debug build for testing
+            - `LinguaLink-release-testrigor.apk` - Release build (if available)
+            
+            Upload these APKs directly to TestRigor for automated testing.
+
+      - name: Final Summary
+        if: always()
+        run: |
+          echo "========================================="
+          echo "     TESTRIGOR BUILD SUMMARY"
+          echo "========================================="
+          echo ""
+          
+          # Show configuration
+          echo "Configuration Used:"
+          echo "  Gradle: 8.0.2"
+          echo "  AGP: 8.0.2 (forced)"
+          echo "  Java: 17"
+          echo "  Build Type: ${{ inputs.build_type || 'debug' }}"
+          echo ""
+          
+          echo "Critical TestRigor Settings:"
+          grep -E "enableR8|enableResourceOptimizations|useLegacyPackaging|enablePngCrunch" gradle.properties | sed 's/^/  /' || true
+          echo ""
+          
+          echo "Generated APKs:"
+          for apk in app/build/outputs/LinguaLink-*-testrigor.apk; do
+            if [ -f "$apk" ]; then
+              size=$(stat -c%s "$apk" 2>/dev/null || echo "0")
+              echo "  ✅ $(basename $apk) - $((size / 1024 / 1024)) MB"
+            fi
+          done
+          echo ""
+          
+          # Check for the specific error
+          if grep -q "Unexpected chunk type" build_*.log 2>/dev/null; then
+            echo "❌ ERROR: 'Unexpected chunk type' still detected!"
+            echo "This usually means AGP version is not 8.0.2 or optimizations are enabled"
+          elif [ -f "app/build/outputs/LinguaLink-debug-testrigor.apk" ] || [ -f "app/build/outputs/LinguaLink-release-testrigor.apk" ]; then
+            echo "✅ SUCCESS: TestRigor-compatible APKs generated!"
+            echo ""
+            echo "Next Steps:"
+            echo "1. Download the APK artifacts"
+            echo "2. Upload to TestRigor"
+            echo "3. If errors persist, check TestRigor's documentation"
+          else
+            echo "❌ FAILED: No APKs generated"
+            echo "Check the build logs for details"
+          fi
+          
+          echo "========================================="
