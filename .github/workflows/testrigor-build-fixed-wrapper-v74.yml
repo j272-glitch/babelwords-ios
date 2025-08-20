@@ -1,0 +1,456 @@
+name: TestRigor Build - Fixed Wrapper
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: false
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release  
+          - both
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Gradle settings for TestRigor
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  # Critical TestRigor flags
+  ORG_GRADLE_PROJECT_android_enableR8: false
+  ORG_GRADLE_PROJECT_android_enableResourceOptimizations: false
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+
+jobs:
+  build-testrigor:
+    name: Build TestRigor APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK (Alternative Method)
+        run: |
+          echo "=== SETTING UP ANDROID SDK ==="
+          
+          # Android SDK is pre-installed on GitHub Actions Ubuntu runners
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
+          
+          # Update SDK tools
+          echo "Updating SDK Manager..."
+          if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          elif [ -f "$ANDROID_HOME/tools/bin/sdkmanager" ]; then
+            SDK_MANAGER="$ANDROID_HOME/tools/bin/sdkmanager"
+          else
+            echo "Finding sdkmanager..."
+            SDK_MANAGER=$(find $ANDROID_HOME -name sdkmanager -type f | head -1)
+          fi
+          
+          if [ -z "$SDK_MANAGER" ]; then
+            echo "❌ sdkmanager not found!"
+            echo "Installing cmdline-tools..."
+            
+            # Download and install cmdline-tools if missing
+            cd $ANDROID_HOME
+            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q commandlinetools-linux-11076708_latest.zip
+            mkdir -p cmdline-tools/latest
+            mv cmdline-tools/* cmdline-tools/latest/ 2>/dev/null || true
+            rm commandlinetools-linux-11076708_latest.zip
+            SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+            cd -
+          fi
+          
+          echo "Using SDK Manager: $SDK_MANAGER"
+          
+          # Accept licenses
+          echo "Accepting licenses..."
+          yes | $SDK_MANAGER --licenses > /dev/null 2>&1 || true
+          
+          # Update repositories
+          echo "Updating SDK repositories..."
+          $SDK_MANAGER --update || true
+          
+          # Install required components with fallbacks
+          echo "Installing platform-tools..."
+          $SDK_MANAGER "platform-tools" || echo "platform-tools might already be installed"
+          
+          echo "Installing platforms..."
+          # Try Android 35 first, fallback to 34
+          if ! $SDK_MANAGER "platforms;android-35" 2>/dev/null; then
+            echo "Android 35 not available, installing Android 34..."
+            $SDK_MANAGER "platforms;android-34"
+            USE_SDK_34=true
+          fi
+          
+          echo "Installing build-tools..."
+          # Try 34.0.0, fallback to latest available
+          if ! $SDK_MANAGER "build-tools;34.0.0" 2>/dev/null; then
+            echo "Build-tools 34.0.0 not available, installing latest..."
+            # Get latest build-tools version
+            LATEST_BUILD_TOOLS=$($SDK_MANAGER --list | grep "build-tools" | grep -v rc | grep -v preview | tail -1 | awk '{print $1}')
+            if [ -n "$LATEST_BUILD_TOOLS" ]; then
+              $SDK_MANAGER "$LATEST_BUILD_TOOLS"
+            else
+              $SDK_MANAGER "build-tools;33.0.2"
+            fi
+          fi
+          
+          # List what we have
+          echo ""
+          echo "Installed SDK components:"
+          $SDK_MANAGER --list_installed | grep -E "platform-tools|platforms;android|build-tools" || true
+          
+          # Export for later use
+          if [ "$USE_SDK_34" = "true" ]; then
+            echo "COMPILE_SDK=34" >> $GITHUB_ENV
+          else
+            echo "COMPILE_SDK=35" >> $GITHUB_ENV
+          fi
+          
+          echo "✅ Android SDK setup complete"
+
+      - name: Prepare Project Structure
+        run: |
+          echo "=== PREPARING PROJECT STRUCTURE ==="
+          
+          # Handle different project structures
+          if [ -d "android" ] && [ ! -f "settings.gradle" ]; then
+            echo "Found android/ subdirectory, copying contents to root..."
+            cp -r android/* .
+            cp -r android/.[^.]* . 2>/dev/null || true
+          fi
+          
+          # Verify we have the basic structure
+          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
+            echo "❌ No settings.gradle found!"
+            echo "Creating minimal settings.gradle..."
+            cat > settings.gradle << 'EOF'
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          fi
+          
+          if [ ! -d "app" ]; then
+            echo "❌ No app directory found!"
+            ls -la
+            exit 1
+          fi
+          
+          echo "✅ Project structure verified"
+
+      - name: Configure TestRigor Environment
+        run: |
+          echo "=== CONFIGURING TESTRIGOR ENVIRONMENT ==="
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "✅ Created local.properties"
+          
+          # Create TestRigor-compatible gradle.properties
+          cat > gradle.properties << 'EOF'
+          # TestRigor Compatibility Settings
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.configureondemand=false
+          org.gradle.caching=false
+          
+          # Android
+          android.useAndroidX=true
+          android.enableJetifier=true
+          
+          # CRITICAL - Disable all optimizations
+          android.enableR8=false
+          android.enableR8.fullMode=false
+          android.enableD8=true
+          android.enableResourceOptimizations=false
+          android.enablePngCrunchInReleaseBuilds=false
+          android.useLegacyPackaging=true
+          android.nonTransitiveRClass=false
+          
+          # Suppress warnings
+          android.suppressUnsupportedOptionWarnings=android.enableR8,android.enableR8.fullMode,android.enableResourceOptimizations
+          EOF
+          echo "✅ Created gradle.properties"
+          
+          # Force AGP 8.0.2 in build.gradle
+          if [ -f "build.gradle" ]; then
+            echo "Forcing AGP 8.0.2..."
+            sed -i "s/id ['\"]com.android.application['\"] version ['\"][^'\"]*['\"]/id 'com.android.application' version '8.0.2'/g" build.gradle
+            sed -i "s/id ['\"]com.android.library['\"] version ['\"][^'\"]*['\"]/id 'com.android.library' version '8.0.2'/g" build.gradle
+            echo "✅ Forced AGP to 8.0.2"
+          fi
+          
+          # Update Gradle wrapper
+          if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+            echo "Setting Gradle wrapper to 8.0.2..."
+            sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.0.2-all.zip|' gradle/wrapper/gradle-wrapper.properties
+            echo "✅ Set Gradle wrapper to 8.0.2"
+          fi
+          
+          # Make gradlew executable
+          chmod +x gradlew
+          
+          # Simplify settings.gradle
+          if [ -f "settings.gradle" ]; then
+            echo "Simplifying settings.gradle..."
+            cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+              resolutionStrategy {
+                  eachPlugin {
+                      if (requested.id.id.startsWith("com.android.")) {
+                          useModule("com.android.tools.build:gradle:8.0.2")
+                      }
+                  }
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+            echo "✅ Simplified settings.gradle"
+          fi
+
+      - name: Fix App Configuration
+        run: |
+          echo "=== FIXING APP CONFIGURATION ==="
+          
+          if [ -f "app/build.gradle" ]; then
+            # Backup original
+            cp app/build.gradle app/build.gradle.backup
+            
+            # Add namespace if missing
+            if ! grep -q "namespace" app/build.gradle; then
+              echo "Adding namespace..."
+              # Try to extract applicationId
+              APP_ID=$(grep "applicationId" app/build.gradle | head -1 | sed "s/.*applicationId[[:space:]]*['\"]//;s/['\"].*//")
+              if [ -z "$APP_ID" ]; then
+                APP_ID="com.lingualink.translator"
+              fi
+              
+              # Add namespace after android {
+              awk -v ns="$APP_ID" '/android[[:space:]]*{/{print; print "    namespace \"" ns "\""; next}1' app/build.gradle > app/build.gradle.tmp
+              mv app/build.gradle.tmp app/build.gradle
+              echo "✅ Added namespace: $APP_ID"
+            fi
+            
+            # Update SDK versions based on what's available
+            COMPILE_SDK="${COMPILE_SDK:-35}"
+            echo "Setting compileSdk to $COMPILE_SDK..."
+            sed -i "s/compileSdk[[:space:]]*[0-9]*/compileSdk $COMPILE_SDK/g" app/build.gradle
+            sed -i "s/compileSdkVersion[[:space:]]*[0-9]*/compileSdkVersion $COMPILE_SDK/g" app/build.gradle
+            
+            # Set target and min SDK
+            sed -i "s/targetSdk[[:space:]]*[0-9]*/targetSdk $COMPILE_SDK/g" app/build.gradle
+            sed -i "s/targetSdkVersion[[:space:]]*[0-9]*/targetSdkVersion $COMPILE_SDK/g" app/build.gradle
+            sed -i "s/minSdk[[:space:]]*[0-9]*/minSdk 24/g" app/build.gradle
+            sed -i "s/minSdkVersion[[:space:]]*[0-9]*/minSdkVersion 24/g" app/build.gradle
+            
+            echo "✅ Updated SDK versions"
+            
+            # Add Java 17 compatibility
+            if ! grep -q "JavaVersion.VERSION_17" app/build.gradle; then
+              echo "Adding Java 17 compatibility..."
+              cat >> app/build.gradle << 'EOF'
+
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+              echo "✅ Added Java 17 compatibility"
+            fi
+            
+            # Disable optimizations in buildTypes
+            sed -i '/buildTypes/,/^[[:space:]]*}/ {
+              s/minifyEnabled[[:space:]]*true/minifyEnabled false/g
+              s/shrinkResources[[:space:]]*true/shrinkResources false/g
+            }' app/build.gradle
+            echo "✅ Disabled optimizations"
+          fi
+
+      - name: Clean Build Directory
+        run: |
+          echo "=== CLEANING BUILD DIRECTORY ==="
+          ./gradlew --stop || true
+          rm -rf .gradle build app/build
+          rm -rf ~/.gradle/caches/transforms-*
+          echo "✅ Build directory cleaned"
+
+      - name: Build Debug APK
+        if: ${{ inputs.build_type == 'debug' || inputs.build_type == 'both' || inputs.build_type == '' }}
+        run: |
+          echo "=== BUILDING DEBUG APK ==="
+          
+          # Build with all compatibility flags
+          ./gradlew app:assembleDebug \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.useLegacyPackaging=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --console=plain \
+            --stacktrace \
+            || (echo "Build failed, showing last 100 lines of output:" && tail -100 build.log && exit 1)
+          
+          # Find and rename APK
+          DEBUG_APK=$(find app/build/outputs -name "*debug*.apk" -type f | head -1)
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "./testrigor-debug.apk"
+            echo "✅ Debug APK created: testrigor-debug.apk"
+            echo "Size: $(du -h testrigor-debug.apk | cut -f1)"
+          else
+            echo "❌ Debug APK not found!"
+            find app/build/outputs -type f -name "*.apk" || echo "No APKs found"
+            exit 1
+          fi
+
+      - name: Build Release APK
+        if: ${{ inputs.build_type == 'release' || inputs.build_type == 'both' }}
+        run: |
+          echo "=== BUILDING RELEASE APK ==="
+          
+          ./gradlew app:assembleRelease \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.useLegacyPackaging=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --console=plain \
+            --stacktrace \
+            || echo "Release build failed (might need signing configuration)"
+          
+          # Find and rename APK if it exists
+          RELEASE_APK=$(find app/build/outputs -name "*release*.apk" -type f | head -1)
+          if [ -f "$RELEASE_APK" ]; then
+            cp "$RELEASE_APK" "./testrigor-release.apk"
+            echo "✅ Release APK created: testrigor-release.apk"
+          fi
+
+      - name: Verify APKs
+        if: success()
+        run: |
+          echo "=== VERIFYING APKS ==="
+          
+          for apk in testrigor-*.apk; do
+            if [ -f "$apk" ]; then
+              echo "Checking $apk..."
+              
+              # Check APK contents
+              unzip -l "$apk" > /tmp/apk_contents.txt
+              
+              if grep -q "AndroidManifest.xml" /tmp/apk_contents.txt; then
+                echo "  ✅ AndroidManifest.xml present"
+              else
+                echo "  ❌ AndroidManifest.xml missing!"
+              fi
+              
+              if grep -q "resources.arsc" /tmp/apk_contents.txt; then
+                echo "  ✅ resources.arsc present"
+              else
+                echo "  ❌ resources.arsc missing!"
+              fi
+              
+              if grep -q "classes.dex" /tmp/apk_contents.txt; then
+                echo "  ✅ classes.dex present"
+              else
+                echo "  ❌ classes.dex missing!"
+              fi
+              
+              echo ""
+            fi
+          done
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: testrigor-apks-${{ github.run_number }}
+          path: |
+            testrigor-*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Debug Logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: debug-logs-${{ github.run_number }}
+          path: |
+            app/build/reports/
+            app/build.gradle
+            app/build.gradle.backup
+            gradle.properties
+            settings.gradle
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "==================================="
+          echo "     TESTRIGOR BUILD SUMMARY"
+          echo "==================================="
+          echo ""
+          
+          if [ -f "testrigor-debug.apk" ]; then
+            echo "✅ Debug APK: $(du -h testrigor-debug.apk | cut -f1)"
+          else
+            echo "❌ Debug APK not created"
+          fi
+          
+          if [ -f "testrigor-release.apk" ]; then
+            echo "✅ Release APK: $(du -h testrigor-release.apk | cut -f1)"
+          else
+            echo "⚠️  Release APK not created (may need signing)"
+          fi
+          
+          echo ""
+          echo "Configuration:"
+          echo "  AGP: 8.0.2 (forced)"
+          echo "  Gradle: 8.0.2"
+          echo "  Compile SDK: ${COMPILE_SDK:-35}"
+          echo ""
+          
+          if [ -f "testrigor-debug.apk" ] || [ -f "testrigor-release.apk" ]; then
+            echo "✅ SUCCESS: TestRigor-compatible APKs ready!"
+            echo ""
+            echo "Download the artifacts and upload to TestRigor."
+          else
+            echo "❌ FAILED: No APKs were created."
+            echo "Check the logs for details."
+            exit 1
+          fi
+          echo "==================================="
