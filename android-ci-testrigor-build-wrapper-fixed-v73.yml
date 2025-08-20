@@ -1,0 +1,630 @@
+name: TestRigor Build - Wrapper Fixed v73
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: false
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release  
+          - both
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # Gradle settings for TestRigor
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  # Critical TestRigor flags
+  ORG_GRADLE_PROJECT_android_enableR8: false
+  ORG_GRADLE_PROJECT_android_enableResourceOptimizations: false
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+
+jobs:
+  build-testrigor:
+    name: Build TestRigor APK - Wrapper Fixed
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 11076708
+          accept-android-sdk-licenses: true
+          packages: |
+            platform-tools
+            platforms;android-35
+            platforms;android-34
+            build-tools;34.0.0
+            build-tools;35.0.0
+
+      - name: Prepare Project Structure  
+        run: |
+          echo "=== PREPARING PROJECT STRUCTURE ==="
+          
+          # Handle different project structures
+          if [ -d "android" ] && [ ! -f "settings.gradle" ]; then
+            echo "Found android/ subdirectory, copying contents to root..."
+            cp -r android/* .
+            cp -r android/.[^.]* . 2>/dev/null || true
+          fi
+          
+          # Verify we have the basic structure
+          if [ ! -f "settings.gradle" ] && [ ! -f "settings.gradle.kts" ]; then
+            echo "Creating minimal settings.gradle..."
+            cat > settings.gradle << 'EOF'
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          fi
+          
+          if [ ! -d "app" ]; then
+            echo "❌ No app directory found!"
+            ls -la
+            exit 1
+          fi
+          
+          echo "✅ Project structure verified"
+
+      - name: Fix Gradle Wrapper (CRITICAL)
+        run: |
+          echo "=== FIXING GRADLE WRAPPER ==="
+          
+          # CRITICAL: Download fresh Gradle wrapper files
+          # This fixes the ClassNotFoundException: org.gradle.wrapper.GradleWrapperMain
+          
+          # Create gradle wrapper directory
+          mkdir -p gradle/wrapper
+          
+          # Download gradle-wrapper.jar - CRITICAL for fixing the main issue
+          echo "Downloading gradle-wrapper.jar..."
+          curl -L -o gradle/wrapper/gradle-wrapper.jar \
+            https://github.com/gradle/gradle/raw/v8.0.2/gradle/wrapper/gradle-wrapper.jar
+          
+          # Verify download
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "❌ Failed to download gradle-wrapper.jar, trying alternative..."
+            # Alternative source
+            curl -L -o gradle/wrapper/gradle-wrapper.jar \
+              https://cache-redirector.jetbrains.com/services.gradle.org/distributions-snapshots/gradle-8.0.2-wrapper.jar
+          fi
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          # Create/Fix gradlew script
+          cat > gradlew << 'EOF'
+          #!/bin/sh
+          
+          # Gradle start up script for UN*X
+          
+          # Attempt to set APP_HOME
+          # Resolve links: $0 may be a link
+          PRG="$0"
+          # Need this for relative symlinks.
+          while [ -h "$PRG" ] ; do
+              ls=`ls -ld "$PRG"`
+              link=`expr "$ls" : '.*-> \(.*\)$'`
+              if expr "$link" : '/.*' > /dev/null; then
+                  PRG="$link"
+              else
+                  PRG=`dirname "$PRG"`"/$link"
+              fi
+          done
+          SAVED="`pwd`"
+          cd "`dirname \"$PRG\"`/" >/dev/null
+          APP_HOME="`pwd -P`"
+          cd "$SAVED" >/dev/null
+          
+          APP_NAME="Gradle"
+          APP_BASE_NAME=`basename "$0"`
+          
+          # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
+          DEFAULT_JVM_OPTS='"-Xmx4096m" "-XX:MaxMetaspaceSize=512m" "-Dfile.encoding=UTF-8"'
+          
+          # Use the maximum available, or set MAX_FD != -1 to use that value.
+          MAX_FD="maximum"
+          
+          warn () {
+              echo "$*"
+          }
+          
+          die () {
+              echo
+              echo "$*"
+              echo
+              exit 1
+          }
+          
+          # OS specific support (must be 'true' or 'false').
+          cygwin=false
+          msys=false
+          darwin=false
+          nonstop=false
+          case "`uname`" in
+            CYGWIN* )
+              cygwin=true
+              ;;
+            Darwin* )
+              darwin=true
+              ;;
+            MINGW* )
+              msys=true
+              ;;
+            NONSTOP* )
+              nonstop=true
+              ;;
+          esac
+          
+          CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+          
+          
+          # Determine the Java command to use to start the JVM.
+          if [ -n "$JAVA_HOME" ] ; then
+              if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+                  # IBM's JDK on AIX uses strange locations for the executables
+                  JAVACMD="$JAVA_HOME/jre/sh/java"
+              else
+                  JAVACMD="$JAVA_HOME/bin/java"
+              fi
+              if [ ! -x "$JAVACMD" ] ; then
+                  die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
+          
+          Please set the JAVA_HOME variable in your environment to match the
+          location of your Java installation."
+              fi
+          else
+              JAVACMD="java"
+              which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
+          
+          Please set the JAVA_HOME variable in your environment to match the
+          location of your Java installation."
+          fi
+          
+          # Increase the maximum file descriptors if we can.
+          if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
+              MAX_FD_LIMIT=`ulimit -H -n`
+              if [ $? -eq 0 ] ; then
+                  if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
+                      MAX_FD="$MAX_FD_LIMIT"
+                  fi
+                  ulimit -n $MAX_FD
+                  if [ $? -ne 0 ] ; then
+                      warn "Could not set maximum file descriptor limit: $MAX_FD"
+                  fi
+              else
+                  warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
+              fi
+          fi
+          
+          # For Darwin, add options to specify how the application appears in the dock
+          if [ "$darwin" = "true" ]; then
+              GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
+          fi
+          
+          # For Cygwin or MSYS, switch paths to Windows format before running java
+          if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
+              APP_HOME=`cygpath --path --mixed "$APP_HOME"`
+              CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
+              
+              JAVACMD=`cygpath --unix "$JAVACMD"`
+          
+              # We build the pattern for arguments to be converted via cygpath
+              ROOTDIRSRAW=`find -L / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`
+              SEP=""
+              for dir in $ROOTDIRSRAW ; do
+                  ROOTDIRS="$ROOTDIRS$SEP$dir"
+                  SEP="|"
+              done
+              OURCYGPATTERN="(^($ROOTDIRS))"
+              # Add a user-defined pattern to the cygpath arguments
+              if [ "$GRADLE_CYGPATTERN" != "" ] ; then
+                  OURCYGPATTERN="$OURCYGPATTERN|($GRADLE_CYGPATTERN)"
+              fi
+              # Now convert the arguments - kludge to limit ourselves to /bin/sh
+              i=0
+              for arg in "$@" ; do
+                  CHECK=`echo "$arg"|egrep -c "$OURCYGPATTERN" -`
+                  CHECK2=`echo "$arg"|egrep -c "^-"`                                 ### Determine if an option
+          
+                  if [ $CHECK -ne 0 ] && [ $CHECK2 -eq 0 ] ; then                    ### Added a condition
+                      eval `echo args$i`=`cygpath --path --ignore --mixed "$arg"`
+                  else
+                      eval `echo args$i`="\"$arg\""
+                  fi
+                  i=`expr $i + 1`
+              done
+              case $i in
+                  0) set -- ;;
+                  1) set -- "$args0" ;;
+                  2) set -- "$args0" "$args1" ;;
+                  3) set -- "$args0" "$args1" "$args2" ;;
+                  4) set -- "$args0" "$args1" "$args2" "$args3" ;;
+                  5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
+                  6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
+                  7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
+                  8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
+                  9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
+              esac
+          fi
+          
+          # Escape application args
+          save () {
+              for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done
+              echo " "
+          }
+          APP_ARGS=`save "$@"`
+          
+          # Collect all arguments for the java command, following the shell quoting and substitution rules
+          eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \"-Dorg.gradle.appname=$APP_BASE_NAME\" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$APP_ARGS"
+          
+          exec "$JAVACMD" "$@"
+          EOF
+          
+          # Make gradlew executable
+          chmod +x gradlew
+          
+          # Verify wrapper setup
+          echo "Verifying Gradle wrapper setup..."
+          ls -la gradle/wrapper/
+          echo "gradlew permissions:"
+          ls -la gradlew
+          
+          # Test the wrapper
+          echo "Testing Gradle wrapper..."
+          if ./gradlew --version; then
+            echo "✅ Gradle wrapper is working correctly"
+          else
+            echo "❌ Gradle wrapper test failed"
+            echo "Attempting to fix Java classpath..."
+            export GRADLE_USER_HOME="$HOME/.gradle"
+            ./gradlew --version || echo "⚠️ Wrapper still has issues, continuing anyway..."
+          fi
+
+      - name: Configure TestRigor Environment
+        run: |
+          echo "=== CONFIGURING TESTRIGOR ENVIRONMENT ==="
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "✅ Created local.properties"
+          
+          # Create TestRigor-compatible gradle.properties
+          cat > gradle.properties << 'EOF'
+          # TestRigor Compatibility Settings
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.configureondemand=false
+          org.gradle.caching=false
+          
+          # Android
+          android.useAndroidX=true
+          android.enableJetifier=true
+          
+          # CRITICAL - Disable all optimizations
+          android.enableR8=false
+          android.enableR8.fullMode=false
+          android.enableD8=true
+          android.enableResourceOptimizations=false
+          android.enablePngCrunchInReleaseBuilds=false
+          android.useLegacyPackaging=true
+          android.nonTransitiveRClass=false
+          
+          # Suppress warnings
+          android.suppressUnsupportedOptionWarnings=android.enableR8,android.enableR8.fullMode,android.enableResourceOptimizations
+          EOF
+          echo "✅ Created gradle.properties"
+          
+          # Force AGP 8.0.2 in build.gradle
+          if [ -f "build.gradle" ]; then
+            echo "Forcing AGP 8.0.2..."
+            cp build.gradle build.gradle.backup
+            sed -i "s/id ['\"]com.android.application['\"] version ['\"][^'\"]*['\"]/id 'com.android.application' version '8.0.2'/g" build.gradle
+            sed -i "s/id ['\"]com.android.library['\"] version ['\"][^'\"]*['\"]/id 'com.android.library' version '8.0.2'/g" build.gradle
+            sed -i "s/com.android.tools.build:gradle:[^']*/com.android.tools.build:gradle:8.0.2/g" build.gradle
+            echo "✅ Forced AGP to 8.0.2"
+          fi
+          
+          # Simplify settings.gradle
+          if [ -f "settings.gradle" ]; then
+            echo "Simplifying settings.gradle..."
+            cp settings.gradle settings.gradle.backup
+            cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+              resolutionStrategy {
+                  eachPlugin {
+                      if (requested.id.id.startsWith("com.android.")) {
+                          useModule("com.android.tools.build:gradle:8.0.2")
+                      }
+                  }
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+            echo "✅ Simplified settings.gradle"
+          fi
+
+      - name: Fix App Configuration
+        run: |
+          echo "=== FIXING APP CONFIGURATION ==="
+          
+          if [ -f "app/build.gradle" ]; then
+            # Backup original
+            cp app/build.gradle app/build.gradle.backup
+            
+            # Add namespace if missing
+            if ! grep -q "namespace" app/build.gradle; then
+              echo "Adding namespace..."
+              # Try to extract applicationId
+              APP_ID=$(grep "applicationId" app/build.gradle | head -1 | sed "s/.*applicationId[[:space:]]*['\"]//;s/['\"].*//")
+              if [ -z "$APP_ID" ]; then
+                APP_ID="com.lingualink.translator"
+              fi
+              
+              # Add namespace after android {
+              awk -v ns="$APP_ID" '/android[[:space:]]*{/{print; print "    namespace \"" ns "\""; next}1' app/build.gradle > app/build.gradle.tmp
+              mv app/build.gradle.tmp app/build.gradle
+              echo "✅ Added namespace: $APP_ID"
+            fi
+            
+            # Update SDK versions
+            sed -i "s/compileSdk[[:space:]]*[0-9]*/compileSdk 35/g" app/build.gradle
+            sed -i "s/compileSdkVersion[[:space:]]*[0-9]*/compileSdkVersion 35/g" app/build.gradle
+            sed -i "s/targetSdk[[:space:]]*[0-9]*/targetSdk 35/g" app/build.gradle
+            sed -i "s/targetSdkVersion[[:space:]]*[0-9]*/targetSdkVersion 35/g" app/build.gradle
+            sed -i "s/minSdk[[:space:]]*[0-9]*/minSdk 24/g" app/build.gradle
+            sed -i "s/minSdkVersion[[:space:]]*[0-9]*/minSdkVersion 24/g" app/build.gradle
+            echo "✅ Updated SDK versions"
+            
+            # Add Java 17 compatibility
+            if ! grep -q "JavaVersion.VERSION_17" app/build.gradle; then
+              echo "Adding Java 17 compatibility..."
+              cat >> app/build.gradle << 'EOF'
+
+          android {
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          EOF
+              echo "✅ Added Java 17 compatibility"
+            fi
+            
+            # Disable optimizations in buildTypes
+            sed -i '/buildTypes/,/^[[:space:]]*}/ {
+              s/minifyEnabled[[:space:]]*true/minifyEnabled false/g
+              s/shrinkResources[[:space:]]*true/shrinkResources false/g
+            }' app/build.gradle
+            echo "✅ Disabled optimizations"
+          fi
+
+      - name: Clean Build Directory
+        run: |
+          echo "=== CLEANING BUILD DIRECTORY ==="
+          ./gradlew --stop || true
+          rm -rf .gradle build app/build
+          rm -rf ~/.gradle/caches/transforms-*
+          echo "✅ Build directory cleaned"
+
+      - name: Build Debug APK
+        if: ${{ inputs.build_type == 'debug' || inputs.build_type == 'both' || inputs.build_type == '' }}
+        run: |
+          echo "=== BUILDING DEBUG APK ==="
+          
+          # Build with all compatibility flags and proper error handling
+          ./gradlew app:assembleDebug \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.useLegacyPackaging=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --console=plain \
+            --stacktrace \
+            --info \
+            2>&1 | tee build-debug.log
+          
+          # Check build result
+          BUILD_RESULT=${PIPESTATUS[0]}
+          
+          if [ $BUILD_RESULT -eq 0 ]; then
+            echo "✅ Debug build completed successfully"
+          else
+            echo "❌ Debug build failed with exit code: $BUILD_RESULT"
+            echo "Last 50 lines of build output:"
+            tail -50 build-debug.log
+            exit 1
+          fi
+          
+          # Find and rename APK
+          DEBUG_APK=$(find app/build/outputs -name "*debug*.apk" -type f | head -1)
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "./testrigor-debug.apk"
+            echo "✅ Debug APK created: testrigor-debug.apk"
+            echo "Size: $(du -h testrigor-debug.apk | cut -f1)"
+            
+            # Verify APK integrity
+            if unzip -t testrigor-debug.apk > /dev/null 2>&1; then
+              echo "✅ APK integrity verified"
+            else
+              echo "⚠️ APK might be corrupted"
+            fi
+          else
+            echo "❌ Debug APK not found!"
+            echo "Searching for any APK files:"
+            find app/build/outputs -type f -name "*.apk" || echo "No APKs found"
+            echo "Build directory contents:"
+            find app/build -type f | head -20
+            exit 1
+          fi
+
+      - name: Build Release APK
+        if: ${{ inputs.build_type == 'release' || inputs.build_type == 'both' }}
+        run: |
+          echo "=== BUILDING RELEASE APK ==="
+          
+          ./gradlew app:assembleRelease \
+            -Pandroid.enableR8=false \
+            -Pandroid.enableResourceOptimizations=false \
+            -Pandroid.useLegacyPackaging=true \
+            --no-daemon \
+            --no-parallel \
+            --no-build-cache \
+            --console=plain \
+            --stacktrace \
+            2>&1 | tee build-release.log
+          
+          BUILD_RESULT=${PIPESTATUS[0]}
+          
+          if [ $BUILD_RESULT -eq 0 ]; then
+            echo "✅ Release build completed"
+            
+            # Find and rename APK if it exists
+            RELEASE_APK=$(find app/build/outputs -name "*release*.apk" -type f | head -1)
+            if [ -f "$RELEASE_APK" ]; then
+              cp "$RELEASE_APK" "./testrigor-release.apk"
+              echo "✅ Release APK created: testrigor-release.apk"
+            else
+              echo "⚠️ Release APK not found (might need signing configuration)"
+            fi
+          else
+            echo "⚠️ Release build failed (might need signing configuration)"
+            tail -30 build-release.log
+          fi
+
+      - name: Verify APKs
+        if: success()
+        run: |
+          echo "=== VERIFYING APKS ==="
+          
+          for apk in testrigor-*.apk; do
+            if [ -f "$apk" ]; then
+              echo "Checking $apk..."
+              
+              # Check APK contents
+              if unzip -l "$apk" | grep -q "AndroidManifest.xml"; then
+                echo "  ✅ AndroidManifest.xml present"
+              else
+                echo "  ❌ AndroidManifest.xml missing!"
+              fi
+              
+              if unzip -l "$apk" | grep -q "resources.arsc"; then
+                echo "  ✅ resources.arsc present"
+              else
+                echo "  ❌ resources.arsc missing!"
+              fi
+              
+              if unzip -l "$apk" | grep -q "classes.dex"; then
+                echo "  ✅ classes.dex present"
+              else
+                echo "  ❌ classes.dex missing!"
+              fi
+              
+              echo ""
+            fi
+          done
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: testrigor-apks-${{ github.run_number }}
+          path: |
+            testrigor-*.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Debug Logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: debug-logs-${{ github.run_number }}
+          path: |
+            build-*.log
+            app/build/reports/
+            app/build.gradle
+            app/build.gradle.backup
+            gradle.properties
+            settings.gradle
+            settings.gradle.backup
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "==================================="
+          echo "     TESTRIGOR BUILD SUMMARY"
+          echo "==================================="
+          echo ""
+          
+          if [ -f "testrigor-debug.apk" ]; then
+            echo "✅ Debug APK: $(du -h testrigor-debug.apk | cut -f1)"
+          else
+            echo "❌ Debug APK not created"
+          fi
+          
+          if [ -f "testrigor-release.apk" ]; then
+            echo "✅ Release APK: $(du -h testrigor-release.apk | cut -f1)"
+          else
+            echo "⚠️  Release APK not created (may need signing)"
+          fi
+          
+          echo ""
+          echo "Configuration:"
+          echo "  AGP: 8.0.2 (forced)"
+          echo "  Gradle: 8.0.2"
+          echo "  Compile SDK: 35"
+          echo ""
+          
+          if [ -f "testrigor-debug.apk" ] || [ -f "testrigor-release.apk" ]; then
+            echo "✅ SUCCESS: TestRigor-compatible APKs ready!"
+            echo ""
+            echo "Download the artifacts and upload to TestRigor."
+          else
+            echo "❌ FAILED: No APKs were created."
+            echo "Check the logs for details."
+            exit 1
+          fi
+          echo "==================================="
