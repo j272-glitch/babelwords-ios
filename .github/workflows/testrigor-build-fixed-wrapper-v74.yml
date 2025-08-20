@@ -1,4 +1,4 @@
-name: TestRigor Build - Robust Version
+name: TestRigor Build - Fixed Wrapper
 
 on:
   workflow_dispatch:
