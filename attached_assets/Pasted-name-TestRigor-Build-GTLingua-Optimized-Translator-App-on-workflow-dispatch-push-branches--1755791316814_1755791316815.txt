@@ -1,0 +1,973 @@
+name: TestRigor Build - GTLingua-Optimized Translator App
+
+on:
+workflow_dispatch:
+push:
+branches: [ main ]
+
+env:
+GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+WEBVIEW_URL: “https://gtlingua.com”
+
+# Add signing environment variables from GitHub secrets
+
+ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+jobs:
+build-testrigor:
+name: Build GTLingua-Optimized AAB and APK
+runs-on: ubuntu-latest
+timeout-minutes: 35
+
+```
+steps:
+  - name: Checkout Repository
+    uses: actions/checkout@v4
+
+  - name: Setup JDK 17
+    uses: actions/setup-java@v4
+    with:
+      java-version: '17'
+      distribution: 'temurin'
+
+  - name: Setup Android SDK
+    run: |
+      echo "=== SETTING UP ANDROID SDK ==="
+      
+      # Install Android SDK command line tools
+      SDK_TOOLS_URL="https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
+      wget -q $SDK_TOOLS_URL -O android-sdk-tools.zip
+      
+      # Create Android SDK directory
+      export ANDROID_HOME=$HOME/android-sdk
+      mkdir -p $ANDROID_HOME/cmdline-tools
+      
+      # Extract command line tools
+      unzip -q android-sdk-tools.zip -d $ANDROID_HOME/cmdline-tools
+      mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+      
+      # Add to PATH
+      echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+      echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+      echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+      
+      # Accept licenses
+      yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+      
+      # Install required packages
+      $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools"
+      $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34"
+      $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "build-tools;34.0.0"
+      
+      echo "✅ Android SDK setup complete"
+
+  - name: Create Project Structure
+    run: |
+      echo "=== CREATING PROJECT STRUCTURE ==="
+      mkdir -p app/src/main/java/com/lingualink/gtlingua
+      mkdir -p app/src/main/res/{layout,values,drawable,xml,mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi}
+      mkdir -p app/src/main/assets
+      mkdir -p gradle/wrapper
+      echo "✅ Project structure created"
+
+  - name: Create Root Build Files
+    run: |
+      echo "=== CREATING ROOT BUILD FILES ==="
+      
+      # Create root build.gradle
+      cat > build.gradle << 'EOF'
+      plugins {
+          id 'com.android.application' version '8.2.2' apply false
+      }
+      
+      allprojects {
+          repositories {
+              google()
+              mavenCentral()
+          }
+      }
+      
+      task clean(type: Delete) {
+          delete rootProject.buildDir
+      }
+      EOF
+      
+      # Create settings.gradle
+      cat > settings.gradle << 'EOF'
+      pluginManagement {
+          repositories {
+              google()
+              mavenCentral()
+              gradlePluginPortal()
+          }
+      }
+      dependencyResolutionManagement {
+          repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+          repositories {
+              google()
+              mavenCentral()
+          }
+      }
+      rootProject.name = "GTLingua"
+      include ':app'
+      EOF
+      
+      # Create gradle.properties
+      cat > gradle.properties << 'EOF'
+      org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m
+      org.gradle.daemon=true
+      org.gradle.parallel=true
+      org.gradle.caching=true
+      android.useAndroidX=true
+      android.enableJetifier=true
+      android.nonTransitiveRClass=false
+      android.defaults.buildfeatures.buildconfig=true
+      android.nonFinalResIds=false
+      EOF
+      
+      # Create local.properties
+      echo "sdk.dir=$ANDROID_HOME" > local.properties
+      
+      echo "✅ Root build files created"
+
+  - name: Create Signing Configuration
+    run: |
+      echo "=== CREATING SIGNING CONFIGURATION ==="
+      
+      # Create a debug keystore for signing
+      mkdir -p app
+      
+      # Generate a debug keystore
+      keytool -genkey -v \
+        -keystore app/debug.keystore \
+        -storepass android \
+        -alias androiddebugkey \
+        -keypass android \
+        -keyalg RSA \
+        -keysize 2048 \
+        -validity 10000 \
+        -dname "CN=Android Debug,O=Android,C=US"
+      
+      echo "✅ Debug keystore created"
+      
+      # Create release keystore from GitHub secrets if available
+      if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "=== CREATING RELEASE KEYSTORE FROM GITHUB SECRETS ==="
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/release.keystore
+          echo "✅ Release keystore created from GitHub secrets"
+          
+          # Verify the keystore was created and is valid
+          if [ -f app/release.keystore ]; then
+              echo "Release keystore file exists"
+              ls -la app/release.keystore
+          else
+              echo "⚠️ Warning: Release keystore file was not created"
+          fi
+      else
+          echo "⚠️ No release signing configuration found in GitHub secrets"
+          echo "⚠️ Release builds will use debug signing"
+      fi
+
+  - name: Create App Build File with AAB Support
+    run: |
+      echo "=== CREATING APP BUILD.GRADLE WITH AAB SUPPORT ==="
+      
+      cat > app/build.gradle << 'EOF'
+      plugins {
+          id 'com.android.application'
+      }
+      
+      android {
+          namespace 'com.lingualink.gtlingua'
+          compileSdk 34
+          
+          defaultConfig {
+              applicationId "com.lingualink.gtlingua"
+              minSdk 21
+              targetSdk 34
+              versionCode 1
+              versionName "1.0.0"
+              
+              // Support for multiple architectures in AAB
+              ndk {
+                  abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+              }
+          }
+          
+          signingConfigs {
+              debug {
+                  storeFile file('debug.keystore')
+                  storePassword 'android'
+                  keyAlias 'androiddebugkey'
+                  keyPassword 'android'
+              }
+              release {
+                  // Check if we're in CI/CD environment with GitHub secrets
+                  if (System.getenv("ANDROID_KEYSTORE_BASE64") != null && 
+                      file('release.keystore').exists()) {
+                      storeFile file('release.keystore')
+                      storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+                  } else {
+                      // Fallback to debug signing if no release config
+                      println("⚠️ Using debug signing for release build")
+                      storeFile file('debug.keystore')
+                      storePassword 'android'
+                      keyAlias 'androiddebugkey'
+                      keyPassword 'android'
+                  }
+              }
+          }
+          
+          buildTypes {
+              release {
+                  minifyEnabled true
+                  shrinkResources true
+                  proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  signingConfig signingConfigs.release
+              }
+              debug {
+                  debuggable true
+                  signingConfig signingConfigs.debug
+              }
+          }
+          
+          // Bundle configuration
+          bundle {
+              language {
+                  enableSplit = true
+              }
+              density {
+                  enableSplit = true
+              }
+              abi {
+                  enableSplit = true
+              }
+          }
+          
+          compileOptions {
+              sourceCompatibility JavaVersion.VERSION_1_8
+              targetCompatibility JavaVersion.VERSION_1_8
+          }
+          
+          packagingOptions {
+              resources {
+                  excludes += '/META-INF/{AL2.0,LGPL2.1}'
+              }
+          }
+      }
+      
+      dependencies {
+          implementation 'androidx.appcompat:appcompat:1.6.1'
+          implementation 'com.google.android.material:material:1.11.0'
+          implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+          implementation 'androidx.webkit:webkit:1.10.0'
+      }
+      
+      // Task to verify signing configuration
+      task verifySigningConfig {
+          doLast {
+              println "=== SIGNING CONFIGURATION STATUS ==="
+              if (System.getenv("ANDROID_KEYSTORE_BASE64") != null) {
+                  println "✅ Release signing configured with GitHub secrets"
+                  println "   Keystore: Using base64-decoded keystore"
+                  println "   Alias: ${System.getenv("ANDROID_KEY_ALIAS") ?: 'NOT SET'}"
+              } else {
+                  println "⚠️ No release signing configuration found"
+                  println "⚠️ Release builds will use debug signing"
+              }
+              println "====================================="
+          }
+      }
+      
+      // Run verification before build
+      preBuild.dependsOn verifySigningConfig
+      EOF
+      
+      # Create ProGuard rules
+      cat > app/proguard-rules.pro << 'EOF'
+      # Keep WebView related classes
+      -keep class android.webkit.** { *; }
+      -keep class com.lingualink.gtlingua.** { *; }
+      
+      # Keep JavaScript interface methods
+      -keepclassmembers class * {
+          @android.webkit.JavascriptInterface <methods>;
+      }
+      
+      # General Android rules
+      -keepattributes Signature
+      -keepattributes *Annotation*
+      -keep class * extends android.app.Activity
+      -keep class * extends android.app.Application
+      -keep class * extends android.app.Service
+      -keep class * extends android.content.BroadcastReceiver
+      -keep class * extends android.content.ContentProvider
+      EOF
+      
+      echo "✅ App build.gradle with AAB support created"
+
+  - name: Setup Gradle Wrapper
+    run: |
+      echo "=== SETTING UP GRADLE WRAPPER ==="
+      
+      # Create gradle wrapper properties
+      cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+      distributionBase=GRADLE_USER_HOME
+      distributionPath=wrapper/dists
+      distributionUrl=https\://services.gradle.org/distributions/gradle-8.5-bin.zip
+      networkTimeout=30000
+      validateDistributionUrl=true
+      zipStoreBase=GRADLE_USER_HOME
+      zipStorePath=wrapper/dists
+      EOF
+      
+      # Download gradle wrapper jar
+      wget -q https://github.com/gradle/gradle/raw/v8.5.0/gradle/wrapper/gradle-wrapper.jar \
+           -O gradle/wrapper/gradle-wrapper.jar || {
+          echo "Downloading from alternative source..."
+          curl -L https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar \
+               -o gradle/wrapper/gradle-wrapper.jar
+      }
+      
+      # Create gradlew script
+      cat > gradlew << 'GRADLEW'
+      #!/bin/sh
+      
+      ##############################################################################
+      ##
+      ##  Gradle start up script for UN*X
+      ##
+      ##############################################################################
+      
+      # Attempt to set APP_HOME
+      PRG="$0"
+      while [ -h "$PRG" ] ; do
+          ls=`ls -ld "$PRG"`
+          link=`expr "$ls" : '.*-> \(.*\)$'`
+          if expr "$link" : '/.*' > /dev/null; then
+              PRG="$link"
+          else
+              PRG=`dirname "$PRG"`"/$link"
+          fi
+      done
+      SAVED="`pwd`"
+      cd "`dirname \"$PRG\"`/" >/dev/null
+      APP_HOME="`pwd -P`"
+      cd "$SAVED" >/dev/null
+      
+      APP_NAME="Gradle"
+      APP_BASE_NAME=`basename "$0"`
+      DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+      MAX_FD="maximum"
+      
+      warn () {
+          echo "$*"
+      }
+      
+      die () {
+          echo
+          echo "$*"
+          echo
+          exit 1
+      }
+      
+      # OS specific support
+      cygwin=false
+      msys=false
+      darwin=false
+      nonstop=false
+      case "`uname`" in
+        CYGWIN* )
+          cygwin=true
+          ;;
+        Darwin* )
+          darwin=true
+          ;;
+        MINGW* )
+          msys=true
+          ;;
+        NONSTOP* )
+          nonstop=true
+          ;;
+      esac
+      
+      CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+      
+      # Determine the Java command to use to start the JVM
+      if [ -n "$JAVA_HOME" ] ; then
+          if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+              JAVACMD="$JAVA_HOME/jre/sh/java"
+          else
+              JAVACMD="$JAVA_HOME/bin/java"
+          fi
+          if [ ! -x "$JAVACMD" ] ; then
+              die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME"
+          fi
+      else
+          JAVACMD="java"
+          which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH."
+      fi
+      
+      # Increase the maximum file descriptors if we can
+      if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
+          MAX_FD_LIMIT=`ulimit -H -n`
+          if [ $? -eq 0 ] ; then
+              if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
+                  MAX_FD="$MAX_FD_LIMIT"
+              fi
+              ulimit -n $MAX_FD
+              if [ $? -ne 0 ] ; then
+                  warn "Could not set maximum file descriptor limit: $MAX_FD"
+              fi
+          else
+              warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
+          fi
+      fi
+      
+      # For Darwin, add options to specify how the application appears in the dock
+      if $darwin; then
+          GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
+      fi
+      
+      # For Cygwin or MSYS, switch paths to Windows format before running java
+      if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
+          APP_HOME=`cygpath --path --mixed "$APP_HOME"`
+          CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
+          JAVACMD=`cygpath --unix "$JAVACMD"`
+      fi
+      
+      # Collect all arguments for the java command
+      eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "\"-Dorg.gradle.appname=$APP_BASE_NAME\"" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$@"
+      
+      exec "$JAVACMD" "$@"
+      GRADLEW
+      
+      chmod +x gradlew
+      echo "✅ Gradle wrapper setup complete"
+
+  - name: Create AndroidManifest
+    run: |
+      echo "=== CREATING ANDROIDMANIFEST.XML ==="
+      
+      cat > app/src/main/AndroidManifest.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          xmlns:tools="http://schemas.android.com/tools">
+          
+          <uses-permission android:name="android.permission.INTERNET" />
+          <uses-permission android:name="android.permission.RECORD_AUDIO" />
+          <uses-permission android:name="android.permission.CAMERA" />
+          <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+          
+          <uses-feature android:name="android.hardware.microphone" android:required="false" />
+          <uses-feature android:name="android.hardware.camera" android:required="false" />
+          <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+          
+          <application
+              android:allowBackup="true"
+              android:icon="@mipmap/ic_launcher"
+              android:label="@string/app_name"
+              android:theme="@style/Theme.AppCompat.Light.DarkActionBar"
+              android:usesCleartextTraffic="true"
+              android:hardwareAccelerated="true"
+              android:supportsRtl="true"
+              tools:targetApi="31">
+              
+              <activity
+                  android:name=".MainActivity"
+                  android:exported="true"
+                  android:configChanges="orientation|screenSize|keyboardHidden|keyboard|screenLayout|locale|uiMode"
+                  android:windowSoftInputMode="adjustResize">
+                  <intent-filter>
+                      <action android:name="android.intent.action.MAIN" />
+                      <category android:name="android.intent.category.LAUNCHER" />
+                  </intent-filter>
+                  
+                  <!-- Deep linking for GTLingua -->
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="https" android:host="gtlingua.com" />
+                  </intent-filter>
+              </activity>
+              
+              <!-- File provider for sharing -->
+              <provider
+                  android:name="androidx.core.content.FileProvider"
+                  android:authorities="${applicationId}.fileprovider"
+                  android:exported="false"
+                  android:grantUriPermissions="true"
+                  tools:replace="android:authorities">
+                  <meta-data
+                      android:name="android.support.FILE_PROVIDER_PATHS"
+                      android:resource="@xml/file_paths" />
+              </provider>
+          </application>
+      </manifest>
+      EOF
+      
+      echo "✅ AndroidManifest.xml created"
+
+  - name: Create MainActivity
+    run: |
+      echo "=== CREATING MAIN ACTIVITY ==="
+      
+      cat > app/src/main/java/com/lingualink/gtlingua/MainActivity.java << 'EOF'
+      package com.lingualink.gtlingua;
+      
+      import android.Manifest;
+      import android.content.pm.PackageManager;
+      import android.os.Build;
+      import android.os.Bundle;
+      import android.util.Log;
+      import android.webkit.ConsoleMessage;
+      import android.webkit.PermissionRequest;
+      import android.webkit.WebChromeClient;
+      import android.webkit.WebSettings;
+      import android.webkit.WebView;
+      import android.webkit.WebViewClient;
+      import android.widget.Toast;
+      import androidx.appcompat.app.AppCompatActivity;
+      import androidx.core.app.ActivityCompat;
+      import androidx.core.content.ContextCompat;
+      
+      public class MainActivity extends AppCompatActivity {
+          private static final String TAG = "GTLingua";
+          private WebView webView;
+          private static final int PERMISSION_REQUEST_CODE = 100;
+          
+          @Override
+          protected void onCreate(Bundle savedInstanceState) {
+              super.onCreate(savedInstanceState);
+              
+              // Request permissions
+              requestPermissions();
+              
+              // Setup WebView
+              webView = new WebView(this);
+              setContentView(webView);
+              
+              setupWebView();
+          }
+          
+          private void setupWebView() {
+              WebSettings webSettings = webView.getSettings();
+              
+              // Enable JavaScript and other required settings
+              webSettings.setJavaScriptEnabled(true);
+              webSettings.setDomStorageEnabled(true);
+              webSettings.setDatabaseEnabled(true);
+              webSettings.setMediaPlaybackRequiresUserGesture(false);
+              webSettings.setAllowFileAccess(true);
+              webSettings.setAllowContentAccess(true);
+              webSettings.setLoadsImagesAutomatically(true);
+              webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+              
+              // Enhanced settings for GTLingua
+              webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+              webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+              webSettings.setUserAgentString("Mozilla/5.0 (Linux; Android 11; GTLingua) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+              
+              // Support for modern web features
+              webSettings.setGeolocationEnabled(true);
+              webSettings.setDatabaseEnabled(true);
+              webSettings.setDomStorageEnabled(true);
+              
+              // WebView client
+              webView.setWebViewClient(new WebViewClient() {
+                  @Override
+                  public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                      Log.d(TAG, "Loading URL: " + url);
+                      return false;
+                  }
+                  
+                  @Override
+                  public void onPageFinished(WebView view, String url) {
+                      super.onPageFinished(view, url);
+                      Log.d(TAG, "Page loaded: " + url);
+                  }
+              });
+              
+              // WebChrome client for permissions
+              webView.setWebChromeClient(new WebChromeClient() {
+                  @Override
+                  public void onPermissionRequest(final PermissionRequest request) {
+                      Log.d(TAG, "Permission requested: " + String.join(", ", request.getResources()));
+                      runOnUiThread(new Runnable() {
+                          @Override
+                          public void run() {
+                              String[] resources = request.getResources();
+                              request.grant(resources);
+                          }
+                      });
+                  }
+                  
+                  @Override
+                  public boolean onConsoleMessage(ConsoleMessage consoleMessage) {
+                      Log.d(TAG, "Console: " + consoleMessage.message());
+                      return true;
+                  }
+              });
+              
+              // Load GTLingua
+              webView.loadUrl("https://gtlingua.com");
+          }
+          
+          private void requestPermissions() {
+              String[] permissions = {
+                  Manifest.permission.RECORD_AUDIO,
+                  Manifest.permission.CAMERA,
+                  Manifest.permission.MODIFY_AUDIO_SETTINGS
+              };
+              
+              boolean needsPermission = false;
+              for (String permission : permissions) {
+                  if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                      needsPermission = true;
+                      break;
+                  }
+              }
+              
+              if (needsPermission) {
+                  ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+              }
+          }
+          
+          @Override
+          public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+              super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+              if (requestCode == PERMISSION_REQUEST_CODE) {
+                  boolean allGranted = true;
+                  for (int result : grantResults) {
+                      if (result != PackageManager.PERMISSION_GRANTED) {
+                          allGranted = false;
+                          break;
+                      }
+                  }
+                  if (!allGranted) {
+                      Toast.makeText(this, "Some features may not work without permissions", Toast.LENGTH_LONG).show();
+                  }
+              }
+          }
+          
+          @Override
+          public void onBackPressed() {
+              if (webView.canGoBack()) {
+                  webView.goBack();
+              } else {
+                  super.onBackPressed();
+              }
+          }
+          
+          @Override
+          protected void onDestroy() {
+              if (webView != null) {
+                  webView.destroy();
+              }
+              super.onDestroy();
+          }
+      }
+      EOF
+      
+      echo "✅ MainActivity created"
+
+  - name: Create Resources
+    run: |
+      echo "=== CREATING RESOURCES ==="
+      
+      # Create strings.xml
+      cat > app/src/main/res/values/strings.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <resources>
+          <string name="app_name">GTLingua Translator</string>
+          <string name="app_description">AI-powered translation with Deepgram voice recognition</string>
+      </resources>
+      EOF
+      
+      # Create colors.xml
+      cat > app/src/main/res/values/colors.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <resources>
+          <color name="purple_200">#FFBB86FC</color>
+          <color name="purple_500">#FF6200EE</color>
+          <color name="purple_700">#FF3700B3</color>
+          <color name="teal_200">#FF03DAC5</color>
+          <color name="teal_700">#FF018786</color>
+          <color name="black">#FF000000</color>
+          <color name="white">#FFFFFFFF</color>
+      </resources>
+      EOF
+      
+      # Create styles.xml
+      cat > app/src/main/res/values/styles.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <resources>
+          <style name="Theme.GTLingua" parent="Theme.AppCompat.Light.DarkActionBar">
+              <item name="colorPrimary">@color/purple_500</item>
+              <item name="colorPrimaryDark">@color/purple_700</item>
+              <item name="colorAccent">@color/teal_200</item>
+          </style>
+      </resources>
+      EOF
+      
+      # Create file_paths.xml for FileProvider
+      cat > app/src/main/res/xml/file_paths.xml << 'EOF'
+      <?xml version="1.0" encoding="utf-8"?>
+      <paths xmlns:android="http://schemas.android.com/apk/res/android">
+          <external-path name="external_files" path="."/>
+          <cache-path name="cache" path="." />
+          <files-path name="files" path="." />
+      </paths>
+      EOF
+      
+      echo "✅ Resources created"
+
+  - name: Create Launcher Icons
+    run: |
+      echo "=== CREATING LAUNCHER ICONS ==="
+      
+      # Install ImageMagick
+      sudo apt-get update && sudo apt-get install -y imagemagick
+      
+      # Create launcher icons with better design
+      for size in 48 72 96 144 192; do
+          density=""
+          case $size in
+              48) density="mdpi" ;;
+              72) density="hdpi" ;;
+              96) density="xhdpi" ;;
+              144) density="xxhdpi" ;;
+              192) density="xxxhdpi" ;;
+          esac
+          
+          # Create a gradient background with text
+          convert -size ${size}x${size} \
+                  xc: -sparse-color Barycentric \
+                  "0,0 #4F46E5 ${size},${size} #7C3AED" \
+                  -fill white \
+                  -gravity center \
+                  -pointsize $((size/3)) \
+                  -font "DejaVu-Sans-Bold" \
+                  -annotate +0+0 "GT" \
+                  "app/src/main/res/mipmap-${density}/ic_launcher.png"
+      done
+      
+      echo "✅ Icons created"
+
+  - name: Verify Signing Configuration
+    run: |
+      echo "=== VERIFYING SIGNING CONFIGURATION ==="
+      
+      if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "✅ GitHub Secrets for signing are configured:"
+          echo "   - ANDROID_KEYSTORE_BASE64: Set (length: ${#ANDROID_KEYSTORE_BASE64})"
+          echo "   - ANDROID_KEYSTORE_PASSWORD: ${ANDROID_KEYSTORE_PASSWORD:+Set}"
+          echo "   - ANDROID_KEY_ALIAS: ${ANDROID_KEY_ALIAS:-Not set}"
+          echo "   - ANDROID_KEY_PASSWORD: ${ANDROID_KEY_PASSWORD:+Set}"
+          
+          if [ -f app/release.keystore ]; then
+              echo "✅ Release keystore file exists and is ready"
+              echo "   Size: $(ls -lh app/release.keystore | awk '{print $5}')"
+          else
+              echo "❌ Release keystore file not found!"
+          fi
+      else
+          echo "⚠️ No release signing configuration in GitHub secrets"
+          echo "⚠️ Builds will use debug signing"
+      fi
+      
+      echo "====================================="
+
+  - name: Build Debug APK
+    run: |
+      echo "=== BUILDING DEBUG APK ==="
+      
+      # Display Java version
+      java -version
+      
+      # Make gradlew executable
+      chmod +x gradlew
+      
+      # Clean build
+      ./gradlew clean
+      
+      # Build debug APK
+      ./gradlew assembleDebug --stacktrace
+      
+      # List built APKs
+      echo "=== LISTING DEBUG APKs ==="
+      find app/build/outputs -name "*.apk" -type f -ls
+      
+      echo "✅ Debug APK build complete"
+
+  - name: Build Release AAB
+    run: |
+      echo "=== BUILDING RELEASE AAB ==="
+      
+      # Build release AAB (Android App Bundle)
+      ./gradlew bundleRelease --stacktrace
+      
+      # List built AABs
+      echo "=== LISTING AABs ==="
+      find app/build/outputs -name "*.aab" -type f -ls
+      
+      # Check if AAB is signed
+      if [ -f app/build/outputs/bundle/release/app-release.aab ]; then
+          echo ""
+          echo "=== VERIFYING AAB SIGNATURE ==="
+          # Use jarsigner to verify the AAB is signed
+          jarsigner -verify -verbose -certs app/build/outputs/bundle/release/app-release.aab || echo "⚠️ AAB signature verification failed"
+      fi
+      
+      echo "✅ Release AAB build complete"
+
+  - name: Build Release APK
+    run: |
+      echo "=== BUILDING RELEASE APK ==="
+      
+      # Build release APK
+      ./gradlew assembleRelease --stacktrace
+      
+      # List all built files
+      echo "=== LISTING RELEASE APKs ==="
+      find app/build/outputs -name "*.apk" -type f -ls
+      
+      # Check if APK is signed
+      if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+          echo ""
+          echo "=== VERIFYING APK SIGNATURE ==="
+          # Use jarsigner to verify the APK is signed
+          jarsigner -verify -verbose -certs app/build/outputs/apk/release/app-release.apk || echo "⚠️ APK signature verification failed"
+      fi
+      
+      echo "✅ Release APK build complete"
+
+  - name: Upload Debug APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: gtlingua-debug-apk
+      path: app/build/outputs/apk/debug/app-debug.apk
+      retention-days: 30
+
+  - name: Upload Release APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: gtlingua-release-apk
+      path: app/build/outputs/apk/release/app-release.apk
+      retention-days: 30
+      if-no-files-found: warn
+
+  - name: Upload Release AAB
+    uses: actions/upload-artifact@v4
+    with:
+      name: gtlingua-release-aab
+      path: app/build/outputs/bundle/release/app-release.aab
+      retention-days: 30
+      if-no-files-found: warn
+
+  - name: Create Build Report
+    if: always()
+    run: |
+      echo "=== BUILD REPORT ==="
+      echo "==============================================="
+      echo "Repository: ${{ github.repository }}"
+      echo "Branch: ${{ github.ref_name }}"
+      echo "Commit: ${{ github.sha }}"
+      echo "Run ID: ${{ github.run_id }}"
+      echo "Runner: ${{ runner.os }} ${{ runner.arch }}"
+      echo "==============================================="
+      
+      echo ""
+      echo "🔐 SIGNING STATUS:"
+      echo "------------------"
+      if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
+          echo "✅ Release signing configured with GitHub secrets"
+          echo "   Key Alias: ${ANDROID_KEY_ALIAS:-Not set}"
+      else
+          echo "⚠️ Using debug signing (no release keys in secrets)"
+      fi
+      
+      echo ""
+      echo "📱 APK Files:"
+      echo "-------------"
+      if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+          echo "✅ Debug APK: $(du -h app/build/outputs/apk/debug/app-debug.apk | cut -f1)"
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+      else
+          echo "❌ Debug APK not found"
+      fi
+      
+      if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
+          echo "✅ Release APK: $(du -h app/build/outputs/apk/release/app-release.apk | cut -f1)"
+          ls -lh app/build/outputs/apk/release/app-release.apk
+          # Check signing
+          if jarsigner -verify app/build/outputs/apk/release/app-release.apk 2>/dev/null; then
+              echo "   ✅ APK is signed"
+          else
+              echo "   ⚠️ APK signing could not be verified"
+          fi
+      else
+          echo "❌ Release APK not found"
+      fi
+      
+      echo ""
+      echo "📦 AAB Files:"
+      echo "-------------"
+      if [ -f "app/build/outputs/bundle/release/app-release.aab" ]; then
+          echo "✅ Release AAB: $(du -h app/build/outputs/bundle/release/app-release.aab | cut -f1)"
+          ls -lh app/build/outputs/bundle/release/app-release.aab
+          # Check signing
+          if jarsigner -verify app/build/outputs/bundle/release/app-release.aab 2>/dev/null; then
+              echo "   ✅ AAB is properly signed"
+              echo ""
+              echo "🎯 AAB is ready for Google Play Store upload!"
+          else
+              echo "   ⚠️ AAB signing could not be verified"
+          fi
+      else
+          echo "❌ Release AAB not found"
+      fi
+      
+      echo ""
+      echo "==============================================="
+      echo "📊 Build Summary:"
+      echo "==============================================="
+      
+      # Count successful builds
+      SUCCESS_COUNT=0
+      [ -f "app/build/outputs/apk/debug/app-debug.apk" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+      [ -f "app/build/outputs/apk/release/app-release.apk" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+      [ -f "app/build/outputs/bundle/release/app-release.aab" ] && SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+      
+      echo "Successful builds: $SUCCESS_COUNT / 3"
+      
+      if [ $SUCCESS_COUNT -eq 3 ]; then
+          echo "🎉 All builds completed successfully!"
+          echo ""
+          if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
+              echo "✅ Release builds are properly signed and ready for deployment!"
+          else
+              echo "⚠️ Release builds use debug signing. Add GitHub secrets for production signing:"
+              echo "   - ANDROID_KEYSTORE_BASE64"
+              echo "   - ANDROID_KEYSTORE_PASSWORD"
+              echo "   - ANDROID_KEY_ALIAS"
+              echo "   - ANDROID_KEY_PASSWORD"
+          fi
+          echo ""
+          echo "Next steps:"
+          echo "1. Download the AAB file from artifacts"
+          echo "2. Upload to Google Play Console for distribution"
+          echo "3. Or use APK files for direct installation/testing"
+      elif [ $SUCCESS_COUNT -gt 0 ]; then
+          echo "⚠️ Partial build success. Check logs for details."
+      else
+          echo "❌ Build failed. Review the logs above for errors."
+      fi
+```
