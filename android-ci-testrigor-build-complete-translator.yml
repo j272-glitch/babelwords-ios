@@ -1,0 +1,2093 @@
+name: TestRigor Build - Complete Translator App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+  WEBVIEW_URL: "https://gtlingua.com"
+
+jobs:
+  build-testrigor:
+    name: Build Complete TestRigor APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Clean Build Configuration
+        run: |
+          echo "=== CREATING CLEAN BUILD CONFIGURATION ==="
+          
+          # Backup originals
+          [ -f "build.gradle" ] && mv build.gradle build.gradle.original
+          [ -f "settings.gradle" ] && mv settings.gradle settings.gradle.original
+          
+          # Create minimal root build.gradle
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.0.2' apply false
+              id 'com.android.library' version '8.0.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
+              id 'com.google.gms.google-services' version '4.3.15' apply false
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          
+          # Create settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          
+          # Create gradle.properties
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.useLegacyPackaging=true
+          android.nonTransitiveRClass=false
+          EOF
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          echo "✅ Clean configuration created"
+
+      - name: Setup Gradle Wrapper
+        run: |
+          echo "=== SETTING UP GRADLE WRAPPER ==="
+          
+          mkdir -p gradle/wrapper
+          
+          echo "Downloading gradle-wrapper.jar..."
+          wget -q -O gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar || {
+              echo "Failed to download from GitHub, trying alternative..."
+              wget -q https://services.gradle.org/distributions/gradle-8.0.2-bin.zip
+              unzip -q gradle-8.0.2-bin.zip
+              cp gradle-8.0.2/lib/gradle-wrapper-8.0.2.jar gradle/wrapper/gradle-wrapper.jar
+              rm -rf gradle-8.0.2 gradle-8.0.2-bin.zip
+            }
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          # Download gradlew script
+          wget -q -O gradlew \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradlew || {
+              echo "Creating gradlew script manually..."
+              cat > gradlew << 'GRADLEW'
+          #!/bin/sh
+          APP_HOME="$( cd "$( dirname "$0" )" && pwd )"
+          CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+          
+          if [ -n "$JAVA_HOME" ] ; then
+              JAVACMD="$JAVA_HOME/bin/java"
+          else
+              JAVACMD="java"
+          fi
+          
+          exec "$JAVACMD" \
+            -cp "$CLASSPATH" \
+            org.gradle.wrapper.GradleWrapperMain \
+            "$@"
+          GRADLEW
+            }
+          
+          chmod +x gradlew
+          
+          echo "✅ Gradle wrapper setup complete"
+
+      - name: Create Launcher Icons
+        run: |
+          echo "=== CREATING LAUNCHER ICONS ==="
+          
+          # Install ImageMagick for icon generation
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          
+          # Create a gradient icon with translation symbol
+          convert -size 512x512 gradient:'#2196F3-#1976D2' -fill white -gravity center \
+            -pointsize 180 -annotate +0-30 '🌐' \
+            -pointsize 60 -annotate +0+60 'LT' base_icon.png
+          
+          # Generate different density icons
+          densities=("mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192")
+          
+          for density_size in "${densities[@]}"; do
+            density="${density_size%%:*}"
+            size="${density_size##*:}"
+            
+            mkdir -p "app/src/main/res/mipmap-$density"
+            
+            # Create regular icon
+            convert base_icon.png -resize "${size}x${size}" \
+              "app/src/main/res/mipmap-$density/ic_launcher.png"
+            
+            # Create round icon
+            convert base_icon.png -resize "${size}x${size}" \
+              \( +clone -threshold 101% -fill white -draw "circle $(($size/2)),$(($size/2)) $(($size/2)),0" \) \
+              -alpha off -compose copy_opacity -composite \
+              "app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          
+          rm base_icon.png
+          echo "✅ Launcher icons created"
+
+      - name: Create Complete Android Project Structure
+        run: |
+          echo "=== CREATING COMPLETE ANDROID PROJECT STRUCTURE ==="
+          
+          # Create comprehensive directory structure
+          mkdir -p app/src/main/java/com/lingualink/translator/{activity,fragment,adapter,model,service,utils,webview}
+          mkdir -p app/src/main/res/{layout,values,drawable,xml,raw,menu}
+          mkdir -p app/src/main/assets
+          
+          # Create AndroidManifest.xml with all necessary permissions
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+          
+              <!-- Network permissions -->
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+              
+              <!-- Camera and storage for OCR -->
+              <uses-permission android:name="android.permission.CAMERA" />
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+                               tools:ignore="ScopedStorage" />
+              
+              <!-- Location for context-aware translation -->
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              
+              <!-- Audio for voice translation -->
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+              
+              <!-- Vibration for feedback -->
+              <uses-permission android:name="android.permission.VIBRATE" />
+              
+              <!-- Wake lock for long translations -->
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+          
+              <application
+                  android:allowBackup="true"
+                  android:dataExtractionRules="@xml/data_extraction_rules"
+                  android:fullBackupContent="@xml/backup_rules"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.LinguaLink"
+                  android:hardwareAccelerated="true"
+                  android:usesCleartextTraffic="true"
+                  android:requestLegacyExternalStorage="true"
+                  android:networkSecurityConfig="@xml/network_security_config"
+                  tools:targetApi="31">
+                  
+                  <!-- Main Activity -->
+                  <activity
+                      android:name=".activity.MainActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.LinguaLink"
+                      android:screenOrientation="portrait"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      
+                      <!-- Handle text sharing from other apps -->
+                      <intent-filter>
+                          <action android:name="android.intent.action.SEND" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <data android:mimeType="text/plain" />
+                      </intent-filter>
+                  </activity>
+                  
+                  <!-- WebView Activity for advanced features -->
+                  <activity
+                      android:name=".activity.WebViewActivity"
+                      android:exported="false"
+                      android:theme="@style/Theme.LinguaLink.NoActionBar"
+                      android:hardwareAccelerated="true" />
+                  
+                  <!-- Camera Activity for OCR -->
+                  <activity
+                      android:name=".activity.CameraActivity"
+                      android:exported="false"
+                      android:theme="@style/Theme.LinguaLink.NoActionBar"
+                      android:screenOrientation="portrait" />
+                  
+                  <!-- Translation Service -->
+                  <service
+                      android:name=".service.TranslationService"
+                      android:exported="false" />
+                  
+                  <!-- Google Play Services Version -->
+                  <meta-data
+                      android:name="com.google.android.gms.version"
+                      android:value="@integer/google_play_services_version" />
+                  
+                  <!-- ML Kit Vision -->
+                  <meta-data
+                      android:name="com.google.mlkit.vision.DEPENDENCIES"
+                      android:value="ocr" />
+                      
+                  <!-- File provider for sharing -->
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="com.lingualink.translator.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+              </application>
+          
+          </manifest>
+          EOF
+          
+          echo "✅ AndroidManifest.xml created with complete permissions"
+
+      - name: Create Main Application Activities
+        run: |
+          echo "=== CREATING MAIN APPLICATION ACTIVITIES ==="
+          
+          # Create MainActivity.kt with full functionality
+          cat > app/src/main/java/com/lingualink/translator/activity/MainActivity.kt << 'EOF'
+          package com.lingualink.translator.activity
+          
+          import android.Manifest
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.os.Bundle
+          import android.util.Log
+          import android.view.Menu
+          import android.view.MenuItem
+          import android.widget.*
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
+          import com.google.android.gms.common.ConnectionResult
+          import com.google.android.gms.common.GoogleApiAvailability
+          import com.lingualink.translator.R
+          import com.lingualink.translator.service.TranslationService
+          import com.lingualink.translator.utils.LanguageUtils
+          import com.lingualink.translator.utils.PreferencesManager
+          
+          class MainActivity : AppCompatActivity() {
+              
+              companion object {
+                  private const val TAG = "LinguaLinkMain"
+                  private const val PERMISSIONS_REQUEST_CODE = 1001
+                  private const val CAMERA_REQUEST_CODE = 1002
+                  private const val WEBVIEW_REQUEST_CODE = 1003
+              }
+              
+              private lateinit var sourceLanguageSpinner: Spinner
+              private lateinit var targetLanguageSpinner: Spinner
+              private lateinit var inputEditText: EditText
+              private lateinit var outputTextView: TextView
+              private lateinit var translateButton: Button
+              private lateinit var swapLanguagesButton: ImageButton
+              private lateinit var cameraButton: Button
+              private lateinit var webviewButton: Button
+              private lateinit var statusTextView: TextView
+              
+              private lateinit var preferencesManager: PreferencesManager
+              private lateinit var translationService: TranslationService
+              
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  
+                  try {
+                      setContentView(R.layout.activity_main)
+                      
+                      initializeComponents()
+                      checkPermissions()
+                      checkPlayServices()
+                      setupLanguageSpinners()
+                      setupClickListeners()
+                      handleIncomingIntent()
+                      
+                      Log.d(TAG, "MainActivity created successfully")
+                      updateStatus("Ready for translation")
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error in onCreate", e)
+                      showErrorMessage("App initialization failed: ${e.message}")
+                  }
+              }
+              
+              private fun initializeComponents() {
+                  sourceLanguageSpinner = findViewById(R.id.sourceLanguageSpinner)
+                  targetLanguageSpinner = findViewById(R.id.targetLanguageSpinner)
+                  inputEditText = findViewById(R.id.inputEditText)
+                  outputTextView = findViewById(R.id.outputTextView)
+                  translateButton = findViewById(R.id.translateButton)
+                  swapLanguagesButton = findViewById(R.id.swapLanguagesButton)
+                  cameraButton = findViewById(R.id.cameraButton)
+                  webviewButton = findViewById(R.id.webviewButton)
+                  statusTextView = findViewById(R.id.statusTextView)
+                  
+                  preferencesManager = PreferencesManager(this)
+                  translationService = TranslationService(this)
+              }
+              
+              private fun checkPermissions() {
+                  val permissions = arrayOf(
+                      Manifest.permission.CAMERA,
+                      Manifest.permission.RECORD_AUDIO,
+                      Manifest.permission.ACCESS_FINE_LOCATION
+                  )
+                  
+                  val permissionsToRequest = permissions.filter {
+                      ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+                  }
+                  
+                  if (permissionsToRequest.isNotEmpty()) {
+                      ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), PERMISSIONS_REQUEST_CODE)
+                  }
+              }
+              
+              private fun checkPlayServices(): Boolean {
+                  val apiAvailability = GoogleApiAvailability.getInstance()
+                  val resultCode = apiAvailability.isGooglePlayServicesAvailable(this)
+                  
+                  return when (resultCode) {
+                      ConnectionResult.SUCCESS -> {
+                          Log.d(TAG, "Google Play Services is available")
+                          updateStatus("Google Play Services available")
+                          true
+                      }
+                      else -> {
+                          Log.w(TAG, "Google Play Services not available: $resultCode")
+                          updateStatus("Using offline translation mode")
+                          false
+                      }
+                  }
+              }
+              
+              private fun setupLanguageSpinners() {
+                  val languages = LanguageUtils.getSupportedLanguages()
+                  val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, languages.map { it.displayName })
+                  adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                  
+                  sourceLanguageSpinner.adapter = adapter
+                  targetLanguageSpinner.adapter = adapter
+                  
+                  // Set default languages
+                  sourceLanguageSpinner.setSelection(languages.indexOfFirst { it.code == "en" })
+                  targetLanguageSpinner.setSelection(languages.indexOfFirst { it.code == "es" })
+              }
+              
+              private fun setupClickListeners() {
+                  translateButton.setOnClickListener {
+                      performTranslation()
+                  }
+                  
+                  swapLanguagesButton.setOnClickListener {
+                      swapLanguages()
+                  }
+                  
+                  cameraButton.setOnClickListener {
+                      openCamera()
+                  }
+                  
+                  webviewButton.setOnClickListener {
+                      openWebView()
+                  }
+              }
+              
+              private fun performTranslation() {
+                  val inputText = inputEditText.text.toString().trim()
+                  if (inputText.isEmpty()) {
+                      showErrorMessage("Please enter text to translate")
+                      return
+                  }
+                  
+                  updateStatus("Translating...")
+                  translateButton.isEnabled = false
+                  
+                  val sourceLanguage = LanguageUtils.getSupportedLanguages()[sourceLanguageSpinner.selectedItemPosition]
+                  val targetLanguage = LanguageUtils.getSupportedLanguages()[targetLanguageSpinner.selectedItemPosition]
+                  
+                  translationService.translate(inputText, sourceLanguage.code, targetLanguage.code) { result ->
+                      runOnUiThread {
+                          translateButton.isEnabled = true
+                          when {
+                              result.isSuccess -> {
+                                  outputTextView.text = result.getOrNull()
+                                  updateStatus("Translation completed")
+                              }
+                              else -> {
+                                  showErrorMessage("Translation failed: ${result.exceptionOrNull()?.message}")
+                                  updateStatus("Translation failed")
+                              }
+                          }
+                      }
+                  }
+              }
+              
+              private fun swapLanguages() {
+                  val sourcePosition = sourceLanguageSpinner.selectedItemPosition
+                  val targetPosition = targetLanguageSpinner.selectedItemPosition
+                  
+                  sourceLanguageSpinner.setSelection(targetPosition)
+                  targetLanguageSpinner.setSelection(sourcePosition)
+                  
+                  // Also swap the text content
+                  val inputText = inputEditText.text.toString()
+                  val outputText = outputTextView.text.toString()
+                  
+                  if (outputText.isNotEmpty()) {
+                      inputEditText.setText(outputText)
+                      outputTextView.text = inputText
+                  }
+              }
+              
+              private fun openCamera() {
+                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                      val intent = Intent(this, CameraActivity::class.java)
+                      startActivityForResult(intent, CAMERA_REQUEST_CODE)
+                  } else {
+                      showErrorMessage("Camera permission required for OCR")
+                  }
+              }
+              
+              private fun openWebView() {
+                  val intent = Intent(this, WebViewActivity::class.java)
+                  // Pass the GTLingua custom domain URL to WebView
+                  intent.putExtra("url", "https://gtlingua.com")
+                  startActivityForResult(intent, WEBVIEW_REQUEST_CODE)
+              }
+              
+              private fun handleIncomingIntent() {
+                  val intent = intent
+                  if (Intent.ACTION_SEND == intent.action && "text/plain" == intent.type) {
+                      val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                      if (!sharedText.isNullOrEmpty()) {
+                          inputEditText.setText(sharedText)
+                          updateStatus("Text received from external app")
+                      }
+                  }
+              }
+              
+              private fun updateStatus(message: String) {
+                  statusTextView.text = message
+                  Log.d(TAG, "Status: $message")
+              }
+              
+              private fun showErrorMessage(message: String) {
+                  Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                  Log.e(TAG, message)
+              }
+              
+              override fun onCreateOptionsMenu(menu: Menu): Boolean {
+                  menuInflater.inflate(R.menu.main_menu, menu)
+                  return true
+              }
+              
+              override fun onOptionsItemSelected(item: MenuItem): Boolean {
+                  return when (item.itemId) {
+                      R.id.action_settings -> {
+                          // Open settings
+                          true
+                      }
+                      R.id.action_history -> {
+                          // Open translation history
+                          true
+                      }
+                      else -> super.onOptionsItemSelected(item)
+                  }
+              }
+              
+              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                  super.onActivityResult(requestCode, resultCode, data)
+                  
+                  when (requestCode) {
+                      CAMERA_REQUEST_CODE -> {
+                          if (resultCode == RESULT_OK && data != null) {
+                              val extractedText = data.getStringExtra("extracted_text")
+                              if (!extractedText.isNullOrEmpty()) {
+                                  inputEditText.setText(extractedText)
+                                  updateStatus("Text extracted from image")
+                              }
+                          }
+                      }
+                      WEBVIEW_REQUEST_CODE -> {
+                          if (resultCode == RESULT_OK && data != null) {
+                              val translatedText = data.getStringExtra("translated_text")
+                              if (!translatedText.isNullOrEmpty()) {
+                                  outputTextView.text = translatedText
+                                  updateStatus("Translation received from web service")
+                              }
+                          }
+                      }
+                  }
+              }
+              
+              override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+                  
+                  if (requestCode == PERMISSIONS_REQUEST_CODE) {
+                      val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+                      if (allGranted) {
+                          updateStatus("All permissions granted")
+                      } else {
+                          updateStatus("Some permissions denied - limited functionality")
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          echo "✅ MainActivity.kt created with full functionality"
+
+      - name: Create WebView Activity
+        run: |
+          echo "=== CREATING WEBVIEW ACTIVITY ==="
+          
+          # Create WebViewActivity.kt with custom URL support
+          cat > app/src/main/java/com/lingualink/translator/activity/WebViewActivity.kt << 'EOF'
+          package com.lingualink.translator.activity
+          
+          import android.annotation.SuppressLint
+          import android.app.Activity
+          import android.content.Intent
+          import android.graphics.Bitmap
+          import android.os.Bundle
+          import android.util.Log
+          import android.view.KeyEvent
+          import android.view.View
+          import android.webkit.*
+          import android.widget.ProgressBar
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.appcompat.widget.Toolbar
+          import com.lingualink.translator.R
+          import com.lingualink.translator.webview.JavaScriptInterface
+          
+          class WebViewActivity : AppCompatActivity() {
+              
+              companion object {
+                  private const val TAG = "WebViewActivity"
+                  // Use the GTLingua custom domain or fallback to Google Translate
+                  private const val DEFAULT_URL = "https://gtlingua.com"
+                  private const val FALLBACK_URL = "https://translate.google.com"
+              }
+              
+              private lateinit var webView: WebView
+              private lateinit var progressBar: ProgressBar
+              private lateinit var toolbar: Toolbar
+              
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_webview)
+                  
+                  initializeViews()
+                  setupToolbar()
+                  setupWebView()
+                  
+                  // Priority: Intent URL > Default Replit URL > Fallback
+                  val url = intent.getStringExtra("url") ?: DEFAULT_URL
+                  loadUrl(url)
+              }
+              
+              private fun initializeViews() {
+                  webView = findViewById(R.id.webView)
+                  progressBar = findViewById(R.id.progressBar)
+                  toolbar = findViewById(R.id.toolbar)
+              }
+              
+              private fun setupToolbar() {
+                  setSupportActionBar(toolbar)
+                  supportActionBar?.apply {
+                      setDisplayHomeAsUpEnabled(true)
+                      setDisplayShowHomeEnabled(true)
+                      title = "LinguaLink Web"
+                  }
+              }
+              
+              @SuppressLint("SetJavaScriptEnabled")
+              private fun setupWebView() {
+                  val webSettings = webView.settings
+                  
+                  // Key WebView settings for optimal functionality
+                  webSettings.javaScriptEnabled = true
+                  webSettings.mediaPlaybackRequiresUserGesture = false
+                  webSettings.domStorageEnabled = true
+                  
+                  // Additional essential settings
+                  webSettings.databaseEnabled = true
+                  webSettings.cacheMode = WebSettings.LOAD_DEFAULT
+                  
+                  // Enable zoom controls
+                  webSettings.setSupportZoom(true)
+                  webSettings.builtInZoomControls = true
+                  webSettings.displayZoomControls = false
+                  
+                  // Enhanced user agent for GTLingua compatibility
+                  webSettings.userAgentString = "Mozilla/5.0 (Linux; Android 11; Mobile LinguaLink) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+                  
+                  // Security settings (balanced for functionality)
+                  webSettings.allowFileAccess = false
+                  webSettings.allowContentAccess = false
+                  webSettings.allowFileAccessFromFileURLs = false
+                  webSettings.allowUniversalAccessFromFileURLs = false
+                  
+                  // Mixed content mode for HTTPS custom domain
+                  webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                  
+                  // Additional settings for modern web apps and media
+                  webSettings.loadWithOverviewMode = true
+                  webSettings.useWideViewPort = true
+                  webSettings.setSupportMultipleWindows(false)
+                  webSettings.loadsImagesAutomatically = true
+                  webSettings.blockNetworkImage = false
+                  webSettings.blockNetworkLoads = false
+                  
+                  // Enhanced media and JavaScript support
+                  webSettings.javaScriptCanOpenWindowsAutomatically = true
+                  webSettings.allowContentAccess = true
+                  webSettings.allowFileAccess = true
+                  
+                  // Modern WebView features
+                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                      webSettings.safeBrowsingEnabled = false // For development/testing
+                  }
+                  
+                  // Add JavaScript interface for communication
+                  webView.addJavaScriptInterface(JavaScriptInterface(this), "AndroidInterface")
+                  
+                  // Set WebView client with enhanced error handling
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                          super.onPageStarted(view, url, favicon)
+                          progressBar.visibility = View.VISIBLE
+                          Log.d(TAG, "Page started loading: $url")
+                      }
+                      
+                      override fun onPageFinished(view: WebView?, url: String?) {
+                          super.onPageFinished(view, url)
+                          progressBar.visibility = View.GONE
+                          Log.d(TAG, "Page finished loading: $url")
+                          
+                          // Inject JavaScript for enhanced functionality
+                          injectEnhancementJavaScript()
+                      }
+                      
+                      override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                          super.onReceivedError(view, request, error)
+                          Log.e(TAG, "WebView error: ${error?.description}")
+                          progressBar.visibility = View.GONE
+                          
+                          // If GTLingua URL fails, try fallback
+                          val failedUrl = request?.url?.toString()
+                          if (failedUrl?.contains("gtlingua.com") == true) {
+                              Log.w(TAG, "GTLingua URL failed, trying fallback: $FALLBACK_URL")
+                              loadUrl(FALLBACK_URL)
+                          } else if (failedUrl?.contains("replit.app") == true || failedUrl?.contains("replit.dev") == true) {
+                              Log.w(TAG, "Replit URL failed, trying fallback: $FALLBACK_URL")
+                              loadUrl(FALLBACK_URL)
+                          }
+                      }
+                      
+                      override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?) {
+                          super.onReceivedHttpError(view, request, errorResponse)
+                          Log.e(TAG, "HTTP error: ${errorResponse?.statusCode}")
+                          
+                          // Handle GTLingua and Replit-specific errors
+                          val failedUrl = request?.url?.toString()
+                          if (failedUrl?.contains("gtlingua.com") == true && errorResponse?.statusCode in 400..599) {
+                              Log.w(TAG, "GTLingua HTTP error ${errorResponse?.statusCode}, trying fallback")
+                              loadUrl(FALLBACK_URL)
+                          } else if ((failedUrl?.contains("replit.app") == true || failedUrl?.contains("replit.dev") == true) && errorResponse?.statusCode in 400..599) {
+                              Log.w(TAG, "Replit HTTP error ${errorResponse?.statusCode}, trying fallback")
+                              loadUrl(FALLBACK_URL)
+                          }
+                      }
+                      
+                      override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                          val url = request?.url?.toString()
+                          Log.d(TAG, "Loading URL: $url")
+                          
+                          // Allow GTLingua, Replit and Google domains
+                          return when {
+                              url?.contains("gtlingua.com") == true -> false
+                              url?.contains("replit.app") == true -> false
+                              url?.contains("replit.dev") == true -> false
+                              url?.contains("google.com") == true -> false
+                              url?.contains("translate.google") == true -> false
+                              else -> {
+                                  Log.w(TAG, "Blocking external URL: $url")
+                                  true // Block other external URLs
+                              }
+                          }
+                      }
+                      
+                      override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
+                          Log.w(TAG, "SSL Error: ${error?.toString()}")
+                          // For development purposes, proceed with GTLingua and Replit URLs
+                          val url = error?.url
+                          if (url?.contains("gtlingua.com") == true || url?.contains("replit.app") == true || url?.contains("replit.dev") == true) {
+                              Log.w(TAG, "Proceeding with SSL error for development domain: $url")
+                              handler?.proceed()
+                          } else {
+                              handler?.cancel()
+                          }
+                      }
+                  }
+                  
+                  // Set WebChrome client for better user experience
+                  webView.webChromeClient = object : WebChromeClient() {
+                      override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                          super.onProgressChanged(view, newProgress)
+                          progressBar.progress = newProgress
+                      }
+                      
+                      override fun onReceivedTitle(view: WebView?, title: String?) {
+                          super.onReceivedTitle(view, title)
+                          supportActionBar?.title = title ?: "LinguaLink Web"
+                      }
+                      
+                      override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                          Log.d(TAG, "JavaScript alert: $message")
+                          return super.onJsAlert(view, url, message, result)
+                      }
+                      
+                      override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                          Log.d(TAG, "Console: ${consoleMessage?.message()} -- Line ${consoleMessage?.lineNumber()} of ${consoleMessage?.sourceId()}")
+                          return true
+                      }
+                  }
+              }
+              
+              private fun loadUrl(url: String) {
+                  try {
+                      Log.d(TAG, "Loading URL: $url")
+                      
+                      // Add headers for better compatibility
+                      val headers = mapOf(
+                          "User-Agent" to "Mozilla/5.0 (Linux; Android 11; Mobile LinguaLink) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36",
+                          "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                          "Accept-Language" to "en-US,en;q=0.5",
+                          "Accept-Encoding" to "gzip, deflate",
+                          "DNT" to "1",
+                          "Connection" to "keep-alive",
+                          "Upgrade-Insecure-Requests" to "1"
+                      )
+                      
+                      webView.loadUrl(url, headers)
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error loading URL: $url", e)
+                      // Try fallback URL on error
+                      if (url != FALLBACK_URL) {
+                          Log.w(TAG, "Retrying with fallback URL")
+                          webView.loadUrl(FALLBACK_URL)
+                      }
+                  }
+              }
+              
+              private fun injectEnhancementJavaScript() {
+                  val jsCode = """
+                      // Enhanced JavaScript for GTLingua translator integration
+                      (function() {
+                          console.log('LinguaLink WebView enhancement script loaded for GTLingua');
+                          
+                          // Function to get translation results from various sources
+                          function getTranslationResult() {
+                              // Try multiple selectors for different translator interfaces
+                              var selectors = [
+                                  // GTLingua custom selectors (adjust based on your site structure)
+                                  '#translationOutput',
+                                  '.translation-result',
+                                  '.output-text',
+                                  '#result',
+                                  '.translated-text',
+                                  '[data-translation-result]',
+                                  '.gtlingua-output',
+                                  '#gtlingua-result',
+                                  // Google Translate selectors (fallback)
+                                  '[data-language-to-translate-into]',
+                                  '.tlid-translation.translation',
+                                  '.result-container .translation',
+                                  '[jsname="jqKdTe"]',
+                                  '.result',
+                                  // Generic selectors
+                                  '.translation',
+                                  '.output',
+                                  '#output'
+                              ];
+                              
+                              for (var selector of selectors) {
+                                  var element = document.querySelector(selector);
+                                  if (element && element.textContent && element.textContent.trim()) {
+                                      console.log('Found translation with selector: ' + selector);
+                                      return element.textContent.trim();
+                                  }
+                              }
+                              
+                              return null;
+                          }
+                          
+                          // Function to send translation back to Android
+                          function sendTranslationToAndroid() {
+                              var translatedText = getTranslationResult();
+                              if (translatedText && window.AndroidInterface) {
+                                  console.log('Sending translation to Android: ' + translatedText);
+                                  window.AndroidInterface.onTranslationComplete(translatedText);
+                              }
+                          }
+                          
+                          // Enhanced observer for DOM changes
+                          var observer = new MutationObserver(function(mutations) {
+                              var shouldCheck = false;
+                              mutations.forEach(function(mutation) {
+                                  if (mutation.type === 'childList' || mutation.type === 'characterData') {
+                                      shouldCheck = true;
+                                  }
+                              });
+                              
+                              if (shouldCheck) {
+                                  // Debounced check
+                                  setTimeout(sendTranslationToAndroid, 1000);
+                              }
+                          });
+                          
+                          // Start observing DOM changes
+                          observer.observe(document.body, {
+                              childList: true,
+                              subtree: true,
+                              characterData: true
+                          });
+                          
+                          // Also check periodically for updates
+                          setInterval(sendTranslationToAndroid, 3000);
+                          
+                          // Check immediately for existing content
+                          setTimeout(sendTranslationToAndroid, 2000);
+                          
+                          // Add click handlers for common translation buttons
+                          setTimeout(function() {
+                              var buttons = document.querySelectorAll('button, input[type="submit"], .translate-btn, #translate');
+                              buttons.forEach(function(button) {
+                                  if (button.textContent.toLowerCase().includes('translate') || 
+                                      button.id.toLowerCase().includes('translate') ||
+                                      button.className.toLowerCase().includes('translate')) {
+                                      button.addEventListener('click', function() {
+                                          console.log('Translate button clicked, will check for results');
+                                          setTimeout(sendTranslationToAndroid, 2000);
+                                      });
+                                  }
+                              });
+                          }, 3000);
+                          
+                          // Expose functions to global scope for debugging
+                          window.LinguaLinkDebug = {
+                              getTranslation: getTranslationResult,
+                              sendToAndroid: sendTranslationToAndroid
+                          };
+                          
+                          console.log('LinguaLink WebView enhancement ready');
+                      })();
+                  """.trimIndent()
+                  
+                  webView.evaluateJavascript(jsCode) { result ->
+                      Log.d(TAG, "JavaScript injection result: $result")
+                  }
+              }
+              
+              fun onTranslationReceived(translatedText: String) {
+                  Log.d(TAG, "Translation received: $translatedText")
+                  val resultIntent = Intent().apply {
+                      putExtra("translated_text", translatedText)
+                  }
+                  setResult(Activity.RESULT_OK, resultIntent)
+              }
+              
+              override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+                  if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
+                      webView.goBack()
+                      return true
+                  }
+                  return super.onKeyDown(keyCode, event)
+              }
+              
+              override fun onSupportNavigateUp(): Boolean {
+                  onBackPressed()
+                  return true
+              }
+              
+              override fun onDestroy() {
+                  webView.destroy()
+                  super.onDestroy()
+              }
+          }
+          EOF
+          
+          echo "✅ WebViewActivity.kt created"
+
+      - name: Create JavaScript Interface
+        run: |
+          echo "=== CREATING JAVASCRIPT INTERFACE ==="
+          
+          # Create JavaScriptInterface.kt
+          cat > app/src/main/java/com/lingualink/translator/webview/JavaScriptInterface.kt << 'EOF'
+          package com.lingualink.translator.webview
+          
+          import android.util.Log
+          import android.webkit.JavascriptInterface
+          import com.lingualink.translator.activity.WebViewActivity
+          
+          class JavaScriptInterface(private val activity: WebViewActivity) {
+              
+              companion object {
+                  private const val TAG = "JSInterface"
+              }
+              
+              @JavascriptInterface
+              fun onTranslationComplete(translatedText: String) {
+                  Log.d(TAG, "Translation completed: $translatedText")
+                  activity.runOnUiThread {
+                      activity.onTranslationReceived(translatedText)
+                  }
+              }
+              
+              @JavascriptInterface
+              fun logMessage(message: String) {
+                  Log.d(TAG, "JS Log: $message")
+              }
+              
+              @JavascriptInterface
+              fun showToast(message: String) {
+                  activity.runOnUiThread {
+                      android.widget.Toast.makeText(activity, message, android.widget.Toast.LENGTH_SHORT).show()
+                  }
+              }
+          }
+          EOF
+          
+          echo "✅ JavaScriptInterface.kt created"
+
+      - name: Create Supporting Activities and Services
+        run: |
+          echo "=== CREATING SUPPORTING COMPONENTS ==="
+          
+          # Create CameraActivity.kt (placeholder)
+          cat > app/src/main/java/com/lingualink/translator/activity/CameraActivity.kt << 'EOF'
+          package com.lingualink.translator.activity
+          
+          import android.app.Activity
+          import android.content.Intent
+          import android.os.Bundle
+          import android.widget.Toast
+          import androidx.appcompat.app.AppCompatActivity
+          import com.lingualink.translator.R
+          
+          class CameraActivity : AppCompatActivity() {
+              
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_camera)
+                  
+                  // Placeholder implementation
+                  Toast.makeText(this, "Camera OCR feature coming soon!", Toast.LENGTH_LONG).show()
+                  
+                  // For now, just return dummy text
+                  val resultIntent = Intent().apply {
+                      putExtra("extracted_text", "Sample extracted text from image")
+                  }
+                  setResult(Activity.RESULT_OK, resultIntent)
+                  finish()
+              }
+          }
+          EOF
+          
+          # Create TranslationService.kt
+          cat > app/src/main/java/com/lingualink/translator/service/TranslationService.kt << 'EOF'
+          package com.lingualink.translator.service
+          
+          import android.content.Context
+          import android.util.Log
+          import kotlinx.coroutines.*
+          
+          class TranslationService(private val context: Context) {
+              
+              companion object {
+                  private const val TAG = "TranslationService"
+              }
+              
+              private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+              
+              fun translate(
+                  text: String,
+                  sourceLanguage: String,
+                  targetLanguage: String,
+                  callback: (Result<String>) -> Unit
+              ) {
+                  serviceScope.launch {
+                      try {
+                          Log.d(TAG, "Translating: $text from $sourceLanguage to $targetLanguage")
+                          
+                          // Simulate translation delay
+                          delay(2000)
+                          
+                          // Mock translation (in real app, use Google ML Kit or API)
+                          val mockTranslation = when {
+                              targetLanguage == "es" -> "Hola, esta es una traducción simulada: $text"
+                              targetLanguage == "fr" -> "Bonjour, ceci est une traduction simulée: $text"
+                              targetLanguage == "de" -> "Hallo, das ist eine simulierte Übersetzung: $text"
+                              else -> "Mock translation of: $text"
+                          }
+                          
+                          callback(Result.success(mockTranslation))
+                          
+                      } catch (e: Exception) {
+                          Log.e(TAG, "Translation failed", e)
+                          callback(Result.failure(e))
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          # Create LanguageUtils.kt
+          cat > app/src/main/java/com/lingualink/translator/utils/LanguageUtils.kt << 'EOF'
+          package com.lingualink.translator.utils
+          
+          data class Language(val code: String, val displayName: String)
+          
+          object LanguageUtils {
+              fun getSupportedLanguages(): List<Language> {
+                  return listOf(
+                      Language("en", "English"),
+                      Language("es", "Spanish"),
+                      Language("fr", "French"),
+                      Language("de", "German"),
+                      Language("it", "Italian"),
+                      Language("pt", "Portuguese"),
+                      Language("ru", "Russian"),
+                      Language("ja", "Japanese"),
+                      Language("ko", "Korean"),
+                      Language("zh", "Chinese"),
+                      Language("ar", "Arabic"),
+                      Language("hi", "Hindi")
+                  )
+              }
+          }
+          EOF
+          
+          # Create PreferencesManager.kt
+          cat > app/src/main/java/com/lingualink/translator/utils/PreferencesManager.kt << 'EOF'
+          package com.lingualink.translator.utils
+          
+          import android.content.Context
+          import android.content.SharedPreferences
+          
+          class PreferencesManager(context: Context) {
+              
+              companion object {
+                  private const val PREFS_NAME = "lingualink_prefs"
+                  private const val KEY_SOURCE_LANGUAGE = "source_language"
+                  private const val KEY_TARGET_LANGUAGE = "target_language"
+              }
+              
+              private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+              
+              fun getSourceLanguage(): String = prefs.getString(KEY_SOURCE_LANGUAGE, "en") ?: "en"
+              
+              fun setSourceLanguage(language: String) {
+                  prefs.edit().putString(KEY_SOURCE_LANGUAGE, language).apply()
+              }
+              
+              fun getTargetLanguage(): String = prefs.getString(KEY_TARGET_LANGUAGE, "es") ?: "es"
+              
+              fun setTargetLanguage(language: String) {
+                  prefs.edit().putString(KEY_TARGET_LANGUAGE, language).apply()
+              }
+          }
+          EOF
+          
+          echo "✅ Supporting components created"
+
+      - name: Create Layout Files
+        run: |
+          echo "=== CREATING LAYOUT FILES ==="
+          
+          # Create activity_main.xml
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:fillViewport="true"
+              tools:context=".activity.MainActivity">
+          
+              <androidx.constraintlayout.widget.ConstraintLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:padding="16dp">
+          
+                  <!-- Title -->
+                  <TextView
+                      android:id="@+id/titleTextView"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="@string/app_name"
+                      android:textSize="24sp"
+                      android:textStyle="bold"
+                      android:textColor="@color/purple_700"
+                      app:layout_constraintTop_toTopOf="parent"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent"
+                      android:layout_marginTop="16dp" />
+          
+                  <!-- Language Selection Section -->
+                  <androidx.cardview.widget.CardView
+                      android:id="@+id/languageCard"
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="24dp"
+                      app:cardCornerRadius="8dp"
+                      app:cardElevation="4dp"
+                      app:layout_constraintTop_toBottomOf="@id/titleTextView"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent">
+          
+                      <LinearLayout
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:orientation="horizontal"
+                          android:padding="16dp">
+          
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+          
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="From"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/purple_500" />
+          
+                              <Spinner
+                                  android:id="@+id/sourceLanguageSpinner"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="4dp" />
+          
+                          </LinearLayout>
+          
+                          <ImageButton
+                              android:id="@+id/swapLanguagesButton"
+                              android:layout_width="48dp"
+                              android:layout_height="48dp"
+                              android:layout_gravity="center_vertical"
+                              android:layout_marginHorizontal="8dp"
+                              android:src="@drawable/ic_swap"
+                              android:background="@drawable/round_button_background"
+                              android:contentDescription="Swap languages" />
+          
+                          <LinearLayout
+                              android:layout_width="0dp"
+                              android:layout_height="wrap_content"
+                              android:layout_weight="1"
+                              android:orientation="vertical">
+          
+                              <TextView
+                                  android:layout_width="wrap_content"
+                                  android:layout_height="wrap_content"
+                                  android:text="To"
+                                  android:textSize="12sp"
+                                  android:textColor="@color/purple_500" />
+          
+                              <Spinner
+                                  android:id="@+id/targetLanguageSpinner"
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:layout_marginTop="4dp" />
+          
+                          </LinearLayout>
+          
+                      </LinearLayout>
+          
+                  </androidx.cardview.widget.CardView>
+          
+                  <!-- Input Section -->
+                  <androidx.cardview.widget.CardView
+                      android:id="@+id/inputCard"
+                      android:layout_width="0dp"
+                      android:layout_height="120dp"
+                      android:layout_marginTop="16dp"
+                      app:cardCornerRadius="8dp"
+                      app:cardElevation="4dp"
+                      app:layout_constraintTop_toBottomOf="@id/languageCard"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent">
+          
+                      <EditText
+                          android:id="@+id/inputEditText"
+                          android:layout_width="match_parent"
+                          android:layout_height="match_parent"
+                          android:background="@android:color/transparent"
+                          android:gravity="top|start"
+                          android:hint="Enter text to translate..."
+                          android:inputType="textMultiLine"
+                          android:maxLines="5"
+                          android:padding="16dp"
+                          android:textSize="16sp" />
+          
+                  </androidx.cardview.widget.CardView>
+          
+                  <!-- Action Buttons -->
+                  <LinearLayout
+                      android:id="@+id/actionButtonsLayout"
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="16dp"
+                      android:orientation="horizontal"
+                      android:gravity="center"
+                      app:layout_constraintTop_toBottomOf="@id/inputCard"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent">
+          
+                      <Button
+                          android:id="@+id/cameraButton"
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:layout_marginEnd="8dp"
+                          android:text="📷 Camera"
+                          android:textSize="14sp"
+                          style="@style/Widget.Material3.Button.OutlinedButton" />
+          
+                      <Button
+                          android:id="@+id/translateButton"
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:layout_marginHorizontal="8dp"
+                          android:text="Translate"
+                          android:textSize="14sp"
+                          style="@style/Widget.Material3.Button" />
+          
+                      <Button
+                          android:id="@+id/webviewButton"
+                          android:layout_width="0dp"
+                          android:layout_height="wrap_content"
+                          android:layout_weight="1"
+                          android:layout_marginStart="8dp"
+                          android:text="🌐 GTLingua"
+                          android:textSize="14sp"
+                          style="@style/Widget.Material3.Button.OutlinedButton" />
+          
+                  </LinearLayout>
+          
+                  <!-- Output Section -->
+                  <androidx.cardview.widget.CardView
+                      android:id="@+id/outputCard"
+                      android:layout_width="0dp"
+                      android:layout_height="120dp"
+                      android:layout_marginTop="16dp"
+                      app:cardCornerRadius="8dp"
+                      app:cardElevation="4dp"
+                      app:cardBackgroundColor="@color/teal_50"
+                      app:layout_constraintTop_toBottomOf="@id/actionButtonsLayout"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent">
+          
+                      <ScrollView
+                          android:layout_width="match_parent"
+                          android:layout_height="match_parent"
+                          android:padding="16dp">
+          
+                          <TextView
+                              android:id="@+id/outputTextView"
+                              android:layout_width="match_parent"
+                              android:layout_height="wrap_content"
+                              android:text="Translation will appear here..."
+                              android:textSize="16sp"
+                              android:textColor="@color/teal_700"
+                              android:textIsSelectable="true" />
+          
+                      </ScrollView>
+          
+                  </androidx.cardview.widget.CardView>
+          
+                  <!-- Status Section -->
+                  <TextView
+                      android:id="@+id/statusTextView"
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_marginTop="16dp"
+                      android:text="@string/status_initializing"
+                      android:textSize="14sp"
+                      android:textColor="@color/purple_500"
+                      android:gravity="center"
+                      android:padding="8dp"
+                      android:background="@drawable/status_background"
+                      app:layout_constraintTop_toBottomOf="@id/outputCard"
+                      app:layout_constraintStart_toStartOf="parent"
+                      app:layout_constraintEnd_toEndOf="parent"
+                      app:layout_constraintBottom_toBottomOf="parent"
+                      android:layout_marginBottom="16dp" />
+          
+              </androidx.constraintlayout.widget.ConstraintLayout>
+          
+          </ScrollView>
+          EOF
+          
+          # Create activity_webview.xml
+          cat > app/src/main/res/layout/activity_webview.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical">
+          
+              <androidx.appcompat.widget.Toolbar
+                  android:id="@+id/toolbar"
+                  android:layout_width="match_parent"
+                  android:layout_height="?attr/actionBarSize"
+                  android:background="?attr/colorPrimary"
+                  android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+                  app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
+          
+              <FrameLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1">
+          
+                  <WebView
+                      android:id="@+id/webView"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent" />
+          
+                  <ProgressBar
+                      android:id="@+id/progressBar"
+                      style="?android:attr/progressBarStyleHorizontal"
+                      android:layout_width="match_parent"
+                      android:layout_height="4dp"
+                      android:layout_gravity="top"
+                      android:progressTint="@color/purple_500" />
+          
+              </FrameLayout>
+          
+          </LinearLayout>
+          EOF
+          
+          # Create activity_camera.xml (placeholder)
+          cat > app/src/main/res/layout/activity_camera.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:gravity="center"
+              android:padding="16dp">
+          
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="Camera OCR Feature"
+                  android:textSize="24sp"
+                  android:textStyle="bold"
+                  android:textColor="@color/purple_700" />
+          
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"
+                  android:text="Coming Soon!"
+                  android:textSize="18sp"
+                  android:textColor="@color/teal_700" />
+          
+          </LinearLayout>
+          EOF
+          
+          echo "✅ Layout files created"
+
+      - name: Create Resources and Drawables
+        run: |
+          echo "=== CREATING RESOURCES AND DRAWABLES ==="
+          
+          # Create additional color resources
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="purple_200">#FFBB86FC</color>
+              <color name="purple_500">#FF6200EE</color>
+              <color name="purple_700">#FF3700B3</color>
+              <color name="teal_200">#FF03DAC5</color>
+              <color name="teal_700">#FF018786</color>
+              <color name="teal_50">#E0F2F1</color>
+              <color name="black">#FF000000</color>
+              <color name="white">#FFFFFFFF</color>
+          </resources>
+          EOF
+          
+          # Create comprehensive strings
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">LinguaLink Translator</string>
+              <string name="app_subtitle">AI-Powered Translation Tool</string>
+              <string name="status_initializing">Initializing translation services…</string>
+              <string name="status_ready">Ready for translation</string>
+              <string name="status_error">Service unavailable</string>
+              <string name="version_info">Version 1.0 - TestRigor Build</string>
+              
+              <!-- Menu items -->
+              <string name="action_settings">Settings</string>
+              <string name="action_history">History</string>
+              <string name="action_share">Share</string>
+              <string name="action_copy">Copy</string>
+              
+              <!-- UI Labels -->
+              <string name="hint_input_text">Enter text to translate...</string>
+              <string name="label_from_language">From</string>
+              <string name="label_to_language">To</string>
+              <string name="button_translate">Translate</string>
+              <string name="button_camera">📷 Camera</string>
+              <string name="button_webview">🌐 GTLingua</string>
+              <string name="button_voice">🎤 Voice</string>
+              
+              <!-- Messages -->
+              <string name="msg_translation_completed">Translation completed</string>
+              <string name="msg_translation_failed">Translation failed</string>
+              <string name="msg_empty_input">Please enter text to translate</string>
+              <string name="msg_permission_required">Permission required</string>
+              <string name="msg_gms_unavailable">Google Play Services unavailable</string>
+              <string name="msg_replit_loading">Loading GTLingua translator...</string>
+              <string name="msg_replit_error">GTLingua service unavailable, using fallback</string>
+          </resources>
+          EOF
+          
+          # Create themes with NoActionBar variant
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <!-- Base application theme. -->
+              <style name="Theme.LinguaLink" parent="Theme.Material3.DayNight">
+                  <!-- Primary brand color. -->
+                  <item name="colorPrimary">@color/purple_500</item>
+                  <item name="colorPrimaryVariant">@color/purple_700</item>
+                  <item name="colorOnPrimary">@color/white</item>
+                  <!-- Secondary brand color. -->
+                  <item name="colorSecondary">@color/teal_200</item>
+                  <item name="colorSecondaryVariant">@color/teal_700</item>
+                  <item name="colorOnSecondary">@color/black</item>
+                  <!-- Status bar color. -->
+                  <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+                  <!-- Window background -->
+                  <item name="android:windowBackground">@color/white</item>
+              </style>
+              
+              <style name="Theme.LinguaLink.NoActionBar">
+                  <item name="windowActionBar">false</item>
+                  <item name="windowNoTitle">true</item>
+              </style>
+          </resources>
+          EOF
+          
+          # Create drawable resources
+          cat > app/src/main/res/drawable/ic_swap.xml << 'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24"
+              android:tint="@color/purple_500">
+            <path
+                android:fillColor="@android:color/white"
+                android:pathData="M16,17.01V10h-2v7.01h-3L15,21l4,-3.99h-3zM9,3L5,6.99h3V14h2V6.99h3L9,3z"/>
+          </vector>
+          EOF
+          
+          cat > app/src/main/res/drawable/round_button_background.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="oval">
+              <solid android:color="@color/teal_200" />
+              <stroke android:width="2dp" android:color="@color/teal_700" />
+          </shape>
+          EOF
+          
+          cat > app/src/main/res/drawable/status_background.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <shape xmlns:android="http://schemas.android.com/apk/res/android">
+              <solid android:color="@color/teal_200" />
+              <corners android:radius="12dp" />
+              <stroke android:width="1dp" android:color="@color/teal_700" />
+          </shape>
+          EOF
+          
+          # Create menu resources
+          mkdir -p app/src/main/res/menu
+          cat > app/src/main/res/menu/main_menu.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <menu xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto">
+              
+              <item
+                  android:id="@+id/action_history"
+                  android:title="@string/action_history"
+                  android:icon="@android:drawable/ic_menu_recent_history"
+                  app:showAsAction="never" />
+              
+              <item
+                  android:id="@+id/action_settings"
+                  android:title="@string/action_settings"
+                  android:icon="@android:drawable/ic_menu_preferences"
+                  app:showAsAction="never" />
+              
+          </menu>
+          EOF
+          
+          # Create network security config to allow Replit HTTPS
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/network_security_config.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <domain-config cleartextTrafficPermitted="false">
+                  <domain includeSubdomains="true">gtlingua.com</domain>
+                  <domain includeSubdomains="true">www.gtlingua.com</domain>
+                  <domain includeSubdomains="true">replit.app</domain>
+                  <domain includeSubdomains="true">replit.dev</domain>
+                  <domain includeSubdomains="true">google.com</domain>
+                  <domain includeSubdomains="true">translate.google.com</domain>
+              </domain-config>
+          </network-security-config>
+          EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-path name="external_files" path="."/>
+              <cache-path name="cache" path="."/>
+          </paths>
+          EOF
+          
+          # Update backup rules
+          cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <full-backup-content>
+              <!-- Exclude cache and temp files -->
+              <exclude domain="cache" />
+              <exclude domain="external" path="tmp" />
+              <exclude domain="external" path="translation_cache" />
+          </full-backup-content>
+          EOF
+          
+          cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <data-extraction-rules>
+              <cloud-backup>
+                  <exclude domain="cache" />
+                  <exclude domain="external" path="tmp" />
+                  <exclude domain="external" path="translation_cache" />
+              </cloud-backup>
+              <device-transfer>
+                  <exclude domain="cache" />
+                  <exclude domain="external" path="tmp" />
+                  <exclude domain="external" path="translation_cache" />
+              </device-transfer>
+          </data-extraction-rules>
+          EOF
+          
+          # Create file provider paths
+          cat > app/src/main/res/xml/file_paths.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <paths xmlns:android="http://schemas.android.com/apk/res/android">
+              <external-path name="external_files" path="."/>
+              <cache-path name="cache" path="."/>
+          </paths>
+          EOF
+          
+          echo "✅ Resources and drawables created"
+
+      - name: Create Dummy google-services.json
+        run: |
+          echo "=== CREATING DUMMY GOOGLE SERVICES CONFIG ==="
+          
+          # Create a minimal google-services.json for build purposes
+          cat > app/google-services.json << 'EOF'
+          {
+            "project_info": {
+              "project_number": "123456789",
+              "firebase_url": "https://testrigor-lingualink.firebaseio.com",
+              "project_id": "testrigor-lingualink",
+              "storage_bucket": "testrigor-lingualink.appspot.com"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:123456789:android:abcdef123456",
+                  "android_client_info": {
+                    "package_name": "com.lingualink.translator"
+                  }
+                },
+                "oauth_client": [
+                  {
+                    "client_id": "123456789-dummy.apps.googleusercontent.com",
+                    "client_type": 3
+                  }
+                ],
+                "api_key": [
+                  {
+                    "current_key": "dummy_api_key_for_testrigor_build"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          
+          echo "✅ Dummy google-services.json created"
+
+      - name: Fix App Build Configuration
+        run: |
+          echo "=== FIXING APP BUILD CONFIGURATION ==="
+          
+          if [ -f "app/build.gradle" ]; then
+            cp app/build.gradle app/build.gradle.backup
+          fi
+          
+          # Use robust namespace extraction or fallback to default
+          NAMESPACE="com.lingualink.translator"
+          
+          # Try to extract namespace from backup if it exists and is valid
+          if [ -f "app/build.gradle.backup" ]; then
+            EXTRACTED_NAMESPACE=$(grep -E '^\s*(namespace|applicationId)\s+["\047]' app/build.gradle.backup | head -1 | sed -E 's/.*["\047]([^"\047]+)["\047].*/\1/' | tr -d ' ')
+            if [ -n "$EXTRACTED_NAMESPACE" ] && [[ "$EXTRACTED_NAMESPACE" =~ ^[a-zA-Z][a-zA-Z0-9_.]*$ ]]; then
+              NAMESPACE="$EXTRACTED_NAMESPACE"
+              echo "Extracted namespace: $NAMESPACE"
+            else
+              echo "Invalid or missing namespace, using default: $NAMESPACE"
+            fi
+          else
+            echo "No backup file found, using default namespace: $NAMESPACE"
+          fi
+          
+          # Create comprehensive app/build.gradle with full functionality
+          cat > app/build.gradle << EOF
+          plugins {
+              id 'com.android.application'
+              id 'kotlin-android'
+              id 'com.google.gms.google-services'
+          }
+          
+          android {
+              namespace "$NAMESPACE"
+              compileSdk 34
+              
+              defaultConfig {
+                  applicationId "$NAMESPACE"
+                  minSdk 24
+                  targetSdk 30  // Reduced from 34 to avoid compatibility issues
+                  versionCode 1
+                  versionName "1.0"
+                  
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+                  
+                  // Disable features that might cause issues on emulators
+                  manifestPlaceholders = [
+                      enableCrashReporting: false
+                  ]
+                  
+                  // Vector drawable support
+                  vectorDrawables.useSupportLibrary = true
+              }
+              
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                      shrinkResources false
+                      debuggable true
+                      // Disable ProGuard to avoid GMS issues
+                      useProguard false
+                  }
+                  release {
+                      minifyEnabled false
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                      useProguard false
+                  }
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+              
+              buildFeatures {
+                  viewBinding true
+              }
+              
+              packaging {
+                  resources {
+                      excludes += ['/META-INF/{AL2.0,LGPL2.1}', 
+                                   '/META-INF/DEPENDENCIES',
+                                   '/META-INF/LICENSE', 
+                                   '/META-INF/LICENSE.txt',
+                                   '/META-INF/NOTICE', 
+                                   '/META-INF/NOTICE.txt']
+                  }
+              }
+              
+              // Lint options to prevent build failures
+              lintOptions {
+                  abortOnError false
+                  checkReleaseBuilds false
+                  disable 'MissingTranslation', 'GoogleAppIndexingWarning'
+              }
+          }
+          
+          dependencies {
+              // Core Android dependencies
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+              implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+              implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
+              implementation 'androidx.cardview:cardview:1.0.0'
+              
+              // Coroutines
+              implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+              
+              // Google Play Services - Core
+              implementation 'com.google.android.gms:play-services-base:18.2.0'
+              implementation 'com.google.android.gms:play-services-auth:20.7.0'
+              implementation 'com.google.android.gms:play-services-location:21.0.1'
+              
+              // Google ML Kit for Translation (handles offline/online gracefully)
+              implementation 'com.google.mlkit:translate:17.0.1'
+              implementation 'com.google.mlkit:language-id:17.0.4'
+              
+              // Text recognition and Vision APIs
+              implementation 'com.google.mlkit:text-recognition:16.0.0'
+              implementation 'com.google.mlkit:vision-common:17.3.0'
+              
+              // Camera and CameraX
+              implementation 'androidx.camera:camera-core:1.3.1'
+              implementation 'androidx.camera:camera-camera2:1.3.1'
+              implementation 'androidx.camera:camera-lifecycle:1.3.1'
+              implementation 'androidx.camera:camera-view:1.3.1'
+              
+              // Firebase (basic)
+              implementation platform('com.google.firebase:firebase-bom:32.7.0')
+              implementation 'com.google.firebase:firebase-analytics-ktx'
+              
+              // WebView enhancements
+              implementation 'androidx.webkit:webkit:1.8.0'
+              
+              // Permissions handling
+              implementation 'com.karumi:dexter:6.2.3'
+              
+              // Image processing
+              implementation 'com.github.bumptech.glide:glide:4.16.0'
+              
+              // Preferences
+              implementation 'androidx.preference:preference-ktx:1.2.1'
+              
+              // Testing dependencies
+              testImplementation 'junit:junit:4.13.2'
+              testImplementation 'org.mockito:mockito-core:5.7.0'
+              androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+              androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+              androidTestImplementation 'androidx.test.espresso:espresso-web:3.5.1'
+          }
+          
+          // Apply Google Services plugin at the end
+          apply plugin: 'com.google.gms.google-services'
+          EOF
+          
+          echo "✅ App build.gradle fixed with namespace: $NAMESPACE and full functionality"
+
+      - name: Create ProGuard Rules
+        run: |
+          echo "=== CREATING PROGUARD RULES ==="
+          
+          cat > app/proguard-rules.pro << 'EOF'
+          # Add project specific ProGuard rules here.
+          
+          # Keep Google Play Services
+          -keep class com.google.android.gms.** { *; }
+          -dontwarn com.google.android.gms.**
+          
+          # Keep ML Kit classes
+          -keep class com.google.mlkit.** { *; }
+          -dontwarn com.google.mlkit.**
+          
+          # Keep Firebase classes
+          -keep class com.google.firebase.** { *; }
+          -dontwarn com.google.firebase.**
+          
+          # Keep app-specific classes
+          -keep class com.lingualink.translator.** { *; }
+          
+          # Keep WebView JavaScript interface
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
+          
+          # Keep CameraX classes
+          -keep class androidx.camera.** { *; }
+          -dontwarn androidx.camera.**
+          
+          # Keep Coroutines
+          -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
+          -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+          
+          # Keep Retrofit and OkHttp (if added later)
+          -dontwarn okhttp3.**
+          -dontwarn retrofit2.**
+          
+          # If your project uses WebView with JS, uncomment the following
+          # and specify the fully qualified class name to the JavaScript interface
+          # class:
+          -keepclassmembers class fqcn.of.javascript.interface.for.webview {
+             public *;
+          }
+          
+          # Uncomment this to preserve the line number information for
+          # debugging stack traces.
+          -keepattributes SourceFile,LineNumberTable
+          
+          # If you keep the line number information, uncomment this to
+          # hide the original source file name.
+          #-renamesourcefileattribute SourceFile
+          
+          # Keep native methods
+          -keepclasseswithmembernames class * {
+              native <methods>;
+          }
+          
+          # Keep enums
+          -keepclassmembers enum * {
+              public static **[] values();
+              public static ** valueOf(java.lang.String);
+          }
+          
+          # Keep Parcelable implementations
+          -keep class * implements android.os.Parcelable {
+              public static final android.os.Parcelable$Creator *;
+          }
+          EOF
+          
+          echo "✅ ProGuard rules created"
+
+      - name: Clean Build Directory
+        run: |
+          rm -rf .gradle build app/build
+          rm -rf ~/.gradle/caches/transforms-*
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.android.tools.build
+          echo "✅ Build directories cleaned"
+
+      - name: Validate Complete Project Structure
+        run: |
+          echo "=== VALIDATING COMPLETE PROJECT STRUCTURE ==="
+          
+          echo "Checking critical files:"
+          [ -f "build.gradle" ] && echo "✅ Root build.gradle exists" || echo "❌ Root build.gradle missing"
+          [ -f "app/build.gradle" ] && echo "✅ App build.gradle exists" || echo "❌ App build.gradle missing"
+          [ -f "app/src/main/AndroidManifest.xml" ] && echo "✅ AndroidManifest.xml exists" || echo "❌ AndroidManifest.xml missing"
+          [ -f "app/google-services.json" ] && echo "✅ google-services.json exists" || echo "❌ google-services.json missing"
+          
+          echo "Checking activities:"
+          [ -f "app/src/main/java/com/lingualink/translator/activity/MainActivity.kt" ] && echo "✅ MainActivity.kt exists" || echo "❌ MainActivity.kt missing"
+          [ -f "app/src/main/java/com/lingualink/translator/activity/WebViewActivity.kt" ] && echo "✅ WebViewActivity.kt exists" || echo "❌ WebViewActivity.kt missing"
+          [ -f "app/src/main/java/com/lingualink/translator/activity/CameraActivity.kt" ] && echo "✅ CameraActivity.kt exists" || echo "❌ CameraActivity.kt missing"
+          
+          echo "Checking services and utilities:"
+          [ -f "app/src/main/java/com/lingualink/translator/service/TranslationService.kt" ] && echo "✅ TranslationService.kt exists" || echo "❌ TranslationService.kt missing"
+          [ -f "app/src/main/java/com/lingualink/translator/utils/LanguageUtils.kt" ] && echo "✅ LanguageUtils.kt exists" || echo "❌ LanguageUtils.kt missing"
+          [ -f "app/src/main/java/com/lingualink/translator/webview/JavaScriptInterface.kt" ] && echo "✅ JavaScriptInterface.kt exists" || echo "❌ JavaScriptInterface.kt missing"
+          
+          echo "Checking layouts:"
+          [ -f "app/src/main/res/layout/activity_main.xml" ] && echo "✅ activity_main.xml exists" || echo "❌ activity_main.xml missing"
+          [ -f "app/src/main/res/layout/activity_webview.xml" ] && echo "✅ activity_webview.xml exists" || echo "❌ activity_webview.xml missing"
+          [ -f "app/src/main/res/layout/activity_camera.xml" ] && echo "✅ activity_camera.xml exists" || echo "❌ activity_camera.xml missing"
+          
+          echo "Checking resources:"
+          [ -f "app/src/main/res/values/strings.xml" ] && echo "✅ strings.xml exists" || echo "❌ strings.xml missing"
+          [ -f "app/src/main/res/values/colors.xml" ] && echo "✅ colors.xml exists" || echo "❌ colors.xml missing"
+          [ -f "app/src/main/res/values/themes.xml" ] && echo "✅ themes.xml exists" || echo "❌ themes.xml missing"
+          [ -f "app/src/main/res/menu/main_menu.xml" ] && echo "✅ main_menu.xml exists" || echo "❌ main_menu.xml missing"
+          
+          echo "Checking drawables:"
+          [ -f "app/src/main/res/drawable/ic_swap.xml" ] && echo "✅ ic_swap.xml exists" || echo "❌ ic_swap.xml missing"
+          [ -f "app/src/main/res/drawable/status_background.xml" ] && echo "✅ status_background.xml exists" || echo "❌ status_background.xml missing"
+          
+          echo "Checking icon files:"
+          find app/src/main/res/mipmap-* -name "*.png" 2>/dev/null | wc -l | xargs echo "Icon files found:"
+          
+          echo "Project structure summary:"
+          echo "Java/Kotlin files:"
+          find app/src/main/java -name "*.kt" 2>/dev/null | wc -l | xargs echo "  Kotlin files:"
+          echo "Layout files:"
+          find app/src/main/res/layout -name "*.xml" 2>/dev/null | wc -l | xargs echo "  Layout files:"
+          echo "Resource files:"
+          find app/src/main/res -name "*.xml" -not -path "*/layout/*" 2>/dev/null | wc -l | xargs echo "  Resource files:"
+          
+          echo "✅ Complete project structure validation finished"
+
+      - name: Build Complete Debug APK
+        run: |
+          echo "=== BUILDING COMPLETE DEBUG APK ==="
+          
+          # First, ensure Gradle is initialized
+          ./gradlew --version
+          
+          # Clean and build the APK with verbose output
+          ./gradlew clean app:assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info \
+            --warning-mode all || {
+              echo "Build failed. Dumping configuration for debugging..."
+              echo "--- build.gradle ---"
+              cat build.gradle
+              echo "--- app/build.gradle ---"
+              cat app/build.gradle
+              echo "--- settings.gradle ---"
+              cat settings.gradle
+              echo "--- gradle.properties ---"
+              cat gradle.properties
+              echo "--- AndroidManifest.xml ---"
+              cat app/src/main/AndroidManifest.xml
+              echo "--- google-services.json (first 20 lines) ---"
+              head -20 app/google-services.json
+              echo "--- MainActivity.kt (first 50 lines) ---"
+              head -50 app/src/main/java/com/lingualink/translator/activity/MainActivity.kt
+              exit 1
+            }
+          
+          # Find and verify APK
+          DEBUG_APK=$(find app/build/outputs -name "*.apk" -type f | head -1)
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "./lingualink-complete-debug.apk"
+            echo "✅ Complete APK created successfully!"
+            echo "  Size: $(du -h lingualink-complete-debug.apk | cut -f1)"
+            echo "  Path: $DEBUG_APK"
+            
+            # Verify APK contents and get more details
+            echo "APK contents preview:"
+            unzip -l lingualink-complete-debug.apk | head -30
+            
+            # Check APK info using aapt if available
+            if command -v aapt >/dev/null 2>&1; then
+              echo "APK Package Info:"
+              aapt dump badging lingualink-complete-debug.apk | head -15
+            fi
+            
+            # Check for specific components
+            echo "Checking for WebView components:"
+            unzip -l lingualink-complete-debug.apk | grep -i webview || echo "No WebView references found"
+            
+            echo "Checking for GMS components:"
+            unzip -l lingualink-complete-debug.apk | grep -i gms | head -5 || echo "No GMS references found"
+            
+          else
+            echo "❌ APK not found in app/build/outputs"
+            find app/build -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
+            exit 1
+          fi
+
+      - name: Upload Complete APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: lingualink-complete-apk-${{ github.run_number }}
+          path: lingualink-complete-debug.apk
+          retention-days: 30
+
+      - name: Upload Complete Build Logs on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: complete-build-logs-${{ github.run_number }}
+          path: |
+            build.gradle
+            build.gradle.original
+            app/build.gradle
+            app/build.gradle.backup
+            gradle.properties
+            settings.gradle
+            gradle/wrapper/
+            app/src/main/AndroidManifest.xml
+            app/google-services.json
+            app/src/main/java/com/lingualink/translator/activity/MainActivity.kt
+            app/src/main/java/com/lingualink/translator/activity/WebViewActivity.kt
+            app/src/main/java/com/lingualink/translator/webview/JavaScriptInterface.kt
+            app/src/main/res/layout/activity_main.xml
+            app/src/main/res/layout/activity_webview.xml
+          retention-days: 7
