@@ -34,6 +34,14 @@ Preferred communication style: Simple, everyday language.
 - **Classpath Corruption Recovery**: Daemon-less builds with cache cleanup strategies
 - **Build Failure Prevention**: Multiple fallback strategies including offline mode and simplified configurations
 
+## Android Signing Configuration
+
+### Release Keystore
+- **Keystore File**: `my-release-key.jks` (generated with RSA 2048-bit encryption)
+- **Validity**: 27+ years (until January 2053)
+- **Organization**: LinguaLink Development / GTLingua
+- **Required Secrets**: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+
 ## External Dependencies
 
 ### Core Android Dependencies
