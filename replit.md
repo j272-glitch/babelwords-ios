@@ -63,6 +63,7 @@ Preferred communication style: Simple, everyday language.
 - **TestRigor Build Complete Translator v2**: Enhanced version with improved WebView permissions and GTLingua-specific optimizations
 - **TestRigor Build GTLingua-Optimized**: Specialized workflow optimized specifically for GTLingua.com with Deepgram Nova-2 integration
 - **TestRigor Build GTLingua-Fixed**: Corrected workflow fixing Android layout dimension errors that caused build failures
+- **TestRigor Build GTLingua-Optimized-2**: Second iteration of GTLingua-optimized workflow with enhanced features
 
 ### Development Tools
 - **Semgrep**: Static analysis security scanning with custom Bicep rules
