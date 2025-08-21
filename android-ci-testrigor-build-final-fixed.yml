@@ -1,0 +1,490 @@
+name: TestRigor Build - Fixed
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+
+jobs:
+  build-testrigor:
+    name: Build TestRigor APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Clean Build Configuration
+        run: |
+          echo "=== CREATING CLEAN BUILD CONFIGURATION ==="
+          
+          # Backup originals
+          [ -f "build.gradle" ] && mv build.gradle build.gradle.original
+          [ -f "settings.gradle" ] && mv settings.gradle settings.gradle.original
+          
+          # Create minimal root build.gradle
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.0.2' apply false
+              id 'com.android.library' version '8.0.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          
+          # Create settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          
+          # Create gradle.properties (removed deprecated options)
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.useLegacyPackaging=true
+          EOF
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          echo "✅ Clean configuration created"
+
+      - name: Setup Gradle Wrapper
+        run: |
+          echo "=== SETTING UP GRADLE WRAPPER ==="
+          
+          mkdir -p gradle/wrapper
+          
+          echo "Downloading gradle-wrapper.jar..."
+          wget -q -O gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar || {
+              echo "Failed to download from GitHub, trying alternative..."
+              wget -q https://services.gradle.org/distributions/gradle-8.0.2-bin.zip
+              unzip -q gradle-8.0.2-bin.zip
+              cp gradle-8.0.2/lib/gradle-wrapper-8.0.2.jar gradle/wrapper/gradle-wrapper.jar
+              rm -rf gradle-8.0.2 gradle-8.0.2-bin.zip
+            }
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          # Download gradlew script
+          wget -q -O gradlew \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradlew || {
+              echo "Creating gradlew script manually..."
+              cat > gradlew << 'GRADLEW'
+          #!/bin/sh
+          APP_HOME="$( cd "$( dirname "$0" )" && pwd )"
+          CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+          
+          if [ -n "$JAVA_HOME" ] ; then
+              JAVACMD="$JAVA_HOME/bin/java"
+          else
+              JAVACMD="java"
+          fi
+          
+          exec "$JAVACMD" \
+            -cp "$CLASSPATH" \
+            org.gradle.wrapper.GradleWrapperMain \
+            "$@"
+          GRADLEW
+            }
+          
+          chmod +x gradlew
+          
+          echo "✅ Gradle wrapper setup complete"
+
+      - name: Create Android Project Structure
+        run: |
+          echo "=== CREATING ANDROID PROJECT STRUCTURE ==="
+          
+          # Create directory structure
+          mkdir -p app/src/main/java/com/lingualink/translator
+          mkdir -p app/src/main/res/layout
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+          
+          # Create AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+          
+              <application
+                  android:allowBackup="true"
+                  android:dataExtractionRules="@xml/data_extraction_rules"
+                  android:fullBackupContent="@xml/backup_rules"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.LinguaLink"
+                  tools:targetApi="31">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.LinguaLink">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          
+          </manifest>
+          EOF
+          
+          # Create MainActivity.kt
+          cat > app/src/main/java/com/lingualink/translator/MainActivity.kt << 'EOF'
+          package com.lingualink.translator
+          
+          import androidx.appcompat.app.AppCompatActivity
+          import android.os.Bundle
+          
+          class MainActivity : AppCompatActivity() {
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+              }
+          }
+          EOF
+          
+          # Create activity_main.xml
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              tools:context=".MainActivity">
+          
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="LinguaLink Translator"
+                  android:textSize="24sp"
+                  android:textStyle="bold"
+                  app:layout_constraintBottom_toBottomOf="parent"
+                  app:layout_constraintEnd_toEndOf="parent"
+                  app:layout_constraintStart_toStartOf="parent"
+                  app:layout_constraintTop_toTopOf="parent" />
+          
+          </androidx.constraintlayout.widget.ConstraintLayout>
+          EOF
+          
+          # Create strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">LinguaLink</string>
+          </resources>
+          EOF
+          
+          # Create themes.xml
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <!-- Base application theme. -->
+              <style name="Theme.LinguaLink" parent="Theme.Material3.DayNight">
+                  <!-- Primary brand color. -->
+                  <item name="colorPrimary">@color/purple_500</item>
+                  <item name="colorPrimaryVariant">@color/purple_700</item>
+                  <item name="colorOnPrimary">@color/white</item>
+                  <!-- Secondary brand color. -->
+                  <item name="colorSecondary">@color/teal_200</item>
+                  <item name="colorSecondaryVariant">@color/teal_700</item>
+                  <item name="colorOnSecondary">@color/black</item>
+                  <!-- Status bar color. -->
+                  <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+                  <!-- Customize your theme here. -->
+              </style>
+          </resources>
+          EOF
+          
+          # Create colors.xml
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="purple_200">#FFBB86FC</color>
+              <color name="purple_500">#FF6200EE</color>
+              <color name="purple_700">#FF3700B3</color>
+              <color name="teal_200">#FF03DAC5</color>
+              <color name="teal_700">#FF018786</color>
+              <color name="black">#FF000000</color>
+              <color name="white">#FFFFFFFF</color>
+          </resources>
+          EOF
+          
+          # Create basic launcher icons (simple colored rectangles as placeholders)
+          # Create a simple SVG and convert to PNG for different densities
+          for density in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p app/src/main/res/mipmap-$density
+            # Create placeholder icon files (empty for now, would need actual icons)
+            touch app/src/main/res/mipmap-$density/ic_launcher.png
+            touch app/src/main/res/mipmap-$density/ic_launcher_round.png
+          done
+          
+          # Create XML backup rules
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <full-backup-content>
+              <!-- Exclude cache and temp files -->
+              <exclude domain="cache" />
+              <exclude domain="external" path="tmp" />
+          </full-backup-content>
+          EOF
+          
+          cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <data-extraction-rules>
+              <cloud-backup>
+                  <exclude domain="cache" />
+                  <exclude domain="external" path="tmp" />
+              </cloud-backup>
+              <device-transfer>
+                  <exclude domain="cache" />
+                  <exclude domain="external" path="tmp" />
+              </device-transfer>
+          </data-extraction-rules>
+          EOF
+          
+          # Create ProGuard rules
+          cat > app/proguard-rules.pro << 'EOF'
+          # Add project specific ProGuard rules here.
+          # You can control the set of applied configuration files using the
+          # proguardFiles setting in build.gradle.
+          #
+          # For more details, see
+          #   http://developer.android.com/guide/developing/tools/proguard.html
+          
+          # If your project uses WebView with JS, uncomment the following
+          # and specify the fully qualified class name to the JavaScript interface
+          # class:
+          #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+          #   public *;
+          #}
+          
+          # Uncomment this to preserve the line number information for
+          # debugging stack traces.
+          #-keepattributes SourceFile,LineNumberTable
+          
+          # If you keep the line number information, uncomment this to
+          # hide the original source file name.
+          #-renamesourcefileattribute SourceFile
+          EOF
+          
+          echo "✅ Android project structure created"
+
+      - name: Fix App Build Configuration
+        run: |
+          echo "=== FIXING APP BUILD CONFIGURATION ==="
+          
+          if [ -f "app/build.gradle" ]; then
+            cp app/build.gradle app/build.gradle.backup
+          fi
+          
+          # Use robust namespace extraction or fallback to default
+          NAMESPACE="com.lingualink.translator"
+          
+          # Try to extract namespace from backup if it exists and is valid
+          if [ -f "app/build.gradle.backup" ]; then
+            EXTRACTED_NAMESPACE=$(grep -E '^\s*(namespace|applicationId)\s+["\047]' app/build.gradle.backup | head -1 | sed -E 's/.*["\047]([^"\047]+)["\047].*/\1/' | tr -d ' ')
+            if [ -n "$EXTRACTED_NAMESPACE" ] && [[ "$EXTRACTED_NAMESPACE" =~ ^[a-zA-Z][a-zA-Z0-9_.]*$ ]]; then
+              NAMESPACE="$EXTRACTED_NAMESPACE"
+              echo "Extracted namespace: $NAMESPACE"
+            else
+              echo "Invalid or missing namespace, using default: $NAMESPACE"
+            fi
+          else
+            echo "No backup file found, using default namespace: $NAMESPACE"
+          fi
+          
+          # Create clean app/build.gradle
+          cat > app/build.gradle << EOF
+          plugins {
+              id 'com.android.application'
+              id 'kotlin-android'
+          }
+          
+          android {
+              namespace "$NAMESPACE"
+              compileSdk 34
+              
+              defaultConfig {
+                  applicationId "$NAMESPACE"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+                  
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+              }
+              
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                      shrinkResources false
+                      debuggable true
+                  }
+                  release {
+                      minifyEnabled false
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+              
+              packaging {
+                  resources {
+                      excludes += '/META-INF/{AL2.0,LGPL2.1}'
+                  }
+              }
+          }
+          
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+              testImplementation 'junit:junit:4.13.2'
+              androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+              androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+          }
+          EOF
+          
+          echo "✅ App build.gradle fixed with namespace: $NAMESPACE"
+
+      - name: Clean Build Directory
+        run: |
+          rm -rf .gradle build app/build
+          rm -rf ~/.gradle/caches/transforms-*
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/com.android.tools.build
+          echo "✅ Build directories cleaned"
+
+      - name: Build Debug APK
+        run: |
+          echo "=== BUILDING DEBUG APK ==="
+          
+          # First, ensure Gradle is initialized
+          ./gradlew --version
+          
+          # Build the APK
+          ./gradlew clean app:assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info || {
+              echo "Build failed. Dumping configuration for debugging..."
+              echo "--- build.gradle ---"
+              cat build.gradle
+              echo "--- app/build.gradle ---"
+              cat app/build.gradle
+              echo "--- settings.gradle ---"
+              cat settings.gradle
+              echo "--- gradle.properties ---"
+              cat gradle.properties
+              echo "--- AndroidManifest.xml ---"
+              cat app/src/main/AndroidManifest.xml
+              exit 1
+            }
+          
+          # Find and verify APK
+          DEBUG_APK=$(find app/build/outputs -name "*.apk" -type f | head -1)
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "./testrigor-debug.apk"
+            echo "✅ APK created successfully!"
+            echo "  Size: $(du -h testrigor-debug.apk | cut -f1)"
+            echo "  Path: $DEBUG_APK"
+            
+            # Verify APK contents
+            unzip -l testrigor-debug.apk | head -20
+          else
+            echo "❌ APK not found in app/build/outputs"
+            find app/build -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: testrigor-apk-${{ github.run_number }}
+          path: testrigor-debug.apk
+          retention-days: 30
+
+      - name: Upload Logs on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: build-logs-${{ github.run_number }}
+          path: |
+            build.gradle
+            build.gradle.original
+            app/build.gradle
+            app/build.gradle.backup
+            gradle.properties
+            settings.gradle
+            gradle/wrapper/
+            app/src/main/AndroidManifest.xml
+          retention-days: 7
