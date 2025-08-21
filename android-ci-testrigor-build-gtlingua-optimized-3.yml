@@ -1,0 +1,1478 @@
+name: TestRigor Build - GTLingua-Optimized Translator App
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+  WEBVIEW_URL: "https://gtlingua.com"
+
+jobs:
+  build-testrigor:
+    name: Build GTLingua-Optimized APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Clean Build Configuration
+        run: |
+          echo "=== CREATING CLEAN BUILD CONFIGURATION ==="
+          
+          # Backup originals
+          [ -f "build.gradle" ] && mv build.gradle build.gradle.original
+          [ -f "settings.gradle" ] && mv settings.gradle settings.gradle.original
+          
+          # Create minimal root build.gradle
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.0.2' apply false
+              id 'com.android.library' version '8.0.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          
+          # Create settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          
+          # Create gradle.properties
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.useLegacyPackaging=true
+          android.nonTransitiveRClass=false
+          EOF
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          echo "✅ Clean configuration created"
+
+      - name: Setup Gradle Wrapper
+        run: |
+          echo "=== SETTING UP GRADLE WRAPPER ==="
+          
+          mkdir -p gradle/wrapper
+          
+          echo "Downloading gradle-wrapper.jar..."
+          wget -q -O gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar || {
+              echo "Failed to download from GitHub, trying alternative..."
+              wget -q https://services.gradle.org/distributions/gradle-8.0.2-bin.zip
+              unzip -q gradle-8.0.2-bin.zip
+              cp gradle-8.0.2/lib/gradle-wrapper-8.0.2.jar gradle/wrapper/gradle-wrapper.jar
+              rm -rf gradle-8.0.2 gradle-8.0.2-bin.zip
+            }
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          # Download gradlew script
+          wget -q -O gradlew \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradlew || {
+              echo "Creating gradlew script manually..."
+              cat > gradlew << 'GRADLEW'
+          #!/bin/sh
+          APP_HOME="$( cd "$( dirname "$0" )" && pwd )"
+          CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+          
+          if [ -n "$JAVA_HOME" ] ; then
+              JAVACMD="$JAVA_HOME/bin/java"
+          else
+              JAVACMD="java"
+          fi
+          
+          exec "$JAVACMD" \
+            -cp "$CLASSPATH" \
+            org.gradle.wrapper.GradleWrapperMain \
+            "$@"
+          GRADLEW
+            }
+          
+          chmod +x gradlew
+          
+          echo "✅ Gradle wrapper setup complete"
+
+      - name: Create Launcher Icons
+        run: |
+          echo "=== CREATING LAUNCHER ICONS ==="
+          
+          # Install ImageMagick for icon generation
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          
+          # Create a speech-focused icon for GTLingua integration
+          convert -size 512x512 gradient:'#4F46E5-#7C3AED' -fill white -gravity center \
+            -pointsize 160 -annotate +0-40 '🎤' \
+            -pointsize 50 -font DejaVu-Sans-Bold -annotate +0+40 'GTLingua' \
+            -pointsize 30 -annotate +0+80 'Deepgram AI' base_icon.png
+          
+          # Generate different density icons
+          densities=("mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192")
+          
+          for density_size in "${densities[@]}"; do
+            density="${density_size%%:*}"
+            size="${density_size##*:}"
+            
+            mkdir -p "app/src/main/res/mipmap-$density"
+            
+            # Create regular icon
+            convert base_icon.png -resize "${size}x${size}" \
+              "app/src/main/res/mipmap-$density/ic_launcher.png"
+            
+            # Create round icon
+            convert base_icon.png -resize "${size}x${size}" \
+              \( +clone -threshold 101% -fill white -draw "circle $(($size/2)),$(($size/2)) $(($size/2)),0" \) \
+              -alpha off -compose copy_opacity -composite \
+              "app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          
+          rm base_icon.png
+          echo "✅ GTLingua-themed launcher icons created"
+
+      - name: Create GTLingua-Optimized Project Structure
+        run: |
+          echo "=== CREATING GTLINGUA-OPTIMIZED PROJECT STRUCTURE ==="
+          
+          # Create streamlined directory structure focused on GTLingua integration
+          mkdir -p app/src/main/java/com/lingualink/gtlingua/{activity,webview,utils,bridge}
+          mkdir -p app/src/main/res/{layout,values,drawable,xml,raw,menu}
+          mkdir -p app/src/main/assets
+          
+          # Create AndroidManifest.xml optimized for GTLingua/Deepgram
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+          
+              <!-- ESSENTIAL PERMISSIONS FOR GTLINGUA + DEEPGRAM -->
+              <!-- Network access for GTLingua web app -->
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+              
+              <!-- CRITICAL: Audio permissions for Deepgram speech recognition -->
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+              <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT"
+                               tools:ignore="ProtectedPermissions" />
+              
+              <!-- Camera for visual text input -->
+              <uses-permission android:name="android.permission.CAMERA" />
+              
+              <!-- Location for context-aware translation (optional) -->
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              
+              <!-- System permissions for enhanced WebView functionality -->
+              <uses-permission android:name="android.permission.VIBRATE" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              
+              <!-- Hardware features for GTLingua -->
+              <uses-feature 
+                  android:name="android.hardware.microphone" 
+                  android:required="true" />
+              <uses-feature 
+                  android:name="android.hardware.camera" 
+                  android:required="false" />
+              <uses-feature 
+                  android:name="android.hardware.audio.output" 
+                  android:required="true" />
+          
+              <application
+                  android:allowBackup="true"
+                  android:dataExtractionRules="@xml/data_extraction_rules"
+                  android:fullBackupContent="@xml/backup_rules"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.GTLingua"
+                  android:hardwareAccelerated="true"
+                  android:usesCleartextTraffic="true"
+                  android:networkSecurityConfig="@xml/network_security_config"
+                  tools:targetApi="31">
+                  
+                  <!-- Main Launcher Activity -->
+                  <activity
+                      android:name=".activity.LauncherActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.GTLingua.Launcher"
+                      android:screenOrientation="portrait">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                      
+                      <!-- Handle text sharing from other apps -->
+                      <intent-filter>
+                          <action android:name="android.intent.action.SEND" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <data android:mimeType="text/plain" />
+                      </intent-filter>
+                  </activity>
+                  
+                  <!-- GTLingua WebView Activity (Primary Translation Interface) -->
+                  <activity
+                      android:name=".activity.GTLinguaActivity"
+                      android:exported="false"
+                      android:theme="@style/Theme.GTLingua.Fullscreen"
+                      android:hardwareAccelerated="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:windowSoftInputMode="adjustResize">
+                      
+                      <!-- Direct GTLingua web app access -->
+                      <intent-filter>
+                          <action android:name="android.intent.action.VIEW" />
+                          <category android:name="android.intent.category.DEFAULT" />
+                          <category android:name="android.intent.category.BROWSABLE" />
+                          <data android:scheme="https" android:host="gtlingua.com" />
+                      </intent-filter>
+                  </activity>
+                  
+                  <!-- Camera OCR Activity -->
+                  <activity
+                      android:name=".activity.CameraOCRActivity"
+                      android:exported="false"
+                      android:theme="@style/Theme.GTLingua.Camera"
+                      android:screenOrientation="portrait" />
+                  
+                  <!-- File provider for sharing -->
+                  <provider
+                      android:name="androidx.core.content.FileProvider"
+                      android:authorities="com.lingualink.gtlingua.fileprovider"
+                      android:exported="false"
+                      android:grantUriPermissions="true">
+                      <meta-data
+                          android:name="android.support.FILE_PROVIDER_PATHS"
+                          android:resource="@xml/file_paths" />
+                  </provider>
+              </application>
+          
+          </manifest>
+          EOF
+          
+          echo "✅ GTLingua-optimized AndroidManifest.xml created"
+
+      - name: Create GTLingua Launcher Activity
+        run: |
+          echo "=== CREATING GTLINGUA LAUNCHER ACTIVITY ==="
+          
+          # Create LauncherActivity.kt - Clean launcher focused on GTLingua
+          cat > app/src/main/java/com/lingualink/gtlingua/activity/LauncherActivity.kt << 'EOF'
+          package com.lingualink.gtlingua.activity
+          
+          import android.Manifest
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.os.Bundle
+          import android.util.Log
+          import android.widget.*
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.app.ActivityCompat
+          import androidx.core.content.ContextCompat
+          import com.lingualink.gtlingua.R
+          import com.lingualink.gtlingua.utils.PreferencesManager
+          
+          class LauncherActivity : AppCompatActivity() {
+              
+              companion object {
+                  private const val TAG = "GTLinguaLauncher"
+                  private const val PERMISSIONS_REQUEST_CODE = 1001
+                  private const val GTLINGUA_REQUEST_CODE = 2001
+                  private const val CAMERA_REQUEST_CODE = 3001
+              }
+              
+              // Clean, focused UI for GTLingua integration
+              private lateinit var quickTextInput: EditText
+              private lateinit var voiceTranslateButton: Button
+              private lateinit var textTranslateButton: Button
+              private lateinit var cameraOCRButton: Button
+              private lateinit var statusText: TextView
+              private lateinit var recentTranslations: TextView
+              
+              private lateinit var preferencesManager: PreferencesManager
+              
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_launcher)
+                  
+                  try {
+                      initializeComponents()
+                      checkDeepgramPermissions()
+                      setupClickListeners()
+                      handleIncomingIntent()
+                      
+                      Log.d(TAG, "GTLingua Launcher ready")
+                      updateStatus("Ready for 36-language translation with Deepgram AI")
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error in onCreate", e)
+                      Toast.makeText(this, "Initialization failed: ${e.message}", Toast.LENGTH_LONG).show()
+                  }
+              }
+              
+              private fun initializeComponents() {
+                  quickTextInput = findViewById(R.id.quickTextInput)
+                  voiceTranslateButton = findViewById(R.id.voiceTranslateButton)
+                  textTranslateButton = findViewById(R.id.textTranslateButton)
+                  cameraOCRButton = findViewById(R.id.cameraOCRButton)
+                  statusText = findViewById(R.id.statusText)
+                  recentTranslations = findViewById(R.id.recentTranslations)
+                  
+                  preferencesManager = PreferencesManager(this)
+                  
+                  // Load recent translations
+                  loadRecentTranslations()
+              }
+              
+              private fun checkDeepgramPermissions() {
+                  val criticalPermissions = arrayOf(
+                      Manifest.permission.RECORD_AUDIO,           // ESSENTIAL for Deepgram
+                      Manifest.permission.MODIFY_AUDIO_SETTINGS   // ESSENTIAL for WebView audio
+                  )
+                  
+                  val optionalPermissions = arrayOf(
+                      Manifest.permission.CAMERA,                 // For OCR
+                      Manifest.permission.ACCESS_FINE_LOCATION    // For context
+                  )
+                  
+                  val allPermissions = criticalPermissions + optionalPermissions
+                  val permissionsToRequest = allPermissions.filter {
+                      ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+                  }
+                  
+                  if (permissionsToRequest.isNotEmpty()) {
+                      Log.d(TAG, "Requesting Deepgram permissions: ${permissionsToRequest.joinToString()}")
+                      
+                      // Show explanation for critical audio permissions
+                      if (permissionsToRequest.any { it in criticalPermissions }) {
+                          Toast.makeText(this, 
+                              "Audio permissions are required for Deepgram speech recognition in GTLingua", 
+                              Toast.LENGTH_LONG).show()
+                      }
+                      
+                      ActivityCompat.requestPermissions(this, permissionsToRequest.toTypedArray(), PERMISSIONS_REQUEST_CODE)
+                  } else {
+                      Log.d(TAG, "All Deepgram permissions granted")
+                      updateStatus("✅ Deepgram speech recognition ready - 36 languages available")
+                  }
+              }
+              
+              private fun setupClickListeners() {
+                  // Voice Translation - Primary feature leveraging Deepgram
+                  voiceTranslateButton.setOnClickListener {
+                      launchGTLinguaVoiceMode()
+                  }
+                  
+                  // Text Translation with GTLingua
+                  textTranslateButton.setOnClickListener {
+                      launchGTLinguaTextMode()
+                  }
+                  
+                  // Camera OCR integration
+                  cameraOCRButton.setOnClickListener {
+                      launchCameraOCR()
+                  }
+              }
+              
+              private fun launchGTLinguaVoiceMode() {
+                  if (!checkAudioPermissions()) {
+                      Toast.makeText(this, "Microphone permission required for voice translation", Toast.LENGTH_LONG).show()
+                      return
+                  }
+                  
+                  val intent = Intent(this, GTLinguaActivity::class.java).apply {
+                      putExtra("mode", "voice_primary")
+                      putExtra("auto_start_voice", true)
+                      putExtra("focus_microphone", true)
+                      putExtra("enable_deepgram", true)
+                      
+                      // Pass any quick text as context
+                      val quickText = quickTextInput.text.toString().trim()
+                      if (quickText.isNotEmpty()) {
+                          putExtra("context_text", quickText)
+                      }
+                  }
+                  
+                  startActivityForResult(intent, GTLINGUA_REQUEST_CODE)
+                  updateStatus("🎤 Launching GTLingua voice mode with Deepgram...")
+              }
+              
+              private fun launchGTLinguaTextMode() {
+                  val intent = Intent(this, GTLinguaActivity::class.java).apply {
+                      putExtra("mode", "text_primary")
+                      
+                      // Pre-fill with quick text if available
+                      val quickText = quickTextInput.text.toString().trim()
+                      if (quickText.isNotEmpty()) {
+                          putExtra("prefill_text", quickText)
+                          putExtra("url_params", "?text=${java.net.URLEncoder.encode(quickText, "UTF-8")}")
+                      }
+                  }
+                  
+                  startActivityForResult(intent, GTLINGUA_REQUEST_CODE)
+                  updateStatus("📝 Launching GTLingua text mode...")
+              }
+              
+              private fun launchCameraOCR() {
+                  if (!checkCameraPermissions()) {
+                      Toast.makeText(this, "Camera permission required for OCR", Toast.LENGTH_SHORT).show()
+                      return
+                  }
+                  
+                  val intent = Intent(this, CameraOCRActivity::class.java)
+                  startActivityForResult(intent, CAMERA_REQUEST_CODE)
+                  updateStatus("📷 Launching camera OCR...")
+              }
+              
+              private fun checkAudioPermissions(): Boolean {
+                  return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+              }
+              
+              private fun checkCameraPermissions(): Boolean {
+                  return ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+              }
+              
+              private fun handleIncomingIntent() {
+                  val intent = intent
+                  if (Intent.ACTION_SEND == intent.action && "text/plain" == intent.type) {
+                      val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+                      if (!sharedText.isNullOrEmpty()) {
+                          quickTextInput.setText(sharedText)
+                          updateStatus("📤 Text received - ready to translate with GTLingua")
+                          
+                          // Auto-launch GTLingua with shared text
+                          launchGTLinguaTextMode()
+                      }
+                  }
+              }
+              
+              private fun loadRecentTranslations() {
+                  val recent = preferencesManager.getRecentTranslations()
+                  if (recent.isNotEmpty()) {
+                      recentTranslations.text = "Recent: ${recent.take(3).joinToString(" • ")}"
+                  } else {
+                      recentTranslations.text = "No recent translations"
+                  }
+              }
+              
+              private fun updateStatus(message: String) {
+                  statusText.text = message
+                  Log.d(TAG, "Status: $message")
+              }
+              
+              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                  super.onActivityResult(requestCode, resultCode, data)
+                  
+                  when (requestCode) {
+                      GTLINGUA_REQUEST_CODE -> {
+                          if (resultCode == RESULT_OK && data != null) {
+                              val translation = data.getStringExtra("translation_result")
+                              val sourceText = data.getStringExtra("source_text")
+                              
+                              if (!translation.isNullOrEmpty()) {
+                                  // Save to recent translations
+                                  preferencesManager.addRecentTranslation(translation, sourceText)
+                                  loadRecentTranslations()
+                                  
+                                  updateStatus("✅ Translation completed via GTLingua")
+                                  
+                                  // Clear quick input if it was used
+                                  if (!sourceText.isNullOrEmpty() && quickTextInput.text.toString().trim() == sourceText) {
+                                      quickTextInput.setText("")
+                                  }
+                              }
+                          }
+                      }
+                      CAMERA_REQUEST_CODE -> {
+                          if (resultCode == RESULT_OK && data != null) {
+                              val extractedText = data.getStringExtra("extracted_text")
+                              if (!extractedText.isNullOrEmpty()) {
+                                  quickTextInput.setText(extractedText)
+                                  updateStatus("📷 Text extracted - ready for GTLingua translation")
+                                  
+                                  // Auto-launch text translation with OCR result
+                                  launchGTLinguaTextMode()
+                              }
+                          }
+                      }
+                  }
+              }
+              
+              override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+                  
+                  if (requestCode == PERMISSIONS_REQUEST_CODE) {
+                      val audioGranted = permissions.indices.any { 
+                          permissions[it] == Manifest.permission.RECORD_AUDIO && 
+                          grantResults[it] == PackageManager.PERMISSION_GRANTED 
+                      }
+                      
+                      val audioSettingsGranted = permissions.indices.any { 
+                          permissions[it] == Manifest.permission.MODIFY_AUDIO_SETTINGS && 
+                          grantResults[it] == PackageManager.PERMISSION_GRANTED 
+                      }
+                      
+                      when {
+                          audioGranted && audioSettingsGranted -> {
+                              updateStatus("✅ Deepgram speech recognition enabled - Voice translation ready")
+                          }
+                          audioGranted -> {
+                              updateStatus("⚠️ Basic voice enabled - Some Deepgram features may be limited")
+                          }
+                          else -> {
+                              updateStatus("❌ Voice features disabled - Text translation still available")
+                              Toast.makeText(this, 
+                                  "Voice translation requires microphone access for Deepgram speech recognition", 
+                                  Toast.LENGTH_LONG).show()
+                          }
+                      }
+                  }
+              }
+              
+              override fun onResume() {
+                  super.onResume()
+                  loadRecentTranslations()
+              }
+          }
+          EOF
+          
+          echo "✅ GTLingua Launcher Activity created with Deepgram focus"
+
+      - name: Create GTLingua WebView Activity
+        run: |
+          echo "=== CREATING GTLINGUA WEBVIEW ACTIVITY ==="
+          
+          # Create GTLinguaActivity.kt - Optimized for speech and GTLingua integration
+          cat > app/src/main/java/com/lingualink/gtlingua/activity/GTLinguaActivity.kt << 'EOF'
+          package com.lingualink.gtlingua.activity
+          
+          import android.annotation.SuppressLint
+          import android.app.Activity
+          import android.content.Intent
+          import android.graphics.Bitmap
+          import android.os.Bundle
+          import android.util.Log
+          import android.view.KeyEvent
+          import android.view.View
+          import android.webkit.*
+          import android.widget.ProgressBar
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.appcompat.widget.Toolbar
+          import com.lingualink.gtlingua.R
+          import com.lingualink.gtlingua.bridge.GTLinguaBridge
+          
+          class GTLinguaActivity : AppCompatActivity() {
+              
+              companion object {
+                  private const val TAG = "GTLinguaActivity"
+                  private const val GTLINGUA_URL = "https://gtlingua.com"
+                  private const val FALLBACK_URL = "https://translate.google.com"
+              }
+              
+              private lateinit var webView: WebView
+              private lateinit var progressBar: ProgressBar
+              private lateinit var toolbar: Toolbar
+              private lateinit var bridge: GTLinguaBridge
+              
+              private var translationMode: String = "text_primary"
+              private var autoStartVoice: Boolean = false
+              private var prefillText: String? = null
+              
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_gtlingua)
+                  
+                  // Get launch parameters
+                  translationMode = intent.getStringExtra("mode") ?: "text_primary"
+                  autoStartVoice = intent.getBooleanExtra("auto_start_voice", false)
+                  prefillText = intent.getStringExtra("prefill_text")
+                  
+                  initializeComponents()
+                  setupToolbar()
+                  setupWebView()
+                  
+                  loadGTLingua()
+                  
+                  Log.d(TAG, "GTLingua WebView launched in mode: $translationMode")
+              }
+              
+              private fun initializeComponents() {
+                  webView = findViewById(R.id.gtlinguaWebView)
+                  progressBar = findViewById(R.id.gtlinguaProgressBar)
+                  toolbar = findViewById(R.id.gtlinguaToolbar)
+                  
+                  bridge = GTLinguaBridge(this)
+              }
+              
+              private fun setupToolbar() {
+                  setSupportActionBar(toolbar)
+                  supportActionBar?.apply {
+                      setDisplayHomeAsUpEnabled(true)
+                      setDisplayShowHomeEnabled(true)
+                      title = when (translationMode) {
+                          "voice_primary" -> "🎤 GTLingua Voice (Deepgram)"
+                          "text_primary" -> "📝 GTLingua Translator"
+                          else -> "GTLingua AI Translator"
+                      }
+                  }
+              }
+              
+              @SuppressLint("SetJavaScriptEnabled")
+              private fun setupWebView() {
+                  val webSettings = webView.settings
+                  
+                  // OPTIMIZED SETTINGS FOR GTLINGUA + DEEPGRAM
+                  webSettings.javaScriptEnabled = true
+                  webSettings.mediaPlaybackRequiresUserGesture = false  // Critical for Deepgram
+                  webSettings.domStorageEnabled = true
+                  webSettings.databaseEnabled = true
+                  webSettings.cacheMode = WebSettings.LOAD_DEFAULT
+                  
+                  // AUDIO/MICROPHONE SETTINGS FOR DEEPGRAM
+                  webSettings.javaScriptCanOpenWindowsAutomatically = true
+                  webSettings.allowContentAccess = true
+                  webSettings.allowFileAccess = true
+                  webSettings.allowFileAccessFromFileURLs = false
+                  webSettings.allowUniversalAccessFromFileURLs = false
+                  
+                  // Enhanced user agent for GTLingua compatibility
+                  webSettings.userAgentString = "Mozilla/5.0 (Linux; Android 11; GTLingua Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+                  
+                  // Mixed content for HTTPS domains
+                  webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+                  
+                  // Modern WebView features
+                  if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                      webSettings.safeBrowsingEnabled = false // For development
+                  }
+                  
+                  // Add JavaScript bridge for GTLingua communication
+                  webView.addJavaScriptInterface(bridge, "GTLinguaAndroid")
+                  
+                  // Setup WebView client for GTLingua
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                          super.onPageStarted(view, url, favicon)
+                          progressBar.visibility = View.VISIBLE
+                          Log.d(TAG, "GTLingua loading: $url")
+                      }
+                      
+                      override fun onPageFinished(view: WebView?, url: String?) {
+                          super.onPageFinished(view, url)
+                          progressBar.visibility = View.GONE
+                          Log.d(TAG, "GTLingua loaded: $url")
+                          
+                          // Inject initialization script for GTLingua integration
+                          injectGTLinguaIntegration()
+                      }
+                      
+                      override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                          super.onReceivedError(view, request, error)
+                          Log.e(TAG, "GTLingua error: ${error?.description}")
+                          
+                          val failedUrl = request?.url?.toString()
+                          if (failedUrl?.contains("gtlingua.com") == true) {
+                              Log.w(TAG, "GTLingua failed, trying fallback")
+                              webView.loadUrl(FALLBACK_URL)
+                          }
+                      }
+                      
+                      override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                          val url = request?.url?.toString()
+                          
+                          // Allow GTLingua and related domains
+                          return when {
+                              url?.contains("gtlingua.com") == true -> false
+                              url?.contains("deepgram.com") == true -> false
+                              url?.contains("google.com") == true -> false
+                              url?.contains("googleapis.com") == true -> false
+                              else -> {
+                                  Log.w(TAG, "Blocking external URL: $url")
+                                  true
+                              }
+                          }
+                      }
+                      
+                      override fun onPermissionRequest(request: PermissionRequest?) {
+                          // CRITICAL: Auto-grant microphone permission for Deepgram
+                          request?.let {
+                              if (it.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                                  Log.d(TAG, "Granting microphone permission for Deepgram")
+                                  it.grant(it.resources)
+                              } else {
+                                  it.deny()
+                              }
+                          }
+                      }
+                  }
+                  
+                  // Setup WebChrome client for enhanced features
+                  webView.webChromeClient = object : WebChromeClient() {
+                      override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                          super.onProgressChanged(view, newProgress)
+                          progressBar.progress = newProgress
+                      }
+                      
+                      override fun onPermissionRequest(request: PermissionRequest?) {
+                          // CRITICAL: Auto-grant microphone for Deepgram
+                          request?.let {
+                              if (it.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                                  Log.d(TAG, "Chrome client granting microphone for Deepgram")
+                                  it.grant(it.resources)
+                              }
+                          }
+                      }
+                      
+                      override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                          Log.d(TAG, "GTLingua Console: ${consoleMessage?.message()}")
+                          return true
+                      }
+                  }
+              }
+              
+              private fun loadGTLingua() {
+                  var url = GTLINGUA_URL
+                  
+                  // Add URL parameters based on mode and prefill
+                  val params = mutableListOf<String>()
+                  
+                  if (!prefillText.isNullOrEmpty()) {
+                      params.add("text=${java.net.URLEncoder.encode(prefillText, "UTF-8")}")
+                  }
+                  
+                  when (translationMode) {
+                      "voice_primary" -> {
+                          params.add("mode=voice")
+                          params.add("auto_voice=true")
+                      }
+                      "text_primary" -> {
+                          params.add("mode=text")
+                      }
+                  }
+                  
+                  if (params.isNotEmpty()) {
+                      url += "?" + params.joinToString("&")
+                  }
+                  
+                  Log.d(TAG, "Loading GTLingua with URL: $url")
+                  
+                  // Load with headers optimized for GTLingua
+                  val headers = mapOf(
+                      "User-Agent" to "GTLingua-Android-App/1.0",
+                      "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                      "Accept-Language" to "en-US,en;q=0.5"
+                  )
+                  
+                  webView.loadUrl(url, headers)
+              }
+              
+              private fun injectGTLinguaIntegration() {
+                  val jsCode = """
+                      // GTLingua Android Integration Script
+                      (function() {
+                          console.log('GTLingua Android integration initialized');
+                          
+                          // Configuration for this session
+                          window.GTLinguaAndroidConfig = {
+                              mode: '$translationMode',
+                              autoStartVoice: $autoStartVoice,
+                              prefillText: ${if (prefillText != null) "'" + prefillText!!.replace("'", "\\'") + "'" else "null"}
+                          };
+                          
+                          // Function to notify Android of translation results
+                          function notifyTranslationComplete(sourceText, translatedText, sourceLang, targetLang) {
+                              if (window.GTLinguaAndroid) {
+                                  console.log('Sending translation to Android:', {sourceText, translatedText, sourceLang, targetLang});
+                                  window.GTLinguaAndroid.onTranslationComplete(
+                                      JSON.stringify({
+                                          source: sourceText,
+                                          translation: translatedText,
+                                          sourceLang: sourceLang,
+                                          targetLang: targetLang,
+                                          timestamp: Date.now()
+                                      })
+                                  );
+                              }
+                          }
+                          
+                          // Function to notify Android of voice recognition results
+                          function notifyVoiceRecognition(recognizedText, confidence, language) {
+                              if (window.GTLinguaAndroid) {
+                                  console.log('Sending voice recognition to Android:', {recognizedText, confidence, language});
+                                  window.GTLinguaAndroid.onVoiceRecognition(
+                                      JSON.stringify({
+                                          text: recognizedText,
+                                          confidence: confidence,
+                                          language: language,
+                                          timestamp: Date.now()
+                                      })
+                                  );
+                              }
+                          }
+                          
+                          // Monitor for GTLingua-specific elements and events
+                          function setupGTLinguaListeners() {
+                              // Listen for translation completion
+                              document.addEventListener('gtlingua:translation:complete', function(event) {
+                                  if (event.detail) {
+                                      notifyTranslationComplete(
+                                          event.detail.sourceText,
+                                          event.detail.translatedText,
+                                          event.detail.sourceLang,
+                                          event.detail.targetLang
+                                      );
+                                  }
+                              });
+                              
+                              // Listen for Deepgram voice recognition
+                              document.addEventListener('deepgram:recognition:result', function(event) {
+                                  if (event.detail) {
+                                      notifyVoiceRecognition(
+                                          event.detail.transcript,
+                                          event.detail.confidence,
+                                          event.detail.language
+                                      );
+                                  }
+                              });
+                              
+                              // Auto-start voice if requested
+                              if (window.GTLinguaAndroidConfig.autoStartVoice) {
+                                  setTimeout(function() {
+                                      // Try to trigger voice input
+                                      const voiceButton = document.querySelector('.voice-input-button, [data-voice], [aria-label*="voice"], button[title*="voice"]');
+                                      if (voiceButton) {
+                                          console.log('Auto-starting voice input for Deepgram');
+                                          voiceButton.click();
+                                      }
+                                  }, 2000);
+                              }
+                              
+                              // Pre-fill text if provided
+                              if (window.GTLinguaAndroidConfig.prefillText) {
+                                  setTimeout(function() {
+                                      const textInput = document.querySelector('textarea, input[type="text"], [contenteditable="true"]');
+                                      if (textInput) {
+                                          console.log('Pre-filling text input');
+                                          if (textInput.tagName === 'TEXTAREA' || textInput.tagName === 'INPUT') {
+                                              textInput.value = window.GTLinguaAndroidConfig.prefillText;
+                                          } else {
+                                              textInput.textContent = window.GTLinguaAndroidConfig.prefillText;
+                                          }
+                                          
+                                          // Trigger input event
+                                          textInput.dispatchEvent(new Event('input', { bubbles: true }));
+                                      }
+                                  }, 1500);
+                              }
+                          }
+                          
+                          // Initialize when DOM is ready
+                          if (document.readyState === 'loading') {
+                              document.addEventListener('DOMContentLoaded', setupGTLinguaListeners);
+                          } else {
+                              setupGTLinguaListeners();
+                          }
+                          
+                          // Also try after a delay to catch dynamically loaded content
+                          setTimeout(setupGTLinguaListeners, 3000);
+                          
+                          console.log('GTLingua Android integration ready');
+                      })();
+                  """.trimIndent()
+                  
+                  webView.evaluateJavascript(jsCode) { result ->
+                      Log.d(TAG, "GTLingua integration script result: $result")
+                  }
+              }
+              
+              fun onTranslationReceived(translationData: String) {
+                  Log.d(TAG, "Translation received from GTLingua: $translationData")
+                  
+                  try {
+                      // Parse the translation data and return to launcher
+                      val resultIntent = Intent().apply {
+                          putExtra("translation_result", translationData)
+                          putExtra("source", "gtlingua_web")
+                      }
+                      setResult(Activity.RESULT_OK, resultIntent)
+                      
+                      // Optionally finish immediately or let user continue
+                      // finish()
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error processing translation", e)
+                  }
+              }
+              
+              fun onVoiceRecognitionReceived(voiceData: String) {
+                  Log.d(TAG, "Voice recognition from Deepgram: $voiceData")
+                  
+                  // Handle voice recognition results from Deepgram
+                  // Could be used for intermediate feedback or processing
+              }
+              
+              override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+                  if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
+                      webView.goBack()
+                      return true
+                  }
+                  return super.onKeyDown(keyCode, event)
+              }
+              
+              override fun onSupportNavigateUp(): Boolean {
+                  onBackPressed()
+                  return true
+              }
+              
+              override fun onDestroy() {
+                  webView.destroy()
+                  super.onDestroy()
+              }
+          }
+          EOF
+          
+          echo "✅ GTLingua WebView Activity created with full Deepgram integration"
+
+      - name: Create GTLingua Bridge
+        run: |
+          echo "=== CREATING GTLINGUA JAVASCRIPT BRIDGE ==="
+          
+          # Create GTLinguaBridge.kt for seamless web app communication
+          cat > app/src/main/java/com/lingualink/gtlingua/bridge/GTLinguaBridge.kt << 'EOF'
+          package com.lingualink.gtlingua.bridge
+          
+          import android.util.Log
+          import android.webkit.JavascriptInterface
+          import com.lingualink.gtlingua.activity.GTLinguaActivity
+          import org.json.JSONObject
+          
+          class GTLinguaBridge(private val activity: GTLinguaActivity) {
+              
+              companion object {
+                  private const val TAG = "GTLinguaBridge"
+              }
+              
+              @JavascriptInterface
+              fun onTranslationComplete(translationJson: String) {
+                  Log.d(TAG, "Translation completed: $translationJson")
+                  
+                  try {
+                      val json = JSONObject(translationJson)
+                      val sourceText = json.optString("source", "")
+                      val translatedText = json.optString("translation", "")
+                      val sourceLang = json.optString("sourceLang", "")
+                      val targetLang = json.optString("targetLang", "")
+                      
+                      activity.runOnUiThread {
+                          activity.onTranslationReceived(translationJson)
+                      }
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error parsing translation JSON", e)
+                  }
+              }
+              
+              @JavascriptInterface
+              fun onVoiceRecognition(voiceJson: String) {
+                  Log.d(TAG, "Voice recognition from Deepgram: $voiceJson")
+                  
+                  try {
+                      val json = JSONObject(voiceJson)
+                      val recognizedText = json.optString("text", "")
+                      val confidence = json.optDouble("confidence", 0.0)
+                      val language = json.optString("language", "")
+                      
+                      activity.runOnUiThread {
+                          activity.onVoiceRecognitionReceived(voiceJson)
+                      }
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error parsing voice recognition JSON", e)
+                  }
+              }
+              
+              @JavascriptInterface
+              fun onDeepgramStatus(statusJson: String) {
+                  Log.d(TAG, "Deepgram status update: $statusJson")
+                  
+                  // Handle Deepgram connection status, errors, etc.
+                  try {
+                      val json = JSONObject(statusJson)
+                      val status = json.optString("status", "")
+                      val message = json.optString("message", "")
+                      
+                      Log.d(TAG, "Deepgram Status: $status - $message")
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error parsing Deepgram status", e)
+                  }
+              }
+              
+              @JavascriptInterface
+              fun onError(errorJson: String) {
+                  Log.e(TAG, "GTLingua error: $errorJson")
+                  
+                  try {
+                      val json = JSONObject(errorJson)
+                      val errorType = json.optString("type", "unknown")
+                      val errorMessage = json.optString("message", "")
+                      
+                      Log.e(TAG, "Error Type: $errorType - Message: $errorMessage")
+                      
+                  } catch (e: Exception) {
+                      Log.e(TAG, "Error parsing error JSON", e)
+                  }
+              }
+              
+              @JavascriptInterface
+              fun logMessage(message: String) {
+                  Log.d(TAG, "GTLingua Log: $message")
+              }
+              
+              @JavascriptInterface
+              fun showToast(message: String) {
+                  activity.runOnUiThread {
+                      android.widget.Toast.makeText(activity, message, android.widget.Toast.LENGTH_SHORT).show()
+                  }
+              }
+          }
+          EOF
+          
+          echo "✅ GTLingua Bridge created for seamless web app communication"
+
+      - name: Create Supporting Components
+        run: |
+          echo "=== CREATING SUPPORTING COMPONENTS ==="
+          
+          # Create CameraOCRActivity.kt (lightweight OCR integration)
+          cat > app/src/main/java/com/lingualink/gtlingua/activity/CameraOCRActivity.kt << 'EOF'
+          package com.lingualink.gtlingua.activity
+          
+          import android.app.Activity
+          import android.content.Intent
+          import android.os.Bundle
+          import android.widget.Toast
+          import androidx.appcompat.app.AppCompatActivity
+          import com.lingualink.gtlingua.R
+          
+          class CameraOCRActivity : AppCompatActivity() {
+              
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_camera_ocr)
+                  
+                  // Lightweight OCR implementation
+                  Toast.makeText(this, "Camera OCR - Extracting text for GTLingua...", Toast.LENGTH_LONG).show()
+                  
+                  // For demo: return sample text that would be extracted from camera
+                  val resultIntent = Intent().apply {
+                      putExtra("extracted_text", "Sample text extracted from camera - ready for GTLingua translation with 36 languages")
+                  }
+                  setResult(Activity.RESULT_OK, resultIntent)
+                  finish()
+              }
+          }
+          EOF
+          
+          # Create PreferencesManager.kt for GTLingua integration
+          cat > app/src/main/java/com/lingualink/gtlingua/utils/PreferencesManager.kt << 'EOF'
+          package com.lingualink.gtlingua.utils
+          
+          import android.content.Context
+          import android.content.SharedPreferences
+          import org.json.JSONArray
+          import org.json.JSONObject
+          
+          class PreferencesManager(context: Context) {
+              
+              companion object {
+                  private const val PREFS_NAME = "gtlingua_prefs"
+                  private const val KEY_RECENT_TRANSLATIONS = "recent_translations"
+                  private const val KEY_PREFERRED_VOICE_LANG = "preferred_voice_lang"
+                  private const val KEY_AUTO_START_VOICE = "auto_start_voice"
+                  private const val KEY_DEEPGRAM_ENABLED = "deepgram_enabled"
+                  private const val MAX_RECENT_TRANSLATIONS = 10
+              }
+              
+              private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+              
+              fun addRecentTranslation(translation: String, sourceText: String?) {
+                  val recent = getRecentTranslationsJson()
+                  
+                  val newTranslation = JSONObject().apply {
+                      put("translation", translation)
+                      put("source", sourceText ?: "")
+                      put("timestamp", System.currentTimeMillis())
+                  }
+                  
+                  recent.put(0, newTranslation)
+                  
+                  // Keep only the most recent translations
+                  while (recent.length() > MAX_RECENT_TRANSLATIONS) {
+                      recent.remove(recent.length() - 1)
+                  }
+                  
+                  prefs.edit()
+                      .putString(KEY_RECENT_TRANSLATIONS, recent.toString())
+                      .apply()
+              }
+              
+              fun getRecentTranslations(): List<String> {
+                  val recent = getRecentTranslationsJson()
+                  val translations = mutableListOf<String>()
+                  
+                  for (i in 0 until recent.length()) {
+                      val item = recent.optJSONObject(i)
+                      item?.optString("translation")?.let { translations.add(it) }
+                  }
+                  
+                  return translations
+              }
+              
+              private fun getRecentTranslationsJson(): JSONArray {
+                  val recentString = prefs.getString(KEY_RECENT_TRANSLATIONS, "[]")
+                  return try {
+                      JSONArray(recentString)
+                  } catch (e: Exception) {
+                      JSONArray()
+                  }
+              }
+              
+              fun setPreferredVoiceLanguage(language: String) {
+                  prefs.edit().putString(KEY_PREFERRED_VOICE_LANG, language).apply()
+              }
+              
+              fun getPreferredVoiceLanguage(): String {
+                  return prefs.getString(KEY_PREFERRED_VOICE_LANG, "en") ?: "en"
+              }
+              
+              fun setAutoStartVoice(enabled: Boolean) {
+                  prefs.edit().putBoolean(KEY_AUTO_START_VOICE, enabled).apply()
+              }
+              
+              fun getAutoStartVoice(): Boolean {
+                  return prefs.getBoolean(KEY_AUTO_START_VOICE, false)
+              }
+              
+              fun setDeepgramEnabled(enabled: Boolean) {
+                  prefs.edit().putBoolean(KEY_DEEPGRAM_ENABLED, enabled).apply()
+              }
+              
+              fun isDeepgramEnabled(): Boolean {
+                  return prefs.getBoolean(KEY_DEEPGRAM_ENABLED, true)
+              }
+          }
+          EOF
+          
+          echo "✅ Supporting components created"
+
+      - name: Create GTLingua-Optimized Layouts
+        run: |
+          echo "=== CREATING GTLINGUA-OPTIMIZED LAYOUTS ==="
+          
+          # Create activity_launcher.xml - Clean, voice-focused design (FIXED LAYOUT)
+          cat > app/src/main/res/layout/activity_launcher.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:padding="24dp"
+              android:background="@drawable/gradient_background"
+              tools:context=".activity.LauncherActivity">
+          
+              <!-- Header Section -->
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:orientation="vertical"
+                  android:gravity="center"
+                  android:layout_marginTop="32dp"
+                  android:layout_marginBottom="32dp">
+          
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="@string/app_name"
+                      android:textSize="28sp"
+                      android:textStyle="bold"
+                      android:textColor="@color/white"
+                      android:gravity="center" />
+                  
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="Powered by GTLingua + Deepgram AI"
+                      android:textSize="14sp"
+                      android:textColor="@color/white_80"
+                      android:layout_marginTop="4dp"
+                      android:gravity="center" />
+          
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="36 Languages • Voice Recognition • Real-time Translation"
+                      android:textSize="12sp"
+                      android:textColor="@color/white_60"
+                      android:layout_marginTop="8dp"
+                      android:gravity="center" />
+          
+              </LinearLayout>
+          
+              <!-- Quick Input Section -->
+              <androidx.cardview.widget.CardView
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginBottom="24dp"
+                  app:cardCornerRadius="16dp"
+                  app:cardElevation="8dp"
+                  app:cardBackgroundColor="@color/card_background">
+          
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical"
+                      android:padding="20dp">
+          
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Quick Text Input"
+                          android:textSize="16sp"
+                          android:textStyle="bold"
+                          android:textColor="@color/primary_dark"
+                          android:layout_marginBottom="12dp" />
+          
+                      <EditText
+                          android:id="@+id/quickTextInput"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:hint="Enter text or use voice translation below..."
+                          android:background="@drawable/input_background"
+                          android:padding="16dp"
+                          android:textSize="16sp"
+                          android:textColor="@color/text_primary"
+                          android:textColorHint="@color/text_hint"
+                          android:inputType="textMultiLine"
+                          android:maxLines="3"
+                          android:minLines="2" />
+          
+                  </LinearLayout>
+          
+              </androidx.cardview.widget.CardView>
+          
+              <!-- Primary Action Buttons -->
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:orientation="vertical"
+                  android:layout_marginBottom="24dp">
+          
+                  <!-- Voice Translation - Primary Feature -->
+                  <Button
+                      android:id="@+id/voiceTranslateButton"
+                      android:layout_width="match_parent"
+                      android:layout_height="64dp"
+                      android:text="🎤 Start Voice Translation"
+                      android:textSize="18sp"
+                      android:textStyle="bold"
+                      android:textColor="@color/white"
+                      android:background="@drawable/voice_button_background"
+                      android:elevation="6dp"
+                      android:layout_marginBottom="12dp"
+                      style="@style/Widget.Material3.Button" />
+          
+                  <!-- Text Translation -->
+                  <Button
+                      android:id="@+id/textTranslateButton"
+                      android:layout_width="match_parent"
+                      android:layout_height="56dp"
+                      android:text="📝 Text Translation (36 Languages)"
+                      android:textSize="16sp"
+                      android:textColor="@color/primary_dark"
+                      android:background="@drawable/text_button_background"
+                      android:layout_marginBottom="12dp"
+                      style="@style/Widget.Material3.Button.OutlinedButton" />
+          
+                  <!-- Camera OCR -->
+                  <Button
+                      android:id="@+id/cameraOCRButton"
+                      android:layout_width="match_parent"
+                      android:layout_height="56dp"
+                      android:text="📷 Camera Text Recognition"
+                      android:textSize="16sp"
+                      android:textColor="@color/primary_dark"
+                      android:background="@drawable/camera_button_background"
+                      style="@style/Widget.Material3.Button.OutlinedButton" />
+          
+              </LinearLayout>
+          
+              <!-- Recent Translations -->
+              <androidx.cardview.widget.CardView
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:layout_marginBottom="16dp"
+                  app:cardCornerRadius="12dp"
+                  app:cardElevation="4dp"
+                  app:cardBackgroundColor="@color/recent_background">
+          
+                  <LinearLayout
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:orientation="vertical"
+                      android:padding="16dp">
+          
+                      <TextView
+                          android:layout_width="wrap_content"
+                          android:layout_height="wrap_content"
+                          android:text="Recent Translations"
+                          android:textSize="14sp"
+                          android:textStyle="bold"
+                          android:textColor="@color/text_secondary"
+                          android:layout_marginBottom="8dp" />
+          
+                      <TextView
+                          android:id="@+id/recentTranslations"
+                          android:layout_width="match_parent"
+                          android:layout_height="wrap_content"
+                          android:text="No recent translations"
+                          android:textSize="13sp"
+                          android:textColor="@color/text_tertiary"
+                          android:maxLines="2"
+                          android:ellipsize="end" />
+          
+                  </LinearLayout>
+          
+              </androidx.cardview.widget.CardView>
+          
+              <!-- Spacer to push status to bottom -->
+              <View
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1" />
+          
+              <!-- Status -->
+              <TextView
+                  android:id="@+id/statusText"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:text="@string/status_initializing"
+                  android:textSize="14sp"
+                  android:textColor="@color/white_80"
+                  android:gravity="center"
+                  android:padding="12dp"
+                  android:background="@drawable/status_background" />
+          
+          </LinearLayout>
+          EOF
+          
+          # Create activity_gtlingua.xml - Fullscreen WebView for GTLingua
+          cat > app/src/main/res/layout/activity_gtlingua.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              android:background="@color/gtlingua_background">
+          
+              <!-- Toolbar for GTLingua -->
+              <androidx.appcompat.widget.Toolbar
+                  android:id="@+id/gtlinguaToolbar"
+                  android:layout_width="match_parent"
+                  android:layout_height="?attr/actionBarSize"
+                  android:background="@color/primary"
+                  android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
+                  app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                  app:title="GTLingua AI Translator"
+                  app:titleTextColor="@color/white" />
+          
+              <!-- WebView Container -->
+              <FrameLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1">
+          
+                  <!-- GTLingua WebView -->
+                  <WebView
+                      android:id="@+id/gtlinguaWebView"
+                      android:layout_width="match_parent"
+                      android:layout_height="match_parent"
+                      android:background="@color/white" />
+          
+                  <!-- Loading Progress -->
+                  <ProgressBar
+                      android:id="@+id/gtlinguaProgressBar"
+                      style="?android:attr/progressBarStyleHorizontal"
+                      android:layout_width="match_parent"
+                      android:layout_height="4dp"
+                      android:layout_gravity="top"
+                      android:progressTint="@color/accent"
+                      android:secondaryProgressTint="@color/accent_light" />
+          
+                  <!-- Voice Indicator (for voice mode) -->
+                  <LinearLayout
+                      android:id="@+id/voiceIndicator"
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:layout_gravity="bottom|center_horizontal"
+                      android:layout_marginBottom="32dp"
+                      android:orientation="horizontal"
+                      android:background="@drawable/voice_indicator_background"
+                      android:padding="12dp"
