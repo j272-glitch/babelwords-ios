@@ -61,6 +61,7 @@ Preferred communication style: Simple, everyday language.
 - **TestRigor Build Wrapper Fixed v73**: Critical fix for Gradle wrapper corruption preventing ClassNotFoundException: GradleWrapperMain
 - **TestRigor Build Complete Translator**: Comprehensive workflow creating full Android app with WebView integration for https://gtlingua.com
 - **TestRigor Build Complete Translator v2**: Enhanced version with improved WebView permissions and GTLingua-specific optimizations
+- **TestRigor Build GTLingua-Optimized**: Specialized workflow optimized specifically for GTLingua.com with Deepgram Nova-2 integration
 
 ### Development Tools
 - **Semgrep**: Static analysis security scanning with custom Bicep rules
