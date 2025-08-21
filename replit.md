@@ -77,6 +77,7 @@ Preferred communication style: Simple, everyday language.
 - **TestRigor Build GTLingua-Enhanced**: Comprehensive WebView + Deepgram integration with advanced speech recognition capabilities
 - **TestRigor Build GTLingua-Working**: Proven working workflow with successful APK generation and simplified architecture
 - **TestRigor Build GTLingua-Working-AAB**: Android App Bundle variant optimized for Play Store distribution with universal APK extraction
+- **TestRigor Build GTLingua-Release-Signed**: Production-ready workflow with automatic release keystore signing, generating signed APKs and AABs for distribution
 
 ### Development Tools
 - **Semgrep**: Static analysis security scanning with custom Bicep rules
