@@ -1,0 +1,528 @@
+name: TestRigor Build - GTLingua-Fixed
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  GRADLE_OPTS: -Xmx4096m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8
+  ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+  WEBVIEW_URL: "https://gtlingua.com"
+
+jobs:
+  build-testrigor:
+    name: Build GTLingua-Fixed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Create Clean Build Configuration
+        run: |
+          echo "=== CREATING CLEAN BUILD CONFIGURATION ==="
+          
+          # Backup originals
+          [ -f "build.gradle" ] && mv build.gradle build.gradle.original
+          [ -f "settings.gradle" ] && mv settings.gradle settings.gradle.original
+          
+          # Create minimal root build.gradle
+          cat > build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application' version '8.0.2' apply false
+              id 'com.android.library' version '8.0.2' apply false
+              id 'org.jetbrains.kotlin.android' version '1.8.10' apply false
+          }
+          
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+          
+          # Create settings.gradle
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "LinguaLink"
+          include ':app'
+          EOF
+          
+          # Create gradle.properties
+          cat > gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=512m
+          org.gradle.daemon=true
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          
+          android.useAndroidX=true
+          android.enableJetifier=true
+          android.useLegacyPackaging=true
+          android.nonTransitiveRClass=false
+          EOF
+          
+          # Create local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          
+          echo "✅ Clean configuration created"
+
+      - name: Setup Gradle Wrapper
+        run: |
+          echo "=== SETTING UP GRADLE WRAPPER ==="
+          
+          mkdir -p gradle/wrapper
+          
+          echo "Downloading gradle-wrapper.jar..."
+          wget -q -O gradle/wrapper/gradle-wrapper.jar \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradle/wrapper/gradle-wrapper.jar || {
+              echo "Failed to download from GitHub, trying alternative..."
+              wget -q https://services.gradle.org/distributions/gradle-8.0.2-bin.zip
+              unzip -q gradle-8.0.2-bin.zip
+              cp gradle-8.0.2/lib/gradle-wrapper-8.0.2.jar gradle/wrapper/gradle-wrapper.jar
+              rm -rf gradle-8.0.2 gradle-8.0.2-bin.zip
+            }
+          
+          # Create gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0.2-all.zip
+          networkTimeout=30000
+          validateDistributionUrl=true
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+          
+          # Download gradlew script
+          wget -q -O gradlew \
+            https://raw.githubusercontent.com/gradle/gradle/v8.0.2/gradlew || {
+              echo "Creating gradlew script manually..."
+              cat > gradlew << 'GRADLEW'
+          #!/bin/sh
+          APP_HOME="$( cd "$( dirname "$0" )" && pwd )"
+          CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
+          
+          if [ -n "$JAVA_HOME" ] ; then
+              JAVACMD="$JAVA_HOME/bin/java"
+          else
+              JAVACMD="java"
+          fi
+          
+          exec "$JAVACMD" \
+            -cp "$CLASSPATH" \
+            org.gradle.wrapper.GradleWrapperMain \
+            "$@"
+          GRADLEW
+            }
+          
+          chmod +x gradlew
+          
+          echo "✅ Gradle wrapper setup complete"
+
+      - name: Create Launcher Icons
+        run: |
+          echo "=== CREATING LAUNCHER ICONS ==="
+          
+          # Install ImageMagick for icon generation
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          
+          # Create a simple, valid icon without complex text
+          convert -size 512x512 gradient:'#4F46E5-#7C3AED' -fill white -gravity center \
+            -pointsize 200 -annotate +0+0 '🎤' base_icon.png
+          
+          # Generate different density icons
+          densities=("mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192")
+          
+          for density_size in "${densities[@]}"; do
+            density="${density_size%%:*}"
+            size="${density_size##*:}"
+            
+            mkdir -p "app/src/main/res/mipmap-$density"
+            
+            # Create regular icon
+            convert base_icon.png -resize "${size}x${size}" \
+              "app/src/main/res/mipmap-$density/ic_launcher.png"
+            
+            # Create round icon
+            convert base_icon.png -resize "${size}x${size}" \
+              \( +clone -threshold 101% -fill white -draw "circle $(($size/2)),$(($size/2)) $(($size/2)),0" \) \
+              -alpha off -compose copy_opacity -composite \
+              "app/src/main/res/mipmap-$density/ic_launcher_round.png"
+          done
+          
+          rm base_icon.png
+          echo "✅ Launcher icons created"
+
+      - name: Create Android Project Structure
+        run: |
+          echo "=== CREATING ANDROID PROJECT STRUCTURE ==="
+          
+          # Create directory structure
+          mkdir -p app/src/main/java/com/lingualink/gtlingua/activity
+          mkdir -p app/src/main/res/{layout,values,drawable,xml}
+          mkdir -p app/src/main/assets
+          
+          # Create AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+          
+              <!-- WebView and audio permissions -->
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+              
+              <!-- Hardware features -->
+              <uses-feature 
+                  android:name="android.hardware.microphone" 
+                  android:required="true" />
+          
+              <application
+                  android:allowBackup="true"
+                  android:dataExtractionRules="@xml/data_extraction_rules"
+                  android:fullBackupContent="@xml/backup_rules"
+                  android:icon="@mipmap/ic_launcher"
+                  android:label="@string/app_name"
+                  android:roundIcon="@mipmap/ic_launcher_round"
+                  android:supportsRtl="true"
+                  android:theme="@style/Theme.GTLingua"
+                  android:hardwareAccelerated="true"
+                  android:usesCleartextTraffic="true"
+                  tools:targetApi="31">
+                  
+                  <!-- Main Activity -->
+                  <activity
+                      android:name=".activity.MainActivity"
+                      android:exported="true"
+                      android:theme="@style/Theme.GTLingua">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          
+          echo "✅ AndroidManifest.xml created"
+
+      - name: Create Main Activity
+        run: |
+          echo "=== CREATING MAIN ACTIVITY ==="
+          
+          # Create MainActivity.kt
+          cat > app/src/main/java/com/lingualink/gtlingua/activity/MainActivity.kt << 'EOF'
+          package com.lingualink.gtlingua.activity
+          
+          import android.annotation.SuppressLint
+          import android.os.Bundle
+          import android.webkit.*
+          import android.widget.Toast
+          import androidx.appcompat.app.AppCompatActivity
+          import com.lingualink.gtlingua.R
+          
+          class MainActivity : AppCompatActivity() {
+              
+              private lateinit var webView: WebView
+              
+              @SuppressLint("SetJavaScriptEnabled")
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+                  
+                  webView = findViewById(R.id.webView)
+                  setupWebView()
+                  loadGTLingua()
+              }
+              
+              private fun setupWebView() {
+                  val webSettings = webView.settings
+                  webSettings.javaScriptEnabled = true
+                  webSettings.mediaPlaybackRequiresUserGesture = false
+                  webSettings.domStorageEnabled = true
+                  
+                  webView.webChromeClient = object : WebChromeClient() {
+                      override fun onPermissionRequest(request: PermissionRequest?) {
+                          request?.grant(request.resources)
+                      }
+                  }
+                  
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun onPageFinished(view: WebView?, url: String?) {
+                          super.onPageFinished(view, url)
+                          Toast.makeText(this@MainActivity, "GTLingua loaded", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+              }
+              
+              private fun loadGTLingua() {
+                  val url = "https://gtlingua.com"
+                  webView.loadUrl(url)
+              }
+              
+              override fun onBackPressed() {
+                  if (webView.canGoBack()) {
+                      webView.goBack()
+                  } else {
+                      super.onBackPressed()
+                  }
+              }
+          }
+          EOF
+          
+          echo "✅ MainActivity.kt created"
+
+      - name: Create Layout Files
+        run: |
+          echo "=== CREATING LAYOUT FILES ==="
+          
+          # Create activity_main.xml with VALID dimensions
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context=".activity.MainActivity">
+          
+              <WebView
+                  android:id="@+id/webView"
+                  android:layout_width="match_parent"
+                  android:layout_height="match_parent" />
+          
+          </LinearLayout>
+          EOF
+          
+          echo "✅ Layout files created"
+
+      - name: Create Resource Files
+        run: |
+          echo "=== CREATING RESOURCE FILES ==="
+          
+          # Create strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">GTLingua</string>
+          </resources>
+          EOF
+          
+          # Create colors.xml
+          cat > app/src/main/res/values/colors.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <color name="purple_200">#FFBB86FC</color>
+              <color name="purple_500">#FF6200EE</color>
+              <color name="purple_700">#FF3700B3</color>
+              <color name="teal_200">#FF03DAC5</color>
+              <color name="teal_700">#FF018786</color>
+              <color name="black">#FF000000</color>
+              <color name="white">#FFFFFFFF</color>
+          </resources>
+          EOF
+          
+          # Create themes.xml
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <style name="Theme.GTLingua" parent="Theme.Material3.DayNight">
+                  <item name="colorPrimary">@color/purple_500</item>
+                  <item name="colorPrimaryVariant">@color/purple_700</item>
+                  <item name="colorOnPrimary">@color/white</item>
+                  <item name="colorSecondary">@color/teal_200</item>
+                  <item name="colorSecondaryVariant">@color/teal_700</item>
+                  <item name="colorOnSecondary">@color/black</item>
+                  <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
+              </style>
+          </resources>
+          EOF
+          
+          # Create XML backup rules
+          mkdir -p app/src/main/res/xml
+          cat > app/src/main/res/xml/backup_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <full-backup-content>
+              <exclude domain="cache" />
+          </full-backup-content>
+          EOF
+          
+          cat > app/src/main/res/xml/data_extraction_rules.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <data-extraction-rules>
+              <cloud-backup>
+                  <exclude domain="cache" />
+              </cloud-backup>
+              <device-transfer>
+                  <exclude domain="cache" />
+              </device-transfer>
+          </data-extraction-rules>
+          EOF
+          
+          echo "✅ Resource files created"
+
+      - name: Create App Build Configuration
+        run: |
+          echo "=== CREATING APP BUILD CONFIGURATION ==="
+          
+          # Create app/build.gradle with proper configuration
+          cat > app/build.gradle << 'EOF'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+          }
+          
+          android {
+              namespace 'com.lingualink.gtlingua'
+              compileSdk 34
+              
+              defaultConfig {
+                  applicationId "com.lingualink.gtlingua"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+                  
+                  testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+              }
+              
+              buildTypes {
+                  debug {
+                      minifyEnabled false
+                      shrinkResources false
+                      debuggable true
+                  }
+                  release {
+                      minifyEnabled false
+                      shrinkResources false
+                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+                  }
+              }
+              
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+              
+              kotlinOptions {
+                  jvmTarget = '17'
+              }
+          }
+          
+          dependencies {
+              implementation 'androidx.core:core-ktx:1.12.0'
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+              testImplementation 'junit:junit:4.13.2'
+              androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+              androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+          }
+          EOF
+          
+          # Create ProGuard rules
+          cat > app/proguard-rules.pro << 'EOF'
+          # Add project specific ProGuard rules here.
+          # WebView JavaScript interface rules
+          -keepclassmembers class * {
+              @android.webkit.JavascriptInterface <methods>;
+          }
+          
+          # Keep GTLingua classes
+          -keep class com.lingualink.gtlingua.** { *; }
+          EOF
+          
+          echo "✅ App build configuration created"
+
+      - name: Clean Build Directory
+        run: |
+          rm -rf .gradle build app/build
+          rm -rf ~/.gradle/caches/transforms-*
+          echo "✅ Build directories cleaned"
+
+      - name: Build Debug APK
+        run: |
+          echo "=== BUILDING DEBUG APK ==="
+          
+          # Build with proper error handling
+          ./gradlew clean app:assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info || {
+              echo "Build failed. Showing configuration for debugging..."
+              echo "--- app/build.gradle ---"
+              cat app/build.gradle
+              echo "--- AndroidManifest.xml ---"
+              cat app/src/main/AndroidManifest.xml
+              echo "--- activity_main.xml ---"
+              cat app/src/main/res/layout/activity_main.xml
+              exit 1
+            }
+          
+          # Find and verify APK
+          DEBUG_APK=$(find app/build/outputs -name "*.apk" -type f | head -1)
+          if [ -f "$DEBUG_APK" ]; then
+            cp "$DEBUG_APK" "./gtlingua-debug.apk"
+            echo "✅ GTLingua APK created successfully!"
+            echo "  Size: $(du -h gtlingua-debug.apk | cut -f1)"
+            echo "  Path: $DEBUG_APK"
+            
+            # Verify APK contents
+            unzip -l gtlingua-debug.apk | head -20
+          else
+            echo "❌ APK not found in app/build/outputs"
+            find app/build -name "*.apk" 2>/dev/null || echo "No APK files found anywhere"
+            exit 1
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: gtlingua-apk-${{ github.run_number }}
+          path: gtlingua-debug.apk
+          retention-days: 30
+
+      - name: Upload Build Logs on Failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: gtlingua-build-logs-${{ github.run_number }}
+          path: |
+            build.gradle
+            app/build.gradle
+            gradle.properties
+            settings.gradle
+            gradle/wrapper/
+            app/src/main/AndroidManifest.xml
+            app/src/main/java/com/lingualink/gtlingua/activity/MainActivity.kt
+            app/src/main/res/layout/activity_main.xml
+            app/src/main/res/values/strings.xml
+          retention-days: 7
