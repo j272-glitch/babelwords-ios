@@ -8,6 +8,16 @@ LinguaLink is an Android translation application that integrates a web-based tra
 
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (August 22, 2025)
+
+- **Privacy Policy Integration**: Added Google Play Store compliant privacy policy system
+  - Privacy policy URL: https://linguagt.com/privacy
+  - First-run privacy acceptance dialog with direct link to full policy
+  - SharedPreferences storage for user consent
+  - Required consent before app functionality activation
+- **Enhanced Security**: Updated keystore with 68+ year validity (linguagt-release-key)
+- **AAB Releases**: Latest v1.0.2 (4.1 MB) includes significant feature enhancements
+
 ## System Architecture
 
 ### Frontend Architecture

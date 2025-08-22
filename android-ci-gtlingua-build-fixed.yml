@@ -503,6 +503,16 @@ jobs:
                   android:supportsRtl="true"
                   tools:targetApi="31">
                   
+                  <!-- Google Play Store Privacy Policy Compliance -->
+                  <meta-data
+                      android:name="privacy_policy_url"
+                      android:value="https://linguagt.com/privacy" />
+                  
+                  <!-- Data collection and sharing disclosure -->
+                  <meta-data
+                      android:name="data_safety_labels"
+                      android:value="audio_recording,network_access,translation_data" />
+                  
                   <activity
                       android:name=".MainActivity"
                       android:exported="true"
@@ -547,7 +557,10 @@ jobs:
           package com.lingualink.gtlingua;
           
           import android.Manifest;
+          import android.content.Intent;
+          import android.content.SharedPreferences;
           import android.content.pm.PackageManager;
+          import android.net.Uri;
           import android.os.Build;
           import android.os.Bundle;
           import android.util.Log;
@@ -558,6 +571,7 @@ jobs:
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.widget.Toast;
+          import androidx.appcompat.app.AlertDialog;
           import androidx.appcompat.app.AppCompatActivity;
           import androidx.core.app.ActivityCompat;
           import androidx.core.content.ContextCompat;
@@ -570,6 +584,12 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  
+                  // Check privacy policy acceptance first
+                  if (!isPrivacyPolicyAccepted()) {
+                      showPrivacyPolicyDialog();
+                      return;
+                  }
                   
                   // Request permissions
                   requestPermissions();
@@ -688,6 +708,38 @@ jobs:
                   }
               }
               
+              private boolean isPrivacyPolicyAccepted() {
+                  SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+                  return prefs.getBoolean("privacy_policy_accepted", false);
+              }
+              
+              private void setPrivacyPolicyAccepted(boolean accepted) {
+                  SharedPreferences prefs = getSharedPreferences("app_prefs", MODE_PRIVATE);
+                  prefs.edit().putBoolean("privacy_policy_accepted", accepted).apply();
+              }
+              
+              private void showPrivacyPolicyDialog() {
+                  new AlertDialog.Builder(this)
+                      .setTitle(getString(R.string.privacy_policy_title))
+                      .setMessage(getString(R.string.privacy_policy_notice))
+                      .setPositiveButton(getString(R.string.accept_privacy), (dialog, which) -> {
+                          setPrivacyPolicyAccepted(true);
+                          requestPermissions();
+                          // Restart the activity to continue normal flow
+                          recreate();
+                      })
+                      .setNegativeButton(getString(R.string.decline_privacy), (dialog, which) -> {
+                          finish();
+                      })
+                      .setNeutralButton(getString(R.string.privacy_policy_action), (dialog, which) -> {
+                          Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.privacy_policy_url)));
+                          startActivity(intent);
+                          showPrivacyPolicyDialog(); // Show dialog again after viewing policy
+                      })
+                      .setCancelable(false)
+                      .show();
+              }
+              
               @Override
               protected void onDestroy() {
                   if (webView != null) {
@@ -710,6 +762,15 @@ jobs:
           <resources>
               <string name="app_name">GTLingua Translator</string>
               <string name="app_description">AI-powered translation with Deepgram voice recognition</string>
+              
+              <!-- Privacy Policy Compliance Strings -->
+              <string name="privacy_policy_title">Privacy Policy</string>
+              <string name="privacy_policy_url">https://linguagt.com/privacy</string>
+              <string name="privacy_policy_notice">This app processes audio data for translation. By using this app, you agree to our Privacy Policy available at linguagt.com/privacy</string>
+              <string name="data_collection_notice">We collect voice recordings only for translation purposes and do not store personal data without consent.</string>
+              <string name="privacy_policy_action">View Privacy Policy</string>
+              <string name="accept_privacy">Accept</string>
+              <string name="decline_privacy">Decline</string>
           </resources>
           EOF
           
