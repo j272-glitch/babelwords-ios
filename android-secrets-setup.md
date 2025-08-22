@@ -1,6 +1,6 @@
 # Android Signing Secrets Setup
 
-Based on the newly generated `release.keystore` (August 22, 2025), here are the exact secret values to add to your environment:
+Based on the production `release.keystore` with enhanced security (August 22, 2025), here are the exact secret values to add to your environment:
 
 ## Secret Values
 
@@ -9,17 +9,17 @@ Based on the newly generated `release.keystore` (August 22, 2025), here are the 
 
 ### ANDROID_KEYSTORE_PASSWORD
 ```
-gtlingua123
+gtlingua2025secure
 ```
 
 ### ANDROID_KEY_ALIAS
 ```
-your-key-alias
+linguagt-release-key
 ```
 
 ### ANDROID_KEY_PASSWORD
 ```
-gtlingua123
+gtlingua2025secure
 ```
 
 ## Setup Instructions
@@ -31,10 +31,11 @@ gtlingua123
 
 ## Keystore Information
 
-- **Algorithm**: RSA 2048-bit
-- **Validity**: ~27 years (until 2053)
-- **Certificate**: Self-signed for GTLingua app
-- **Organization**: LinguaLink Development
+- **Algorithm**: RSA 2048-bit with SHA384withRSA
+- **Validity**: 68+ years (25,000 days until 2093)
+- **Certificate**: Self-signed for LinguaGT app
+- **Organization**: GTLingua Development, San Francisco, CA
+- **SHA-256 Fingerprint**: `38:5B:F1:BD:AF:F9:57:B9:62:77:C8:19:3F:02:80:F8:B0:3A:16:DA:7B:98:10:BC:90:2F:CC:45:92:D3:95:D6`
 
 ## Security Notes
 

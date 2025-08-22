@@ -36,15 +36,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Android Signing Configuration
 
-### Release Keystore (Updated August 22, 2025)
-- **Keystore File**: `release.keystore` (newly generated with RSA 2048-bit encryption)
-- **Validity**: 27+ years (10,000 days from August 2025)
-- **Alias**: `your-key-alias`
-- **Organization**: GTLingua Development / LinguaLink
-- **Passwords**: Store and key both use `gtlingua123`
+### Release Keystore (Production - August 22, 2025)
+- **Keystore File**: `release.keystore` (production-grade with enhanced security)
+- **Validity**: 68+ years (25,000 days) - long-term stability
+- **Alias**: `linguagt-release-key` (official LinguaGT release key)
+- **Organization**: GTLingua Development, San Francisco, California, US
+- **Passwords**: Store and key both use `gtlingua2025secure` (enhanced security)
 - **Base64 File**: `keystore.base64.txt` (3.8 KB) ready for GitHub secrets
 - **Required Secrets**: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
-- **SHA-256 Fingerprint**: `87:E7:F8:A7:54:55:A5:61:94:AF:B4:65:67:04:7B:FE:C1:21:4D:6A:B7:FB:18:5A:AD:77:30:EE:6C:EC:DF:58`
+- **SHA-256 Fingerprint**: `38:5B:F1:BD:AF:F9:57:B9:62:77:C8:19:3F:02:80:F8:B0:3A:16:DA:7B:98:10:BC:90:2F:CC:45:92:D3:95:D6`
 
 ## External Dependencies
 
