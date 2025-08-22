@@ -506,7 +506,7 @@ jobs:
                   <!-- Google Play Store Privacy Policy Compliance -->
                   <meta-data
                       android:name="privacy_policy_url"
-                      android:value="https://linguagt.com/privacy" />
+                      android:value="https://linguagt.com/policy" />
                   
                   <!-- Data collection and sharing disclosure -->
                   <meta-data
@@ -634,6 +634,9 @@ jobs:
                       public void onPageFinished(WebView view, String url) {
                           super.onPageFinished(view, url);
                           Log.d(TAG, "Page loaded: " + url);
+                          
+                          // Inject privacy policy banner for Google Play Store compliance
+                          injectPrivacyPolicyBanner(view);
                       }
                   });
                   
@@ -740,6 +743,55 @@ jobs:
                       .show();
               }
               
+              private void injectPrivacyPolicyBanner(WebView webView) {
+                  // JavaScript to inject privacy policy banner into the web app
+                  String privacyScript = 
+                      "javascript:(function() {" +
+                      "  if (document.getElementById('android-privacy-banner')) return;" +
+                      "  " +
+                      "  var banner = document.createElement('div');" +
+                      "  banner.id = 'android-privacy-banner';" +
+                      "  banner.style.cssText = '" +
+                      "    position: fixed;" +
+                      "    top: 0;" +
+                      "    left: 0;" +
+                      "    right: 0;" +
+                      "    background: linear-gradient(135deg, #4F46E5, #7C3AED);" +
+                      "    color: white;" +
+                      "    padding: 8px 16px;" +
+                      "    font-size: 12px;" +
+                      "    text-align: center;" +
+                      "    z-index: 10000;" +
+                      "    box-shadow: 0 2px 4px rgba(0,0,0,0.1);';" +
+                      "  " +
+                      "  banner.innerHTML = '" +
+                      "    <div style=\"display: flex; align-items: center; justify-content: space-between; max-width: 800px; margin: 0 auto;\">" +
+                      "      <span style=\"flex: 1; margin-right: 10px;\">🔒 This app processes audio for translation. We respect your privacy.</span>" +
+                      "      <a href=\"https://linguagt.com/policy\" target=\"_blank\" style=\"color: #FCD34D; text-decoration: underline; margin-right: 10px;\">Privacy Policy</a>" +
+                      "      <button onclick=\"this.parentElement.parentElement.remove()\" style=\"background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer;\">×</button>" +
+                      "    </div>';" +
+                      "  " +
+                      "  document.body.insertBefore(banner, document.body.firstChild);" +
+                      "  " +
+                      "  // Adjust body padding to accommodate banner" +
+                      "  if (document.body.style.paddingTop === '') {" +
+                      "    document.body.style.paddingTop = '40px';" +
+                      "  }" +
+                      "  " +
+                      "  // Auto-hide banner after 10 seconds" +
+                      "  setTimeout(function() {" +
+                      "    var banner = document.getElementById('android-privacy-banner');" +
+                      "    if (banner) {" +
+                      "      banner.style.opacity = '0';" +
+                      "      banner.style.transition = 'opacity 0.5s ease';" +
+                      "      setTimeout(function() { banner.remove(); }, 500);" +
+                      "    }" +
+                      "  }, 10000);" +
+                      "})()";
+                  
+                  webView.evaluateJavascript(privacyScript, null);
+              }
+              
               @Override
               protected void onDestroy() {
                   if (webView != null) {
@@ -765,12 +817,17 @@ jobs:
               
               <!-- Privacy Policy Compliance Strings -->
               <string name="privacy_policy_title">Privacy Policy</string>
-              <string name="privacy_policy_url">https://linguagt.com/privacy</string>
-              <string name="privacy_policy_notice">This app processes audio data for translation. By using this app, you agree to our Privacy Policy available at linguagt.com/privacy</string>
+              <string name="privacy_policy_url">https://linguagt.com/policy</string>
+              <string name="privacy_policy_notice">This app processes audio data for translation. By using this app, you agree to our Privacy Policy available at linguagt.com/policy</string>
               <string name="data_collection_notice">We collect voice recordings only for translation purposes and do not store personal data without consent.</string>
               <string name="privacy_policy_action">View Privacy Policy</string>
               <string name="accept_privacy">Accept</string>
               <string name="decline_privacy">Decline</string>
+              
+              <!-- Web Privacy Integration -->
+              <string name="web_privacy_banner">🔒 This app processes audio for translation. We respect your privacy.</string>
+              <string name="web_privacy_link">Privacy Policy</string>
+              <string name="web_privacy_close">×</string>
           </resources>
           EOF
           

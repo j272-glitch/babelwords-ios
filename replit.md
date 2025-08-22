@@ -11,8 +11,9 @@ Preferred communication style: Simple, everyday language.
 ## Recent Changes (August 22, 2025)
 
 - **Privacy Policy Integration**: Added Google Play Store compliant privacy policy system
-  - Privacy policy URL: https://linguagt.com/privacy
+  - Privacy policy URL: https://linguagt.com/policy (corrected URL)
   - First-run privacy acceptance dialog with direct link to full policy
+  - Web app privacy banner injection via JavaScript
   - SharedPreferences storage for user consent
   - Required consent before app functionality activation
 - **Enhanced Security**: Updated keystore with 68+ year validity (linguagt-release-key)
