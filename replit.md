@@ -21,6 +21,7 @@ Preferred communication style: Simple, everyday language.
 - **Release APK**: Successfully extracted LinguaGT-Release-v2.0.0.apk (4.3 MB) ready for deployment
 - **Release AAB**: Successfully extracted LinguaGT-Release-v2.0.0.aab (4.0 MB) optimized for Play Store
 - **Dual Release Format**: Both APK (direct install) and AAB (Play Store) available for deployment
+- **Enhanced Workflow v2**: Saved linguagt-v2.yml with advanced features including dynamic versioning, build caching, and automated GitHub releases
 
 ## System Architecture
 
