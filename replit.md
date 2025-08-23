@@ -19,7 +19,8 @@ Preferred communication style: Simple, everyday language.
 - **Enhanced Security**: Updated keystore with 68+ year validity (linguagt-release-key)
 - **Version Management**: Updated workflow to version 2.0.0 for Google Play Console compatibility
 - **Release APK**: Successfully extracted LinguaGT-Release-v2.0.0.apk (4.3 MB) ready for deployment
-- **AAB Releases**: Latest v1.0.2 (4.1 MB) includes significant feature enhancements
+- **Release AAB**: Successfully extracted LinguaGT-Release-v2.0.0.aab (4.0 MB) optimized for Play Store
+- **Dual Release Format**: Both APK (direct install) and AAB (Play Store) available for deployment
 
 ## System Architecture
 
