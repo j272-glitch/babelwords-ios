@@ -1,0 +1,152 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+        // Backup Maven repository for older/stable versions
+        maven { url 'https://maven.google.com' }
+    }
+
+    // CRITICAL: Force specific plugin versions to avoid auto-updates that break TestRigor
+    resolutionStrategy {
+        eachPlugin {
+            // Force Android Gradle Plugin to 8.0.2 (avoid 8.1.x which causes manifest issues)
+            if (requested.id.id == "com.android.application" || 
+                requested.id.id == "com.android.library" ||
+                requested.id.id.startsWith("com.android.")) {
+                useModule("com.android.tools.build:gradle:8.0.2")
+            }
+
+            // Pin Kotlin plugin version
+            if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
+                useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.8.10")
+            }
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    // Change from FAIL_ON_PROJECT_REPOS to PREFER_SETTINGS for more flexibility
+    // This allows individual modules to add repositories if needed
+    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+
+        // Additional repositories for compatibility
+        maven { url 'https://maven.google.com' }
+        maven { url 'https://jitpack.io' }
+
+        // Repository for Android components
+        maven { 
+            url 'https://dl.google.com/dl/android/maven2/'
+            content {
+                includeGroupByRegex "com\\.android.*"
+                includeGroupByRegex "androidx.*"
+                includeGroupByRegex "com\\.google.*"
+            }
+        }
+    }
+
+    // Version catalog for consistent dependency management
+    versionCatalogs {
+        create("libs") {
+            // Core versions - using stable versions known to work
+            version("agp", "8.0.2")  // CRITICAL: Don't use 8.1.x or higher
+            version("kotlin", "1.8.10")
+            version("gradle", "8.0")
+
+            // AndroidX versions
+            version("androidx-core", "1.9.0")
+            version("androidx-appcompat", "1.6.1")
+            version("androidx-activity", "1.6.1")
+            version("androidx-webkit", "1.5.0")
+            version("androidx-multidex", "2.0.1")
+            version("material", "1.9.0")
+
+            // Build tools
+            version("buildTools", "34.0.0")
+            version("compileSdk", "34")
+            version("minSdk", "21")
+            version("targetSdk", "34")
+
+            // Library declarations
+            library("androidx-core-ktx", "androidx.core", "core-ktx").versionRef("androidx-core")
+            library("androidx-appcompat", "androidx.appcompat", "appcompat").versionRef("androidx-appcompat")
+            library("androidx-activity-ktx", "androidx.activity", "activity-ktx").versionRef("androidx-activity")
+            library("androidx-webkit", "androidx.webkit", "webkit").versionRef("androidx-webkit")
+            library("androidx-multidex", "androidx.multidex", "multidex").versionRef("androidx-multidex")
+            library("material", "com.google.android.material", "material").versionRef("material")
+
+            // Plugin declarations
+            plugin("android-application", "com.android.application").versionRef("agp")
+            plugin("android-library", "com.android.library").versionRef("agp")
+            plugin("kotlin-android", "org.jetbrains.kotlin.android").versionRef("kotlin")
+        }
+    }
+}
+
+rootProject.name = "LinguaLink"
+include ':app'
+
+// Feature flags and optimizations
+// IMPORTANT: These settings help prevent the manifest corruption issue
+
+// Enable configuration cache for faster builds (disable if causing issues)
+enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
+
+// Enable type-safe project accessors
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
+// Gradle properties that affect all builds
+gradle.beforeSettings { settings ->
+    // Set Gradle properties programmatically
+    settings.gradle.startParameter.projectProperties.put("android.useAndroidX", "true")
+    settings.gradle.startParameter.projectProperties.put("android.enableJetifier", "true")
+
+    // CRITICAL: Disable optimizations that cause manifest issues
+    settings.gradle.startParameter.projectProperties.put("android.enableResourceOptimizations", "false")
+    settings.gradle.startParameter.projectProperties.put("android.useLegacyPackaging", "true")
+    settings.gradle.startParameter.projectProperties.put("android.enableDexingArtifactTransform", "false")
+    settings.gradle.startParameter.projectProperties.put("android.enableR8.fullMode", "false")
+    settings.gradle.startParameter.projectProperties.put("android.disableResourceValidation", "true")
+}
+
+// Apply default configuration to all projects
+gradle.beforeProject { project ->
+    // Set default build features to prevent manifest issues
+    project.ext.set("android.defaults.buildfeatures.buildconfig", "true")
+    project.ext.set("android.defaults.buildfeatures.aidl", "false")
+    project.ext.set("android.defaults.buildfeatures.renderscript", "false")
+    project.ext.set("android.defaults.buildfeatures.resvalues", "true")
+    project.ext.set("android.defaults.buildfeatures.shaders", "false")
+
+    // Force legacy packaging for all modules
+    project.ext.set("android.packagingOptions.dex.useLegacyPackaging", "true")
+
+    // Disable problematic optimizations
+    project.ext.set("android.experimental.enableNewResourceShrinker", "false")
+    project.ext.set("android.enableResourceOptimizations", "false")
+    project.ext.set("android.enableNewResourceShrinker", "false")
+}
+
+// Validation task
+gradle.projectsEvaluated {
+    if (gradle.rootProject.tasks.findByName("validateTestRigorSetup") == null) {
+        gradle.rootProject.tasks.register("validateTestRigorSetup") {
+            doLast {
+                println "======================================"
+                println "TestRigor Compatibility Configuration:"
+                println "======================================"
+                println "✓ AGP forced to version 8.0.2"
+                println "✓ Resource optimizations disabled"
+                println "✓ Legacy packaging enabled"
+                println "✓ Binary XML optimizations disabled"
+                println "✓ Repository mode set to PREFER_SETTINGS"
+                println "======================================"
+            }
+        }
+    }
+}
