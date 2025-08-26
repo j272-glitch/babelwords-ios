@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">LinguaLink</string>
-    <string name="permission_required">Permission Required</string>
-    <string name="microphone_permission_rationale">This app needs microphone permission for speech translation.</string>
-</resources>
