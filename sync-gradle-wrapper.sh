@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 REPO_DIR="lingualink-android2"
-SOURCE_WRAPPER="gradle/wrapper/gradle-wrapper-shared-8.9_1756176380265.jar"
+SOURCE_WRAPPER="gradle/wrapper/gradle-wrapper.jar"
 TARGET_WRAPPER_DIR="${REPO_DIR}/gradle/wrapper"
 COMMIT_MESSAGE="Update gradle-wrapper to version 8.9 for TestRigor compatibility"
 
@@ -62,23 +62,17 @@ mkdir -p gradle/wrapper
 echo -e "${GREEN}✓ Directory ensured: gradle/wrapper${NC}"
 
 echo -e "\n${BLUE}Step 7: Copying gradle-wrapper file...${NC}"
-cp "../$SOURCE_WRAPPER" gradle/wrapper/
-echo -e "${GREEN}✓ Copied: $SOURCE_WRAPPER → gradle/wrapper/${NC}"
-
-# Also copy as standard gradle-wrapper.jar name for compatibility
 cp "../$SOURCE_WRAPPER" gradle/wrapper/gradle-wrapper.jar
-echo -e "${GREEN}✓ Copied as: gradle-wrapper.jar${NC}"
+echo -e "${GREEN}✓ Copied: $SOURCE_WRAPPER → gradle/wrapper/gradle-wrapper.jar${NC}"
 
 echo -e "\n${BLUE}Step 8: Checking file sizes...${NC}"
 echo "Source file size: $(ls -lh "../$SOURCE_WRAPPER" | awk '{print $5}')"
-echo "Target file size: $(ls -lh gradle/wrapper/gradle-wrapper-shared-8.9_1756176380265.jar | awk '{print $5}')"
-echo "Standard wrapper size: $(ls -lh gradle/wrapper/gradle-wrapper.jar | awk '{print $5}')"
+echo "Target file size: $(ls -lh gradle/wrapper/gradle-wrapper.jar | awk '{print $5}')"
 
 echo -e "\n${BLUE}Step 9: Checking git status...${NC}"
 git status --porcelain
 
 echo -e "\n${BLUE}Step 10: Adding files to git...${NC}"
-git add gradle/wrapper/gradle-wrapper-shared-8.9_1756176380265.jar
 git add gradle/wrapper/gradle-wrapper.jar
 git add gradle/wrapper/gradle-wrapper.properties  # In case it was updated
 echo -e "${GREEN}✓ Files added to git staging${NC}"
@@ -121,5 +115,4 @@ echo "- Source: $SOURCE_WRAPPER"
 echo "- Target: $TARGET_WRAPPER_DIR"
 echo "- Commit: $COMMIT_MESSAGE"
 echo ""
-echo "The gradle-wrapper has been synced to the lingualink-android2 repository."
-echo "Both the versioned file and standard gradle-wrapper.jar have been updated."
+echo "The gradle-wrapper.jar has been synced to the lingualink-android2 repository."
