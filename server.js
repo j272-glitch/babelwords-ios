@@ -128,9 +128,14 @@ app.get('/policy', (req, res) => {
     `);
 });
 
-// Main route
+// Main route - Serve LinguaLink Ad
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'lingualink-ad.html'));
+});
+
+// Also serve ad directly
+app.get('/ad', (req, res) => {
+    res.sendFile(path.join(__dirname, 'lingualink-ad.html'));
 });
 
 app.listen(PORT, '0.0.0.0', () => {
