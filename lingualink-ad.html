@@ -595,11 +595,26 @@
             new LinguaLinkAd();
         });
 
-        // Add keyboard controls for testing
+        // Add keyboard controls for recording
         document.addEventListener('keydown', (e) => {
             if (e.key === 'r' || e.key === 'R') {
                 location.reload();
             }
+            if (e.key === 's' || e.key === 'S') {
+                // Start recording indicator
+                document.body.style.border = '5px solid #ff0000';
+                setTimeout(() => {
+                    document.body.style.border = 'none';
+                }, 1000);
+            }
+        });
+
+        // Add recording helper
+        window.addEventListener('load', () => {
+            console.log('🎬 LinguaLink Ad Ready for Recording!');
+            console.log('📹 Press S to mark recording start');
+            console.log('⏰ Ad duration: exactly 90 seconds');
+            console.log('🎯 Resolution: Optimized for 1080p');
         });
     </script>
 </body>
