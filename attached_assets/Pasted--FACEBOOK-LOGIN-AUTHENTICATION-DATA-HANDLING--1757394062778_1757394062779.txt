@@ -1,0 +1,463 @@
+// ============================================
+// FACEBOOK LOGIN AUTHENTICATION & DATA HANDLING
+// ============================================
+// Complete implementation for GDPR-compliant Facebook OAuth
+
+const express = require('express');
+const passport = require('passport');
+const FacebookStrategy = require('passport-facebook').Strategy;
+const Database = require('@replit/database');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+const db = new Database();
+
+// ============================================
+// 1. FACEBOOK STRATEGY CONFIGURATION
+// ============================================
+
+passport.use(new FacebookStrategy({
+  clientID: process.env.FACEBOOK_APP_ID,
+  clientSecret: process.env.FACEBOOK_APP_SECRET,
+  callbackURL: "/auth/facebook/callback",
+  
+  // Specify exactly what fields you want
+  profileFields: [
+    'id',           // Facebook ID (always included)
+    'emails',       // Email address
+    'name',         // First and last name
+    'displayName',  // Full display name
+    'photos'        // Profile picture
+  ],
+  
+  // Request minimal permissions
+  scope: ['email', 'public_profile'],
+  
+  // Enable proof for better security
+  enableProof: true
+  
+}, async function(accessToken, refreshToken, profile, done) {
+  try {
+    // ============================================
+    // 2. HANDLE USER DATA FROM FACEBOOK
+    // ============================================
+    
+    // Extract only necessary data (GDPR data minimization)
+    const userData = {
+      facebookId: profile.id,
+      email: profile.emails?.[0]?.value || null,
+      firstName: profile.name?.givenName || '',
+      lastName: profile.name?.familyName || '',
+      displayName: profile.displayName || '',
+      profilePicture: profile.photos?.[0]?.value || null,
+      provider: 'facebook'
+    };
+    
+    // Check if email was provided (user can decline)
+    if (!userData.email) {
+      // Handle case where user declined email permission
+      userData.email = `facebook_${profile.id}@private.user`;
+      userData.emailVerified = false;
+    } else {
+      userData.emailVerified = true;
+    }
+    
+    // ============================================
+    // 3. CREATE OR UPDATE USER IN DATABASE
+    // ============================================
+    
+    const userId = `facebook_${profile.id}`;
+    let existingUser = await db.get(`user_${userId}`);
+    
+    if (existingUser) {
+      // Update existing user
+      existingUser = {
+        ...existingUser,
+        lastLogin: new Date().toISOString(),
+        loginCount: (existingUser.loginCount || 0) + 1,
+        lastLoginProvider: 'facebook'
+      };
+      
+      await db.set(`user_${userId}`, existingUser);
+      
+      // Log authentication event
+      await logAuthEvent(userId, 'facebook', 'login');
+      
+      return done(null, existingUser);
+      
+    } else {
+      // Create new user with GDPR compliance
+      const newUser = {
+        id: userId,
+        ...userData,
+        
+        // GDPR consent (must be explicitly given)
+        consent: {
+          dataProcessing: false,  // Will be set true after consent screen
+          marketing: false,
+          analytics: false,
+          timestamp: null,
+          ipAddress: null,
+          version: null
+        },
+        
+        // Account metadata
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        loginCount: 1,
+        
+        // GDPR rights
+        gdprRights: {
+          dataExportRequested: false,
+          dataExportedAt: null,
+          dataDeletionRequested: false,
+          dataDeletionScheduled: null
+        }
+      };
+      
+      await db.set(`user_${userId}`, newUser);
+      
+      // Store tokens separately (encrypted in production)
+      await storeTokensSecurely(userId, accessToken, refreshToken);
+      
+      // Log authentication event
+      await logAuthEvent(userId, 'facebook', 'signup');
+      
+      return done(null, newUser);
+    }
+    
+  } catch (error) {
+    console.error('Facebook authentication error:', error);
+    return done(error, null);
+  }
+}));
+
+// ============================================
+// 4. AUTHENTICATION ROUTES
+// ============================================
+
+// Initiate Facebook authentication
+app.get('/auth/facebook', (req, res, next) => {
+  // Store where user came from (for redirect after auth)
+  req.session.returnTo = req.query.returnTo || '/dashboard';
+  
+  passport.authenticate('facebook', {
+    scope: ['email', 'public_profile'],
+    authType: 'rerequest'  // Re-request permissions if previously declined
+  })(req, res, next);
+});
+
+// Handle Facebook callback
+app.get('/auth/facebook/callback',
+  passport.authenticate('facebook', { 
+    failureRedirect: '/login?error=facebook_auth_failed',
+    failureMessage: true
+  }),
+  async (req, res) => {
+    // Check if user has given GDPR consent
+    if (!req.user.consent.dataProcessing) {
+      // Redirect to consent screen for new users
+      return res.redirect('/consent?provider=facebook');
+    }
+    
+    // Generate JWT token for session
+    const token = generateJWT(req.user);
+    
+    // Set secure cookie
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    });
+    
+    // Redirect to original destination or dashboard
+    const returnTo = req.session.returnTo || '/dashboard';
+    delete req.session.returnTo;
+    res.redirect(returnTo);
+  }
+);
+
+// ============================================
+// 5. HANDLE DECLINED PERMISSIONS
+// ============================================
+
+app.get('/auth/facebook/reauthorize', (req, res) => {
+  // Re-request permissions if user previously declined
+  passport.authenticate('facebook', {
+    authType: 'rerequest',
+    scope: ['email', 'public_profile']
+  })(req, res);
+});
+
+// ============================================
+// 6. GDPR CONSENT HANDLING
+// ============================================
+
+app.post('/consent', ensureAuthenticated, async (req, res) => {
+  const { dataProcessing, marketing, analytics } = req.body;
+  
+  if (!dataProcessing) {
+    // Cannot use service without basic consent
+    await deleteUserData(req.user.id);
+    return res.redirect('/consent-required');
+  }
+  
+  // Update user consent
+  const user = await db.get(`user_${req.user.id}`);
+  
+  user.consent = {
+    dataProcessing: true,
+    marketing: !!marketing,
+    analytics: !!analytics,
+    timestamp: new Date().toISOString(),
+    ipAddress: hashIP(req.ip),  // Hash IP for privacy
+    version: '1.0'  // Privacy policy version
+  };
+  
+  await db.set(`user_${req.user.id}`, user);
+  
+  // Log consent
+  await logConsentEvent(req.user.id, user.consent);
+  
+  res.redirect('/dashboard');
+});
+
+// ============================================
+// 7. USER DATA ACCESS & MANAGEMENT
+// ============================================
+
+// Get user profile data
+app.get('/api/user/profile', ensureAuthenticated, async (req, res) => {
+  const user = await db.get(`user_${req.user.id}`);
+  
+  // Return only non-sensitive data
+  const publicProfile = {
+    displayName: user.displayName,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    profilePicture: user.profilePicture,
+    email: user.emailVerified ? user.email : 'Email not verified',
+    provider: user.provider,
+    createdAt: user.createdAt,
+    consent: user.consent
+  };
+  
+  res.json(publicProfile);
+});
+
+// Update user preferences
+app.put('/api/user/preferences', ensureAuthenticated, async (req, res) => {
+  const { notifications, language } = req.body;
+  
+  const user = await db.get(`user_${req.user.id}`);
+  
+  user.preferences = {
+    ...user.preferences,
+    notifications,
+    language
+  };
+  
+  await db.set(`user_${req.user.id}`, user);
+  
+  res.json({ success: true });
+});
+
+// ============================================
+// 8. GDPR DATA EXPORT & DELETION
+// ============================================
+
+// Export all user data (GDPR right to data portability)
+app.post('/api/gdpr/export', ensureAuthenticated, async (req, res) => {
+  const userId = req.user.id;
+  
+  // Collect all user data
+  const userData = await db.get(`user_${userId}`);
+  const authLogs = await db.get(`auth_logs_${userId}`);
+  const consentLogs = await db.get(`consent_logs_${userId}`);
+  
+  const exportData = {
+    exportDate: new Date().toISOString(),
+    userData,
+    authenticationHistory: authLogs,
+    consentHistory: consentLogs
+  };
+  
+  // Mark export as completed
+  userData.gdprRights.dataExportRequested = true;
+  userData.gdprRights.dataExportedAt = new Date().toISOString();
+  await db.set(`user_${userId}`, userData);
+  
+  // Send as downloadable JSON
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', 'attachment; filename="my-facebook-data.json"');
+  res.send(JSON.stringify(exportData, null, 2));
+});
+
+// Delete all user data (GDPR right to erasure)
+app.post('/api/gdpr/delete', ensureAuthenticated, async (req, res) => {
+  const userId = req.user.id;
+  
+  // Schedule deletion (can have grace period)
+  const user = await db.get(`user_${userId}`);
+  user.gdprRights.dataDeletionRequested = true;
+  user.gdprRights.dataDeletionScheduled = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  
+  await db.set(`user_${userId}`, user);
+  
+  // Or delete immediately
+  if (req.body.immediate) {
+    await deleteUserData(userId);
+    req.logout(() => {
+      res.json({ message: 'Account deleted successfully' });
+    });
+  } else {
+    res.json({ 
+      message: 'Account scheduled for deletion',
+      deleteDate: user.gdprRights.dataDeletionScheduled
+    });
+  }
+});
+
+// ============================================
+// 9. HELPER FUNCTIONS
+// ============================================
+
+// Generate JWT token
+function generateJWT(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      provider: user.provider
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+}
+
+// Store tokens securely (encrypt in production)
+async function storeTokensSecurely(userId, accessToken, refreshToken) {
+  const encryptedTokens = {
+    accessToken: Buffer.from(accessToken).toString('base64'), // Use proper encryption in production
+    refreshToken: refreshToken ? Buffer.from(refreshToken).toString('base64') : null,
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+  };
+  
+  await db.set(`tokens_${userId}`, encryptedTokens);
+}
+
+// Log authentication events
+async function logAuthEvent(userId, provider, eventType) {
+  const logs = (await db.get(`auth_logs_${userId}`)) || [];
+  
+  logs.push({
+    timestamp: new Date().toISOString(),
+    provider,
+    eventType,
+    success: true
+  });
+  
+  // Keep only last 100 events
+  if (logs.length > 100) {
+    logs.shift();
+  }
+  
+  await db.set(`auth_logs_${userId}`, logs);
+}
+
+// Log consent events
+async function logConsentEvent(userId, consent) {
+  const logs = (await db.get(`consent_logs_${userId}`)) || [];
+  
+  logs.push({
+    timestamp: new Date().toISOString(),
+    consent,
+    action: 'consent_given'
+  });
+  
+  await db.set(`consent_logs_${userId}`, logs);
+}
+
+// Delete all user data
+async function deleteUserData(userId) {
+  // Delete all user-related keys
+  const keysToDelete = [
+    `user_${userId}`,
+    `tokens_${userId}`,
+    `auth_logs_${userId}`,
+    `consent_logs_${userId}`
+  ];
+  
+  for (const key of keysToDelete) {
+    await db.delete(key);
+  }
+}
+
+// Hash IP address for privacy
+function hashIP(ip) {
+  const crypto = require('crypto');
+  return crypto.createHash('sha256').update(ip || 'unknown').digest('hex');
+}
+
+// Middleware to ensure user is authenticated
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.redirect('/login');
+}
+
+// ============================================
+// 10. ERROR HANDLING
+// ============================================
+
+// Handle Facebook authentication errors
+app.use((err, req, res, next) => {
+  if (err.name === 'FacebookAuthorizationError') {
+    // User denied authorization
+    return res.redirect('/login?error=facebook_denied');
+  }
+  
+  if (err.name === 'FacebookTokenError') {
+    // Token expired or invalid
+    return res.redirect('/auth/facebook');
+  }
+  
+  console.error('Authentication error:', err);
+  res.redirect('/login?error=auth_error');
+});
+
+// ============================================
+// FRONTEND INTEGRATION EXAMPLE
+// ============================================
+
+/*
+<!-- In your login.ejs -->
+<button onclick="loginWithFacebook()" class="facebook-login-btn">
+  <i class="fab fa-facebook"></i>
+  Continue with Facebook
+</button>
+
+<script>
+function loginWithFacebook() {
+  // Optional: Show loading state
+  document.querySelector('.facebook-login-btn').disabled = true;
+  
+  // Redirect to Facebook auth
+  window.location.href = '/auth/facebook';
+}
+
+// Handle errors from URL params
+const urlParams = new URLSearchParams(window.location.search);
+const error = urlParams.get('error');
+
+if (error === 'facebook_auth_failed') {
+  alert('Facebook authentication failed. Please try again.');
+} else if (error === 'facebook_denied') {
+  alert('You denied Facebook authorization.');
+}
+</script>
+*/
+
+module.exports = app;

@@ -1,0 +1,586 @@
+# Privacy Policy - LinguaLink
+
+**Effective Date: [Current Date]**  
+**Last Updated: [Current Date]**  
+**Version: 2.0**
+
+⚠️ **Important Update:** This privacy policy has been updated to include information about anonymous data sharing with advertising partners for revenue purposes. Please review Section 6.5 and Section 16.
+
+## 1. Introduction
+
+Welcome to LinguaLink ("we," "our," "us," or the "Service"). LinguaLink is committed to protecting your privacy and ensuring the security of your personal data in compliance with the General Data Protection Regulation (GDPR) (EU) 2016/679 and other applicable data protection laws.
+
+This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our authentication service and platform.
+
+**Service URL:** https://lingualink.repl.co  
+**Contact Email:** privacy@lingualink.com  
+**Data Protection Officer:** dpo@lingualink.com
+
+## 2. Data Controller Information
+
+**Data Controller:**  
+LinguaLink  
+[Your Company Name/Your Name]  
+[Your Address or "Address provided upon request"]  
+Email: privacy@lingualink.com  
+
+For GDPR purposes, we are the data controller of your personal information.
+
+## 3. Information We Collect
+
+### 3.1 Information Collected Through OAuth Authentication
+
+When you create an account using Single Sign-On (SSO) providers, we collect minimal information necessary for authentication:
+
+**From Google Sign-In:**
+- Name (first and last)
+- Email address
+- Google account ID
+- Profile picture URL (optional)
+
+**From X (Twitter) Sign-In:**
+- Display name
+- X username
+- X account ID
+- Email address (if permitted)
+- Profile picture URL (optional)
+
+**From Facebook Login:**
+- Name (first and last)
+- Facebook user ID
+- Email address (if permitted)
+- Profile picture URL (optional)
+
+**From Apple Sign In:**
+- Name (if shared)
+- Apple user identifier
+- Email address (may be relay email)
+
+### 3.2 Information Collected Automatically
+
+**Technical Information:**
+- IP address (pseudonymized through hashing)
+- Browser type and version
+- Operating system
+- Device type (mobile/desktop)
+- Authentication timestamps
+- Session identifiers
+- Device advertising identifier (anonymized)
+
+**Usage Data:**
+- Login frequency
+- Last login date and time
+- Authentication provider used
+- Account creation date
+- General usage patterns (anonymized)
+
+### 3.3 Information Shared with Advertising Partners (Anonymized)
+
+**We may share ONLY anonymized data with trusted advertising partners for revenue generation:**
+- Hashed user identifiers (cannot be traced back to you)
+- General demographic information (age range, country)
+- Device type and operating system
+- App usage patterns (anonymized)
+- No personally identifiable information (PII) is ever shared
+
+### 3.4 Consent and Preferences
+
+**Consent Records:**
+- Consent timestamp
+- Consent version
+- Specific permissions granted (including advertising consent)
+- IP address at time of consent (hashed)
+
+**User Preferences:**
+- Language preference
+- Notification settings
+- Privacy choices
+- Advertising preferences
+
+### 3.5 Information We Do NOT Collect or Share
+
+LinguaLink does NOT collect, access, or share with any third parties:
+- Your real name or email address with advertising partners
+- Social media posts or content
+- Friend lists or contacts
+- Private messages
+- Precise location data/GPS coordinates
+- Financial information
+- Health information
+- Political affiliations
+- Religious beliefs
+- Sexual orientation
+- Biometric data
+
+## 4. Legal Basis for Processing
+
+We process your personal data under the following legal bases according to GDPR Article 6:
+
+### 4.1 Consent (Article 6(1)(a))
+- Creating your account through OAuth providers
+- **Sharing anonymized data with advertising partners**
+- Marketing communications (if opted in)
+- Analytics data (if consented)
+
+### 4.2 Contract (Article 6(1)(b))
+- Providing authentication services
+- Managing your account
+- Delivering core functionality
+
+### 4.3 Legitimate Interests (Article 6(1)(f))
+- Ensuring platform security
+- Preventing fraud and abuse
+- Improving service performance
+- Maintaining free service through advertising revenue (with consent)
+
+### 4.4 Legal Obligation (Article 6(1)(c))
+- Complying with legal requirements
+- Responding to lawful requests
+
+## 5. Purpose of Data Processing
+
+We use your personal data for:
+
+**Essential Services:**
+- User authentication and authorization
+- Account creation and management
+- Session management
+- Password-less login functionality
+
+**Service Improvement:**
+- Technical troubleshooting
+- Service optimization
+- Security monitoring
+- Fraud prevention
+
+**Advertising and Revenue (with consent):**
+- Sharing anonymized data with advertising partners
+- Generating advertising revenue to keep the service free
+- Improving ad relevance (anonymized data only)
+- No personally identifiable information is used
+
+**Communication (with consent):**
+- Service updates and changes
+- Security notifications
+- Privacy policy updates
+- Response to user inquiries
+
+**Legal Compliance:**
+- Meeting regulatory requirements
+- Responding to legal processes
+- Protecting rights and property
+
+## 6. Data Sharing and Recipients
+
+### 6.1 OAuth Providers
+We interact with OAuth providers solely for authentication:
+- Google (Google OAuth 2.0)
+- X Corporation (X/Twitter OAuth 2.0)
+- Meta Platforms (Facebook Login)
+- Apple Inc. (Sign in with Apple)
+
+These providers receive only authentication requests. We do not share your LinguaLink activity or additional personal data with them.
+
+### 6.2 Infrastructure Providers
+- **Replit:** Hosting and infrastructure (data processing agreement in place)
+- **Replit Database:** Secure data storage
+
+### 6.3 Advertising Partners (With Your Consent)
+
+We may partner with carefully selected advertising networks to monetize our free service. Current partners are listed at: https://lingualink.repl.co/privacy/partners
+
+**What We May Share with Advertising Partners:**
+- **Anonymized user identifier** (hashed, cannot identify you)
+- **Device advertising ID** (you can reset this in device settings)
+- **General demographics** (country, language, age range if provided)
+- **Device information** (type, OS version, screen size)
+- **Anonymized usage data** (session frequency, feature usage)
+
+**What We NEVER Share with Advertising Partners:**
+- Your name, email, or any personally identifiable information
+- Your OAuth provider account details
+- Your social media content
+- Your contacts or friends
+- Your precise location
+- Any data you haven't consented to share
+
+**How Advertising Partners Use Data:**
+- Display relevant advertisements
+- Measure ad performance
+- Improve their advertising network
+- Comply with their own privacy obligations
+
+### 6.4 Data Anonymization Process
+
+Before sharing with any advertising partner, we:
+1. Remove all direct identifiers (name, email, etc.)
+2. Hash user IDs using SHA-256 (irreversible)
+3. Generalize demographic data (e.g., age 25 → age range 18-34)
+4. Aggregate data where possible
+5. Apply differential privacy techniques
+6. Ensure k-anonymity (grouping with similar users)
+
+### 6.5 We Never Share Data With:
+- Unauthorized third parties
+- Data brokers for resale purposes
+- Marketing companies (except approved advertising partners with consent)
+- Unknown or unvetted third parties
+
+### 6.6 Legal Disclosures
+We may disclose data only when:
+- Required by law
+- Responding to valid legal process
+- Protecting against imminent harm
+- With your explicit consent
+
+## 7. International Data Transfers
+
+Your data may be processed in countries outside the European Economic Area (EEA):
+
+**For Authentication Services:**
+- Standard Contractual Clauses (SCCs) with processors
+- Adequacy decisions where applicable
+
+**For Advertising Partners:**
+- Partners must comply with GDPR for EU users
+- Data is anonymized before any transfer
+- You can opt-out at any time
+- Partners must be certified under applicable privacy frameworks
+
+## 8. Data Retention
+
+We retain personal data only as long as necessary:
+
+| Data Category | Retention Period | Justification |
+|--------------|------------------|---------------|
+| Account Information | Duration of account + 30 days | Service provision |
+| Authentication Logs | 90 days | Security and debugging |
+| Consent Records | 3 years from consent | Legal requirement |
+| Deleted User Data | 30 days (recovery period) | User convenience |
+| Security Logs | 1 year | Fraud prevention |
+| Communication Records | 2 years | Legal compliance |
+| Anonymized Advertising Data | Indefinite (cannot identify you) | Already anonymized |
+| Advertising Consent | Until withdrawn + 3 years | Legal documentation |
+
+After retention periods expire, personal data is permanently and irreversibly deleted. Anonymized data may be retained indefinitely as it cannot identify you.
+
+## 9. Your Rights Under GDPR
+
+As a data subject, you have the following rights:
+
+### 9.1 Right to Access (Article 15)
+Request a copy of all personal data we hold about you, including information about our advertising partners.
+
+### 9.2 Right to Rectification (Article 16)
+Request correction of inaccurate or incomplete data.
+
+### 9.3 Right to Erasure (Article 17)
+Request deletion of your personal data ("right to be forgotten").
+
+### 9.4 Right to Restrict Processing (Article 18)
+Request we limit how we use your data.
+
+### 9.5 Right to Data Portability (Article 20)
+Receive your data in a structured, commonly used, machine-readable format.
+
+### 9.6 Right to Object (Article 21)
+Object to processing based on legitimate interests or direct marketing.
+**Special Note:** You can object to advertising data sharing at any time.
+
+### 9.7 Right to Withdraw Consent (Article 7)
+Withdraw previously given consent at any time, including advertising consent.
+
+### 9.8 Right Not to be Subject to Automated Decision-Making (Article 22)
+Not be subject to decisions based solely on automated processing.
+
+### 9.9 Right to Lodge a Complaint
+File a complaint with your local data protection authority.
+
+## 10. Exercising Your Rights
+
+### 10.1 Self-Service Options
+Access your privacy controls at: https://lingualink.repl.co/privacy
+
+- **Export Your Data:** Privacy Dashboard → Export Data (JSON format)
+- **Delete Your Account:** Privacy Dashboard → Delete Account
+- **Update Consent:** Privacy Dashboard → Manage Consent
+- **Opt-Out of Advertising:** Privacy Dashboard → Advertising Preferences → Disable
+- **View Advertising Partners:** Privacy Dashboard → Current Partners
+- **Correct Information:** Account Settings → Edit Profile
+
+### 10.2 Advertising Opt-Out Options
+
+**To opt-out of advertising partner data sharing:**
+1. **In LinguaLink:** Settings → Privacy → Advertising → Opt-Out
+2. **Device Level:** 
+   - iOS: Settings → Privacy → Advertising → Limit Ad Tracking
+   - Android: Settings → Google → Ads → Opt out of Ads Personalization
+3. **Industry Tools:** 
+   - EU: [Your Online Choices](http://www.youronlinechoices.eu/)
+   - US: [NAI Opt-Out](http://optout.networkadvertising.org/)
+   - Global: [Digital Advertising Alliance](http://optout.aboutads.info/)
+
+### 10.3 Contact Us
+Email: privacy@lingualink.com  
+Subject: "GDPR Request - [Specific Right]"  
+Response Time: Within 30 days (one month)
+
+### 10.4 Identity Verification
+We may request information to verify your identity before processing requests.
+
+## 11. Data Security Measures
+
+LinguaLink implements comprehensive security measures:
+
+### 11.1 Technical Measures
+- **Encryption:** TLS 1.3 for data in transit
+- **Secure Storage:** Encrypted database storage
+- **Anonymization:** Irreversible hashing before sharing with partners
+- **Access Control:** Role-based access restrictions
+- **Authentication:** OAuth 2.0/OpenID Connect standards
+- **Session Security:** Secure session tokens with expiration
+- **Password Protection:** No passwords stored (OAuth only)
+
+### 11.2 Organizational Measures
+- Privacy by design principles
+- Regular security audits
+- Employee data protection training
+- Incident response procedures
+- Data minimization practices
+- Privacy impact assessments
+- Data Processing Agreements with all partners
+
+### 11.3 Breach Notification
+In case of a data breach:
+- Notification to authorities within 72 hours
+- Notification to affected users without undue delay
+- Partner notification if their data affected
+- Documentation of breach and response
+
+## 12. Cookies Policy
+
+### 12.1 Essential Cookies
+We use strictly necessary cookies:
+
+| Cookie Name | Purpose | Duration |
+|------------|---------|----------|
+| session_id | Maintain user session | Session |
+| auth_token | Authentication state | 24 hours |
+| consent_given | Track consent status | 1 year |
+| csrf_token | Security protection | Session |
+| ad_consent | Advertising consent status | 1 year |
+
+### 12.2 Advertising Cookies (With Consent)
+If you consent to advertising:
+
+| Cookie Name | Purpose | Duration |
+|------------|---------|----------|
+| anon_ad_id | Anonymized identifier for advertising | 90 days |
+| ad_frequency | Frequency capping | 30 days |
+
+### 12.3 Third-Party Cookies
+OAuth providers and advertising partners may set their own cookies. Refer to their privacy policies:
+- [Google Privacy Policy](https://policies.google.com/privacy)
+- [X Privacy Policy](https://twitter.com/privacy)
+- [Facebook Privacy Policy](https://www.facebook.com/privacy/policy)
+- [Apple Privacy Policy](https://www.apple.com/legal/privacy/)
+- Current advertising partners: https://lingualink.repl.co/privacy/partners
+
+## 13. Children's Privacy
+
+LinguaLink is not intended for users under 16 years of age. We do not knowingly:
+- Collect personal data from children under 16
+- Share children's data with advertising partners
+- Display targeted advertising to children
+
+If we discover such collection, we will delete the data immediately.
+
+Parents/guardians who believe we have collected data from their child should contact us at privacy@lingualink.com.
+
+## 14. Consent Management
+
+### 14.1 Obtaining Consent
+We obtain explicit, informed consent through:
+- Clear consent checkboxes (not pre-ticked)
+- Granular consent options (separate for advertising)
+- Easy-to-understand language
+- Separate consent for different purposes
+
+### 14.2 Advertising Consent
+**Specific consent for advertising partner data sharing:**
+- Clearly explained during onboarding
+- Optional (service works without it)
+- Can be withdrawn at any time
+- Does not affect other service features
+- List of current partners always available
+
+### 14.3 Withdrawing Consent
+Withdraw consent anytime at: https://lingualink.repl.co/privacy/consent
+
+Withdrawal does not affect lawfulness of prior processing.
+
+## 15. Marketing Communications
+
+We send marketing communications only with explicit consent:
+- Product updates
+- New features
+- Privacy tips
+
+**Note:** Marketing communications are separate from advertising data sharing.
+
+**Unsubscribe:** Click unsubscribe link in any email or update preferences in Privacy Dashboard.
+
+## 16. Advertising and How We Keep LinguaLink Free
+
+### 16.1 Why We Use Advertising
+LinguaLink is a free service. To maintain this, we partner with selected advertising networks to generate revenue through anonymized data sharing. This allows us to:
+- Keep the service free for all users
+- Maintain and improve our infrastructure
+- Develop new features
+- Ensure security and reliability
+
+### 16.2 Your Control Over Advertising
+You have complete control:
+- **Opt-in required:** We only share data if you explicitly consent
+- **Opt-out anytime:** Disable in Privacy Settings instantly
+- **Use without ads:** Service fully functional without advertising consent
+- **No PII shared:** Only anonymized, non-identifiable data
+- **Transparency:** Current partners listed at https://lingualink.repl.co/privacy/partners
+
+### 16.3 Transparency Commitment
+We commit to:
+- Never sharing personally identifiable information
+- Being transparent about our advertising partnerships
+- Providing clear opt-out mechanisms
+- Respecting your privacy choices
+- Vetting all advertising partners for privacy compliance
+- Updating our partner list when changes occur
+
+### 16.4 Advertising Partner Requirements
+All our advertising partners must:
+- Comply with GDPR and applicable privacy laws
+- Sign data processing agreements
+- Use data only for agreed purposes
+- Implement appropriate security measures
+- Delete data upon request
+- Provide their own privacy policies
+
+## 17. Changes to This Policy
+
+We may update this Privacy Policy periodically. We will notify you of material changes via:
+- Email notification
+- Prominent notice on our Service
+- Consent request for significant changes (like new advertising partnerships)
+
+Continue using LinguaLink after changes indicates acceptance of updated policy.
+
+**Note:** Changes to advertising partnerships will be reflected in our partner list and may require renewed consent.
+
+## 18. Data Protection Officer
+
+For privacy concerns or questions:
+
+**Data Protection Officer**  
+Email: dpo@lingualink.com  
+Response time: 5 business days
+
+For advertising-specific concerns:
+Email: advertising-privacy@lingualink.com
+
+## 19. Supervisory Authority
+
+EU users may lodge complaints with their local supervisory authority. Find your authority at: https://edpb.europa.eu/about-edpb/board/members_en
+
+## 20. California Privacy Rights
+
+California residents have additional rights under CCPA, including the right to:
+- Know what personal information is collected
+- Know if personal information is sold or disclosed (we do not sell personal information)
+- Say no to the sale of personal information
+- Request deletion of personal information
+
+See our [California Privacy Notice] for details.
+
+## 21. Accessibility
+
+This Privacy Policy is available in:
+- Plain language format
+- Screen reader compatible format
+- Multiple languages (upon request)
+
+For accessible formats, email: accessibility@lingualink.com
+
+## 22. Contact Information
+
+**General Privacy Inquiries:**  
+Email: privacy@lingualink.com
+
+**Data Protection Officer:**  
+Email: dpo@lingualink.com
+
+**Advertising Privacy Concerns:**  
+Email: advertising-privacy@lingualink.com
+
+**Postal Address:**  
+LinguaLink Privacy Team  
+[Your Address]
+
+**Response Commitment:**  
+- Acknowledgment: 48 hours
+- Resolution: 30 days
+
+---
+
+## Appendix A: Glossary
+
+**Personal Data:** Any information relating to an identified or identifiable person  
+**Anonymized Data:** Data that cannot be used to identify a person  
+**Processing:** Any operation performed on personal data  
+**Data Controller:** Entity determining purposes and means of processing  
+**OAuth:** Open standard for authorization  
+**GDPR:** General Data Protection Regulation  
+**SSO:** Single Sign-On  
+**Advertising Partner:** Vetted third-party advertising networks that receive only anonymized data  
+**PII:** Personally Identifiable Information  
+
+## Appendix B: Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.0 | [Date] | Initial privacy policy |
+| 2.0 | [Current Date] | Added anonymized data sharing with advertising partners |
+
+## Appendix C: Advertising Partner Data Sharing Details
+
+**Data Categories Shared (All Anonymized):**
+1. **Device Information**
+   - Device type (phone/tablet)
+   - Operating system and version
+   - Screen resolution
+   - Language setting
+
+2. **Usage Information**
+   - Session frequency (daily/weekly/monthly user)
+   - Feature usage patterns (which OAuth providers used)
+   - General geographic region (country level only)
+
+3. **Identifiers**
+   - Hashed user ID (SHA-256, cannot be reversed)
+   - Advertising ID (resettable by user)
+
+**Data Security with Partners:**
+- Data Processing Agreement required
+- GDPR compliance mandatory
+- Regular security audits
+- Breach notification requirements
+- Clear data deletion procedures
+
+**Current Advertising Partners:**
+Visit https://lingualink.repl.co/privacy/partners for an up-to-date list of our advertising partners and their privacy policies.
+
+---
+
+**Last Review Date:** [Current Date]  
+**Next Review Date:** [Current Date + 6 months]
+
+© 2024 LinguaLink. All rights reserved.
