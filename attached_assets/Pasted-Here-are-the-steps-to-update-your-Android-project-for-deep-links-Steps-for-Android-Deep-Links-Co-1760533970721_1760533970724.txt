@@ -1,0 +1,56 @@
+Here are the steps to update your Android project for deep links:
+
+Steps for Android Deep Links Configuration
+1. Verify assetlinks.json is Accessible
+Your assetlinks.json is already configured at public/.well-known/assetlinks.json. Ensure it's accessible at:
+
+https://linguagt.com/.well-known/assetlinks.json
+The current configuration looks correct for package com.lingualink.test with your SHA-256 fingerprint.
+
+2. Update Capacitor Configuration for Android Deep Links
+capacitor.config.ts
+Add Android deep linking configuration
+3. Sync assetlinks.json Package Name
+Your assetlinks.json already uses com.lingualink.test - ensure this matches across all Android configurations.
+
+4. Add Intent Filters to AndroidManifest.xml
+When building your Android app, ensure the AndroidManifest.xml includes these intent filters:
+
+<activity android:name=".MainActivity" android:exported="true">
+    <!-- App Links for https://linguagt.com -->
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="linguagt.com" />
+    </intent-filter>
+    
+    <!-- Custom scheme fallback -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="linguagt" />
+    </intent-filter>
+</activity>
+5. Test Deep Links
+After deployment, test your deep links:
+
+curl -I https://linguagt.com/.well-known/assetlinks.json
+6. Handle Deep Link Routes in Your App
+Add a route handler in your app to process incoming deep links:
+
+client/src/lib/deep-link-handler.ts
+Add deep link handler
+7. Verify Configuration Consistency
+Ensure these match across all files:
+
+Package ID: com.lingualink.test
+Domain: linguagt.com
+SHA-256 Fingerprint: AA:98:C9:28:4C:69:D9:93:99:74:94:62:91:EE:6F:FF:12:DA:0A:8A:A0:57:94:3B:4E:C6:FC:C8:CD:1C:A4:D0
+8. Deploy and Verify
+After deployment, Android will automatically verify the association:
+
+App Links must be accessible at https://linguagt.com/.well-known/assetlinks.json
+Ensure HTTPS is working (no mixed content)
+The SHA-256 fingerprint must match your signing key
