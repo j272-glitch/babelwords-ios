@@ -40,15 +40,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep linking intent filter (optional) -->
+            <!-- App Links for https://linguagt.com -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="linguagt.com" />
+            </intent-filter>
+
+            <!-- Custom scheme fallback -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data 
-                    android:scheme="https"
-                    android:host="lingualink.com"
-                    android:pathPrefix="/translate" />
+                <data android:scheme="linguagt" />
             </intent-filter>
         </activity>
 
