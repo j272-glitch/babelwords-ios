@@ -4,8 +4,7 @@
   "target": {
     "namespace": "android_app",
     "package_name": "com.lingualink.translator",
-    "sha256_cert_fingerprints": [
-      "REPLACE_WITH_YOUR_SHA256_FINGERPRINT"
+    "
     ]
   }
 }]
