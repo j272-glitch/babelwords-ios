@@ -1,4 +1,5 @@
-package com.lingualink.translator
+
+package com.lingualink.linguagt
 
 import android.app.Application
 import android.util.Log
