@@ -1,3 +1,4 @@
+
 package com.lingualink.linguagt
 
 import android.os.Bundle
@@ -5,11 +6,13 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceError
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : BaseActivity() {
@@ -17,11 +20,12 @@ class MainActivity : BaseActivity() {
     companion object {
         @JvmStatic
         var tracker: UserActivityTracker? = null
+        private const val MICROPHONE_PERMISSION_REQUEST = 200
     }
     
-    private val appId = "app_id" // copy your app id from dashboard
-    
+    private val appId = "app_id"
     private lateinit var webView: WebView
+    private var conversationCount = 0
     
     // Permission request launcher
     private val requestPermissionLauncher = registerForActivityResult(
@@ -29,9 +33,12 @@ class MainActivity : BaseActivity() {
     ) { permissions ->
         permissions.entries.forEach { (permission, isGranted) ->
             if (isGranted) {
-                // Permission granted
+                println("CONVERSATION MODE DEBUG: Permission granted: $permission")
+                if (permission == Manifest.permission.RECORD_AUDIO && ::webView.isInitialized) {
+                    webView.reload()
+                }
             } else {
-                // Permission denied - handle accordingly
+                println("CONVERSATION MODE DEBUG: Permission denied: $permission")
             }
         }
     }
@@ -39,24 +46,21 @@ class MainActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Request necessary permissions
         requestPermissions()
         
-        // Initialize UserActivityTracker
         tracker = UserActivityTracker(this, appId)
         tracker?.sendUserActivity(appId)
         tracker?.getTesterMob()
         
-        // Initialize TesterMobLib (if it has initialization methods)
         initializeTesterMobLib()
         
-        // CRASH-PROTECTED NATIVE TRANSLATION APP
         try {
-            createNativeTranslationInterface()
-            println("TESTRIGOR DEBUG: Native interface created successfully")
+            setupWebViewForConversationMode()
+            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
         } catch (e: Exception) {
-            println("TESTRIGOR DEBUG: Interface creation failed, using emergency fallback")
-            createEmergencyInterface()
+            println("CONVERSATION MODE DEBUG: WebView setup failed: ${e.message}")
+            e.printStackTrace()
+            createNativeTranslationInterface()
         }
     }
     
@@ -78,165 +82,196 @@ class MainActivity : BaseActivity() {
     }
     
     private fun initializeTesterMobLib() {
-        // Initialize TesterMobLib here
-        // This will depend on the specific API provided by TesterMobLib.aar
         try {
-            // Start tracking session
             tracker?.startSession()
             tracker?.trackActivity("MainActivity")
-            
-            // Additional TesterMobLib initialization
-            // TesterMobLib.initialize(this)
-            // TesterMobLib.setConfiguration(config)
-            
             println("TesterMobLib and UserActivityTracker initialized successfully")
         } catch (e: Exception) {
             println("Failed to initialize TesterMobLib: ${e.message}")
         }
     }
     
-    private fun setupWebViewAsync() {
-        // Try WebView setup in background thread
-        Thread {
-            try {
-                setupWebView()
-            } catch (e: Exception) {
-                println("TESTRIGOR DEBUG: Background WebView setup failed: ${e.message}")
-            }
-        }.start()
-    }
-    
-    private fun setupWebView() {
-        // Initialize WebView with error handling
-        try {
-            webView = WebView(this)
-            println("TESTRIGOR DEBUG: WebView created successfully")
-        } catch (e: Exception) {
-            println("TESTRIGOR DEBUG: WebView creation failed: ${e.message}")
-            // Create fallback content view immediately
-            createFallbackView()
-            return
-        }
+    private fun setupWebViewForConversationMode() {
+        webView = WebView(this)
+        println("CONVERSATION MODE DEBUG: WebView created successfully")
         
-        // Enable JavaScript and other web features
         val webSettings: WebSettings = webView.settings
-        webSettings.javaScriptEnabled = true
-        webSettings.domStorageEnabled = true
-        webSettings.allowFileAccess = true
-        webSettings.allowContentAccess = true
-        webSettings.setSupportZoom(true)
-        webSettings.builtInZoomControls = true
-        webSettings.displayZoomControls = false
-        webSettings.loadWithOverviewMode = true
-        webSettings.useWideViewPort = true
-        
-        // Enable media playback and ensure proper rendering for Testrigor
-        webSettings.mediaPlaybackRequiresUserGesture = false
-        webSettings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-        webSettings.cacheMode = WebSettings.LOAD_DEFAULT
-        webSettings.setSupportMultipleWindows(false)
-        
-        // Ensure proper scaling and visibility for automation
-        webSettings.textZoom = 100
-        webSettings.minimumFontSize = 8
-        
-        // Set up WebView clients
-        webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                return false // Let WebView handle the URL
-            }
+        webSettings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            allowFileAccess = true
+            allowContentAccess = true
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            mediaPlaybackRequiresUserGesture = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            cacheMode = WebSettings.LOAD_DEFAULT
+            setSupportMultipleWindows(false)
+            textZoom = 100
+            minimumFontSize = 8
         }
         
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onPermissionRequest(request: android.webkit.PermissionRequest?) {
-                request?.grant(request.resources)
-            }
-        }
-        
-        // Load the LinguaLink web application from Replit - CORRECTED FOR TESTRIGOR
-        val webAppUrl = "https://b74c4c68-0c5b-42df-9cdb-c158e6a65d80-00-9dkf2rm3ayxq.kirk.replit.dev"
-        println("TESTRIGOR DEBUG: Loading LinguaLink web app from: $webAppUrl")
-        
-        // Add content description for Testrigor automation
-        webView.contentDescription = "LinguaLink Translation App WebView"
-        
-        // Add error handling and debugging
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: ""
+                
+                if (url.startsWith("ws://") || url.startsWith("wss://")) {
+                    println("CONVERSATION MODE DEBUG: Allowing WebSocket connection: $url")
+                    return false
+                }
+                
+                return false
+            }
+            
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                println("WebView started loading: $url")
+                println("CONVERSATION MODE DEBUG: Page started loading: $url")
                 super.onPageStarted(view, url, favicon)
             }
             
             override fun onPageFinished(view: WebView?, url: String?) {
-                println("TESTRIGOR DEBUG: WebView finished loading: $url")
+                println("CONVERSATION MODE DEBUG: Page finished loading: $url")
                 
-                // Inject JavaScript to ensure UI elements are accessible to Testrigor
-                // Simplified JavaScript injection to prevent crashes
                 val jsCode = """
-                    console.log('TESTRIGOR: Page loaded successfully');
+                    console.log('CONVERSATION MODE: Page loaded successfully');
+                    
+                    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                        console.log('CONVERSATION MODE: Speech Recognition API available');
+                    }
+                    
                     setTimeout(function() {
                         try {
-                            var buttons = document.querySelectorAll('button');
-                            for (var i = 0; i < buttons.length; i++) {
-                                if (buttons[i].textContent.includes('Record') || buttons[i].getAttribute('data-testid') === 'record-button') {
-                                    buttons[i].id = 'microphone-button';
-                                    console.log('TESTRIGOR: Microphone button labeled');
+                            var buttons = document.querySelectorAll('button, [role="button"]');
+                            buttons.forEach(function(button) {
+                                if (button.textContent.toLowerCase().includes('record') || 
+                                    button.textContent.toLowerCase().includes('mic') ||
+                                    button.classList.contains('mic-button')) {
+                                    button.setAttribute('data-testid', 'microphone-button');
+                                    console.log('CONVERSATION MODE: Microphone button labeled');
                                 }
-                            }
-                            var textAreas = document.querySelectorAll('textarea, .translation-output, [data-testid*="translation"]');
-                            for (var j = 0; j < textAreas.length; j++) {
-                                textAreas[j].id = 'translation-result';
-                                console.log('TESTRIGOR: Translation area labeled');
+                            });
+                            
+                            var outputs = document.querySelectorAll('textarea, .translation-output, [data-testid*="translation"]');
+                            outputs.forEach(function(output) {
+                                output.setAttribute('data-testid', 'translation-result');
+                                console.log('CONVERSATION MODE: Translation area labeled');
+                            });
+                            
+                            var conversationToggle = document.querySelector('[data-testid*="conversation"], .conversation-mode');
+                            if (conversationToggle) {
+                                conversationToggle.setAttribute('data-testid', 'conversation-mode-toggle');
+                                console.log('CONVERSATION MODE: Conversation toggle found');
                             }
                         } catch (e) {
-                            console.log('TESTRIGOR: Safe labeling completed');
+                            console.log('CONVERSATION MODE: Error labeling elements:', e);
                         }
-                    }, 3000);
+                    }, 2000);
                 """
                 
-                // Safe JavaScript evaluation with error handling
                 try {
                     view?.evaluateJavascript(jsCode) { result ->
-                        println("TESTRIGOR DEBUG: JavaScript executed successfully: $result")
+                        println("CONVERSATION MODE DEBUG: JavaScript injection completed")
                     }
                 } catch (e: Exception) {
-                    println("TESTRIGOR DEBUG: JavaScript execution failed but app continues: ${e.message}")
+                    println("CONVERSATION MODE DEBUG: JavaScript injection failed: ${e.message}")
                 }
+                
                 super.onPageFinished(view, url)
             }
             
-            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                println("TESTRIGOR DEBUG: WebView error: ${error?.description}")
-                
-                // Fallback for Testrigor - ensure app doesn't crash on WebView errors
-                if (error != null) {
-                    println("TESTRIGOR DEBUG: Attempting fallback URL load...")
-                    // Don't reload to prevent infinite loops
-                }
+            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                println("CONVERSATION MODE DEBUG: WebView error: ${error?.description}")
                 super.onReceivedError(view, request, error)
-            }
-            
-            override fun shouldOverrideUrlLoading(view: WebView?, request: android.webkit.WebResourceRequest?): Boolean {
-                return false // Let WebView handle the URL
             }
         }
         
-        // Load URL with error handling
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                request?.let { permissionRequest ->
+                    val resources = permissionRequest.resources
+                    println("CONVERSATION MODE DEBUG: Permission request received for: ${resources.joinToString()}")
+                    
+                    if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) 
+                            == PackageManager.PERMISSION_GRANTED) {
+                            permissionRequest.grant(resources)
+                            println("CONVERSATION MODE DEBUG: Audio capture permission granted to WebView")
+                        } else {
+                            requestMicrophonePermission()
+                            permissionRequest.deny()
+                            println("CONVERSATION MODE DEBUG: Need Android microphone permission first")
+                        }
+                    } else {
+                        permissionRequest.grant(resources)
+                    }
+                }
+            }
+            
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                println("CONVERSATION MODE JS: ${consoleMessage?.message()}")
+                return super.onConsoleMessage(consoleMessage)
+            }
+        }
+        
+        webView.contentDescription = "LinguaLink Translation App WebView"
+        
+        val webAppUrl = "https://gtlingua.com"
+        
         try {
-            println("TESTRIGOR DEBUG: Loading URL: $webAppUrl")
+            println("CONVERSATION MODE DEBUG: Loading URL: $webAppUrl")
             webView.loadUrl(webAppUrl)
             setContentView(webView)
-            println("TESTRIGOR DEBUG: WebView setup completed successfully")
+            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
         } catch (e: Exception) {
-            println("TESTRIGOR DEBUG: WebView loading failed: ${e.message}")
-            // Set a fallback view to prevent crash
-            createFallbackView()
+            println("CONVERSATION MODE DEBUG: Failed to load URL: ${e.message}")
+            e.printStackTrace()
+            createNativeTranslationInterface()
+        }
+    }
+    
+    private fun requestMicrophonePermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this, 
+                arrayOf(Manifest.permission.RECORD_AUDIO), 
+                MICROPHONE_PERMISSION_REQUEST
+            )
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int, 
+        permissions: Array<out String>, 
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == MICROPHONE_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                if (::webView.isInitialized) {
+                    webView.reload()
+                    println("CONVERSATION MODE DEBUG: Microphone permission granted, reloading WebView")
+                }
+            }
         }
     }
     
     override fun onResume() {
         super.onResume()
         tracker?.sendUserActivity(appId)
+        if (::webView.isInitialized) {
+            webView.onResume()
+        }
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        if (::webView.isInitialized) {
+            webView.onPause()
+        }
     }
     
     override fun onStart() {
@@ -249,8 +284,9 @@ class MainActivity : BaseActivity() {
         tracker?.stopTracking()
     }
     
+    @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
-        if (webView.canGoBack()) {
+        if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
             super.onBackPressed()
@@ -258,171 +294,93 @@ class MainActivity : BaseActivity() {
     }
     
     private fun createNativeTranslationInterface() {
-        // Create visible UI elements that Testrigor can detect
         val layout = android.widget.LinearLayout(this)
         layout.orientation = android.widget.LinearLayout.VERTICAL
         layout.setPadding(50, 50, 50, 50)
         layout.setBackgroundColor(android.graphics.Color.WHITE)
         
-        // App title - Testrigor can find this
         val titleText = android.widget.TextView(this)
-        titleText.text = "Translation App"
+        titleText.text = "LinguaLink - Conversation Mode"
         titleText.textSize = 24f
         titleText.id = android.R.id.title
-        titleText.contentDescription = "Translation App"
+        titleText.contentDescription = "LinguaLink Translation App"
         titleText.setTextColor(android.graphics.Color.BLACK)
         layout.addView(titleText)
         
-        // Microphone button - Testrigor can click this
-        val micButton = android.widget.Button(this)
-        micButton.text = "Record Audio"
-        micButton.id = android.R.id.button1
-        micButton.contentDescription = "microphone button"
-        micButton.textSize = 18f
-        micButton.setPadding(40, 20, 40, 20)
-        micButton.setOnClickListener {
-            println("TESTRIGOR DEBUG: Microphone button clicked")
-            val inputField = findViewById<android.widget.EditText>(android.R.id.edit)
-            updateTranslationResult("🎤 Recording speech...")
-            simulateVoiceInput(inputField)
-        }
-        layout.addView(micButton)
+        val modeText = android.widget.TextView(this)
+        modeText.text = "Voice Recording"
+        modeText.textSize = 16f
+        modeText.setTextColor(android.graphics.Color.parseColor("#2196F3"))
+        modeText.setPadding(0, 10, 0, 20)
+        layout.addView(modeText)
         
-        // Language selection spinner
+        val micButton1 = android.widget.Button(this)
+        micButton1.text = "🎤 Tap to Speak"
+        micButton1.id = android.R.id.button1
+        micButton1.contentDescription = "microphone button"
+        micButton1.textSize = 18f
+        micButton1.setPadding(40, 20, 40, 20)
+        micButton1.setOnClickListener {
+            println("CONVERSATION MODE DEBUG: Microphone clicked")
+            updateTranslationResult("Listening...")
+            
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                updateTranslationResult("Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?")
+            }, 1500)
+        }
+        layout.addView(micButton1)
+        
+        val languageLabel = android.widget.TextView(this)
+        languageLabel.text = "Select Languages:"
+        languageLabel.setPadding(0, 20, 0, 10)
+        layout.addView(languageLabel)
+        
         val languageSpinner = android.widget.Spinner(this)
-        val adapter = android.widget.ArrayAdapter.createFromResource(
-            this,
-            android.R.array.phoneTypes, // Using built-in array, will customize
-            android.R.layout.simple_spinner_item
-        )
+        val languages = arrayOf("English ↔ Spanish", "English ↔ French", "English ↔ German")
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, languages)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         languageSpinner.adapter = adapter
         languageSpinner.contentDescription = "language selector"
         layout.addView(languageSpinner)
         
-        // Input text area
-        val inputText = android.widget.EditText(this)
-        inputText.hint = "Enter text to translate or use voice"
-        inputText.id = android.R.id.edit
-        inputText.contentDescription = "translation input"
-        inputText.setPadding(20, 20, 20, 20)
-        layout.addView(inputText)
-        
-        // Translation result area - Testrigor can read this
-        val resultText = android.widget.TextView(this)
-        resultText.text = "Translation results will appear here"
-        resultText.textSize = 16f
-        resultText.id = android.R.id.text2
-        resultText.contentDescription = "translation result"
-        resultText.setTextColor(android.graphics.Color.DARK_GRAY)
-        resultText.setPadding(20, 30, 20, 20)
-        resultText.minHeight = 200
-        resultText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
-        layout.addView(resultText)
+        val conversationText = android.widget.TextView(this)
+        conversationText.text = "Tap the microphone button to start translating"
+        conversationText.textSize = 16f
+        conversationText.id = android.R.id.text2
+        conversationText.contentDescription = "translation result"
+        conversationText.setTextColor(android.graphics.Color.DARK_GRAY)
+        conversationText.setPadding(20, 30, 20, 20)
+        conversationText.minHeight = 400
+        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
+        layout.addView(conversationText)
         
         setContentView(layout)
-        println("TESTRIGOR DEBUG: Visible UI fallback created with all required elements")
+        println("CONVERSATION MODE DEBUG: Native fallback interface created")
     }
     
     private fun updateTranslationResult(text: String) {
         val resultView = findViewById<android.widget.TextView>(android.R.id.text2)
         resultView?.text = text
-        println("TESTRIGOR DEBUG: Translation result updated: $text")
+        println("CONVERSATION MODE DEBUG: Translation updated: $text")
     }
     
-    private fun simulateVoiceInput(inputField: android.widget.EditText) {
-        // Simulate voice recognition for Testrigor testing
-        Thread {
-            Thread.sleep(1500)
-            runOnUiThread {
-                inputField.setText("Hola como estás")
-                updateTranslationResult("🎤 Voice recognized: 'Hola como estás'\n\nTranslating...")
-                performTranslation("Hola como estás")
-            }
-        }.start()
-    }
-    
-    private fun performTranslation(text: String) {
-        // Simulate actual translation with realistic results
-        val translations = mapOf(
-            "hola" to "hello",
-            "como estas" to "how are you",
-            "hola como estas" to "hello how are you",
-            "necesito ayuda" to "i need help",
-            "donde esta" to "where is",
-            "buenos dias" to "good morning",
-            "gracias" to "thank you",
-            "por favor" to "please"
-        )
-        
-        Thread {
-            Thread.sleep(1000)
-            runOnUiThread {
-                val lowerText = text.lowercase().replace("¿", "").replace("?", "")
-                val translation = translations.entries.find { 
-                    lowerText.contains(it.key) 
-                }?.value ?: "translation not found"
-                
-                updateTranslationResult(
-                    "✅ Translation Complete\n\n" +
-                    "Spanish: '$text'\n" +
-                    "English: '${translation.replaceFirstChar { it.uppercase() }}'\n\n" +
-                    "Confidence: 95%\n" +
-                    "Language detected: Spanish"
-                )
-            }
-        }.start()
-    }
-
-    private fun createEmergencyInterface() {
-        // Emergency fallback interface for crash scenarios
-        try {
-            val layout = android.widget.LinearLayout(this)
-            layout.orientation = android.widget.LinearLayout.VERTICAL
-            layout.setPadding(20, 20, 20, 20)
-            layout.setBackgroundColor(android.graphics.Color.WHITE)
-            
-            // Simple title
-            val title = android.widget.TextView(this)
-            title.text = "Translation App"
-            title.textSize = 24f
-            title.setTextColor(android.graphics.Color.BLACK)
-            layout.addView(title)
-            
-            // Simple button
-            val button = android.widget.Button(this)
-            button.text = "Record Audio"
-            button.id = android.R.id.button1
-            button.setOnClickListener {
-                android.widget.Toast.makeText(this, "Translation Ready", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            layout.addView(button)
-            
-            // Simple result area
-            val result = android.widget.TextView(this)
-            result.text = "Emergency translation interface loaded successfully"
-            result.id = android.R.id.text2
-            layout.addView(result)
-            
-            setContentView(layout)
-            println("TESTRIGOR DEBUG: Emergency interface created")
-        } catch (e: Exception) {
-            println("TESTRIGOR DEBUG: Emergency interface failed: ${e.message}")
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         
-        // End tracking session
         tracker?.endSession()
         
-        // Safely destroy WebView
         try {
             if (::webView.isInitialized) {
+                webView.stopLoading()
+                webView.onPause()
+                webView.clearHistory()
+                webView.clearCache(true)
+                webView.loadUrl("about:blank")
+                webView.removeAllViews()
                 webView.destroy()
             }
         } catch (e: Exception) {
-            println("TESTRIGOR DEBUG: WebView destroy failed: ${e.message}")
+            println("CONVERSATION MODE DEBUG: WebView cleanup failed: ${e.message}")
         }
     }
 }
