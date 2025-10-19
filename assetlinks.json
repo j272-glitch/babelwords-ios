@@ -3,8 +3,9 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "com.lingualink.translator",
-    "
+    "package_name": "com.lingualink.linguagt",
+    "sha256_cert_fingerprints": [
+      "AA:98:C9:28:4C:69:D9:93:99:74:94:62:91:EE:6F:FF:12:DA:0A:8A:A0:57:94:3B:4E:C6:FC:C8:CD:1C:A4:D0"
     ]
   }
 }]
