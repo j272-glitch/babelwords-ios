@@ -1,0 +1,555 @@
+package com.lingualink.linguagt
+
+import android.os.Bundle
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
+import android.webkit.WebResourceRequest
+import android.webkit.SslErrorHandler
+import android.net.http.SslError
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import com.lingualink.linguagt.security.ConversationSecurity
+import com.lingualink.linguagt.ads.AppLovinManager
+
+class MainActivity : BaseActivity() {
+    
+    companion object {
+        @JvmStatic
+        var tracker: UserActivityTracker? = null
+        private const val MICROPHONE_PERMISSION_REQUEST = 200
+    }
+    
+    private val appId = "app_id" // copy your app id from dashboard
+    private lateinit var webView: WebView
+    private lateinit var conversationSecurity: ConversationSecurity
+    private lateinit var adManager: AppLovinManager
+    private var conversationCount = 0
+    
+    // Permission request launcher
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        permissions.entries.forEach { (permission, isGranted) ->
+            if (isGranted) {
+                println("CONVERSATION MODE DEBUG: Permission granted: $permission")
+                // Reload WebView if microphone permission was granted
+                if (permission == Manifest.permission.RECORD_AUDIO && ::webView.isInitialized) {
+                    webView.reload()
+                }
+            } else {
+                println("CONVERSATION MODE DEBUG: Permission denied: $permission")
+            }
+        }
+    }
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        // Request necessary permissions for conversation mode
+        requestPermissions()
+        
+        // Initialize UserActivityTracker
+        tracker = UserActivityTracker(this, appId)
+        tracker?.sendUserActivity(appId)
+        tracker?.getTesterMob()
+        
+        // Initialize TesterMobLib
+        initializeTesterMobLib()
+        
+        // Setup WebView with conversation mode support
+        try {
+            setupWebViewForConversationMode()
+            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
+        } catch (e: Exception) {
+            println("CONVERSATION MODE DEBUG: WebView setup failed, using fallback interface")
+            createNativeTranslationInterface()
+        }
+    }
+    
+    private fun requestPermissions() {
+        val permissions = arrayOf(
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.MODIFY_AUDIO_SETTINGS,
+            Manifest.permission.INTERNET,
+            Manifest.permission.ACCESS_NETWORK_STATE
+        )
+        
+        val permissionsToRequest = permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+        }
+    }
+    
+    private fun initializeTesterMobLib() {
+        try {
+            tracker?.startSession()
+            tracker?.trackActivity("MainActivity")
+            println("TesterMobLib and UserActivityTracker initialized successfully")
+        } catch (e: Exception) {
+            println("Failed to initialize TesterMobLib: ${e.message}")
+        }
+    }
+    
+    private fun setupWebViewForConversationMode() {
+        // Initialize WebView with error handling
+        try {
+            webView = WebView(this)
+            println("CONVERSATION MODE DEBUG: WebView created successfully")
+        } catch (e: Exception) {
+            println("CONVERSATION MODE DEBUG: WebView creation failed: ${e.message}")
+            createNativeTranslationInterface()
+            return
+        }
+        
+        // Configure WebView settings for conversation mode
+        val webSettings: WebSettings = webView.settings
+        webSettings.apply {
+            // Essential JavaScript and DOM storage
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            
+            // File and content access
+            allowFileAccess = true
+            allowContentAccess = true
+            
+            // Zoom and display settings
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            
+            // Media and mixed content for conversation mode
+            mediaPlaybackRequiresUserGesture = false
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            
+            // Cache and performance
+            cacheMode = WebSettings.LOAD_DEFAULT
+            setSupportMultipleWindows(false)
+            
+            // Text and font settings
+            textZoom = 100
+            minimumFontSize = 8
+        }
+        
+        // Configure WebViewClient for WebSocket support
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: ""
+                
+                // Allow WebSocket connections for real-time conversation mode
+                if (url.startsWith("ws://") || url.startsWith("wss://")) {
+                    println("CONVERSATION MODE DEBUG: Allowing WebSocket connection: $url")
+                    return false
+                }
+                
+                // Let WebView handle regular URLs
+                return false
+            }
+            
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                println("CONVERSATION MODE DEBUG: Page started loading: $url")
+                super.onPageStarted(view, url, favicon)
+            }
+            
+            override fun onPageFinished(view: WebView?, url: String?) {
+                println("CONVERSATION MODE DEBUG: Page finished loading: $url")
+                
+                // Inject JavaScript for conversation mode UI enhancement
+                val jsCode = """
+                    console.log('CONVERSATION MODE: Page loaded successfully');
+                    
+                    // Enable Web Speech API
+                    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                        console.log('CONVERSATION MODE: Speech Recognition API available');
+                    }
+                    
+                    // Label UI elements for testing
+                    setTimeout(function() {
+                        try {
+                            // Find and label microphone buttons
+                            var buttons = document.querySelectorAll('button, [role="button"]');
+                            buttons.forEach(function(button) {
+                                if (button.textContent.toLowerCase().includes('record') || 
+                                    button.textContent.toLowerCase().includes('mic') ||
+                                    button.classList.contains('mic-button')) {
+                                    button.setAttribute('data-testid', 'microphone-button');
+                                    console.log('CONVERSATION MODE: Microphone button labeled');
+                                }
+                            });
+                            
+                            // Find and label translation areas
+                            var outputs = document.querySelectorAll('textarea, .translation-output, [data-testid*="translation"]');
+                            outputs.forEach(function(output) {
+                                output.setAttribute('data-testid', 'translation-result');
+                                console.log('CONVERSATION MODE: Translation area labeled');
+                            });
+                            
+                            // Find conversation mode toggle
+                            var conversationToggle = document.querySelector('[data-testid*="conversation"], .conversation-mode');
+                            if (conversationToggle) {
+                                conversationToggle.setAttribute('data-testid', 'conversation-mode-toggle');
+                                console.log('CONVERSATION MODE: Conversation toggle found');
+                            }
+                        } catch (e) {
+                            console.log('CONVERSATION MODE: Error labeling elements:', e);
+                        }
+                    }, 2000);
+                """
+                
+                try {
+                    view?.evaluateJavascript(jsCode) { result ->
+                        println("CONVERSATION MODE DEBUG: JavaScript injection completed")
+                    }
+                } catch (e: Exception) {
+                    println("CONVERSATION MODE DEBUG: JavaScript injection failed: ${e.message}")
+                }
+                
+                super.onPageFinished(view, url)
+            }
+            
+            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                println("CONVERSATION MODE DEBUG: WebView error: ${error?.description}")
+                
+                // Show error view for main frame errors
+                if (request?.isForMainFrame == true) {
+                    hideLoadingView()
+                    showErrorView("Connection error: ${error?.description ?: "Unknown error"}")
+                }
+                
+                super.onReceivedError(view, request, error)
+            }
+        }
+        
+        // Configure WebChromeClient for permission handling
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                request?.let { permissionRequest ->
+                    val resources = permissionRequest.resources
+                    println("CONVERSATION MODE DEBUG: Permission request received for: ${resources.joinToString()}")
+                    
+                    // Grant audio capture permission for Web Speech API
+                    if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                        // Check if Android permission is granted first
+                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) 
+                            == PackageManager.PERMISSION_GRANTED) {
+                            permissionRequest.grant(resources)
+                            println("CONVERSATION MODE DEBUG: Audio capture permission granted to WebView")
+                        } else {
+                            // Request Android permission first
+                            requestMicrophonePermission()
+                            permissionRequest.deny()
+                            println("CONVERSATION MODE DEBUG: Need Android microphone permission first")
+                        }
+                    } else {
+                        // Grant other permissions as needed
+                        permissionRequest.grant(resources)
+                    }
+                }
+            }
+            
+            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                println("CONVERSATION MODE JS: ${consoleMessage?.message()}")
+                return super.onConsoleMessage(consoleMessage)
+            }
+        }
+        
+        // Add content description for automation
+        webView.contentDescription = "LinguaLink Translation App WebView"
+        
+        // Load the web application
+        // Option 1: Use your Replit development URL
+        // val webAppUrl = "https://b74c4c68-0c5b-42df-9cdb-c158e6a65d80-00-9dkf2rm3ayxq.kirk.replit.dev"
+        
+        // Option 2: Use gtlingua.com (update with your actual subdomain/path if needed)
+        val webAppUrl = "https://gtlingua.com"
+        // or if you have a specific app URL:
+        // val webAppUrl = "https://app.gtlingua.com"
+        // val webAppUrl = "https://gtlingua.com/translator"
+        
+        try {
+            println("CONVERSATION MODE DEBUG: Loading URL: $webAppUrl")
+            webView.loadUrl(webAppUrl)
+            setContentView(webView)
+            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
+        } catch (e: Exception) {
+            println("CONVERSATION MODE DEBUG: Failed to load URL: ${e.message}")
+            createNativeTranslationInterface()
+        }
+    }
+    
+    private fun requestMicrophonePermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this, 
+                arrayOf(Manifest.permission.RECORD_AUDIO), 
+                MICROPHONE_PERMISSION_REQUEST
+            )
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int, 
+        permissions: Array<out String>, 
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == MICROPHONE_PERMISSION_REQUEST) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted - reload WebView to enable audio features
+                if (::webView.isInitialized) {
+                    webView.reload()
+                    println("CONVERSATION MODE DEBUG: Microphone permission granted, reloading WebView")
+                }
+            }
+        }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        tracker?.sendUserActivity(appId)
+        // Resume WebView
+        if (::webView.isInitialized) {
+            webView.onResume()
+        }
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        // Pause WebView
+        if (::webView.isInitialized) {
+            webView.onPause()
+        }
+    }
+    
+    override fun onStart() {
+        super.onStart()
+        tracker?.startTracking()
+    }
+    
+    override fun onStop() {
+        super.onStop()
+        tracker?.stopTracking()
+    }
+    
+    override fun onBackPressed() {
+        if (::webView.isInitialized && webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+    
+    private fun createNativeTranslationInterface() {
+        // Fallback native interface for when WebView fails
+        val layout = android.widget.LinearLayout(this)
+        layout.orientation = android.widget.LinearLayout.VERTICAL
+        layout.setPadding(50, 50, 50, 50)
+        layout.setBackgroundColor(android.graphics.Color.WHITE)
+        
+        // App title
+        val titleText = android.widget.TextView(this)
+        titleText.text = "LinguaLink - Conversation Mode"
+        titleText.textSize = 24f
+        titleText.id = android.R.id.title
+        titleText.contentDescription = "LinguaLink Translation App"
+        titleText.setTextColor(android.graphics.Color.BLACK)
+        layout.addView(titleText)
+        
+        // Conversation mode indicator
+        val modeText = android.widget.TextView(this)
+        modeText.text = "Conversation Mode Active"
+        modeText.textSize = 16f
+        modeText.setTextColor(android.graphics.Color.parseColor("#2196F3"))
+        modeText.setPadding(0, 10, 0, 20)
+        layout.addView(modeText)
+        
+        // Microphone button for Person 1
+        val micButton1 = android.widget.Button(this)
+        micButton1.text = "Person 1 - Tap to Speak"
+        micButton1.id = android.R.id.button1
+        micButton1.contentDescription = "microphone button person 1"
+        micButton1.textSize = 18f
+        micButton1.setPadding(40, 20, 40, 20)
+        micButton1.setOnClickListener {
+            println("CONVERSATION MODE DEBUG: Person 1 microphone clicked")
+            updateTranslationResult("Person 1 speaking...")
+        }
+        layout.addView(micButton1)
+        
+        // Microphone button for Person 2
+        val micButton2 = android.widget.Button(this)
+        micButton2.text = "Person 2 - Tap to Speak"
+        micButton2.id = android.R.id.button2
+        micButton2.contentDescription = "microphone button person 2"
+        micButton2.textSize = 18f
+        micButton2.setPadding(40, 20, 40, 20)
+        micButton2.setOnClickListener {
+            println("CONVERSATION MODE DEBUG: Person 2 microphone clicked")
+            updateTranslationResult("Person 2 speaking...")
+        }
+        layout.addView(micButton2)
+        
+        // Language selection
+        val languageLabel = android.widget.TextView(this)
+        languageLabel.text = "Select Languages:"
+        languageLabel.setPadding(0, 20, 0, 10)
+        layout.addView(languageLabel)
+        
+        val languageSpinner = android.widget.Spinner(this)
+        val languages = arrayOf("English ↔ Spanish", "English ↔ French", "English ↔ German")
+        val adapter = android.widget.ArrayAdapter(this, android.R.layout.simple_spinner_item, languages)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        languageSpinner.adapter = adapter
+        languageSpinner.contentDescription = "language selector"
+        layout.addView(languageSpinner)
+        
+        // Conversation display area
+        val conversationText = android.widget.TextView(this)
+        conversationText.text = "Conversation will appear here...\n\nPerson 1: Hello\nPerson 2: Hola"
+        conversationText.textSize = 16f
+        conversationText.id = android.R.id.text2
+        conversationText.contentDescription = "conversation display"
+        conversationText.setTextColor(android.graphics.Color.DARK_GRAY)
+        conversationText.setPadding(20, 30, 20, 20)
+        conversationText.minHeight = 400
+        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
+        layout.addView(conversationText)
+        
+        setContentView(layout)
+        println("CONVERSATION MODE DEBUG: Native fallback interface created")
+    }
+    
+    private fun updateTranslationResult(text: String) {
+        val resultView = findViewById<android.widget.TextView>(android.R.id.text2)
+        resultView?.text = text
+        println("CONVERSATION MODE DEBUG: Translation updated: $text")
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        
+        // End tracking session
+        tracker?.endSession()
+        
+        // Clear encryption session if exists
+        try {
+            // Clear any active encryption sessions
+            println("CONVERSATION MODE DEBUG: Clearing encryption sessions")
+        } catch (e: Exception) {
+            println("CONVERSATION MODE DEBUG: Error clearing encryption: ${e.message}")
+        }
+        
+        // Properly destroy WebView
+        try {
+            if (::webView.isInitialized) {
+                webView.stopLoading()
+                webView.onPause()
+                webView.clearHistory()
+                webView.clearCache(true)
+                webView.loadUrl("about:blank")
+                webView.removeAllViews()
+                webView.destroy()
+            }
+        } catch (e: Exception) {
+            println("CONVERSATION MODE DEBUG: WebView cleanup failed: ${e.message}")
+        }
+    }
+    
+    /**
+     * JavaScript Bridge for E2E Encryption and Ad Management
+     * Allows web app to use native encryption capabilities and track ad events
+     */
+    inner class E2EBridge {
+        private var currentSessionKey: ByteArray? = null
+        
+        @android.webkit.JavascriptInterface
+        fun initializeEncryption(): String {
+            return try {
+                conversationSecurity.getPublicKey()
+            } catch (e: Exception) {
+                "ERROR: ${e.message}"
+            }
+        }
+        
+        @android.webkit.JavascriptInterface
+        fun encryptMessage(message: String): String {
+            return try {
+                val encrypted = conversationSecurity.encryptMessage(message, currentSessionKey)
+                // Return as JSON string
+                """{"ciphertext":"${encrypted.ciphertext}","iv":"${encrypted.iv}","hmac":"${encrypted.hmac}","timestamp":${encrypted.timestamp}}"""
+            } catch (e: Exception) {
+                """{"error":"${e.message}"}"""
+            }
+        }
+        
+        @android.webkit.JavascriptInterface
+        fun decryptMessage(encryptedJson: String): String {
+            return try {
+                // Parse JSON and decrypt
+                val gson = com.google.gson.Gson()
+                val encrypted = gson.fromJson(encryptedJson, ConversationSecurity.EncryptedMessage::class.java)
+                conversationSecurity.decryptMessage(encrypted, currentSessionKey ?: throw Exception("No session key"))
+            } catch (e: Exception) {
+                "ERROR: ${e.message}"
+            }
+        }
+        
+        @android.webkit.JavascriptInterface
+        fun setSessionKey(encryptedKey: String): Boolean {
+            return try {
+                currentSessionKey = conversationSecurity.decryptSessionKey(encryptedKey)
+                true
+            } catch (e: Exception) {
+                false
+            }
+        }
+        
+        // Ad Management Methods
+        @android.webkit.JavascriptInterface
+        fun trackTranslation() {
+            conversationCount++
+            adManager.trackTranslation()
+            
+            // Check if we should show an interstitial ad
+            runOnUiThread {
+                if (adManager.maybeShowInterstitialAd(this@MainActivity)) {
+                    println("CONVERSATION MODE DEBUG: Showing interstitial ad after $conversationCount conversations")
+                    conversationCount = 0
+                }
+            }
+        }
+        
+        @android.webkit.JavascriptInterface
+        fun isPremium(): Boolean {
+            adManager.checkPremiumStatus()
+            return adManager.isPremiumUser
+        }
+        
+        @android.webkit.JavascriptInterface
+        fun requestPremium() {
+            runOnUiThread {
+                adManager.showRewardedAdForPremium(this@MainActivity) {
+                    // Notify web app that premium was granted
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('premium_granted', {detail: {hours: 2}}));",
+                        null
+                    )
+                }
+            }
+        }
+    }
+}
+
