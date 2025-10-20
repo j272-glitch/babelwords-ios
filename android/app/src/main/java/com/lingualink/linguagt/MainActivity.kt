@@ -314,6 +314,18 @@ class MainActivity : BaseActivity() {
         modeText.setPadding(0, 10, 0, 20)
         layout.addView(modeText)
         
+        // Create translation result TextView BEFORE the button
+        val conversationText = android.widget.TextView(this)
+        conversationText.text = "Tap the microphone button to start translating"
+        conversationText.textSize = 16f
+        conversationText.id = android.R.id.text2
+        conversationText.contentDescription = "translation result"
+        conversationText.setTextColor(android.graphics.Color.DARK_GRAY)
+        conversationText.setPadding(20, 30, 20, 20)
+        conversationText.minHeight = 400
+        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
+        layout.addView(conversationText)
+        
         val micButton1 = android.widget.Button(this)
         micButton1.text = "🎤 Tap to Speak"
         micButton1.id = android.R.id.button1
@@ -322,11 +334,23 @@ class MainActivity : BaseActivity() {
         micButton1.setPadding(40, 20, 40, 20)
         micButton1.setOnClickListener {
             println("CONVERSATION MODE DEBUG: Microphone clicked")
-            updateTranslationResult("Listening...")
-            
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                updateTranslationResult("Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?")
-            }, 1500)
+            try {
+                conversationText.text = "Listening..."
+                println("CONVERSATION MODE DEBUG: Updated text to 'Listening...'")
+                
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    try {
+                        conversationText.text = "Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?"
+                        println("CONVERSATION MODE DEBUG: Translation updated successfully")
+                    } catch (e: Exception) {
+                        println("CONVERSATION MODE DEBUG: Error updating translation: ${e.message}")
+                        e.printStackTrace()
+                    }
+                }, 1500)
+            } catch (e: Exception) {
+                println("CONVERSATION MODE DEBUG: Error in microphone button handler: ${e.message}")
+                e.printStackTrace()
+            }
         }
         layout.addView(micButton1)
         
@@ -343,26 +367,11 @@ class MainActivity : BaseActivity() {
         languageSpinner.contentDescription = "language selector"
         layout.addView(languageSpinner)
         
-        val conversationText = android.widget.TextView(this)
-        conversationText.text = "Tap the microphone button to start translating"
-        conversationText.textSize = 16f
-        conversationText.id = android.R.id.text2
-        conversationText.contentDescription = "translation result"
-        conversationText.setTextColor(android.graphics.Color.DARK_GRAY)
-        conversationText.setPadding(20, 30, 20, 20)
-        conversationText.minHeight = 400
-        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
-        layout.addView(conversationText)
-        
         setContentView(layout)
         println("CONVERSATION MODE DEBUG: Native fallback interface created")
     }
     
-    private fun updateTranslationResult(text: String) {
-        val resultView = findViewById<android.widget.TextView>(android.R.id.text2)
-        resultView?.text = text
-        println("CONVERSATION MODE DEBUG: Translation updated: $text")
-    }
+    
     
     override fun onDestroy() {
         super.onDestroy()
