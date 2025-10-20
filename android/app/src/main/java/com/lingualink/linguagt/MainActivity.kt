@@ -294,6 +294,10 @@ class MainActivity : BaseActivity() {
     }
     
     private fun createNativeTranslationInterface() {
+        println("CONVERSATION MODE DEBUG: createNativeTranslationInterface called")
+        println("CONVERSATION MODE DEBUG: Current thread: ${Thread.currentThread().name}")
+        println("CONVERSATION MODE DEBUG: Activity state - finishing: ${isFinishing}, destroyed: ${isDestroyed}")
+        
         val layout = android.widget.LinearLayout(this)
         layout.orientation = android.widget.LinearLayout.VERTICAL
         layout.setPadding(50, 50, 50, 50)
@@ -334,21 +338,38 @@ class MainActivity : BaseActivity() {
         micButton1.setPadding(40, 20, 40, 20)
         micButton1.setOnClickListener {
             println("CONVERSATION MODE DEBUG: Microphone clicked")
+            println("CONVERSATION MODE DEBUG: Activity finishing? ${isFinishing}")
+            println("CONVERSATION MODE DEBUG: Activity destroyed? ${isDestroyed}")
+            println("CONVERSATION MODE DEBUG: ConversationText parent: ${conversationText.parent}")
+            
             try {
+                if (isFinishing || isDestroyed) {
+                    println("CONVERSATION MODE DEBUG: Activity not in valid state, aborting")
+                    return@setOnClickListener
+                }
+                
                 conversationText.text = "Listening..."
                 println("CONVERSATION MODE DEBUG: Updated text to 'Listening...'")
                 
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                     try {
+                        if (isFinishing || isDestroyed) {
+                            println("CONVERSATION MODE DEBUG: Activity destroyed during delay, skipping update")
+                            return@postDelayed
+                        }
+                        
                         conversationText.text = "Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?"
                         println("CONVERSATION MODE DEBUG: Translation updated successfully")
                     } catch (e: Exception) {
                         println("CONVERSATION MODE DEBUG: Error updating translation: ${e.message}")
+                        println("CONVERSATION MODE DEBUG: Stack trace:")
                         e.printStackTrace()
                     }
                 }, 1500)
             } catch (e: Exception) {
                 println("CONVERSATION MODE DEBUG: Error in microphone button handler: ${e.message}")
+                println("CONVERSATION MODE DEBUG: Error type: ${e.javaClass.simpleName}")
+                println("CONVERSATION MODE DEBUG: Stack trace:")
                 e.printStackTrace()
             }
         }
