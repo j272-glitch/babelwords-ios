@@ -1,0 +1,190 @@
+
+/**
+ * Android App Configuration
+ * Handles system dialogs and prevents app backgrounding
+ */
+
+(function() {
+  // Detect Android WebView
+  const isAndroidWebView = /Android/i.test(navigator.userAgent) && 
+                           /wv/.test(navigator.userAgent);
+  
+  if (!isAndroidWebView) {
+    console.log('ℹ️ Not running in Android WebView');
+    return;
+  }
+  
+  console.log('🤖 Android WebView detected - applying crash prevention configurations');
+  
+  // CRITICAL: Prevent memory leaks from audio/media elements
+  const cleanupAudioResources = () => {
+    try {
+      // Stop all audio elements
+      document.querySelectorAll('audio, video').forEach(el => {
+        el.pause();
+        el.src = '';
+        el.load();
+      });
+      
+      // Close all MediaStream tracks
+      if (window.__microphoneStream) {
+        window.__microphoneStream.getTracks().forEach(track => track.stop());
+        window.__microphoneStream = null;
+      }
+      
+      console.log('🧹 Audio resources cleaned');
+    } catch (e) {
+      console.warn('⚠️ Audio cleanup error:', e);
+    }
+  };
+  
+  // CRITICAL: Prevent state mutation crashes during navigation
+  let isNavigating = false;
+  const safeNavigationGuard = () => {
+    if (isNavigating) {
+      console.log('🛡️ Navigation in progress - blocking state changes');
+      return false;
+    }
+    return true;
+  };
+  
+  // Override problematic state setters during navigation
+  const protectStateChanges = () => {
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      if (!safeNavigationGuard()) return;
+      isNavigating = true;
+      try {
+        return originalPushState.apply(this, args);
+      } finally {
+        setTimeout(() => { isNavigating = false; }, 500);
+      }
+    };
+    
+    history.replaceState = function(...args) {
+      if (!safeNavigationGuard()) return;
+      isNavigating = true;
+      try {
+        return originalReplaceState.apply(this, args);
+      } finally {
+        setTimeout(() => { isNavigating = false; }, 500);
+      }
+    };
+  };
+  
+  protectStateChanges();
+  
+  // CRITICAL: Handle uncaught errors to prevent crashes
+  window.addEventListener('error', function(event) {
+    console.error('🚨 Uncaught error:', event.error);
+    event.preventDefault();
+    return true;
+  });
+  
+  window.addEventListener('unhandledrejection', function(event) {
+    console.error('🚨 Unhandled promise rejection:', event.reason);
+    event.preventDefault();
+  });
+  
+  // CRITICAL: Cleanup on visibility change to prevent memory crashes
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+      console.log('📱 App backgrounded - cleaning up resources');
+      cleanupAudioResources();
+      
+      // Cancel pending audio operations
+      if (window.__keepAliveOscillator) {
+        try {
+          window.__keepAliveOscillator.stop();
+          window.__keepAliveOscillator = null;
+        } catch (e) {}
+      }
+    } else {
+      console.log('📱 App foregrounded - ready for use');
+    }
+  });
+  
+  // CRITICAL: Prevent app from backgrounding during critical operations
+  window.addEventListener('blur', function(event) {
+    console.log('⚠️ Window blur detected - checking for critical operations');
+    
+    // Only prevent blur if recording or translating
+    const isRecording = document.querySelector('[data-recording="true"]');
+    const isTranslating = document.querySelector('[data-translating="true"]');
+    
+    if (isRecording || isTranslating) {
+      console.log('🛡️ Critical operation in progress - maintaining focus');
+      setTimeout(() => {
+        window.focus();
+        document.body.focus();
+      }, 50);
+    }
+  });
+  
+  // CRITICAL: Handle page visibility for Android
+  let pageHideCount = 0;
+  window.addEventListener('pagehide', function(event) {
+    pageHideCount++;
+    console.log('⚠️ Page hide event', pageHideCount);
+    
+    // Cleanup resources before hiding
+    cleanupAudioResources();
+    
+    // Prevent default only if this is a dialog-related hide
+    if (pageHideCount < 3) {
+      event.preventDefault();
+    }
+  });
+  
+  // Reset hide count on pageshow
+  window.addEventListener('pageshow', function() {
+    pageHideCount = 0;
+    console.log('✅ Page show - reset hide count');
+  });
+  
+  // CRITICAL: Intercept Android back button with proper cleanup
+  document.addEventListener('backbutton', function(event) {
+    console.log('🔙 Android back button pressed');
+    
+    // Cleanup before navigation
+    cleanupAudioResources();
+    
+    // Check if we should allow back or handle it custom
+    const modal = document.querySelector('[role="dialog"]');
+    if (modal) {
+      // Close modal instead of going back
+      const closeBtn = modal.querySelector('[data-dismiss]');
+      if (closeBtn) closeBtn.click();
+      event.preventDefault();
+      return false;
+    }
+    
+    // Prevent default to avoid crashes
+    event.preventDefault();
+    
+    // Safe navigation after cleanup
+    setTimeout(() => {
+      window.history.back();
+    }, 100);
+    
+    return false;
+  }, false);
+  
+  // CRITICAL: Periodic memory cleanup to prevent crashes
+  setInterval(() => {
+    if (document.hidden) {
+      cleanupAudioResources();
+      
+      // Force garbage collection hint
+      if (window.gc) {
+        try {
+          window.gc();
+        } catch (e) {}
+      }
+    }
+  }, 30000); // Every 30 seconds
+  
+  console.log('✅ Android crash prevention configured');tion complete');
+})();
