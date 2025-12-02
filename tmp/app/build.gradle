@@ -326,6 +326,7 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.4'
+    implementation 'androidx.lifecycle:lifecycle-process:2.8.4'  // ✅ ADDED: Required for ProcessLifecycleOwner
     
     // ConstraintLayout
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
