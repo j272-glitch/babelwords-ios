@@ -1,6 +1,3 @@
-// REFERENCE: Minimum build.gradle for skeleton app
-// Compare against your app/build.gradle to ensure these are present
-
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
@@ -14,36 +11,110 @@ android {
         applicationId "com.lingualink.linguagt"
         minSdk 24
         targetSdk 35
-        versionCode 1
-        versionName "1.0"
+        versionCode 10
+        versionName "10.0.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // WebView configuration
+        buildConfigField "String", "BASE_URL", "\"https://linguagt.com\""
+    }
+
+    signingConfigs {
+        release {
+            // These come from environment variables in CI/CD
+            if (System.getenv("ANDROID_KEYSTORE_PASSWORD")) {
+                storeFile file("release.keystore")
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            debuggable true
+            minifyEnabled false
+        }
         release {
-            minifyEnabled false  // IMPORTANT: Disable for testing
+            debuggable false
+            minifyEnabled false  // DISABLED for skeleton testing - enable later
+            shrinkResources false // DISABLED for skeleton testing - enable later
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            
+            // Use release signing if available
+            if (System.getenv("ANDROID_KEYSTORE_PASSWORD")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
-    
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    
+
     kotlinOptions {
         jvmTarget = '17'
+    }
+
+    buildFeatures {
+        buildConfig true
+        viewBinding true
+    }
+
+    // Prevent duplicate file issues
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += 'META-INF/DEPENDENCIES'
+            excludes += 'META-INF/LICENSE'
+            excludes += 'META-INF/LICENSE.txt'
+            excludes += 'META-INF/NOTICE'
+            excludes += 'META-INF/NOTICE.txt'
+        }
     }
 }
 
 dependencies {
-    // MINIMUM REQUIRED - nothing else needed for skeleton
+    // ==================== CORE ANDROID ====================
     implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     
-    // NOTE: AppCompatActivity NOT required for skeleton
-    // The skeleton uses plain Activity which is built into Android
+    // ==================== LIFECYCLE ====================
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-process:2.7.0'
+    implementation 'androidx.lifecycle:lifecycle-common-java8:2.7.0'
+    
+    // ==================== ACTIVITY ====================
+    implementation 'androidx.activity:activity-ktx:1.8.2'
+    
+    // ==================== WEBKIT (for WebView enhancements) ====================
+    implementation 'androidx.webkit:webkit:1.10.0'
+    
+    // ==================== COROUTINES ====================
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    
+    // ==================== GOOGLE ADS (AdMob) ====================
+    // Comment out for skeleton testing, uncomment when re-enabling ads
+    // implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    
+    // ==================== SECURITY ====================
+    implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    
+    // ==================== NETWORKING (if needed) ====================
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // ==================== TESTING ====================
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
-
-// KEY THINGS TO CHECK:
-// 1. namespace must match package in Kotlin files
-// 2. minifyEnabled false (ProGuard can strip classes and cause "class not found")
-// 3. No missing dependencies that would cause runtime crashes
