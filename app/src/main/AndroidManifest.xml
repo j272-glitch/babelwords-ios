@@ -1,35 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- Required permissions -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    
+    <!-- ==================== REQUIRED PERMISSIONS ==================== -->
+    <!-- Internet access for WebView and network operations -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Audio permissions for voice translation -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-
+    
+    <!-- AdMob permissions (optional but recommended) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    
+    <!-- ==================== OPTIONAL PERMISSIONS ==================== -->
+    <!-- For better ad targeting (optional) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    
     <application
         android:name=".LinguaLinkApplication"
         android:allowBackup="true"
-        android:label="LinguaLink"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.LinguaLink"
         android:usesCleartextTraffic="true"
         android:hardwareAccelerated="true"
-        android:largeHeap="true">
-
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="31">
+        
+        <!-- ==================== ADMOB CONFIGURATION ==================== -->
+        <!-- AdMob App ID - REPLACE WITH YOUR ACTUAL APP ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-3940256099942544~3347511713" />
+        
+        <!-- AdMob: Delay app measurement until MobileAds.initialize() is called -->
+        <meta-data
+            android:name="com.google.android.gms.ads.DELAY_APP_MEASUREMENT_INIT"
+            android:value="true" />
+        
+        <!-- AdMob: Optimize initialization for better ad performance -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true" />
+        
+        <!-- AdMob: Optimize ad loading -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true" />
+        
+        <!-- ==================== MAIN ACTIVITY ==================== -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:hardwareAccelerated="true"
             android:configChanges="orientation|screenSize|keyboardHidden|layoutDirection|locale"
             android:launchMode="singleTop"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="unspecified">
+            
+            <!-- ISSUE #10 FIX: Clean, minimal launcher intent filter -->
+            <!-- This MUST be the ONLY intent filter on MainActivity for TestRigor -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            
+            <!-- ISSUE #10: Deep links REMOVED from MainActivity -->
+            <!-- Deep links should be in a separate Activity to avoid conflicts -->
+            <!-- If you need deep links, create a separate DeepLinkActivity -->
+            
         </activity>
-
+        
+        <!-- ==================== DEEP LINK ACTIVITY (OPTIONAL) ==================== -->
+        <!-- Separate activity for deep links to avoid TestRigor conflicts -->
+        <!-- Uncomment if you need deep link support -->
+        <!--
+        <activity
+            android:name=".DeepLinkActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:noHistory="true">
+            
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="linguagt.com" />
+            </intent-filter>
+        </activity>
+        -->
+        
+        <!-- ==================== ADMOB AD ACTIVITIES ==================== -->
+        <!-- AdMob Ad Activity (required for full-screen ads) -->
+        <activity
+            android:name="com.google.android.gms.ads.AdActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:theme="@android:style/Theme.Translucent"
+            android:exported="false" />
+        
+        <!-- ==================== GOOGLE PLAY SERVICES ==================== -->
+        <!-- Google Play Services version (required for AdMob) -->
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+        
+        <!-- ==================== WEBVIEW CONFIGURATION ==================== -->
+        <!-- Enable WebView debugging in debug builds -->
+        <meta-data
+            android:name="android.webkit.WebView.EnableSafeBrowsing"
+            android:value="true" />
+        
+        <!-- ==================== CRASH REPORTING (Optional) ==================== -->
+        <!-- Firebase Crashlytics (if you add it later) -->
+        <!-- <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="true" /> -->
+        
     </application>
-
+    
+    <!-- ==================== FEATURE REQUIREMENTS ==================== -->
+    <!-- Declare that app doesn't require these features (for better device compatibility) -->
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.gps"
+        android:required="false" />
+    
 </manifest>

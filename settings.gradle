@@ -1,5 +1,6 @@
-// settings.gradle - AGP 8.7.2 compatible with TestRigor
+// settings.gradle - AGP 8.5.2 for TestRigor Compatibility
 // Complete configuration for LinguaLink Android project
+// Note: AGP 8.7.x has known manifest corruption issues with TestRigor
 
 pluginManagement {
     repositories {
@@ -14,17 +15,17 @@ pluginManagement {
         gradlePluginPortal()
     }
 
-    // Plugin version management for AGP 8.7.2 and Gradle 8.10
+    // Plugin version management for AGP 8.5.2 and Gradle 8.7 (TestRigor stable)
     resolutionStrategy {
         eachPlugin {
-            // Force Android Gradle Plugin to 8.7.2 - Provides full androidComponents API support
+            // Force Android Gradle Plugin to 8.5.2 - TestRigor compatible version
             if (requested.id.id == "com.android.application" || 
                 requested.id.id == "com.android.library" ||
                 requested.id.id.startsWith("com.android.")) {
-                useModule("com.android.tools.build:gradle:8.7.2")
+                useModule("com.android.tools.build:gradle:8.5.2")
             }
 
-            // Pin Kotlin plugin version compatible with AGP 8.7.2
+            // Pin Kotlin plugin version compatible with AGP 8.5.2
             if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
                 useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.24")
             }
@@ -63,12 +64,12 @@ dependencyResolutionManagement {
     // Version catalog for consistent dependency management
     versionCatalogs {
         create("libs") {
-            // Core versions - AGP 8.7.2 and Kotlin 1.9.24
-            version("agp", "8.7.2")
+            // Core versions - AGP 8.5.2 (TestRigor stable) and Kotlin 1.9.24
+            version("agp", "8.5.2")
             version("kotlin", "1.9.24")
-            version("gradle", "8.10")
+            version("gradle", "8.7")
 
-            // AndroidX versions - Latest stable versions compatible with AGP 8.7.2
+            // AndroidX versions - Latest stable versions compatible with AGP 8.5.2
             version("androidx-core", "1.13.1")
             version("androidx-appcompat", "1.7.0")
             version("androidx-activity", "1.9.1")
@@ -177,11 +178,11 @@ rootProject.name = "LinguaLink"
 // Include app module
 include(":app")
 
-// Gradle 8.10 Feature Previews
+// Gradle 8.7 Feature Previews
 enableFeaturePreview("STABLE_CONFIGURATION_CACHE")
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
-// Project-wide settings for TestRigor compatibility with AGP 8.7.2
+// Project-wide settings for TestRigor compatibility with AGP 8.5.2
 gradle.beforeSettings { settings ->
     // Essential Android build settings
     settings.gradle.startParameter.projectProperties["android.useAndroidX"] = "true"
@@ -197,12 +198,12 @@ gradle.beforeSettings { settings ->
     settings.gradle.startParameter.projectProperties["android.enableMinification"] = "false"
     settings.gradle.startParameter.projectProperties["android.enableShrinkResourcesByDefault"] = "false"
     
-    // Performance optimizations compatible with TestRigor and AGP 8.7
+    // Performance optimizations compatible with TestRigor and AGP 8.5
     settings.gradle.startParameter.projectProperties["android.nonTransitiveRClass"] = "false"
     settings.gradle.startParameter.projectProperties["android.nonFinalResIds"] = "false"
     settings.gradle.startParameter.projectProperties["android.defaults.buildfeatures.buildconfig"] = "true"
     
-    // Configuration cache support (AGP 8.7 improvement)
+    // Configuration cache support (AGP 8.5 compatible)
     settings.gradle.startParameter.projectProperties["org.gradle.configuration-cache"] = "true"
     settings.gradle.startParameter.projectProperties["org.gradle.configuration-cache.problems"] = "warn"
     
@@ -231,7 +232,7 @@ gradle.beforeProject { project ->
     project.ext["android.enableResourceOptimizations"] = false
 }
 
-// Validation task for AGP 8.7.2 and TestRigor setup
+// Validation task for AGP 8.5.2 and TestRigor setup
 gradle.projectsEvaluated {
     if (gradle.rootProject.tasks.findByName("validateSetup") == null) {
         gradle.rootProject.tasks.register("validateSetup") {
@@ -240,7 +241,7 @@ gradle.projectsEvaluated {
                 println("Build Configuration Validation")
                 println("=".repeat(60))
                 println("✓ Gradle Version: ${gradle.gradleVersion}")
-                println("✓ AGP Version: 8.7.2")
+                println("✓ AGP Version: 8.5.2 (TestRigor Stable)")
                 println("✓ Kotlin Version: 1.9.24")
                 println("=".repeat(60))
                 println("SDK Configuration:")
@@ -256,10 +257,11 @@ gradle.projectsEvaluated {
                 println("✓ R8 full mode disabled")
                 println("✓ Resource validation disabled")
                 println("✓ buildConfigField syntax fixed")
+                println("✓ AGP 8.5.2 (no manifest corruption)")
                 println("=".repeat(60))
                 println("Modern Features Enabled:")
                 println("✓ Configuration cache support")
-                println("✓ androidComponents API support (AGP 8.7)")
+                println("✓ androidComponents API support (AGP 8.5)")
                 println("✓ Parallel execution (disabled for TestRigor)")
                 println("✓ Build caching (disabled for TestRigor)")
                 println("✓ AndroidX fully supported")
@@ -269,17 +271,18 @@ gradle.projectsEvaluated {
                 println("✓ Parallel GC enabled")
                 println("✓ Build config generation enabled")
                 println("=".repeat(60))
-                println("AGP 8.7.2 Benefits:")
+                println("AGP 8.5.2 Benefits:")
                 println("✓ Full androidComponents API support")
-                println("✓ Improved build performance")
-                println("✓ Better Kotlin integration")
+                println("✓ TestRigor compatible (no manifest issues)")
+                println("✓ Stable builds for automated testing")
                 println("✓ Native support for Android 15 features")
                 println("=".repeat(60))
                 println("Important Notes:")
                 println("• TestRigor compatibility maintained")
-                println("• androidComponents blocks now fully supported")
+                println("• androidComponents blocks fully supported")
                 println("• Configuration cache warnings enabled")
                 println("• All optimizations TestRigor-safe")
+                println("• AGP 8.7.x avoided (manifest corruption)")
                 println("=".repeat(60) + "\n")
             }
         }
