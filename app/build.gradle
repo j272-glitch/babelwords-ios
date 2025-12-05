@@ -349,11 +349,12 @@ tasks.whenTaskAdded { task ->
 }
 
 // Apply additional TestRigor compatibility settings
-afterEvaluate {
-    android.applicationVariants.all { variant ->
-        variant.outputs.all { output ->
+// FIXED: Using AGP 8.x compatible API for renaming APK outputs
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.forEach { output ->
             // Ensure APK name is standard
-            outputFileName = "app-${variant.name}.apk"
+            output.outputFileName.set("app-${variant.name}.apk")
         }
     }
 }
