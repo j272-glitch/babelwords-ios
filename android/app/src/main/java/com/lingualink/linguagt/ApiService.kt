@@ -79,6 +79,7 @@ interface ApiService {
                 .baseUrl(BASE_URL)
                 .client(client)
                 .addConverterFactory(GsonConverterFactory.create())
+                .validateEagerly(BuildConfig.DEBUG) // TESTRIGOR FIX: Fail fast on bad endpoints during tests
                 .build()
 
             return retrofit.create(ApiService::class.java)

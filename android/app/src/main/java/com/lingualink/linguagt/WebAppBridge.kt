@@ -1,6 +1,8 @@
 package com.lingualink.linguagt
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.widget.Toast
 import com.lingualink.linguagt.ads.AdMobManager
@@ -12,6 +14,8 @@ import org.json.JSONObject
  * Handles ad triggers from web app:
  * - Interstitial ads when translation limit (5) is reached
  * - Rewarded ads for premium access (30 minutes)
+ * 
+ * TESTRIGOR FIX: All UI operations use safeExecuteOnUiThread for crash prevention
  */
 class WebAppBridge(private val activity: Activity) {
 
@@ -22,16 +26,52 @@ class WebAppBridge(private val activity: Activity) {
     private val adMobManager: AdMobManager by lazy {
         AdMobManager.getInstance(activity)
     }
+    
+    // TESTRIGOR FIX: Handler for safe UI thread execution
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * TESTRIGOR FIX: Safe UI thread execution with lifecycle validation
+     * Uses Handler-based approach to avoid IllegalStateException during WebView destruction
+     */
+    private fun safeExecuteOnUiThread(action: () -> Unit) {
+        // Pre-check activity state
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("safeExecuteOnUiThread skipped - activity invalid")
+            return
+        }
+        
+        // Use Handler for safer execution (same pattern as ActivityExtensions.safeRunOnUiThread)
+        mainHandler.post {
+            // Double-check activity state inside handler
+            if (!activity.isFinishing && !activity.isDestroyed) {
+                try {
+                    action()
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("safeExecuteOnUiThread error", e)
+                }
+            } else {
+                TestRigorLogger.logWarning("safeExecuteOnUiThread action skipped - activity became invalid")
+            }
+        }
+    }
 
     /**
      * Show interstitial ad (called when user hits 5 translation limit)
      * Web app should call: window.AndroidBridge.showInterstitialAd()
+     * TESTRIGOR FIX: Use safe UI thread access with activity state validation
      */
     @JavascriptInterface
     fun showInterstitialAd() {
         TestRigorLogger.logAdEvent("Web app requested interstitial ad")
 
-        activity.runOnUiThread {
+        // TESTRIGOR FIX: Check activity state before UI operation
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot show interstitial ad - activity invalid")
+            return
+        }
+
+        safeExecuteOnUiThread {
             adMobManager.showInterstitialAd(activity) {
                 // After ad closes, notify web app
                 notifyWebApp("interstitial_closed")
@@ -42,12 +82,19 @@ class WebAppBridge(private val activity: Activity) {
     /**
      * Show rewarded ad for 30 minutes of premium access
      * Web app should call: window.AndroidBridge.showRewardedAd()
+     * TESTRIGOR FIX: Use safe UI thread access with activity state validation
      */
     @JavascriptInterface
     fun showRewardedAd() {
         TestRigorLogger.logAdEvent("Web app requested rewarded ad")
 
-        activity.runOnUiThread {
+        // TESTRIGOR FIX: Check activity state before UI operation
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
+            return
+        }
+
+        safeExecuteOnUiThread {
             if (adMobManager.isRewardedAdAvailable()) {
                 adMobManager.showRewardedAd(
                     activity,
@@ -101,6 +148,7 @@ class WebAppBridge(private val activity: Activity) {
 
     /**
      * Grant premium access for specified minutes
+     * TESTRIGOR FIX: Use safeExecuteOnUiThread for Toast
      */
     private fun grantPremiumAccess(minutes: Int) {
         val expiryTime = System.currentTimeMillis() + (minutes * 60 * 1000)
@@ -121,7 +169,10 @@ class WebAppBridge(private val activity: Activity) {
 
         notifyWebApp("premium_granted", data.toString())
 
-        Toast.makeText(activity, "Premium access granted for $minutes minutes!", Toast.LENGTH_LONG).show()
+        // TESTRIGOR FIX: Use safe UI thread access for Toast
+        safeExecuteOnUiThread {
+            Toast.makeText(activity, "Premium access granted for $minutes minutes!", Toast.LENGTH_LONG).show()
+        }
     }
 
     /**
@@ -164,9 +215,16 @@ class WebAppBridge(private val activity: Activity) {
 
     /**
      * Notify web app of events
+     * TESTRIGOR FIX: Added null checks, activity state validation, and safe UI thread access
      */
     private fun notifyWebApp(eventType: String, data: String = "{}") {
-        activity.runOnUiThread {
+        // TESTRIGOR FIX: Check activity state before attempting to notify
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot notify web app - activity invalid: $eventType")
+            return
+        }
+        
+        safeExecuteOnUiThread {
             val js = """
                 (function() {
                     try {
@@ -188,7 +246,13 @@ class WebAppBridge(private val activity: Activity) {
             """.trimIndent()
 
             try {
-                (activity as? MainActivity)?.getWebView()?.evaluateJavascript(js, null)
+                // TESTRIGOR FIX: Null check for WebView
+                val webView = (activity as? MainActivity)?.getWebView()
+                if (webView == null) {
+                    TestRigorLogger.logWarning("WebView null in notifyWebApp: $eventType")
+                    return@safeExecuteOnUiThread
+                }
+                webView.evaluateJavascript(js, null)
             } catch (e: Exception) {
                 TestRigorLogger.logError("Failed to notify web app: $eventType", e)
             }

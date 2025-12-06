@@ -279,8 +279,16 @@ class AdMobManager private constructor(private val context: Context) {
 
     /**
      * Show interstitial ad with frequency capping
+     * TESTRIGOR FIX: Check activity state before showing to prevent WindowManagerBadTokenException
      */
     fun showInterstitialAd(activity: Activity, onAdClosed: () -> Unit = {}) {
+        // TESTRIGOR FIX: Check activity state before showing ad
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot show interstitial - activity invalid")
+            onAdClosed()
+            return
+        }
+        
         val currentTime = System.currentTimeMillis()
         val timeSinceLastAd = currentTime - lastInterstitialTime.get()
 
@@ -352,8 +360,16 @@ class AdMobManager private constructor(private val context: Context) {
 
     /**
      * Show rewarded ad with frequency capping and reward callback
+     * TESTRIGOR FIX: Check activity state before showing to prevent WindowManagerBadTokenException
      */
     fun showRewardedAd(activity: Activity, onRewarded: (Int) -> Unit, onAdClosed: () -> Unit = {}) {
+        // TESTRIGOR FIX: Check activity state before showing ad
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
+            onAdClosed()
+            return
+        }
+        
         val currentTime = System.currentTimeMillis()
         val timeSinceLastAd = currentTime - lastRewardedTime.get()
 

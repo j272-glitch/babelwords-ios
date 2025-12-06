@@ -45,6 +45,17 @@ class UserActivityTracker(private val context: Context, private val appId: Strin
             Log.d(TAG, "Tracking already started")
             return
         }
+        
+        // TESTRIGOR FIX: Guard against activity finishing during tracking
+        if (context is android.app.Activity) {
+            val activity = context as android.app.Activity
+            if (activity.isFinishing || activity.isDestroyed) {
+                Log.w(TAG, "Cannot start tracking - activity invalid")
+                isTracking.set(false)
+                return
+            }
+        }
+        
         Log.d(TAG, "Starting user tracking")
         // Add TesterMobLib startTracking implementation here
         // This method should start continuous user activity tracking

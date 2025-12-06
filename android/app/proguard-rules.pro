@@ -15,6 +15,13 @@
 
 -keep class com.lingualink.translator.ads.WebAppInterface { *; }
 
+# TESTRIGOR FIX: Keep WebAppBridge JavaScript interface methods
+-keepclassmembers class com.lingualink.linguagt.WebAppBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-keep class com.lingualink.linguagt.WebAppBridge { *; }
+
 # Keep all JavaScript interface methods
 -keepattributes JavascriptInterface
 -keepclassmembers class * {
@@ -306,13 +313,21 @@
 # ========================================
 # Keep your main application class
 -keep class com.lingualink.translator.LinguaLinkApplication { *; }
+-keep class com.lingualink.linguagt.LinguaLinkApplication { *; }
 
 # Keep your activities
 -keep class com.lingualink.translator.MainActivity { *; }
 -keep class com.lingualink.translator.BaseActivity { *; }
+-keep class com.lingualink.linguagt.MainActivity { *; }
+-keep class com.lingualink.linguagt.BaseActivity { *; }
+
+# TESTRIGOR FIX: Keep all linguagt package classes
+-keep class com.lingualink.linguagt.** { *; }
+-keepclassmembers class com.lingualink.linguagt.** { *; }
 
 # Keep your services
 -keep class com.lingualink.translator.TranslationService { *; }
+-keep class com.lingualink.linguagt.TranslationService { *; }
 
 # Keep your ad manager classes (IMPORTANT for AdMob)
 -keep class com.lingualink.translator.ads.** { *; }

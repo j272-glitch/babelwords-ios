@@ -9,7 +9,10 @@
 
     <!-- CRITICAL: Microphone permissions for voice translation -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- TESTRIGOR FIX: Added permission group for proper dialog surfacing in automation -->
+    <uses-permission 
+        android:name="android.permission.RECORD_AUDIO"
+        android:permissionGroup="android.permission-group.MICROPHONE" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />

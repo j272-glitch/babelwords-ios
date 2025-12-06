@@ -72,8 +72,9 @@ class LifecycleAwareHandler(
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
-        // Cancel all pending operations when lifecycle is destroyed
-        pendingRunnables.forEach { handler.removeCallbacks(it) }
+        // TESTRIGOR FIX: Explicitly cancel ALL pending operations to prevent mic UI on dead activities
+        TestRigorLogger.logDebug("LifecycleAwareHandler onDestroy - cancelling all pending operations")
+        handler.removeCallbacksAndMessages(null)
         pendingRunnables.clear()
     }
 }

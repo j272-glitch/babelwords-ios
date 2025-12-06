@@ -24,6 +24,7 @@ class MainActivity : BaseActivity() {
         var tracker: UserActivityTracker? = null
         private const val MICROPHONE_PERMISSION_REQUEST = 200
         private const val BASE_URL = "https://linguagt.com"
+        private const val MIC_DEBOUNCE_MS = 500L
     }
 
     private val appId = "app_id"
@@ -38,6 +39,9 @@ class MainActivity : BaseActivity() {
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
     private var isWaitingForAndroidPermission = false
+    
+    // TESTRIGOR FIX: Debounce rapid microphone clicks
+    private var lastMicClickTime = 0L
 
     fun getWebView(): WebView = webView
 
@@ -91,7 +95,14 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    private fun handleDeepLink(intent: Intent) {
+    private fun handleDeepLink(intent: Intent?) {
+        // TESTRIGOR FIX: Guard against null intents from instrumentation
+        if (intent == null) {
+            TestRigorLogger.logWarning("Null intent in handleDeepLink - TestRigor instrumentation?")
+            loadDefaultUrl()
+            return
+        }
+        
         val action = intent.action
         val data = intent.data
 
@@ -131,9 +142,13 @@ class MainActivity : BaseActivity() {
     }
 
     private fun loadDefaultUrl() {
+        TestRigorLogger.logMilestone("WebView loadUrl starting")
         val defaultUrl = pendingDeepLinkUrl ?: BASE_URL
-        if (::webView.isInitialized) {
+        if (::webView.isInitialized && isSafeToUpdateUI()) {
             webView.loadUrl(defaultUrl)
+            TestRigorLogger.logMilestone("WebView loadUrl completed: $defaultUrl")
+        } else {
+            TestRigorLogger.logWarning("Cannot loadUrl - WebView not ready or UI unsafe")
         }
     }
 
@@ -263,9 +278,13 @@ class MainActivity : BaseActivity() {
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest?) {
-                TestRigorLogger.logWarning("Permission canceled")
-                pendingPermissionRequest = null
-                isWaitingForAndroidPermission = false
+                TestRigorLogger.logWarning("Permission canceled by WebView")
+                // TESTRIGOR FIX: Clean up permission state when WebView retracts
+                if (pendingPermissionRequest == request) {
+                    pendingPermissionRequest = null
+                    isWaitingForAndroidPermission = false
+                    permissionManager.cleanupPendingRequests()
+                }
             }
 
             override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
@@ -282,8 +301,18 @@ class MainActivity : BaseActivity() {
 
     /**
      * CRITICAL FIX: Handle WebView audio permission properly
+     * TESTRIGOR FIX: Added debouncing and Android 14+ compatibility
      */
+    @android.annotation.SuppressLint("InlinedApi")
     private fun handleWebViewAudioPermission(request: PermissionRequest) {
+        // TESTRIGOR FIX: Debounce rapid microphone clicks
+        val now = System.currentTimeMillis()
+        if (now - lastMicClickTime < MIC_DEBOUNCE_MS) {
+            TestRigorLogger.logWarning("Mic permission request debounced - too rapid")
+            return
+        }
+        lastMicClickTime = now
+        
         TestRigorLogger.logMilestone("Handling audio permission request")
 
         val hasAndroidPermission = ContextCompat.checkSelfPermission(
@@ -418,6 +447,17 @@ class MainActivity : BaseActivity() {
         tracker?.sendUserActivity(appId)
         if (::webView.isInitialized) {
             webView.onResume()
+        }
+        
+        // TESTRIGOR FIX: Re-verify pending permission state on resume
+        if (pendingPermissionRequest != null && isWaitingForAndroidPermission) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                TestRigorLogger.logDebug("Permission granted while backgrounded - handling now")
+                handleMicrophonePermissionResult(true)
+            }
         }
     }
 
