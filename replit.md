@@ -8,7 +8,24 @@ LinguaLink is an Android translation application that integrates a web-based tra
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes (August 22, 2025)
+## Recent Changes (December 06, 2025)
+
+- **TestRigor Crash Prevention (22 Fixes)**: Comprehensive hardening to prevent microphone button crashes during automated testing
+  - **TestRigorLogger.kt**: Fixed JVM signature clash with single logError method + @JvmStatic annotation
+  - **MainActivity.kt**: Added debouncing (500ms), null intent handling, milestone logging, onResume permission verification, permission cancel cleanup, @SuppressLint annotation
+  - **SafePermissionManager.kt**: Short-circuit for already granted permissions, empty array handling, cleanupPendingRequests method
+  - **LifecycleAwareHandler.kt**: Explicit handler.removeCallbacksAndMessages(null) cleanup on destroy
+  - **WebAppBridge.kt**: Private safeExecuteOnUiThread helper with Handler-based pattern and double activity state validation
+  - **BaseActivity.kt**: Recursion prevention in uncaught exception handler
+  - **ActivityExtensions.kt**: Handler-based safeRunOnUiThread with TestRigorLogger integration
+  - **AdMobManager.kt**: Activity state checks before showing interstitial/rewarded ads
+  - **UserActivityTracker.kt**: Activity finishing guard before starting tracking
+  - **LinguaLinkApplication.kt**: Conditional WebView debugging with TestRigor environment detection
+  - **ApiService.kt**: validateEagerly for debug builds to fail fast on bad endpoints
+  - **AndroidManifest.xml**: Added permissionGroup for RECORD_AUDIO permission
+  - **proguard-rules.pro**: Keep rules for WebAppBridge @JavascriptInterface methods and com.lingualink.linguagt package
+
+## Previous Changes (August 22, 2025)
 
 - **Privacy Policy Integration**: Added Google Play Store compliant privacy policy system
   - Privacy policy URL: https://linguagt.com/policy (corrected URL)
