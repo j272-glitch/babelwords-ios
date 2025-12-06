@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base application theme -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Primary brand colors -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+
+        <!-- Window background -->
+        <item name="android:windowBackground">@color/windowBackground</item>
+
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@color/colorPrimaryDark</item>
+        <item name="android:windowLightStatusBar">false</item>
+
+        <!-- Enable window content transitions -->
+        <item name="android:windowActivityTransitions">true</item>
+
+        <!-- Default text appearances -->
+        <item name="android:textColorPrimary">@color/textColorPrimary</item>
+        <item name="android:textColorSecondary">@color/textColorSecondary</item>
+
+        <!-- Action bar style -->
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <!-- WebView Activity Theme -->
+    <style name="AppTheme.WebView" parent="AppTheme">
+        <item name="android:windowFullscreen">false</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:windowSoftInputMode">adjustResize|stateHidden</item>
+    </style>
+
+    <!-- Splash Screen Theme -->
+    <style name="AppTheme.Launcher" parent="AppTheme">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+
+    <!-- Google AdMob Interstitial Theme -->
+    <style name="AppTheme.AdMobInterstitial" parent="@android:style/Theme.Translucent">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+    </style>
+
+    <!-- Google AdMob Rewarded Ad Theme -->
+    <style name="AppTheme.AdMobRewarded" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:keepScreenOn">true</item>
+    </style>
+
+    <!-- Unity LevelPlay/IronSource Theme (for compatibility) -->
+    <style name="UnityAdsTheme" parent="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!-- Privacy/GDPR Dialog Theme -->
+    <style name="AppTheme.PrivacyDialog" parent="Theme.AppCompat.Light.Dialog">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowMinWidthMajor">95%</item>
+        <item name="android:windowMinWidthMinor">95%</item>
+        <item name="android:windowBackground">@color/dialogBackground</item>
+    </style>
+
+    <!-- Full Screen Theme -->
+    <style name="AppTheme.FullScreen" parent="AppTheme">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <!-- Transparent Activity Theme -->
+    <style name="AppTheme.Transparent" parent="AppTheme">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+
+    <!-- Dialog Theme -->
+    <style name="AppTheme.Dialog" parent="Theme.AppCompat.Light.Dialog">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowMinWidthMajor">90%</item>
+        <item name="android:windowMinWidthMinor">90%</item>
+    </style>
+</resources>

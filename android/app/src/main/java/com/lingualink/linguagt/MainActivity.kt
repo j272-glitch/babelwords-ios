@@ -9,10 +9,13 @@ import android.webkit.PermissionRequest
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceError
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
+import com.lingualink.linguagt.ads.AdMobManager
 
 class MainActivity : BaseActivity() {
 
@@ -20,30 +23,47 @@ class MainActivity : BaseActivity() {
         @JvmStatic
         var tracker: UserActivityTracker? = null
         private const val MICROPHONE_PERMISSION_REQUEST = 200
+        private const val BASE_URL = "https://linguagt.com"
     }
 
     private val appId = "app_id"
     private lateinit var webView: WebView
     private var conversationCount = 0
+    private var pendingDeepLinkUrl: String? = null
+    private lateinit var lifecycleHandler: LifecycleAwareHandler
+    private lateinit var permissionManager: SafePermissionManager
+    private lateinit var webAppBridge: WebAppBridge
+    private lateinit var adMobManager: AdMobManager
 
-    // Permission request launcher
+    // CRITICAL FIX: Store pending WebView permission requests
+    private var pendingPermissionRequest: PermissionRequest? = null
+    private var isWaitingForAndroidPermission = false
+
+    fun getWebView(): WebView = webView
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         permissions.entries.forEach { (permission, isGranted) ->
-            if (isGranted) {
-                println("CONVERSATION MODE DEBUG: Permission granted: $permission")
-                if (permission == Manifest.permission.RECORD_AUDIO && ::webView.isInitialized) {
-                    webView.reload()
-                }
-            } else {
-                println("CONVERSATION MODE DEBUG: Permission denied: $permission")
+            TestRigorLogger.logPermission(permission, isGranted)
+
+            if (permission == Manifest.permission.RECORD_AUDIO) {
+                handleMicrophonePermissionResult(isGranted)
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        lifecycleHandler = LifecycleAwareHandler(this)
+        permissionManager = SafePermissionManager(this)
+        webAppBridge = WebAppBridge(this)
+        adMobManager = AdMobManager.getInstance(this)
+
+        adMobManager.initialize(this) { consentGranted ->
+            TestRigorLogger.logAdEvent("AdMob initialized. Consent: $consentGranted")
+        }
 
         requestPermissions()
 
@@ -55,11 +75,65 @@ class MainActivity : BaseActivity() {
 
         try {
             setupWebViewForConversationMode()
-            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
+            handleDeepLink(intent)
+            TestRigorLogger.logMilestone("WebView setup completed")
         } catch (e: Exception) {
-            println("CONVERSATION MODE DEBUG: WebView setup failed: ${e.message}")
-            e.printStackTrace()
+            TestRigorLogger.logError("WebView setup failed", e)
             createNativeTranslationInterface()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        intent?.let { 
+            setIntent(it)
+            handleDeepLink(it) 
+        }
+    }
+
+    private fun handleDeepLink(intent: Intent) {
+        val action = intent.action
+        val data = intent.data
+
+        TestRigorLogger.logDebug("Deep link - Action: $action, Data: $data")
+
+        if (Intent.ACTION_VIEW == action && data != null) {
+            processDeepLinkUrl(data)
+        } else {
+            loadDefaultUrl()
+        }
+    }
+
+    private fun processDeepLinkUrl(uri: Uri) {
+        val host = uri.host
+        val path = uri.path ?: ""
+        val query = uri.query ?: ""
+
+        if (host == "linguagt.com" || host == "www.linguagt.com") {
+            val urlToLoad = if (query.isNotEmpty()) {
+                "$BASE_URL$path?$query"
+            } else {
+                "$BASE_URL$path"
+            }
+
+            TestRigorLogger.logWebView("Loading deep link", urlToLoad)
+
+            if (::webView.isInitialized) {
+                webView.loadUrl(urlToLoad)
+            } else {
+                pendingDeepLinkUrl = urlToLoad
+            }
+
+            tracker?.trackActivity("DeepLink:$path")
+        } else {
+            loadDefaultUrl()
+        }
+    }
+
+    private fun loadDefaultUrl() {
+        val defaultUrl = pendingDeepLinkUrl ?: BASE_URL
+        if (::webView.isInitialized) {
+            webView.loadUrl(defaultUrl)
         }
     }
 
@@ -84,15 +158,20 @@ class MainActivity : BaseActivity() {
         try {
             tracker?.startSession()
             tracker?.trackActivity("MainActivity")
-            println("TesterMobLib and UserActivityTracker initialized successfully")
         } catch (e: Exception) {
-            println("Failed to initialize TesterMobLib: ${e.message}")
+            TestRigorLogger.logError("TesterMobLib init", e)
         }
     }
 
     private fun setupWebViewForConversationMode() {
-        webView = WebView(this)
-        println("CONVERSATION MODE DEBUG: WebView created successfully")
+        try {
+            webView = WebView(this)
+        } catch (e: Exception) {
+            TestRigorLogger.logError("WebView creation", e)
+            throw e
+        }
+
+        webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
 
         val webSettings: WebSettings = webView.settings
         webSettings.apply {
@@ -119,240 +198,218 @@ class MainActivity : BaseActivity() {
                 val url = request?.url?.toString() ?: ""
 
                 if (url.startsWith("ws://") || url.startsWith("wss://")) {
-                    println("CONVERSATION MODE DEBUG: Allowing WebSocket connection: $url")
                     return false
+                }
+
+                val uri = request?.url
+                if (uri != null) {
+                    val host = uri.host
+                    if (host == "linguagt.com" || host == "www.linguagt.com") {
+                        return false
+                    }
                 }
 
                 return false
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                println("CONVERSATION MODE DEBUG: Page started loading: $url")
+                TestRigorLogger.logWebView("Page started", url)
                 super.onPageStarted(view, url, favicon)
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                println("CONVERSATION MODE DEBUG: Page finished loading: $url")
+                TestRigorLogger.logWebView("Page finished", url)
 
-                val jsCode = """
-                    (function() {
-                        console.log('CONVERSATION MODE: Page loaded successfully');
-                        console.log('CONVERSATION MODE: Current URL:', window.location.href);
-
-                        // Android App Configuration - Crash Prevention
-                        console.log('🤖 Android WebView detected - applying crash prevention configurations');
-
-                        // CRITICAL: Prevent memory leaks from audio/media elements
-                        var cleanupAudioResources = function() {
-                            try {
-                                // Stop all audio elements
-                                document.querySelectorAll('audio, video').forEach(function(el) {
-                                    el.pause();
-                                    el.src = '';
-                                    el.load();
-                                });
-
-                                // Close all MediaStream tracks
-                                if (window.__microphoneStream) {
-                                    window.__microphoneStream.getTracks().forEach(function(track) {
-                                        track.stop();
-                                    });
-                                    window.__microphoneStream = null;
-                                }
-
-                                console.log('🧹 Audio resources cleaned');
-                            } catch (e) {
-                                console.warn('⚠️ Audio cleanup error:', e);
-                            }
-                        };
-
-                        // CRITICAL: Prevent state mutation crashes during navigation
-                        var isNavigating = false;
-                        var safeNavigationGuard = function() {
-                            if (isNavigating) {
-                                console.log('🛡️ Navigation in progress - blocking state changes');
-                                return false;
-                            }
-                            return true;
-                        };
-
-                        // Override problematic state setters during navigation
-                        var originalPushState = history.pushState;
-                        var originalReplaceState = history.replaceState;
-
-                        history.pushState = function() {
-                            if (!safeNavigationGuard()) return;
-                            isNavigating = true;
-                            try {
-                                return originalPushState.apply(this, arguments);
-                            } finally {
-                                setTimeout(function() { isNavigating = false; }, 500);
-                            }
-                        };
-
-                        history.replaceState = function() {
-                            if (!safeNavigationGuard()) return;
-                            isNavigating = true;
-                            try {
-                                return originalReplaceState.apply(this, arguments);
-                            } finally {
-                                setTimeout(function() { isNavigating = false; }, 500);
-                            }
-                        };
-
-                        // CRITICAL: Handle uncaught errors to prevent crashes
-                        window.addEventListener('error', function(event) {
-                            console.error('🚨 Uncaught error:', event.error);
-                            event.preventDefault();
-                            return true;
-                        });
-
-                        window.addEventListener('unhandledrejection', function(event) {
-                            console.error('🚨 Unhandled promise rejection:', event.reason);
-                            event.preventDefault();
-                        });
-
-                        // CRITICAL: Cleanup on visibility change to prevent memory crashes
-                        document.addEventListener('visibilitychange', function() {
-                            if (document.hidden) {
-                                console.log('📱 App backgrounded - cleaning up resources');
-                                cleanupAudioResources();
-                            }
-                        });
-
-                        // Check for Unity LevelPlay ad integration
-                        if (typeof AndroidAds !== 'undefined') {
-                            console.log('UNITY LEVELPLAY: Android ad interface available');
-                            console.log('UNITY LEVELPLAY: Is Android app:', AndroidAds.isAndroidApp());
-                        } else {
-                            console.log('UNITY LEVELPLAY: Running in web browser (ads disabled)');
-                        }
-
-                        // Check for deep link parameters
-                        var urlParams = new URLSearchParams(window.location.search);
-                        if (urlParams.toString()) {
-                            console.log('CONVERSATION MODE: Query parameters:', urlParams.toString());
-                        }
-
-                        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-                            console.log('CONVERSATION MODE: Speech Recognition API available');
-                        }
-
-                        setTimeout(function() {
-                            try {
-                                var buttons = document.querySelectorAll('button, [role="button"]');
-                                buttons.forEach(function(button) {
-                                    if (button.textContent.toLowerCase().includes('record') || 
-                                        button.textContent.toLowerCase().includes('mic') ||
-                                        button.classList.contains('mic-button')) {
-                                        button.setAttribute('data-testid', 'microphone-button');
-                                        console.log('CONVERSATION MODE: Microphone button labeled');
-                                    }
-                                });
-
-                                var outputs = document.querySelectorAll('textarea, .translation-output, [data-testid*="translation"]');
-                                outputs.forEach(function(output) {
-                                    output.setAttribute('data-testid', 'translation-result');
-                                    console.log('CONVERSATION MODE: Translation area labeled');
-                                });
-
-                                var conversationToggle = document.querySelector('[data-testid*="conversation"], .conversation-mode');
-                                if (conversationToggle) {
-                                    conversationToggle.setAttribute('data-testid', 'conversation-mode-toggle');
-                                    console.log('CONVERSATION MODE: Conversation toggle found');
-                                }
-                            } catch (e) {
-                                console.log('CONVERSATION MODE: Error labeling elements:', e);
-                            }
-                        }, 2000);
-                    })();
-                """
-
-                try {
-                    view?.evaluateJavascript(jsCode) { result ->
-                        println("CONVERSATION MODE DEBUG: JavaScript injection completed with crash prevention")
-                    }
-                } catch (e: Exception) {
-                    println("CONVERSATION MODE DEBUG: JavaScript injection failed: ${e.message}")
+                url?.let {
+                    val path = Uri.parse(it).path ?: "/"
+                    tracker?.trackActivity("PageView:$path")
                 }
+
+                injectMicrophoneDetectionScript(view)
 
                 super.onPageFinished(view, url)
             }
 
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
-                println("CONVERSATION MODE DEBUG: WebView error: ${error?.description}")
+                if (request?.isForMainFrame == true) {
+                    TestRigorLogger.logError("WebView error: ${error?.description}", null)
+                }
                 super.onReceivedError(view, request, error)
             }
         }
 
+        // CRITICAL: WebChromeClient handles microphone permission
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest?) {
-                request?.let { permissionRequest ->
-                    val resources = permissionRequest.resources
-                    println("CONVERSATION MODE DEBUG: Permission request received for: ${resources.joinToString()}")
+                if (request == null) {
+                    TestRigorLogger.logError("Null permission request", null)
+                    return
+                }
 
-                    if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-                        if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) 
-                            == PackageManager.PERMISSION_GRANTED) {
-                            permissionRequest.grant(resources)
-                            println("CONVERSATION MODE DEBUG: Audio capture permission granted to WebView")
-                        } else {
-                            requestMicrophonePermission()
-                            permissionRequest.deny()
-                            println("CONVERSATION MODE DEBUG: Need Android microphone permission first")
+                val resources = request.resources
+                TestRigorLogger.logDebug("WebView permission: ${resources.joinToString()}")
+
+                if (resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                    handleWebViewAudioPermission(request)
+                } else {
+                    lifecycleHandler.post {
+                        try {
+                            request.grant(resources)
+                        } catch (e: Exception) {
+                            TestRigorLogger.logError("Grant failed", e)
                         }
-                    } else {
-                        permissionRequest.grant(resources)
                     }
                 }
             }
 
+            override fun onPermissionRequestCanceled(request: PermissionRequest?) {
+                TestRigorLogger.logWarning("Permission canceled")
+                pendingPermissionRequest = null
+                isWaitingForAndroidPermission = false
+            }
+
             override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                println("CONVERSATION MODE JS: ${consoleMessage?.message()}")
+                consoleMessage?.let {
+                    TestRigorLogger.logDebug("Console: ${it.message()}")
+                }
                 return super.onConsoleMessage(consoleMessage)
             }
         }
 
         webView.contentDescription = "LinguaLink Translation App WebView"
-
-        val webAppUrl = "https://gtlingua.com"
-
-        try {
-            println("CONVERSATION MODE DEBUG: Loading URL: $webAppUrl")
-            webView.loadUrl(webAppUrl)
-            setContentView(webView)
-            println("CONVERSATION MODE DEBUG: WebView setup completed successfully")
-        } catch (e: Exception) {
-            println("CONVERSATION MODE DEBUG: Failed to load URL: ${e.message}")
-            e.printStackTrace()
-            createNativeTranslationInterface()
-        }
+        setContentView(webView)
     }
 
-    private fun requestMicrophonePermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) 
-            != PackageManager.PERMISSION_GRANTED) {
+    /**
+     * CRITICAL FIX: Handle WebView audio permission properly
+     */
+    private fun handleWebViewAudioPermission(request: PermissionRequest) {
+        TestRigorLogger.logMilestone("Handling audio permission request")
+
+        val hasAndroidPermission = ContextCompat.checkSelfPermission(
+            this, 
+            Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasAndroidPermission) {
+            // Grant immediately
+            TestRigorLogger.logDebug("Android permission exists, granting to WebView")
+            lifecycleHandler.post {
+                try {
+                    request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    TestRigorLogger.logMilestone("Audio granted to WebView")
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("WebView grant failed", e)
+                }
+            }
+        } else {
+            // Request Android permission first
+            TestRigorLogger.logDebug("Requesting Android mic permission")
+
+            pendingPermissionRequest = request
+            isWaitingForAndroidPermission = true
+
             ActivityCompat.requestPermissions(
-                this, 
-                arrayOf(Manifest.permission.RECORD_AUDIO), 
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
                 MICROPHONE_PERMISSION_REQUEST
             )
         }
     }
 
+    /**
+     * CRITICAL FIX: Handle Android permission result
+     */
+    private fun handleMicrophonePermissionResult(granted: Boolean) {
+        TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted)
+
+        if (granted && pendingPermissionRequest != null) {
+            TestRigorLogger.logDebug("Granting to WebView after Android permission")
+
+            val request = pendingPermissionRequest
+            pendingPermissionRequest = null
+            isWaitingForAndroidPermission = false
+
+            lifecycleHandler.post {
+                try {
+                    request?.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    TestRigorLogger.logMilestone("Audio granted after permission")
+
+                    // Reload to trigger new request
+                    if (::webView.isInitialized) {
+                        webView.reload()
+                    }
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("Post-permission grant failed", e)
+                }
+            }
+        } else if (!granted) {
+            TestRigorLogger.logWarning("Microphone permission denied")
+
+            if (pendingPermissionRequest != null) {
+                val request = pendingPermissionRequest
+                pendingPermissionRequest = null
+                isWaitingForAndroidPermission = false
+
+                lifecycleHandler.post {
+                    try {
+                        request?.deny()
+                    } catch (e: Exception) {
+                        TestRigorLogger.logError("Deny failed", e)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Inject microphone detection script
+     */
+    private fun injectMicrophoneDetectionScript(view: WebView?) {
+        val script = """
+            (function() {
+                console.log('MICROPHONE: Detection loaded');
+
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const original = navigator.mediaDevices.getUserMedia;
+
+                    navigator.mediaDevices.getUserMedia = function(constraints) {
+                        console.log('MICROPHONE: getUserMedia called:', JSON.stringify(constraints));
+
+                        return original.call(navigator.mediaDevices, constraints)
+                            .then(stream => {
+                                console.log('MICROPHONE: Stream OK, audio tracks:', stream.getAudioTracks().length);
+                                return stream;
+                            })
+                            .catch(error => {
+                                console.error('MICROPHONE: Error:', error.name, error.message);
+                                throw error;
+                            });
+                    };
+                }
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    document.body.setAttribute('data-testrigor-ready', 'true');
+                    console.log('TESTRIGOR: Ready');
+                });
+            })();
+        """
+
+        view?.evaluateJavascript(script) {
+            TestRigorLogger.logDebug("Detection script injected")
+        }
+    }
+
     override fun onRequestPermissionsResult(
-        requestCode: Int, 
-        permissions: Array<out String>, 
+        requestCode: Int,
+        permissions: Array<out String>,
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
         if (requestCode == MICROPHONE_PERMISSION_REQUEST) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                if (::webView.isInitialized) {
-                    webView.reload()
-                    println("CONVERSATION MODE DEBUG: Microphone permission granted, reloading WebView")
-                }
-            }
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            handleMicrophonePermissionResult(granted)
         }
     }
 
@@ -386,15 +443,12 @@ class MainActivity : BaseActivity() {
         if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
+            @Suppress("DEPRECATION")
             super.onBackPressed()
         }
     }
 
     private fun createNativeTranslationInterface() {
-        println("CONVERSATION MODE DEBUG: createNativeTranslationInterface called")
-        println("CONVERSATION MODE DEBUG: Current thread: ${Thread.currentThread().name}")
-        println("CONVERSATION MODE DEBUG: Activity state - finishing: ${isFinishing}, destroyed: ${isDestroyed}")
-
         val layout = android.widget.LinearLayout(this)
         layout.orientation = android.widget.LinearLayout.VERTICAL
         layout.setPadding(50, 50, 50, 50)
@@ -409,23 +463,24 @@ class MainActivity : BaseActivity() {
         layout.addView(titleText)
 
         val modeText = android.widget.TextView(this)
-        modeText.text = "Voice Recording"
+        modeText.text = "Voice Recording (Offline Mode)"
         modeText.textSize = 16f
         modeText.setTextColor(android.graphics.Color.parseColor("#2196F3"))
         modeText.setPadding(0, 10, 0, 20)
         layout.addView(modeText)
 
-        // Create translation result TextView BEFORE the button
-        val conversationText = android.widget.TextView(this)
-        conversationText.text = "Tap the microphone button to start translating"
-        conversationText.textSize = 16f
-        conversationText.id = android.R.id.text2
-        conversationText.contentDescription = "translation result"
-        conversationText.setTextColor(android.graphics.Color.DARK_GRAY)
-        conversationText.setPadding(20, 30, 20, 20)
-        conversationText.minHeight = 400
-        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
-        layout.addView(conversationText)
+        val retryButton = android.widget.Button(this)
+        retryButton.text = "🔄 Retry Connection"
+        retryButton.setOnClickListener {
+            TestRigorLogger.logClick("retry_button")
+            try {
+                setupWebViewForConversationMode()
+                handleDeepLink(intent)
+            } catch (e: Exception) {
+                TestRigorLogger.logError("Retry failed", e)
+            }
+        }
+        layout.addView(retryButton)
 
         val micButton1 = android.widget.Button(this)
         micButton1.text = "🎤 Tap to Speak"
@@ -433,43 +488,26 @@ class MainActivity : BaseActivity() {
         micButton1.contentDescription = "microphone button"
         micButton1.textSize = 18f
         micButton1.setPadding(40, 20, 40, 20)
-        micButton1.setOnClickListener {
-            println("CONVERSATION MODE DEBUG: Microphone clicked")
-            println("CONVERSATION MODE DEBUG: Activity finishing? ${isFinishing}")
-            println("CONVERSATION MODE DEBUG: Activity destroyed? ${isDestroyed}")
-            println("CONVERSATION MODE DEBUG: ConversationText parent: ${conversationText.parent}")
+        micButton1.setOnClickListener(SafeClickListener(this) {
+            TestRigorLogger.logClick("microphone button")
 
-            try {
-                if (isFinishing || isDestroyed) {
-                    println("CONVERSATION MODE DEBUG: Activity not in valid state, aborting")
-                    return@setOnClickListener
-                }
-
-                conversationText.text = "Listening..."
-                println("CONVERSATION MODE DEBUG: Updated text to 'Listening...'")
-
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    try {
-                        if (isFinishing || isDestroyed) {
-                            println("CONVERSATION MODE DEBUG: Activity destroyed during delay, skipping update")
-                            return@postDelayed
-                        }
-
-                        conversationText.text = "Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?"
-                        println("CONVERSATION MODE DEBUG: Translation updated successfully")
-                    } catch (e: Exception) {
-                        println("CONVERSATION MODE DEBUG: Error updating translation: ${e.message}")
-                        println("CONVERSATION MODE DEBUG: Stack trace:")
-                        e.printStackTrace()
-                    }
-                }, 1500)
-            } catch (e: Exception) {
-                println("CONVERSATION MODE DEBUG: Error in microphone button handler: ${e.message}")
-                println("CONVERSATION MODE DEBUG: Error type: ${e.javaClass.simpleName}")
-                println("CONVERSATION MODE DEBUG: Stack trace:")
-                e.printStackTrace()
+            if (!checkTestReadiness()) {
+                TestRigorLogger.logActivityState(
+                    "MainActivity", "not ready",
+                    isFinishing, isDestroyed
+                )
+                return@SafeClickListener
             }
-        }
+
+            updateTranslationResult("Listening...")
+
+            lifecycleHandler.postDelayed(Runnable {
+                safeRunOnUiThread {
+                    updateTranslationResult("Translation: Hello, how are you?\nTraducción: Hola, ¿cómo estás?")
+                    TestRigorLogger.logUIUpdate("translation_result", "Translation completed")
+                }
+            }, 1500)
+        })
         layout.addView(micButton1)
 
         val languageLabel = android.widget.TextView(this)
@@ -485,29 +523,75 @@ class MainActivity : BaseActivity() {
         languageSpinner.contentDescription = "language selector"
         layout.addView(languageSpinner)
 
+        val conversationText = android.widget.TextView(this)
+        conversationText.text = "Tap the microphone button to start translating"
+        conversationText.textSize = 16f
+        conversationText.id = android.R.id.text2
+        conversationText.contentDescription = "translation result"
+        conversationText.setTextColor(android.graphics.Color.DKGRAY)
+        conversationText.setPadding(20, 30, 20, 20)
+        conversationText.minHeight = 400
+        conversationText.setBackgroundColor(android.graphics.Color.parseColor("#F5F5F5"))
+        layout.addView(conversationText)
+
         setContentView(layout)
-        println("CONVERSATION MODE DEBUG: Native fallback interface created")
     }
 
+    private fun updateTranslationResult(text: String) {
+        if (!isSafeToUpdateUI()) {
+            TestRigorLogger.logActivityState(
+                "MainActivity", "unsafe for UI update",
+                isFinishing, isDestroyed
+            )
+            return
+        }
 
+        val resultView = safeFindViewById<android.widget.TextView>(android.R.id.text2)
+        if (resultView != null) {
+            resultView.text = text
+            TestRigorLogger.logUIUpdate("text2", text)
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()
 
-        tracker?.endSession()
+        pendingPermissionRequest = null
+        isWaitingForAndroidPermission = false
+
+        try {
+            if (::adMobManager.isInitialized) {
+                adMobManager.destroy()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob cleanup", e)
+        }
+
+        try {
+            tracker?.endSession()
+            tracker = null
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Tracker cleanup", e)
+        }
 
         try {
             if (::webView.isInitialized) {
                 webView.stopLoading()
                 webView.onPause()
+                webView.removeAllViews()
+
+                val parent = webView.parent as? android.view.ViewGroup
+                parent?.removeView(webView)
+
                 webView.clearHistory()
                 webView.clearCache(true)
+                webView.clearFormData()
                 webView.loadUrl("about:blank")
-                webView.removeAllViews()
+
                 webView.destroy()
             }
         } catch (e: Exception) {
-            println("CONVERSATION MODE DEBUG: WebView cleanup failed: ${e.message}")
+            TestRigorLogger.logError("WebView cleanup", e)
         }
     }
 }

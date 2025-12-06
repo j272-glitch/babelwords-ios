@@ -1,6 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App Info -->
     <string name="app_name">LinguaLink</string>
+
+    <!-- Loading Messages -->
+    <string name="loading_translation_app">Loading Translation App…</string>
+    <string name="initializing_conversation_mode">Initializing Conversation Mode</string>
+
+    <!-- Error Messages -->
+    <string name="connection_error">Connection Error</string>
+    <string name="connection_error_message">Unable to load the translation service. Please check your internet connection.</string>
+    <string name="error_icon">Error icon</string>
+
+    <!-- Buttons -->
+    <string name="retry">Retry</string>
+    <string name="use_offline_mode">Use Offline Mode</string>
+    <string name="grant_permission">Grant Permission</string>
+
+    <!-- Permissions -->
     <string name="permission_required">Permission Required</string>
+    <string name="microphone_permission_required">Microphone Permission Required</string>
     <string name="microphone_permission_rationale">This app needs microphone permission for speech translation.</string>
+    <string name="microphone_permission_description">Conversation mode requires microphone access for real-time translation.</string>
+
+    <!-- Conversation Mode -->
+    <string name="conversation_mode">Conversation Mode</string>
+    <string name="conversation_mode_active">Conversation mode active</string>
+
+    <!-- Unity LevelPlay Ads (optional messages) -->
+    <string name="ad_loading">Loading ad…</string>
+    <string name="ad_failed">Ad failed to load</string>
+    <string name="ad_closed">Ad closed</string>
 </resources>
