@@ -22,13 +22,11 @@ abstract class BaseActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         isActivityAlive.set(true)
 
-        // TESTRIGOR FIX: Set up global exception handler with recursion prevention
+        // Set up global exception handler for this activity
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e(TAG, "Uncaught exception in ${this::class.simpleName}", throwable)
             handleUncaughtException(throwable)
-            // TESTRIGOR FIX: Restore default handler before calling to prevent recursive loops
-            Thread.setDefaultUncaughtExceptionHandler(defaultHandler)
             // Call default handler
             defaultHandler?.uncaughtException(thread, throwable)
         }

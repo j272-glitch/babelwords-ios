@@ -7,32 +7,21 @@ import android.util.Log
 
 /**
  * Extension functions for safe UI operations during automated testing
- * 
- * TESTRIGOR FIX: Route through Handler for safer execution to avoid IllegalStateException
  */
 
 /**
  * Safely post to UI thread with activity lifecycle check
- * TESTRIGOR FIX: Uses Handler to avoid potential IllegalStateException when WebView is mid-destruction
  */
 fun Activity.safeRunOnUiThread(action: () -> Unit) {
-    if (isFinishing || isDestroyed) {
-        Log.w("SafeActivity", "safeRunOnUiThread skipped - activity finishing/destroyed")
-        return
-    }
-    
-    // TESTRIGOR FIX: Route through Handler for safer execution
-    val handler = Handler(Looper.getMainLooper())
-    handler.post {
-        if (!isFinishing && !isDestroyed) {
-            try {
-                action()
-            } catch (e: Exception) {
-                Log.e("SafeActivity", "Error in safeRunOnUiThread", e)
-                TestRigorLogger.logError("safeRunOnUiThread", e)
+    if (!isFinishing && !isDestroyed) {
+        try {
+            runOnUiThread {
+                if (!isFinishing && !isDestroyed) {
+                    action()
+                }
             }
-        } else {
-            Log.w("SafeActivity", "safeRunOnUiThread action skipped - activity became invalid")
+        } catch (e: Exception) {
+            Log.e("SafeActivity", "Error in safeRunOnUiThread", e)
         }
     }
 }

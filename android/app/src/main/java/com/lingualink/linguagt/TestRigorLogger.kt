@@ -5,12 +5,14 @@ import android.util.Log
 /**
  * Enhanced logging for TestRigor debugging
  * 
- * FIXED v3: Consolidated to single logError method with nullable Throwable to prevent JVM signature clash
- * Both logError(String, Throwable) and logError(String, Throwable?) compile to same JVM signature
+ * FIXED: Removed duplicate logError method to prevent JVM signature clash
+ * Now uses only nullable Throwable parameter which is more flexible
  * 
  * UPDATED: Added missing logging methods (logPermission, logMilestone, logDebug, logWebView, logWarning)
+ * to resolve compilation errors in MainActivity.kt
+ * 
  * UPDATED v2: Modified logPermission and logWebView to accept multiple parameters
- * UPDATED v3: Added logPermissionMismatch for TestRigor automation diagnostics
+ * to fix "Too many arguments" compilation errors
  */
 object TestRigorLogger {
 
@@ -31,14 +33,16 @@ object TestRigorLogger {
     /**
      * Log an error with optional throwable
      * 
-     * CRITICAL: Only ONE logError method exists to prevent JVM signature clash
-     * logError(String, Throwable) and logError(String, Throwable?) both compile 
-     * to the same JVM signature (Ljava/lang/String;Ljava/lang/Throwable;)V
+     * FIXED: Only one logError method with nullable Throwable
+     * This prevents JVM signature clash between:
+     * - logError(String, Throwable) and 
+     * - logError(String, Throwable?)
+     * 
+     * Both compile to the same JVM signature, causing a platform declaration clash.
      * 
      * @param operation Description of the operation that failed
      * @param error Optional throwable (can be null for non-exception errors like FormError)
      */
-    @JvmStatic
     fun logError(operation: String, error: Throwable?) {
         Log.e(TAG, "========================================")
         Log.e(TAG, "ERROR in $operation")
@@ -78,20 +82,6 @@ object TestRigorLogger {
         Log.d(TAG, "Thread: ${Thread.currentThread().name}")
         Log.d(TAG, "Time: ${System.currentTimeMillis()}")
         Log.d(TAG, "========================================")
-    }
-
-    /**
-     * Log permission mismatch for TestRigor diagnostics
-     * Used when automation uses unexpected permission flows
-     */
-    fun logPermissionMismatch(expected: String, received: String) {
-        Log.w(TAG, "========================================")
-        Log.w(TAG, "PERMISSION_MISMATCH:")
-        Log.w(TAG, "Expected: $expected")
-        Log.w(TAG, "Received: $received")
-        Log.w(TAG, "Thread: ${Thread.currentThread().name}")
-        Log.w(TAG, "Time: ${System.currentTimeMillis()}")
-        Log.w(TAG, "========================================")
     }
 
     /**
