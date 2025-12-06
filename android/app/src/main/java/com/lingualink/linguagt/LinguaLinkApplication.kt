@@ -32,30 +32,17 @@ class LinguaLinkApplication : Application(), DefaultLifecycleObserver {
 
     /**
      * Configure WebView settings for the entire application
-     * TESTRIGOR FIX: Conditional debugging based on build type and test mode
      */
     private fun setupWebViewDefaults() {
         try {
-            // Enable WebView debugging for development (disable in production and TestRigor)
-            val shouldEnableDebugging = BuildConfig.DEBUG && !isRunningInTestRigor()
-            if (shouldEnableDebugging) {
+            // Enable WebView debugging for development (disable in production)
+            if (BuildConfig.DEBUG) {
                 android.webkit.WebView.setWebContentsDebuggingEnabled(true)
                 Log.d(TAG, "WebView debugging enabled")
-            } else {
-                android.webkit.WebView.setWebContentsDebuggingEnabled(false)
-                Log.d(TAG, "WebView debugging disabled (release or TestRigor mode)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to setup WebView defaults: ${e.message}")
         }
-    }
-    
-    /**
-     * Check if running in TestRigor automated testing environment
-     */
-    private fun isRunningInTestRigor(): Boolean {
-        return System.getProperty("testRigor") == "true" ||
-               System.getenv("TESTRIGOR") == "true"
     }
 
     /**
