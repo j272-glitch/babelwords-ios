@@ -965,9 +965,11 @@ class MainActivity : BaseActivity() {
     
     /**
      * Solution #76: Check multi-window mode for race conditions
+     * Note: onMultiWindowModeChanged is deprecated in newer Android versions
      */
-    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration?) {
-        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+    @Deprecated("Deprecated in Java")
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode)
         TestRigorLogger.logDebug("Multi-window mode changed: $isInMultiWindowMode")
         
         if (isInMultiWindowMode) {
