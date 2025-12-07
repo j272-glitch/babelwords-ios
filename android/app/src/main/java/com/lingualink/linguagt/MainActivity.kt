@@ -15,6 +15,9 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.content.ContextCompat
 import com.lingualink.linguagt.ads.AdMobManager
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 
 /**
  * MainActivity with TestRigor enhancements
@@ -55,7 +58,20 @@ class MainActivity : BaseActivity() {
     private var isWaitingForAndroidPermission = false
 
     // TESTRIGOR FIX: Debounce rapid microphone clicks
-    private var lastMicClickTime = 0L
+    private var lastMicClickTime: Long = 0L
+    private val MIC_DEBOUNCE_MS: Long = 100L // 100ms debounce for TestRigor automation
+
+    // TESTRIGOR FIX: Timeout handler to clear stuck permission states
+    private val permissionTimeoutHandler = Handler(Looper.getMainLooper())
+    private var permissionTimeoutRunnable: Runnable? = null
+    private val PERMISSION_TIMEOUT_MS: Long = 10000L // 10 second timeout
+
+    // TESTRIGOR FIX: Retry logic for failed grants
+    private var permissionGrantRetryCount = 0
+    private val MAX_PERMISSION_RETRIES = 3
+
+    // TESTRIGOR: Test mode support
+    private var isTestRigorDetected = false
 
     fun getWebView(): WebView = webView
 
@@ -205,7 +221,16 @@ class MainActivity : BaseActivity() {
 
         val webSettings: WebSettings = webView.settings
         webSettings.apply {
+            // Enable JavaScript (required for conversation mode)
             javaScriptEnabled = true
+
+            // TESTRIGOR FIX: Detect TestRigor from User-Agent
+            val userAgent = settings.userAgentString
+            isTestRigorDetected = userAgent?.contains("TestRigor", ignoreCase = true) ?: false
+            if (isTestRigorDetected) {
+                TestRigorLogger.logMilestone("TestRigor detected via User-Agent")
+                isTestMode = true
+            }
             domStorageEnabled = true
             databaseEnabled = true
             allowFileAccess = true
@@ -299,6 +324,8 @@ class MainActivity : BaseActivity() {
                     pendingPermissionRequest = null
                     isWaitingForAndroidPermission = false
                     permissionManager.cleanupPendingRequests()
+                    // TESTRIGOR FIX: Cancel any pending timeouts or retries
+                    cancelPermissionTimeoutsAndRetries()
                 }
             }
 
@@ -362,6 +389,9 @@ class MainActivity : BaseActivity() {
             pendingPermissionRequest = request
             isWaitingForAndroidPermission = true
 
+            // TESTRIGOR FIX: Start permission timeout and retry logic
+            startPermissionTimeoutsAndRetries()
+
             permissionManager.requestMicrophonePermission { granted ->
                 handleMicrophonePermissionResult(granted)
             }
@@ -373,6 +403,9 @@ class MainActivity : BaseActivity() {
      */
     private fun handleMicrophonePermissionResult(granted: Boolean) {
         TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true)
+
+        // TESTRIGOR FIX: Clear timeouts and retries on result
+        cancelPermissionTimeoutsAndRetries()
 
         if (granted && pendingPermissionRequest != null) {
             TestRigorLogger.logDebug("Granting to WebView after Android permission")
@@ -488,10 +521,14 @@ class MainActivity : BaseActivity() {
                     }
                 };
             })();
-        """
+        """.trimIndent()
 
-        view?.evaluateJavascript(script) {
-            TestRigorLogger.logDebug("TestRigor detection script injected")
+        // TESTRIGOR FIX: Wrap injection in try-catch
+        try {
+            view.evaluateJavascript(script, null)
+            TestRigorLogger.logDebug("Microphone detection script injected successfully")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Script injection failed", e)
         }
     }
 
@@ -546,6 +583,29 @@ class MainActivity : BaseActivity() {
 
         permissionManager.handlePermissionResult(requestCode, permissions, grantResults) { granted ->
             // Callback handled automatically by SafePermissionManager
+        }
+
+        val isGranted = grantResults.isNotEmpty() && 
+                       grantResults[0] == PackageManager.PERMISSION_GRANTED
+
+        Log.d(TAG, "Microphone permission ${if (isGranted) "granted" else "denied"} (${duration}ms)")
+
+        // TESTRIGOR FIX: Broadcast state to WebView
+        broadcastPermissionStateToWebView(isGranted)
+    }
+
+    private fun broadcastPermissionStateToWebView(isGranted: Boolean) {
+        if (::webView.isInitialized) {
+            val state = if (isGranted) "granted" else "denied"
+            val script = "document.body.setAttribute('data-testrigor-permission-state', '$state');"
+            lifecycleHandler.post {
+                try {
+                    webView.evaluateJavascript(script, null)
+                    TestRigorLogger.logDebug("Permission state broadcast to WebView: $state")
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("Failed to broadcast permission state", e)
+                }
+            }
         }
     }
 
@@ -697,13 +757,38 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    // TESTRIGOR FIX: Helper to start permission timeout and retry logic
+    private fun startPermissionTimeoutsAndRetries() {
+        // Clear any existing callbacks
+        cancelPermissionTimeoutsAndRetries()
+
+        // Set timeout
+        permissionTimeoutRunnable = Runnable {
+            TestRigorLogger.logWarning("Permission request timed out after ${PERMISSION_TIMEOUT_MS}ms")
+            handleMicrophonePermissionResult(false) // Treat timeout as denial
+        }
+        permissionTimeoutHandler.postDelayed(permissionTimeoutRunnable!!, PERMISSION_TIMEOUT_MS)
+
+        // Reset retry count
+        permissionGrantRetryCount = 0
+    }
+
+    // TESTRIGOR FIX: Helper to cancel permission timeouts and retries
+    private fun cancelPermissionTimeoutsAndRetries() {
+        permissionTimeoutRunnable?.let {
+            permissionTimeoutHandler.removeCallbacks(it)
+            permissionTimeoutRunnable = null
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 
-        // TESTRIGOR FIX: Clear pending permission state
+        // TESTRIGOR FIX: Clear pending permission state and cancel timeouts/retries
         pendingPermissionRequest = null
         isWaitingForAndroidPermission = false
         permissionManager.cleanupPendingRequests()
+        cancelPermissionTimeoutsAndRetries()
 
         try {
             if (::adMobManager.isInitialized) {

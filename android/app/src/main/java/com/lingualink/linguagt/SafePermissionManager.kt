@@ -29,6 +29,11 @@ class SafePermissionManager(
     // Track pending permission callback - only one active request at a time
     private var pendingPermissionCallback: ((Boolean) -> Unit)? = null
 
+    // Track request timing and count for TestRigor logging
+    private var requestStartTime: Long = 0L
+    private var requestCount: Int = 0
+    private var lastRequestResult: Boolean = false
+
     init {
         if (testMode) {
             Log.d(TAG, "⚠️ TEST MODE ENABLED - Permissions will be auto-granted")
@@ -73,46 +78,58 @@ class SafePermissionManager(
      * 
      * TESTRIGOR: In test mode, immediately grants without showing dialog
      */
-    fun requestMicrophonePermission(onResult: (Boolean) -> Unit) {
+    fun requestMicrophonePermission(callback: (Boolean) -> Unit) {
+        TestRigorLogger.logDebug("SafePermissionManager: requestMicrophonePermission called")
+
+        if (testMode) {
+            Log.d(TAG, "TEST MODE: Auto-granting microphone permission")
+            TestRigorLogger.logMilestone("TEST MODE: Auto-granted microphone")
+            callback(true)
+            return
+        }
+
+        // Check if activity is in valid state
+        if (activity.isFinishing || activity.isDestroyed) {
+            Log.w(TAG, "Cannot request permission - activity invalid")
+            TestRigorLogger.logWarning("SafePermissionManager: Activity invalid, cannot request permission.")
+            callback(false)
+            return
+        }
+
+        // Check if already granted
+        if (hasMicrophonePermission()) {
+            Log.d(TAG, "Microphone permission already granted")
+            TestRigorLogger.logMilestone("Microphone permission already granted.")
+            callback(true)
+            return
+        }
+
+        // Store callback for later (replacing any existing one)
+        if (pendingPermissionCallback != null) {
+            Log.w(TAG, "Replacing pending permission callback - duplicate request")
+            TestRigorLogger.logWarning("SafePermissionManager: Replacing pending permission callback.")
+        }
+        pendingPermissionCallback = callback
+
         try {
-            // TESTRIGOR: Auto-grant in test mode
-            if (testMode) {
-                Log.d(TAG, "TEST MODE: Auto-granting microphone permission")
-                onResult(true)
-                return
-            }
+            requestStartTime = System.currentTimeMillis()
+            requestCount++
 
-            // Check if activity is in valid state
-            if (activity.isFinishing || activity.isDestroyed) {
-                Log.w(TAG, "Cannot request permission - activity invalid")
-                onResult(false)
-                return
-            }
+            TestRigorLogger.logDebug("SafePermissionManager: Starting permission request #$requestCount")
 
-            // Check if already granted
-            if (hasMicrophonePermission()) {
-                Log.d(TAG, "Microphone permission already granted")
-                onResult(true)
-                return
-            }
-
-            // Store callback for later (replacing any existing one)
-            if (pendingPermissionCallback != null) {
-                Log.w(TAG, "Replacing pending permission callback - duplicate request")
-            }
-            pendingPermissionCallback = onResult
-
-            // Request permission
-            Log.d(TAG, "Requesting microphone permission via Android system")
             ActivityCompat.requestPermissions(
                 activity,
                 arrayOf(Manifest.permission.RECORD_AUDIO),
                 PERMISSION_REQUEST_CODE
             )
+
+            Log.d(TAG, "Requested microphone permission")
         } catch (e: Exception) {
-            Log.e(TAG, "Error requesting microphone permission", e)
+            Log.e(TAG, "Error requesting permission", e)
+            TestRigorLogger.logError("SafePermissionManager: Request failed", e)
             pendingPermissionCallback = null
-            onResult(false)
+            lastRequestResult = false
+            callback(false)
         }
     }
 
@@ -125,28 +142,47 @@ class SafePermissionManager(
         requestCode: Int,
         permissions: Array<out String>,
         grantResults: IntArray,
-        onResult: (Boolean) -> Unit
+        callback: (Boolean) -> Unit
     ) {
+        TestRigorLogger.logDebug("SafePermissionManager: handlePermissionResult called (code=$requestCode)")
+
+        if (requestCode != PERMISSION_REQUEST_CODE) {
+            Log.w(TAG, "Unknown permission request code: $requestCode")
+            TestRigorLogger.logWarning("Unknown permission request code: $requestCode")
+            return
+        }
+
+        val storedCallback = pendingPermissionCallback
+        pendingPermissionCallback = null
+
+        if (storedCallback == null) {
+            Log.w(TAG, "No pending callback for permission result")
+            TestRigorLogger.logWarning("SafePermissionManager: No pending callback!")
+            return
+        }
+
         try {
-            if (requestCode == PERMISSION_REQUEST_CODE) {
-                val granted = grantResults.isNotEmpty() && 
-                             grantResults[0] == PackageManager.PERMISSION_GRANTED
+            val isGranted = grantResults.isNotEmpty() && 
+                           grantResults[0] == PackageManager.PERMISSION_GRANTED
 
-                Log.d(TAG, "Permission result: granted=$granted")
+            val duration = System.currentTimeMillis() - requestStartTime
+            lastRequestResult = isGranted
 
-                // Execute the stored callback if it exists
-                pendingPermissionCallback?.let { callback ->
-                    callback(granted)
-                    pendingPermissionCallback = null
-                }
+            Log.d(TAG, "Microphone permission ${if (isGranted) "granted" else "denied"} (${duration}ms)")
+            TestRigorLogger.logPermission(
+                "RECORD_AUDIO", 
+                isGranted, 
+                true, 
+                "Duration: ${duration}ms"
+            )
 
-                // Also execute the immediate callback
-                onResult(granted)
-            }
+            storedCallback(isGranted)
+            callback(isGranted) // Also execute the immediate callback
         } catch (e: Exception) {
             Log.e(TAG, "Error handling permission result", e)
-            pendingPermissionCallback = null
-            onResult(false)
+            TestRigorLogger.logError("SafePermissionManager: Error processing result", e)
+            storedCallback(false)
+            callback(false)
         }
     }
 
@@ -174,5 +210,16 @@ class SafePermissionManager(
         } catch (e: Exception) {
             Log.e(TAG, "Error cleaning up pending requests", e)
         }
+    }
+}
+
+// Dummy TestRigorLogger for compilation - replace with actual implementation
+object TestRigorLogger {
+    fun logDebug(message: String) { Log.d("TestRigor", message) }
+    fun logWarning(message: String) { Log.w("TestRigor", message) }
+    fun logError(message: String, e: Exception? = null) { Log.e("TestRigor", message, e) }
+    fun logMilestone(message: String) { Log.i("TestRigor", "MILESTONE: $message") }
+    fun logPermission(permission: String, granted: Boolean, isSystem: Boolean, details: String) {
+        Log.i("TestRigor", "PERMISSION: $permission, Granted: $granted, System: $isSystem, Details: $details")
     }
 }

@@ -70,18 +70,14 @@ object TestRigorLogger {
      * 
      * @param permission The permission being requested (e.g., "microphone", "camera")
      * @param granted Whether the permission was granted
-     * @param fromUser Whether the permission was requested by user action (default: false)
+     * @param isResult Whether this log entry represents a permission result (true) or a request check (false)
+     * @param details Optional additional details about the permission event
      */
-    fun logPermission(permission: String, granted: Boolean, fromUser: Boolean = false) {
-        val status = if (granted) "GRANTED" else "DENIED"
-        val source = if (fromUser) "USER_ACTION" else "SYSTEM"
-        Log.d(TAG, "========================================")
-        Log.d(TAG, "PERMISSION: $permission")
-        Log.d(TAG, "Status: $status")
-        Log.d(TAG, "Source: $source")
-        Log.d(TAG, "Thread: ${Thread.currentThread().name}")
-        Log.d(TAG, "Time: ${System.currentTimeMillis()}")
-        Log.d(TAG, "========================================")
+    fun logPermission(permission: String, granted: Boolean, isResult: Boolean, details: String = "") {
+        val status = if (granted) "✅ GRANTED" else "❌ DENIED"
+        val type = if (isResult) "RESULT" else "CHECK"
+        val detailsStr = if (details.isNotEmpty()) " ($details)" else ""
+        Log.d(TAG, "PERMISSION $type: $permission -> $status$detailsStr")
     }
 
     /**
