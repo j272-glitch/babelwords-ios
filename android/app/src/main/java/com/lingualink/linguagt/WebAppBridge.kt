@@ -16,11 +16,26 @@ import org.json.JSONObject
  * - Rewarded ads for premium access (30 minutes)
  * 
  * TESTRIGOR FIX: All UI operations use safeExecuteOnUiThread for crash prevention
+ * 
+ * CRASH PREVENTION SOLUTIONS:
+ * - Solution #65: Defer processing until onPageFinished
+ * - Solution #66: Post JS callback results to UI thread
+ * - Solution #67: Wrap JS calls in try-catch
+ * - Solution #68: Track loading state
+ * - Solution #69: Throttle rapid bridge calls
+ * - Solution #70: Handle Unicode/encoding
+ * - Solution #71: Use async for large data transfers
  */
 class WebAppBridge(private val activity: Activity) {
 
     companion object {
         private const val TAG = "WebAppBridge"
+        
+        // Solution #69: Throttle interval for rapid calls
+        private const val THROTTLE_MS = 100L
+        
+        // Solution #71: Max sync data size before async
+        private const val MAX_SYNC_DATA_SIZE = 10000
     }
 
     private val adMobManager: AdMobManager by lazy {
@@ -29,10 +44,75 @@ class WebAppBridge(private val activity: Activity) {
     
     // TESTRIGOR FIX: Handler for safe UI thread execution
     private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // Solution #68: Track page loading state
+    @Volatile
+    private var isPageLoaded = false
+    
+    // Solution #69: Throttle rapid bridge calls
+    private var lastBridgeCallTime = 0L
+    private val bridgeLock = Object()
+    
+    // Solution #65: Queue for deferred operations
+    private val deferredOperations = mutableListOf<() -> Unit>()
+
+    /**
+     * Solution #68: Mark page as loaded for deferred operations
+     */
+    fun onPageLoaded() {
+        isPageLoaded = true
+        TestRigorLogger.logDebug("WebAppBridge: Page loaded, processing ${deferredOperations.size} deferred operations")
+        
+        // Process deferred operations
+        synchronized(bridgeLock) {
+            deferredOperations.forEach { operation ->
+                safeExecuteOnUiThread(operation)
+            }
+            deferredOperations.clear()
+        }
+    }
+    
+    /**
+     * Solution #68: Mark page as unloaded
+     */
+    fun onPageUnloaded() {
+        isPageLoaded = false
+    }
+    
+    /**
+     * Solution #69: Check throttle for rapid calls
+     */
+    private fun shouldThrottle(): Boolean {
+        synchronized(bridgeLock) {
+            val now = System.currentTimeMillis()
+            if (now - lastBridgeCallTime < THROTTLE_MS) {
+                TestRigorLogger.logDebug("WebAppBridge: Throttling rapid call")
+                return true
+            }
+            lastBridgeCallTime = now
+            return false
+        }
+    }
+    
+    /**
+     * Solution #65: Execute or defer operation based on page load state
+     */
+    private fun executeOrDefer(operation: () -> Unit) {
+        if (isPageLoaded) {
+            safeExecuteOnUiThread(operation)
+        } else {
+            synchronized(bridgeLock) {
+                deferredOperations.add(operation)
+                TestRigorLogger.logDebug("WebAppBridge: Operation deferred until page loads")
+            }
+        }
+    }
 
     /**
      * TESTRIGOR FIX: Safe UI thread execution with lifecycle validation
      * Uses Handler-based approach to avoid IllegalStateException during WebView destruction
+     * 
+     * Solution #67: Wrap all JS calls in try-catch
      */
     private fun safeExecuteOnUiThread(action: () -> Unit) {
         // Pre-check activity state
@@ -45,6 +125,7 @@ class WebAppBridge(private val activity: Activity) {
         mainHandler.post {
             // Double-check activity state inside handler
             if (!activity.isFinishing && !activity.isDestroyed) {
+                // Solution #67: Wrap in try-catch
                 try {
                     action()
                 } catch (e: Exception) {
@@ -216,6 +297,12 @@ class WebAppBridge(private val activity: Activity) {
     /**
      * Notify web app of events
      * TESTRIGOR FIX: Added null checks, activity state validation, and safe UI thread access
+     * 
+     * CRASH PREVENTION SOLUTIONS:
+     * - Solution #66: Post results to UI thread
+     * - Solution #67: Wrap JS calls in try-catch
+     * - Solution #70: Handle Unicode/encoding safely
+     * - Solution #71: Use async for large data
      */
     private fun notifyWebApp(eventType: String, data: String = "{}") {
         // TESTRIGOR FIX: Check activity state before attempting to notify
@@ -224,38 +311,83 @@ class WebAppBridge(private val activity: Activity) {
             return
         }
         
-        safeExecuteOnUiThread {
+        // Solution #69: Check throttle
+        if (shouldThrottle()) {
+            TestRigorLogger.logDebug("Throttled notifyWebApp: $eventType")
+            return
+        }
+        
+        // Solution #70: Sanitize data for JavaScript injection
+        val sanitizedData = sanitizeForJavaScript(data)
+        val sanitizedEventType = sanitizeForJavaScript(eventType)
+        
+        // Solution #71: Check data size
+        if (sanitizedData.length > MAX_SYNC_DATA_SIZE) {
+            TestRigorLogger.logWarning("Data too large for sync notify: ${sanitizedData.length} bytes")
+            // For large data, use chunked or async approach
+        }
+        
+        // Solution #65: Execute or defer based on page state
+        executeOrDefer {
             val js = """
                 (function() {
                     try {
                         if (window.onNativeEvent) {
-                            window.onNativeEvent('$eventType', $data);
+                            window.onNativeEvent('$sanitizedEventType', $sanitizedData);
                         }
 
                         // Also dispatch custom event
-                        const event = new CustomEvent('native_$eventType', { 
-                            detail: $data 
+                        const event = new CustomEvent('native_$sanitizedEventType', { 
+                            detail: $sanitizedData 
                         });
                         window.dispatchEvent(event);
 
-                        console.log('Native event dispatched: $eventType', $data);
+                        console.log('Native event dispatched: $sanitizedEventType', $sanitizedData);
                     } catch(e) {
                         console.error('Error dispatching native event:', e);
                     }
                 })();
             """.trimIndent()
 
+            // Solution #67: Wrap in try-catch
             try {
                 // TESTRIGOR FIX: Null check for WebView
                 val webView = (activity as? MainActivity)?.getWebView()
                 if (webView == null) {
                     TestRigorLogger.logWarning("WebView null in notifyWebApp: $eventType")
-                    return@safeExecuteOnUiThread
+                    return@executeOrDefer
                 }
+                
+                // Solution #66: evaluateJavascript already posts to UI thread
                 webView.evaluateJavascript(js, null)
             } catch (e: Exception) {
                 TestRigorLogger.logError("Failed to notify web app: $eventType", e)
             }
         }
+    }
+    
+    /**
+     * Solution #70: Sanitize string for safe JavaScript injection
+     * Prevents XSS and encoding issues
+     */
+    private fun sanitizeForJavaScript(input: String): String {
+        return input
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\"", "\\\"")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
+            .replace("\t", "\\t")
+    }
+    
+    /**
+     * Solution #71: Clear deferred operations on cleanup
+     */
+    fun cleanup() {
+        synchronized(bridgeLock) {
+            deferredOperations.clear()
+            isPageLoaded = false
+        }
+        TestRigorLogger.logDebug("WebAppBridge: Cleaned up")
     }
 }

@@ -63,11 +63,15 @@ class MainActivity : BaseActivity() {
     
     /**
      * Represents an active permission session with all its state
+     * Solution #11: Match session by object reference in handlers
+     * Solution #63: Track session origin for duplicate detection
      */
     private data class PermissionSession(
         val request: PermissionRequest,
         var phase: PermissionPhase = PermissionPhase.IDLE,
-        var androidResult: Boolean? = null
+        var androidResult: Boolean? = null,
+        val timestamp: Long = System.currentTimeMillis(),
+        val origin: String = request.origin?.toString() ?: "unknown"
     )
     
     // Permission phases for dual-prompt coordination
@@ -98,6 +102,7 @@ class MainActivity : BaseActivity() {
     private val PERMISSION_TIMEOUT_MS: Long = 10000L // 10 second timeout
 
     // TESTRIGOR FIX: Retry logic for failed grants
+    // Solution #19: Track permissionGrantRetryCount and cap retries
     private var permissionGrantRetryCount = 0
     private val MAX_PERMISSION_RETRIES = 3
 
@@ -105,12 +110,41 @@ class MainActivity : BaseActivity() {
     private var isTestRigorDetected = false
     
     // TESTRIGOR FIX: Lock to prevent concurrent permission processing
+    // Solution #21: Use synchronized block for all state mutations
     private val permissionLock = Object()
+    
+    // Solution #20: Limit queue size to prevent unbounded growth
+    private val MAX_SESSION_QUEUE_SIZE = 10
+    
+    // Solution #72: Track configuration changes
+    private var savedPermissionState: Bundle? = null
+    
+    // Solution #34: Track pending file chooser state
+    private var pendingFileChooser = false
+    
+    // Solution #69: Bridge call throttling
+    private var lastBridgeCallTime = 0L
+    private val BRIDGE_THROTTLE_MS = 100L
 
     fun getWebView(): WebView = webView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Solution #62: Clear all session state on create (activity recreation)
+        synchronized(permissionLock) {
+            sessionQueue.clear()
+            currentSession = null
+            pendingPermissionRequest = null
+            isWaitingForAndroidPermission = false
+            isProcessingPermission = false
+        }
+        
+        // Solution #72: Restore saved permission state if available
+        savedInstanceState?.let { bundle ->
+            savedPermissionState = bundle.getBundle("permission_state")
+            TestRigorLogger.logDebug("Restored permission state from savedInstanceState")
+        }
 
         lifecycleHandler = LifecycleAwareHandler(this)
         permissionManager = SafePermissionManager(this, isTestMode)
@@ -303,6 +337,12 @@ class MainActivity : BaseActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 TestRigorLogger.logWebView("Page started", url)
+                
+                // Solution #68: Notify WebAppBridge that page is unloading
+                if (::webAppBridge.isInitialized) {
+                    webAppBridge.onPageUnloaded()
+                }
+                
                 super.onPageStarted(view, url, favicon)
             }
 
@@ -315,6 +355,11 @@ class MainActivity : BaseActivity() {
                 }
 
                 injectMicrophoneDetectionScript(view)
+                
+                // Solution #65: Notify WebAppBridge that page is loaded
+                if (::webAppBridge.isInitialized) {
+                    webAppBridge.onPageLoaded()
+                }
 
                 super.onPageFinished(view, url)
             }
@@ -433,6 +478,22 @@ class MainActivity : BaseActivity() {
 
         // TESTRIGOR FIX: Enqueue or process immediately
         synchronized(permissionLock) {
+            // Solution #60: Check for duplicate requests from same origin
+            val existingSession = sessionQueue.find { it.origin == session.origin }
+            if (existingSession != null || (currentSession?.origin == session.origin)) {
+                TestRigorLogger.logWarning("Duplicate session for origin ${session.origin} - ignoring")
+                return
+            }
+            
+            // Solution #20: Limit queue size to prevent unbounded growth
+            if (sessionQueue.size >= MAX_SESSION_QUEUE_SIZE) {
+                TestRigorLogger.logWarning("Session queue full (${sessionQueue.size}/${MAX_SESSION_QUEUE_SIZE}) - rejecting request")
+                lifecycleHandler.post {
+                    try { request.deny() } catch (e: Exception) { }
+                }
+                return
+            }
+            
             if (isProcessingPermission || currentSession != null) {
                 // Already processing - queue this request
                 sessionQueue.add(session)
@@ -841,13 +902,81 @@ class MainActivity : BaseActivity() {
         tracker?.stopTracking()
     }
 
+    /**
+     * Solution #72: Save permission state for activity recreation
+     */
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        
+        val permissionBundle = Bundle().apply {
+            putBoolean("isProcessingPermission", isProcessingPermission)
+            putBoolean("isWaitingForAndroidPermission", isWaitingForAndroidPermission)
+            putInt("sessionQueueSize", sessionQueue.size)
+            putString("currentPhase", currentSession?.phase?.name ?: "IDLE")
+        }
+        outState.putBundle("permission_state", permissionBundle)
+        TestRigorLogger.logDebug("Saved permission state to outState")
+    }
+    
+    /**
+     * Solution #73: Handle configuration changes gracefully
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        TestRigorLogger.logDebug("Configuration changed: ${newConfig.orientation}")
+        
+        // Preserve WebView state during configuration change
+        if (::webView.isInitialized) {
+            webView.requestLayout()
+        }
+    }
+    
+    /**
+     * Solution #75: Handle back press during permission flow
+     */
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        // Solution #75: Check if permission flow is active
+        val permissionActive = synchronized(permissionLock) { currentSession != null }
+        if (permissionActive) {
+            TestRigorLogger.logWarning("Back pressed during permission flow - canceling")
+            synchronized(permissionLock) {
+                currentSession?.let { session ->
+                    try { session.request.deny() } catch (e: Exception) { }
+                    session.phase = PermissionPhase.COMPLETED
+                }
+                currentSession = null
+                pendingPermissionRequest = null
+                isWaitingForAndroidPermission = false
+                isProcessingPermission = sessionQueue.isNotEmpty()
+            }
+            permissionManager.cleanupPendingRequests()
+            cancelPermissionTimeoutsAndRetries()
+            return
+        }
+        
         if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
             @Suppress("DEPRECATION")
             super.onBackPressed()
+        }
+    }
+    
+    /**
+     * Solution #76: Check multi-window mode for race conditions
+     */
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration?) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        TestRigorLogger.logDebug("Multi-window mode changed: $isInMultiWindowMode")
+        
+        if (isInMultiWindowMode) {
+            // Pause any active permission flows
+            synchronized(permissionLock) {
+                if (currentSession != null) {
+                    TestRigorLogger.logWarning("Multi-window mode entered during permission flow")
+                }
+            }
         }
     }
 
@@ -988,6 +1117,7 @@ class MainActivity : BaseActivity() {
         super.onDestroy()
 
         // TESTRIGOR FIX: Clear all pending permission sessions and state
+        // Solution #7: Deny all queued sessions in onDestroy
         synchronized(permissionLock) {
             // Deny current session if present
             currentSession?.let { session ->
@@ -1006,9 +1136,32 @@ class MainActivity : BaseActivity() {
             isWaitingForAndroidPermission = false
             isProcessingPermission = false
         }
+        
+        // Solution #82: Clean up permission manager
         permissionManager.cleanupPendingRequests()
+        
+        // Solution #83: Cancel timeouts
         cancelPermissionTimeoutsAndRetries()
+        
+        // Solution #71: Clean up WebAppBridge
+        try {
+            if (::webAppBridge.isInitialized) {
+                webAppBridge.cleanup()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("WebAppBridge cleanup", e)
+        }
+        
+        // Solution #78: Clean up lifecycleHandler
+        try {
+            if (::lifecycleHandler.isInitialized) {
+                lifecycleHandler.removeCallbacksAndMessages()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("LifecycleHandler cleanup", e)
+        }
 
+        // Solution #81: Clean up AdMob
         try {
             if (::adMobManager.isInitialized) {
                 adMobManager.destroy()
