@@ -700,8 +700,10 @@ class MainActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
+        // TESTRIGOR FIX: Clear pending permission state
         pendingPermissionRequest = null
         isWaitingForAndroidPermission = false
+        permissionManager.cleanupPendingRequests()
 
         try {
             if (::adMobManager.isInitialized) {

@@ -59,6 +59,16 @@ class SafePermissionManager(
     }
 
     /**
+     * Clean up pending requests - call when activity is finishing
+     */
+    fun cleanupPendingRequests() {
+        if (pendingPermissionCallback != null) {
+            Log.w(TAG, "Cleaning up pending permission callback")
+            pendingPermissionCallback = null
+        }
+    }
+
+    /**
      * Request microphone permission safely
      * 
      * TESTRIGOR: In test mode, immediately grants without showing dialog
