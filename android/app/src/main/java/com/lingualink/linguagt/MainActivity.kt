@@ -225,7 +225,7 @@ class MainActivity : BaseActivity() {
             javaScriptEnabled = true
 
             // TESTRIGOR FIX: Detect TestRigor from User-Agent
-            val userAgent = settings.userAgentString
+            val userAgent = userAgentString
             isTestRigorDetected = userAgent?.contains("TestRigor", ignoreCase = true) ?: false
             if (isTestRigorDetected) {
                 TestRigorLogger.logMilestone("TestRigor detected via User-Agent")
@@ -523,9 +523,9 @@ class MainActivity : BaseActivity() {
             })();
         """.trimIndent()
 
-        // TESTRIGOR FIX: Wrap injection in try-catch
+        // TESTRIGOR FIX: Wrap injection in try-catch with null-safe call
         try {
-            view.evaluateJavascript(script, null)
+            view?.evaluateJavascript(script, null)
             TestRigorLogger.logDebug("Microphone detection script injected successfully")
         } catch (e: Exception) {
             TestRigorLogger.logError("Script injection failed", e)
@@ -588,7 +588,7 @@ class MainActivity : BaseActivity() {
         val isGranted = grantResults.isNotEmpty() && 
                        grantResults[0] == PackageManager.PERMISSION_GRANTED
 
-        Log.d(TAG, "Microphone permission ${if (isGranted) "granted" else "denied"} (${duration}ms)")
+        Log.d("MainActivity", "Microphone permission ${if (isGranted) "granted" else "denied"}")
 
         // TESTRIGOR FIX: Broadcast state to WebView
         broadcastPermissionStateToWebView(isGranted)
