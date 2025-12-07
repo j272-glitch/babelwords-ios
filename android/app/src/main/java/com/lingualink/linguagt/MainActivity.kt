@@ -254,11 +254,19 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logPermission(permission, isGranted, false)
         }
 
-        // Request microphone permission through SafePermissionManager
+        // CRITICAL FIX: Request microphone permission IMMEDIATELY on startup
+        // This ensures Android permission is already granted BEFORE web app asks
         if (!permissionManager.hasMicrophonePermission()) {
+            TestRigorLogger.logMilestone("Proactively requesting microphone permission on startup")
             permissionManager.requestMicrophonePermission { granted ->
-                TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true)
+                TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true, 
+                    "Startup request")
+                if (granted) {
+                    TestRigorLogger.logMilestone("Microphone pre-authorized before WebView loads")
+                }
             }
+        } else {
+            TestRigorLogger.logMilestone("Microphone already authorized on startup")
         }
     }
 
