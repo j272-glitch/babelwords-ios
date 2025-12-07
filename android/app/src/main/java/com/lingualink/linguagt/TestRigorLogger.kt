@@ -43,6 +43,7 @@ object TestRigorLogger {
      * @param operation Description of the operation that failed
      * @param error Optional throwable (can be null for non-exception errors like FormError)
      */
+    @JvmStatic
     fun logError(operation: String, error: Throwable?) {
         Log.e(TAG, "========================================")
         Log.e(TAG, "ERROR in $operation")
