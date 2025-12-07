@@ -8,23 +8,37 @@ import android.webkit.WebChromeClient
 import android.webkit.PermissionRequest
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceError
+import android.webkit.JavascriptInterface
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.activity.result.contract.ActivityResultContracts
 import com.lingualink.linguagt.ads.AdMobManager
 
+/**
+ * MainActivity with TestRigor enhancements
+ * 
+ * TESTRIGOR FEATURES:
+ * - JavaScript bridge for state inspection
+ * - Data attributes on WebView elements
+ * - Configurable debounce timing
+ * - Test mode support
+ * - Comprehensive logging
+ */
 class MainActivity : BaseActivity() {
 
     companion object {
         @JvmStatic
         var tracker: UserActivityTracker? = null
-        private const val MICROPHONE_PERMISSION_REQUEST = 200
         private const val BASE_URL = "https://linguagt.com"
-        private const val MIC_DEBOUNCE_MS = 500L
+
+        // TESTRIGOR: Configurable debounce - longer in debug builds
+        private val MIC_DEBOUNCE_MS = if (BuildConfig.DEBUG) 1000L else 500L
+
+        // TESTRIGOR: Test mode flag (can be set by instrumentation)
+        @JvmStatic
+        var isTestMode = false
     }
 
     private val appId = "app_id"
@@ -39,29 +53,17 @@ class MainActivity : BaseActivity() {
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
     private var isWaitingForAndroidPermission = false
-    
+
     // TESTRIGOR FIX: Debounce rapid microphone clicks
     private var lastMicClickTime = 0L
 
     fun getWebView(): WebView = webView
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        permissions.entries.forEach { (permission, isGranted) ->
-            TestRigorLogger.logPermission(permission, isGranted)
-
-            if (permission == Manifest.permission.RECORD_AUDIO) {
-                handleMicrophonePermissionResult(isGranted)
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         lifecycleHandler = LifecycleAwareHandler(this)
-        permissionManager = SafePermissionManager(this)
+        permissionManager = SafePermissionManager(this, isTestMode)
         webAppBridge = WebAppBridge(this)
         adMobManager = AdMobManager.getInstance(this)
 
@@ -102,7 +104,7 @@ class MainActivity : BaseActivity() {
             loadDefaultUrl()
             return
         }
-        
+
         val action = intent.action
         val data = intent.data
 
@@ -152,20 +154,27 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /**
+     * REFACTORED: Now uses SafePermissionManager consistently
+     */
     private fun requestPermissions() {
         val permissions = arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.MODIFY_AUDIO_SETTINGS,
-            Manifest.permission.INTERNET,
             Manifest.permission.ACCESS_NETWORK_STATE
         )
 
-        val permissionsToRequest = permissions.filter { permission ->
-            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        permissions.forEach { permission ->
+            val isGranted = ContextCompat.checkSelfPermission(this, permission) == 
+                           PackageManager.PERMISSION_GRANTED
+            TestRigorLogger.logPermission(permission, isGranted, false)
         }
 
-        if (permissionsToRequest.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissionsToRequest.toTypedArray())
+        // Request microphone permission through SafePermissionManager
+        if (!permissionManager.hasMicrophonePermission()) {
+            permissionManager.requestMicrophonePermission { granted ->
+                TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true)
+            }
         }
     }
 
@@ -187,6 +196,12 @@ class MainActivity : BaseActivity() {
         }
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
+
+        // TESTRIGOR: Add test inspection bridge
+        if (BuildConfig.DEBUG) {
+            webView.addJavascriptInterface(TestRigorBridge(), "TestRigorBridge")
+            TestRigorLogger.logMilestone("TestRigor JavaScript bridge enabled")
+        }
 
         val webSettings: WebSettings = webView.settings
         webSettings.apply {
@@ -300,27 +315,36 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * CRITICAL FIX: Handle WebView audio permission properly
-     * TESTRIGOR FIX: Added debouncing and Android 14+ compatibility
+     * REFACTORED: Now uses SafePermissionManager consistently
+     * TESTRIGOR: Enhanced with test mode support
      */
     @android.annotation.SuppressLint("InlinedApi")
     private fun handleWebViewAudioPermission(request: PermissionRequest) {
+        // TESTRIGOR: In test mode, auto-grant without system permission
+        if (isTestMode) {
+            TestRigorLogger.logMilestone("TEST MODE: Auto-granting WebView permission")
+            lifecycleHandler.post {
+                try {
+                    request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    TestRigorLogger.logMilestone("TEST MODE: Audio granted")
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("TEST MODE: Grant failed", e)
+                }
+            }
+            return
+        }
+
         // TESTRIGOR FIX: Debounce rapid microphone clicks
         val now = System.currentTimeMillis()
         if (now - lastMicClickTime < MIC_DEBOUNCE_MS) {
-            TestRigorLogger.logWarning("Mic permission request debounced - too rapid")
+            TestRigorLogger.logWarning("Mic permission request debounced - too rapid (${now - lastMicClickTime}ms < ${MIC_DEBOUNCE_MS}ms)")
             return
         }
         lastMicClickTime = now
-        
+
         TestRigorLogger.logMilestone("Handling audio permission request")
 
-        val hasAndroidPermission = ContextCompat.checkSelfPermission(
-            this, 
-            Manifest.permission.RECORD_AUDIO
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasAndroidPermission) {
+        if (permissionManager.hasMicrophonePermission()) {
             // Grant immediately
             TestRigorLogger.logDebug("Android permission exists, granting to WebView")
             lifecycleHandler.post {
@@ -332,25 +356,23 @@ class MainActivity : BaseActivity() {
                 }
             }
         } else {
-            // Request Android permission first
+            // Request Android permission first using SafePermissionManager
             TestRigorLogger.logDebug("Requesting Android mic permission")
 
             pendingPermissionRequest = request
             isWaitingForAndroidPermission = true
 
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.RECORD_AUDIO),
-                MICROPHONE_PERMISSION_REQUEST
-            )
+            permissionManager.requestMicrophonePermission { granted ->
+                handleMicrophonePermissionResult(granted)
+            }
         }
     }
 
     /**
-     * CRITICAL FIX: Handle Android permission result
+     * REFACTORED: Simplified - now just handles the result
      */
     private fun handleMicrophonePermissionResult(granted: Boolean) {
-        TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted)
+        TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true)
 
         if (granted && pendingPermissionRequest != null) {
             TestRigorLogger.logDebug("Granting to WebView after Android permission")
@@ -392,12 +414,19 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Inject microphone detection script
+     * TESTRIGOR ENHANCED: Inject detection script with data attributes
      */
     private fun injectMicrophoneDetectionScript(view: WebView?) {
         val script = """
             (function() {
                 console.log('MICROPHONE: Detection loaded');
+
+                // TESTRIGOR: Set initial state markers
+                if (!document.body.hasAttribute('data-testrigor-ready')) {
+                    document.body.setAttribute('data-testrigor-ready', 'false');
+                    document.body.setAttribute('data-testrigor-permission-state', 'unknown');
+                    document.body.setAttribute('data-testrigor-mic-clicks', '0');
+                }
 
                 if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     const original = navigator.mediaDevices.getUserMedia;
@@ -405,30 +434,109 @@ class MainActivity : BaseActivity() {
                     navigator.mediaDevices.getUserMedia = function(constraints) {
                         console.log('MICROPHONE: getUserMedia called:', JSON.stringify(constraints));
 
+                        // TESTRIGOR: Update state marker
+                        document.body.setAttribute('data-testrigor-permission-state', 'requesting');
+                        const clicks = parseInt(document.body.getAttribute('data-testrigor-mic-clicks') || '0');
+                        document.body.setAttribute('data-testrigor-mic-clicks', (clicks + 1).toString());
+
                         return original.call(navigator.mediaDevices, constraints)
                             .then(stream => {
                                 console.log('MICROPHONE: Stream OK, audio tracks:', stream.getAudioTracks().length);
+
+                                // TESTRIGOR: Update state marker
+                                document.body.setAttribute('data-testrigor-permission-state', 'granted');
+                                document.body.setAttribute('data-testrigor-stream-active', 'true');
+
                                 return stream;
                             })
                             .catch(error => {
                                 console.error('MICROPHONE: Error:', error.name, error.message);
+
+                                // TESTRIGOR: Update state marker
+                                document.body.setAttribute('data-testrigor-permission-state', 'denied');
+                                document.body.setAttribute('data-testrigor-error', error.name);
+
                                 throw error;
                             });
                     };
                 }
 
-                document.addEventListener('DOMContentLoaded', function() {
+                // TESTRIGOR: Mark as ready when DOM loads
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', function() {
+                        document.body.setAttribute('data-testrigor-ready', 'true');
+                        console.log('TESTRIGOR: Ready');
+                    });
+                } else {
                     document.body.setAttribute('data-testrigor-ready', 'true');
-                    console.log('TESTRIGOR: Ready');
-                });
+                    console.log('TESTRIGOR: Ready (already loaded)');
+                }
+
+                // TESTRIGOR: Expose state query function
+                window.TestRigorState = {
+                    getPermissionState: function() {
+                        return document.body.getAttribute('data-testrigor-permission-state') || 'unknown';
+                    },
+                    getMicClicks: function() {
+                        return parseInt(document.body.getAttribute('data-testrigor-mic-clicks') || '0');
+                    },
+                    isReady: function() {
+                        return document.body.getAttribute('data-testrigor-ready') === 'true';
+                    },
+                    isStreamActive: function() {
+                        return document.body.getAttribute('data-testrigor-stream-active') === 'true';
+                    }
+                };
             })();
         """
 
         view?.evaluateJavascript(script) {
-            TestRigorLogger.logDebug("Detection script injected")
+            TestRigorLogger.logDebug("TestRigor detection script injected")
         }
     }
 
+    /**
+     * TESTRIGOR: JavaScript bridge for state inspection
+     */
+    inner class TestRigorBridge {
+        @JavascriptInterface
+        fun getPermissionState(): String {
+            return """
+                {
+                    "hasMicPermission": ${permissionManager.hasMicrophonePermission()},
+                    "isPendingRequest": $isWaitingForAndroidPermission,
+                    "webViewInitialized": ${::webView.isInitialized},
+                    "isTestMode": $isTestMode,
+                    "debounceMs": $MIC_DEBOUNCE_MS,
+                    "timeSinceLastClick": ${System.currentTimeMillis() - lastMicClickTime},
+                    "activityFinishing": $isFinishing,
+                    "activityDestroyed": $isDestroyed
+                }
+            """.trimIndent()
+        }
+
+        @JavascriptInterface
+        fun enableTestMode() {
+            isTestMode = true
+            TestRigorLogger.logMilestone("Test mode ENABLED via JavaScript")
+        }
+
+        @JavascriptInterface
+        fun disableTestMode() {
+            isTestMode = false
+            TestRigorLogger.logMilestone("Test mode DISABLED via JavaScript")
+        }
+
+        @JavascriptInterface
+        fun resetDebounce() {
+            lastMicClickTime = 0L
+            TestRigorLogger.logDebug("Debounce timer reset via JavaScript")
+        }
+    }
+
+    /**
+     * REFACTORED: Now delegates to SafePermissionManager
+     */
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -436,9 +544,8 @@ class MainActivity : BaseActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
-        if (requestCode == MICROPHONE_PERMISSION_REQUEST) {
-            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-            handleMicrophonePermissionResult(granted)
+        permissionManager.handlePermissionResult(requestCode, permissions, grantResults) { granted ->
+            // Callback handled automatically by SafePermissionManager
         }
     }
 
@@ -448,13 +555,10 @@ class MainActivity : BaseActivity() {
         if (::webView.isInitialized) {
             webView.onResume()
         }
-        
+
         // TESTRIGOR FIX: Re-verify pending permission state on resume
         if (pendingPermissionRequest != null && isWaitingForAndroidPermission) {
-            val hasPermission = ContextCompat.checkSelfPermission(
-                this, Manifest.permission.RECORD_AUDIO
-            ) == PackageManager.PERMISSION_GRANTED
-            if (hasPermission) {
+            if (permissionManager.hasMicrophonePermission()) {
                 TestRigorLogger.logDebug("Permission granted while backgrounded - handling now")
                 handleMicrophonePermissionResult(true)
             }
