@@ -64,16 +64,6 @@ class SafePermissionManager(
     }
 
     /**
-     * Clean up pending requests - call when activity is finishing
-     */
-    fun cleanupPendingRequests() {
-        if (pendingPermissionCallback != null) {
-            Log.w(TAG, "Cleaning up pending permission callback")
-            pendingPermissionCallback = null
-        }
-    }
-
-    /**
      * Request microphone permission safely
      * 
      * TESTRIGOR: In test mode, immediately grants without showing dialog
@@ -211,15 +201,19 @@ class SafePermissionManager(
             Log.e(TAG, "Error cleaning up pending requests", e)
         }
     }
-}
 
-// Dummy TestRigorLogger for compilation - replace with actual implementation
-object TestRigorLogger {
-    fun logDebug(message: String) { Log.d("TestRigor", message) }
-    fun logWarning(message: String) { Log.w("TestRigor", message) }
-    fun logError(message: String, e: Exception? = null) { Log.e("TestRigor", message, e) }
-    fun logMilestone(message: String) { Log.i("TestRigor", "MILESTONE: $message") }
-    fun logPermission(permission: String, granted: Boolean, isSystem: Boolean, details: String) {
-        Log.i("TestRigor", "PERMISSION: $permission, Granted: $granted, System: $isSystem, Details: $details")
+    /**
+     * TESTRIGOR FIX: Check if there's a pending permission request
+     * Used to prevent duplicate permission dialogs
+     */
+    fun hasPendingRequest(): Boolean {
+        return pendingPermissionCallback != null
+    }
+
+    /**
+     * TESTRIGOR FIX: Get request statistics for debugging
+     */
+    fun getRequestStats(): String {
+        return "requests=$requestCount, lastResult=$lastRequestResult, hasPending=${pendingPermissionCallback != null}"
     }
 }

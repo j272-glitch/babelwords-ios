@@ -57,9 +57,40 @@ class MainActivity : BaseActivity() {
     private var pendingPermissionRequest: PermissionRequest? = null
     private var isWaitingForAndroidPermission = false
 
+    // TESTRIGOR FIX: Dual permission synchronization using ActiveSession pattern
+    // Web apps may trigger TWO permission prompts: web getUserMedia + Android RECORD_AUDIO
+    // This queue ensures they are processed sequentially, not concurrently
+    
+    /**
+     * Represents an active permission session with all its state
+     */
+    private data class PermissionSession(
+        val request: PermissionRequest,
+        var phase: PermissionPhase = PermissionPhase.IDLE,
+        var androidResult: Boolean? = null
+    )
+    
+    // Permission phases for dual-prompt coordination
+    private enum class PermissionPhase {
+        IDLE,                    // No permission request in progress
+        ANDROID_PENDING,         // Waiting for Android native dialog
+        ANDROID_RESOLVED,        // Android dialog resolved, ready for web
+        WEB_PENDING,             // Waiting for web permission
+        COMPLETED                // Both permissions resolved
+    }
+    
+    // Queue of pending sessions (FIFO)
+    private val sessionQueue = mutableListOf<PermissionSession>()
+    
+    // Currently active session (null when idle)
+    private var currentSession: PermissionSession? = null
+    
+    // Guard flag - true when processing or queue not empty
+    private var isProcessingPermission = false
+
     // TESTRIGOR FIX: Debounce rapid microphone clicks
     private var lastMicClickTime: Long = 0L
-    private val MIC_DEBOUNCE_MS: Long = 100L // 100ms debounce for TestRigor automation
+    private val DEBOUNCE_MS: Long = 500L // 500ms debounce for TestRigor automation
 
     // TESTRIGOR FIX: Timeout handler to clear stuck permission states
     private val permissionTimeoutHandler = Handler(Looper.getMainLooper())
@@ -72,6 +103,9 @@ class MainActivity : BaseActivity() {
 
     // TESTRIGOR: Test mode support
     private var isTestRigorDetected = false
+    
+    // TESTRIGOR FIX: Lock to prevent concurrent permission processing
+    private val permissionLock = Object()
 
     fun getWebView(): WebView = webView
 
@@ -318,14 +352,31 @@ class MainActivity : BaseActivity() {
             }
 
             override fun onPermissionRequestCanceled(request: PermissionRequest?) {
-                TestRigorLogger.logWarning("Permission canceled by WebView")
-                // TESTRIGOR FIX: Clean up permission state when WebView retracts
-                if (pendingPermissionRequest == request) {
-                    pendingPermissionRequest = null
-                    isWaitingForAndroidPermission = false
+                val sessionPhase = currentSession?.phase ?: PermissionPhase.IDLE
+                TestRigorLogger.logWarning("Permission canceled by WebView (phase=$sessionPhase)")
+                
+                if (request == null) return
+                
+                // TESTRIGOR FIX: Route all cleanup through finalizeSession
+                var sessionToFinalize: PermissionSession? = null
+                
+                synchronized(permissionLock) {
+                    // Remove from queue if present
+                    sessionQueue.removeIf { it.request == request }
+                    
+                    // Check if this is the current session
+                    if (currentSession?.request == request) {
+                        sessionToFinalize = currentSession
+                        // Mark as cancelled so handlers know to skip
+                        currentSession?.phase = PermissionPhase.COMPLETED
+                    }
+                }
+                
+                // Finalize the cancelled session outside the lock
+                sessionToFinalize?.let { session ->
                     permissionManager.cleanupPendingRequests()
-                    // TESTRIGOR FIX: Cancel any pending timeouts or retries
                     cancelPermissionTimeoutsAndRetries()
+                    finalizeSession(session)
                 }
             }
 
@@ -342,11 +393,19 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * REFACTORED: Now uses SafePermissionManager consistently
-     * TESTRIGOR: Enhanced with test mode support
+     * REFACTORED: Dual permission coordination using session-based queue
+     * 
+     * TESTRIGOR FIX: Handles the case where web app prompts TWICE:
+     * 1. First prompt: Web getUserMedia permission
+     * 2. Second prompt: Android RECORD_AUDIO permission
+     * 
+     * Uses PermissionSession to track state and ensure FIFO processing
      */
     @android.annotation.SuppressLint("InlinedApi")
     private fun handleWebViewAudioPermission(request: PermissionRequest) {
+        val sessionPhase = currentSession?.phase ?: PermissionPhase.IDLE
+        TestRigorLogger.logDebug("handleWebViewAudioPermission called, currentPhase=$sessionPhase, queueSize=${sessionQueue.size}")
+
         // TESTRIGOR: In test mode, auto-grant without system permission
         if (isTestMode) {
             TestRigorLogger.logMilestone("TEST MODE: Auto-granting WebView permission")
@@ -363,84 +422,223 @@ class MainActivity : BaseActivity() {
 
         // TESTRIGOR FIX: Debounce rapid microphone clicks
         val now = System.currentTimeMillis()
-        if (now - lastMicClickTime < MIC_DEBOUNCE_MS) {
-            TestRigorLogger.logWarning("Mic permission request debounced - too rapid (${now - lastMicClickTime}ms < ${MIC_DEBOUNCE_MS}ms)")
+        if (now - lastMicClickTime < DEBOUNCE_MS) {
+            TestRigorLogger.logWarning("Mic permission request debounced - too rapid (${now - lastMicClickTime}ms < ${DEBOUNCE_MS}ms)")
             return
         }
         lastMicClickTime = now
 
-        TestRigorLogger.logMilestone("Handling audio permission request")
+        // Create new session for this request
+        val session = PermissionSession(request)
 
-        if (permissionManager.hasMicrophonePermission()) {
-            // Grant immediately
-            TestRigorLogger.logDebug("Android permission exists, granting to WebView")
-            lifecycleHandler.post {
-                try {
-                    request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
-                    TestRigorLogger.logMilestone("Audio granted to WebView")
-                } catch (e: Exception) {
-                    TestRigorLogger.logError("WebView grant failed", e)
-                }
+        // TESTRIGOR FIX: Enqueue or process immediately
+        synchronized(permissionLock) {
+            if (isProcessingPermission || currentSession != null) {
+                // Already processing - queue this request
+                sessionQueue.add(session)
+                TestRigorLogger.logDebug("Session queued (queue size: ${sessionQueue.size})")
+                return
             }
+            
+            // No active session - process this one
+            currentSession = session
+            isProcessingPermission = true
+        }
+
+        // Process the session outside the lock
+        processSession(session)
+    }
+
+    /**
+     * TESTRIGOR FIX: Process a permission session
+     * Handles both pre-granted and permission-required cases
+     */
+    private fun processSession(session: PermissionSession) {
+        TestRigorLogger.logMilestone("Processing permission session (phase: ${session.phase})")
+
+        // STEP 1: Check if Android permission is already granted
+        if (permissionManager.hasMicrophonePermission()) {
+            synchronized(permissionLock) {
+                session.androidResult = true
+                session.phase = PermissionPhase.ANDROID_RESOLVED
+            }
+            TestRigorLogger.logDebug("Android permission already granted, proceeding to web grant")
+            
+            // Grant to WebView immediately
+            grantWebViewPermissionForSession(session)
         } else {
-            // Request Android permission first using SafePermissionManager
-            TestRigorLogger.logDebug("Requesting Android mic permission")
+            // STEP 2: Request Android permission FIRST
+            synchronized(permissionLock) {
+                session.phase = PermissionPhase.ANDROID_PENDING
+                pendingPermissionRequest = session.request
+                isWaitingForAndroidPermission = true
+            }
+            TestRigorLogger.logDebug("Requesting Android mic permission first")
 
-            pendingPermissionRequest = request
-            isWaitingForAndroidPermission = true
-
-            // TESTRIGOR FIX: Start permission timeout and retry logic
+            // Start timeout for stuck permission states
             startPermissionTimeoutsAndRetries()
 
             permissionManager.requestMicrophonePermission { granted ->
-                handleMicrophonePermissionResult(granted)
+                synchronized(permissionLock) {
+                    session.androidResult = granted
+                    session.phase = PermissionPhase.ANDROID_RESOLVED
+                }
+                handleMicrophonePermissionResultForSession(session, granted)
             }
         }
     }
 
     /**
-     * REFACTORED: Simplified - now just handles the result
+     * TESTRIGOR FIX: Grant permission to WebView for a session
+     * Called after Android permission is resolved
      */
-    private fun handleMicrophonePermissionResult(granted: Boolean) {
-        TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true)
+    private fun grantWebViewPermissionForSession(session: PermissionSession) {
+        // TESTRIGOR FIX: Verify session is still current before proceeding
+        val isCurrentSession = synchronized(permissionLock) {
+            if (currentSession != session || session.phase == PermissionPhase.COMPLETED) {
+                TestRigorLogger.logWarning("Session already finalized or not current, skipping grant")
+                false
+            } else {
+                session.phase = PermissionPhase.WEB_PENDING
+                true
+            }
+        }
+        
+        if (!isCurrentSession) return
+        
+        TestRigorLogger.logDebug("Granting permission to WebView for session")
 
-        // TESTRIGOR FIX: Clear timeouts and retries on result
+        lifecycleHandler.post {
+            // Double-check session is still current on main thread
+            val stillCurrent = synchronized(permissionLock) { currentSession == session }
+            if (!stillCurrent) {
+                TestRigorLogger.logWarning("Session no longer current on main thread, skipping grant")
+                return@post
+            }
+            
+            try {
+                if (!isFinishing && !isDestroyed) {
+                    session.request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
+                    TestRigorLogger.logMilestone("Audio granted to WebView")
+                    synchronized(permissionLock) {
+                        session.phase = PermissionPhase.COMPLETED
+                    }
+                } else {
+                    TestRigorLogger.logWarning("Activity finishing, cannot grant WebView permission")
+                }
+            } catch (e: Exception) {
+                TestRigorLogger.logError("WebView grant failed", e)
+            } finally {
+                // TESTRIGOR FIX: Finalize session and process next
+                finalizeSession(session)
+            }
+        }
+    }
+
+    /**
+     * TESTRIGOR FIX: Handle Android permission result for a session
+     */
+    private fun handleMicrophonePermissionResultForSession(session: PermissionSession, granted: Boolean) {
+        TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true, 
+            "phase=${session.phase}")
+
+        // Clear timeouts
         cancelPermissionTimeoutsAndRetries()
 
-        if (granted && pendingPermissionRequest != null) {
-            TestRigorLogger.logDebug("Granting to WebView after Android permission")
-
-            val request = pendingPermissionRequest
+        // TESTRIGOR FIX: Verify session is still current before proceeding
+        val isCurrentSession = synchronized(permissionLock) {
             pendingPermissionRequest = null
             isWaitingForAndroidPermission = false
+            
+            if (currentSession != session || session.phase == PermissionPhase.COMPLETED) {
+                TestRigorLogger.logWarning("Session already finalized or not current, skipping permission result handling")
+                false
+            } else {
+                true
+            }
+        }
+        
+        if (!isCurrentSession) return
 
+        if (granted) {
+            TestRigorLogger.logDebug("Granting to WebView after Android permission")
+            grantWebViewPermissionForSession(session)
+        } else {
+            TestRigorLogger.logWarning("Microphone permission denied")
             lifecycleHandler.post {
+                // Double-check session is still current on main thread
+                val stillCurrent = synchronized(permissionLock) { currentSession == session }
+                if (!stillCurrent) {
+                    TestRigorLogger.logWarning("Session no longer current on main thread, skipping deny")
+                    return@post
+                }
+                
                 try {
-                    request?.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
-                    TestRigorLogger.logMilestone("Audio granted after permission")
-
-                    // Reload to trigger new request
-                    if (::webView.isInitialized) {
-                        webView.reload()
-                    }
+                    session.request.deny()
+                    TestRigorLogger.logDebug("WebView permission denied after Android denial")
                 } catch (e: Exception) {
-                    TestRigorLogger.logError("Post-permission grant failed", e)
+                    TestRigorLogger.logError("Deny failed", e)
+                } finally {
+                    finalizeSession(session)
                 }
             }
-        } else if (!granted) {
-            TestRigorLogger.logWarning("Microphone permission denied")
+        }
+    }
 
-            if (pendingPermissionRequest != null) {
-                val request = pendingPermissionRequest
+    /**
+     * TESTRIGOR FIX: Finalize a session and process the next one
+     * This is the ONLY place where currentSession is cleared and next is started
+     */
+    private fun finalizeSession(session: PermissionSession) {
+        var nextSession: PermissionSession? = null
+        
+        synchronized(permissionLock) {
+            // Only finalize if this is the current session
+            if (currentSession == session) {
+                currentSession = null
                 pendingPermissionRequest = null
                 isWaitingForAndroidPermission = false
-
-                lifecycleHandler.post {
-                    try {
-                        request?.deny()
-                    } catch (e: Exception) {
-                        TestRigorLogger.logError("Deny failed", e)
+                
+                // Check for next session in queue
+                if (sessionQueue.isNotEmpty() && !isFinishing && !isDestroyed) {
+                    nextSession = sessionQueue.removeAt(0)
+                    currentSession = nextSession
+                    // Keep isProcessingPermission = true
+                    TestRigorLogger.logDebug("Finalized session, processing next (queue size: ${sessionQueue.size})")
+                } else {
+                    // No more sessions - fully idle
+                    isProcessingPermission = false
+                    
+                    // Clear queue if activity is finishing
+                    if (isFinishing || isDestroyed) {
+                        val remaining = sessionQueue.size
+                        sessionQueue.forEach { s ->
+                            try { s.request.deny() } catch (e: Exception) { }
+                        }
+                        sessionQueue.clear()
+                        if (remaining > 0) {
+                            TestRigorLogger.logWarning("Activity finishing, denied and cleared $remaining queued sessions")
+                        }
+                    } else {
+                        TestRigorLogger.logDebug("Session finalized, queue empty, returning to IDLE")
                     }
+                }
+            } else {
+                TestRigorLogger.logWarning("Attempted to finalize non-current session")
+            }
+        }
+        
+        // Process next session OUTSIDE the lock
+        nextSession?.let { next ->
+            lifecycleHandler.post {
+                if (!isFinishing && !isDestroyed) {
+                    processSession(next)
+                } else {
+                    synchronized(permissionLock) {
+                        currentSession = null
+                        isProcessingPermission = false
+                    }
+                    TestRigorLogger.logWarning("Skipping next session - activity finishing")
                 }
             }
         }
@@ -617,10 +815,11 @@ class MainActivity : BaseActivity() {
         }
 
         // TESTRIGOR FIX: Re-verify pending permission state on resume
-        if (pendingPermissionRequest != null && isWaitingForAndroidPermission) {
+        val session = synchronized(permissionLock) { currentSession }
+        if (session != null && isWaitingForAndroidPermission) {
             if (permissionManager.hasMicrophonePermission()) {
                 TestRigorLogger.logDebug("Permission granted while backgrounded - handling now")
-                handleMicrophonePermissionResult(true)
+                handleMicrophonePermissionResultForSession(session, true)
             }
         }
     }
@@ -765,7 +964,11 @@ class MainActivity : BaseActivity() {
         // Set timeout
         permissionTimeoutRunnable = Runnable {
             TestRigorLogger.logWarning("Permission request timed out after ${PERMISSION_TIMEOUT_MS}ms")
-            handleMicrophonePermissionResult(false) // Treat timeout as denial
+            // Treat timeout as denial - finalize current session
+            val session = synchronized(permissionLock) { currentSession }
+            session?.let { 
+                handleMicrophonePermissionResultForSession(it, false)
+            }
         }
         permissionTimeoutHandler.postDelayed(permissionTimeoutRunnable!!, PERMISSION_TIMEOUT_MS)
 
@@ -784,9 +987,25 @@ class MainActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
 
-        // TESTRIGOR FIX: Clear pending permission state and cancel timeouts/retries
-        pendingPermissionRequest = null
-        isWaitingForAndroidPermission = false
+        // TESTRIGOR FIX: Clear all pending permission sessions and state
+        synchronized(permissionLock) {
+            // Deny current session if present
+            currentSession?.let { session ->
+                try { session.request.deny() } catch (e: Exception) { }
+            }
+            
+            // Deny all queued sessions
+            sessionQueue.forEach { session ->
+                try { session.request.deny() } catch (e: Exception) { }
+            }
+            sessionQueue.clear()
+            
+            // Clear current session
+            currentSession = null
+            pendingPermissionRequest = null
+            isWaitingForAndroidPermission = false
+            isProcessingPermission = false
+        }
         permissionManager.cleanupPendingRequests()
         cancelPermissionTimeoutsAndRetries()
 
