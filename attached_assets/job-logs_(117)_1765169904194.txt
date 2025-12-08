@@ -1,0 +1,1052 @@
+﻿2025-12-08T04:33:20.6423160Z Current runner version: '2.329.0'
+2025-12-08T04:33:20.6429910Z Runner name: 'mac-builder2'
+2025-12-08T04:33:20.6430510Z Runner group name: 'Default'
+2025-12-08T04:33:20.6431250Z Machine name: 'DNY243'
+2025-12-08T04:33:20.6433730Z ##[group]GITHUB_TOKEN Permissions
+2025-12-08T04:33:20.6435980Z Actions: read
+2025-12-08T04:33:20.6436410Z Checks: read
+2025-12-08T04:33:20.6436790Z Contents: write
+2025-12-08T04:33:20.6437180Z Metadata: read
+2025-12-08T04:33:20.6437570Z Packages: write
+2025-12-08T04:33:20.6438000Z ##[endgroup]
+2025-12-08T04:33:20.6440290Z Secret source: Actions
+2025-12-08T04:33:20.6441110Z Prepare workflow directory
+2025-12-08T04:33:20.7385960Z Prepare all required actions
+2025-12-08T04:33:20.7429130Z Getting action download info
+2025-12-08T04:33:25.1861800Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2025-12-08T04:33:34.1888570Z Download action repository 'actions/setup-java@v4' (SHA:c1e323688fd81a25caa38c78aa6df2d33d3e20d9)
+2025-12-08T04:33:45.9076990Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2025-12-08T04:33:57.1698320Z Download action repository 'softprops/action-gh-release@v1' (SHA:de2c0eb89ae2a093876385947365aca7b0e5f844)
+2025-12-08T04:34:05.8358180Z Complete job name: Build LinguaGT Android AAB with Diagnostics
+2025-12-08T04:34:05.8998210Z ##[group]Run actions/checkout@v4
+2025-12-08T04:34:05.8998940Z with:
+2025-12-08T04:34:05.8999170Z   fetch-depth: 0
+2025-12-08T04:34:05.8999430Z   repository: j272-glitch/lingualink-android2
+2025-12-08T04:34:05.8999920Z   token: ***
+2025-12-08T04:34:05.9000150Z   ssh-strict: true
+2025-12-08T04:34:05.9000350Z   ssh-user: git
+2025-12-08T04:34:05.9000570Z   persist-credentials: true
+2025-12-08T04:34:05.9000810Z   clean: true
+2025-12-08T04:34:05.9001020Z   sparse-checkout-cone-mode: true
+2025-12-08T04:34:05.9001300Z   fetch-tags: false
+2025-12-08T04:34:05.9001510Z   show-progress: true
+2025-12-08T04:34:05.9001720Z   lfs: false
+2025-12-08T04:34:05.9001910Z   submodules: false
+2025-12-08T04:34:05.9002240Z   set-safe-directory: true
+2025-12-08T04:34:05.9002810Z env:
+2025-12-08T04:34:05.9003080Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:05.9003430Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:05.9003800Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:05.9004100Z   VERSION_CODE: 10
+2025-12-08T04:34:05.9004310Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:05.9004530Z   CREATE_RELEASE: true
+2025-12-08T04:34:05.9004750Z   DEBUG_MODE: true
+2025-12-08T04:34:05.9025690Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:05.9026010Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:05.9026320Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:05.9026590Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:05.9026860Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:05.9027200Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:05.9027500Z ##[endgroup]
+2025-12-08T04:34:06.0380760Z Syncing repository: j272-glitch/lingualink-android2
+2025-12-08T04:34:06.0382610Z ##[group]Getting Git version info
+2025-12-08T04:34:06.0383220Z Working directory is '/Users/admin/actions-runner/_work/lingualink-android2/lingualink-android2'
+2025-12-08T04:34:06.0384050Z [command]/usr/bin/git version
+2025-12-08T04:34:06.0478360Z git version 2.39.5 (Apple Git-154)
+2025-12-08T04:34:06.0502860Z ##[endgroup]
+2025-12-08T04:34:06.0517510Z Temporarily overriding HOME='/Users/admin/actions-runner/_work/_temp/b096790b-08f7-4859-9edf-18a15cfe2da6' before making global git config changes
+2025-12-08T04:34:06.0526760Z Adding repository directory to the temporary git global config as a safe directory
+2025-12-08T04:34:06.0527660Z [command]/usr/bin/git config --global --add safe.directory /Users/admin/actions-runner/_work/lingualink-android2/lingualink-android2
+2025-12-08T04:34:06.0682150Z [command]/usr/bin/git config --local --get remote.origin.url
+2025-12-08T04:34:06.0819080Z https://github.com/j272-glitch/lingualink-android2
+2025-12-08T04:34:06.0834010Z ##[group]Removing previously created refs, to avoid conflicts
+2025-12-08T04:34:06.0838170Z [command]/usr/bin/git rev-parse --symbolic-full-name --verify --quiet HEAD
+2025-12-08T04:34:06.0981600Z refs/heads/main
+2025-12-08T04:34:06.0990860Z [command]/usr/bin/git checkout --detach
+2025-12-08T04:34:06.1205050Z HEAD is now at 034bc71 Implement crash prevention for audio permission handling
+2025-12-08T04:34:06.1205740Z M	android/.gradle/8.7/executionHistory/executionHistory.bin
+2025-12-08T04:34:06.1206190Z M	android/.gradle/8.7/executionHistory/executionHistory.lock
+2025-12-08T04:34:06.1207140Z M	android/.gradle/8.7/fileHashes/fileHashes.bin
+2025-12-08T04:34:06.1207600Z M	android/.gradle/8.7/fileHashes/fileHashes.lock
+2025-12-08T04:34:06.1208090Z M	android/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+2025-12-08T04:34:06.1208650Z M	android/.gradle/buildOutputCleanup/outputFiles.bin
+2025-12-08T04:34:06.1373890Z [command]/usr/bin/git branch --delete --force main
+2025-12-08T04:34:06.1537350Z Deleted branch main (was 034bc71).
+2025-12-08T04:34:06.1702370Z ##[endgroup]
+2025-12-08T04:34:06.1705990Z [command]/usr/bin/git submodule status
+2025-12-08T04:34:06.3155600Z ##[group]Cleaning the repository
+2025-12-08T04:34:06.3160210Z [command]/usr/bin/git clean -ffdx
+2025-12-08T04:34:06.5597210Z Removing android/.gradle/8.7/dependencies-accessors/379b46ef6e42233770a64862b4edd07fde041723/
+2025-12-08T04:34:06.5681360Z Removing android/.gradle/8.7/dependencies-accessors/6410174e904e57ddd1c25656080c07df6f32b81b/
+2025-12-08T04:34:06.5781780Z Removing android/.gradle/8.7/expanded/
+2025-12-08T04:34:06.5883840Z Removing android/.gradle/8.7/fileHashes/resourceHashesCache.bin
+2025-12-08T04:34:06.5942940Z Removing android/.gradle/8.7/vcsMetadata/
+2025-12-08T04:34:06.5957720Z Removing android/.gradle/file-system.probe
+2025-12-08T04:34:06.5959310Z Removing android/.gradle/kotlin/
+2025-12-08T04:34:06.5960650Z Removing android/app/build/
+2025-12-08T04:34:06.5961120Z Removing android/app/release.keystore
+2025-12-08T04:34:06.5961510Z Removing android/build-output.log
+2025-12-08T04:34:06.5961930Z Removing android/gradle-tasks.log
+2025-12-08T04:34:06.5963220Z [command]/usr/bin/git reset --hard HEAD
+2025-12-08T04:34:06.5964250Z HEAD is now at 034bc71 Implement crash prevention for audio permission handling
+2025-12-08T04:34:06.5965520Z ##[endgroup]
+2025-12-08T04:34:06.5966080Z ##[group]Disabling automatic garbage collection
+2025-12-08T04:34:06.5966550Z [command]/usr/bin/git config --local gc.auto 0
+2025-12-08T04:34:06.6150490Z ##[endgroup]
+2025-12-08T04:34:06.6151080Z ##[group]Setting up auth
+2025-12-08T04:34:06.6158610Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-12-08T04:34:06.6375510Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-12-08T04:34:06.7558830Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-12-08T04:34:06.7708230Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-12-08T04:34:06.8788660Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2025-12-08T04:34:06.8934610Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2025-12-08T04:34:07.0055550Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-12-08T04:34:07.0212480Z ##[endgroup]
+2025-12-08T04:34:07.0213020Z ##[group]Fetching the repository
+2025-12-08T04:34:07.0227200Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2025-12-08T04:34:11.2617390Z From https://github.com/j272-glitch/lingualink-android2
+2025-12-08T04:34:11.2618330Z    034bc71..3574cc6  main       -> origin/main
+2025-12-08T04:34:11.2709770Z [command]/usr/bin/git branch --list --remote origin/main
+2025-12-08T04:34:11.2896790Z   origin/main
+2025-12-08T04:34:11.2905460Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2025-12-08T04:34:11.3052620Z 3574cc6fbc718d27f2270d6982fdc2772ef73d44
+2025-12-08T04:34:11.3056130Z ##[endgroup]
+2025-12-08T04:34:11.3056520Z ##[group]Determining the checkout info
+2025-12-08T04:34:11.3057370Z ##[endgroup]
+2025-12-08T04:34:11.3062120Z [command]/usr/bin/git sparse-checkout disable
+2025-12-08T04:34:11.3243800Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-12-08T04:34:11.3407440Z ##[group]Checking out the ref
+2025-12-08T04:34:11.3411750Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-12-08T04:34:11.3621970Z Previous HEAD position was 034bc71 Implement crash prevention for audio permission handling
+2025-12-08T04:34:11.3689650Z Switched to a new branch 'main'
+2025-12-08T04:34:11.3690460Z branch 'main' set up to track 'origin/main'.
+2025-12-08T04:34:11.3699960Z ##[endgroup]
+2025-12-08T04:34:11.3883840Z [command]/usr/bin/git log -1 --format=%H
+2025-12-08T04:34:11.4040750Z 3574cc6fbc718d27f2270d6982fdc2772ef73d44
+2025-12-08T04:34:11.4317190Z ##[group]Run actions/setup-java@v4
+2025-12-08T04:34:11.4317510Z with:
+2025-12-08T04:34:11.4317690Z   java-version: 17
+2025-12-08T04:34:11.4317910Z   distribution: temurin
+2025-12-08T04:34:11.4318130Z   java-package: jdk
+2025-12-08T04:34:11.4318330Z   check-latest: false
+2025-12-08T04:34:11.4323020Z   server-id: github
+2025-12-08T04:34:11.4323250Z   server-username: GITHUB_ACTOR
+2025-12-08T04:34:11.4323520Z   server-password: GITHUB_TOKEN
+2025-12-08T04:34:11.4323780Z   overwrite-settings: true
+2025-12-08T04:34:11.4324020Z   job-status: success
+2025-12-08T04:34:11.4324380Z   token: ***
+2025-12-08T04:34:11.4328920Z env:
+2025-12-08T04:34:11.4329200Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:11.4329550Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:11.4329900Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:11.4330270Z   VERSION_CODE: 10
+2025-12-08T04:34:11.4330490Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:11.4330730Z   CREATE_RELEASE: true
+2025-12-08T04:34:11.4335560Z   DEBUG_MODE: true
+2025-12-08T04:34:11.4356610Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:11.4356920Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:11.4357210Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:11.4357460Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:11.4357730Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.4358070Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.4358370Z ##[endgroup]
+2025-12-08T04:34:11.6562500Z ##[group]Installed distributions
+2025-12-08T04:34:11.6593550Z Resolved Java 17.0.17+10 from tool-cache
+2025-12-08T04:34:11.6593900Z Setting Java 17.0.17+10 as the default
+2025-12-08T04:34:11.6612710Z Creating toolchains.xml for JDK version 17 from temurin
+2025-12-08T04:34:11.7025640Z Overwriting existing file /Users/admin/.m2/toolchains.xml
+2025-12-08T04:34:11.7027950Z 
+2025-12-08T04:34:11.7028730Z Java configuration:
+2025-12-08T04:34:11.7032240Z   Distribution: temurin
+2025-12-08T04:34:11.7032890Z   Version: 17.0.17+10
+2025-12-08T04:34:11.7033660Z   Path: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:11.7034420Z 
+2025-12-08T04:34:11.7035230Z ##[endgroup]
+2025-12-08T04:34:11.7051060Z Creating settings.xml with server-id: github
+2025-12-08T04:34:11.7061520Z Overwriting existing file /Users/admin/.m2/settings.xml
+2025-12-08T04:34:11.7217740Z ##[group]Run echo "=== VERIFYING ANDROID SDK ENVIRONMENT ==="
+2025-12-08T04:34:11.7218370Z [36;1mecho "=== VERIFYING ANDROID SDK ENVIRONMENT ==="[0m
+2025-12-08T04:34:11.7225250Z [36;1mecho "ANDROID_HOME: $ANDROID_HOME"[0m
+2025-12-08T04:34:11.7225710Z [36;1mecho "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"[0m
+2025-12-08T04:34:11.7226010Z [36;1m[0m
+2025-12-08T04:34:11.7226740Z [36;1mif [ -z "$ANDROID_HOME" ]; then[0m
+2025-12-08T04:34:11.7227040Z [36;1m  echo "❌ ERROR: ANDROID_HOME is not set"[0m
+2025-12-08T04:34:11.7227330Z [36;1m  exit 1[0m
+2025-12-08T04:34:11.7227530Z [36;1mfi[0m
+2025-12-08T04:34:11.7227710Z [36;1m[0m
+2025-12-08T04:34:11.7227910Z [36;1mif [ ! -d "$ANDROID_HOME" ]; then[0m
+2025-12-08T04:34:11.7228290Z [36;1m  echo "❌ ERROR: ANDROID_HOME directory does not exist: $ANDROID_HOME"[0m
+2025-12-08T04:34:11.7228680Z [36;1m  exit 1[0m
+2025-12-08T04:34:11.7228880Z [36;1mfi[0m
+2025-12-08T04:34:11.7229050Z [36;1m[0m
+2025-12-08T04:34:11.7229340Z [36;1mecho "✅ ANDROID_HOME is set and directory exists"[0m
+2025-12-08T04:34:11.7229660Z [36;1m[0m
+2025-12-08T04:34:11.7229860Z [36;1m# List available build tools[0m
+2025-12-08T04:34:11.7230110Z [36;1mecho ""[0m
+2025-12-08T04:34:11.7230330Z [36;1mecho "Available Build Tools:"[0m
+2025-12-08T04:34:11.7230760Z [36;1mls -d $ANDROID_HOME/build-tools/* 2>/dev/null | head -5 || echo "No build tools found"[0m
+2025-12-08T04:34:11.7264850Z shell: /bin/bash -e {0}
+2025-12-08T04:34:11.7265120Z env:
+2025-12-08T04:34:11.7265350Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:11.7265700Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:11.7266040Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:11.7266300Z   VERSION_CODE: 10
+2025-12-08T04:34:11.7266500Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:11.7266720Z   CREATE_RELEASE: true
+2025-12-08T04:34:11.7266930Z   DEBUG_MODE: true
+2025-12-08T04:34:11.7288860Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:11.7289220Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:11.7289520Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:11.7289800Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:11.7290130Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7290560Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7291340Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:11.7298650Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:11.7299210Z ##[endgroup]
+2025-12-08T04:34:11.7471840Z === VERIFYING ANDROID SDK ENVIRONMENT ===
+2025-12-08T04:34:11.7472410Z ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7472830Z ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7473600Z ✅ ANDROID_HOME is set and directory exists
+2025-12-08T04:34:11.7473840Z 
+2025-12-08T04:34:11.7474350Z Available Build Tools:
+2025-12-08T04:34:11.7504870Z /Users/admin/Library/Android/sdk/build-tools/34.0.0
+2025-12-08T04:34:11.7505370Z /Users/admin/Library/Android/sdk/build-tools/35.0.0
+2025-12-08T04:34:11.7568080Z ##[group]Run echo "=== SETTING UP ANDROID SDK WITH API 35 ==="
+2025-12-08T04:34:11.7568610Z [36;1mecho "=== SETTING UP ANDROID SDK WITH API 35 ==="[0m
+2025-12-08T04:34:11.7573950Z [36;1m[0m
+2025-12-08T04:34:11.7574200Z [36;1m# Accept licenses[0m
+2025-12-08T04:34:11.7574700Z [36;1myes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true[0m
+2025-12-08T04:34:11.7575110Z [36;1m[0m
+2025-12-08T04:34:11.7575310Z [36;1m# Install API 35 and build tools[0m
+2025-12-08T04:34:11.7575810Z [36;1m$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \[0m
+2025-12-08T04:34:11.7576160Z [36;1m  "platform-tools" \[0m
+2025-12-08T04:34:11.7576430Z [36;1m  "platforms;android-35" \[0m
+2025-12-08T04:34:11.7576710Z [36;1m  "platforms;android-34" \[0m
+2025-12-08T04:34:11.7576980Z [36;1m  "build-tools;35.0.0" \[0m
+2025-12-08T04:34:11.7577240Z [36;1m  "build-tools;34.0.0" \[0m
+2025-12-08T04:34:11.7577510Z [36;1m  "extras;android;m2repository" \[0m
+2025-12-08T04:34:11.7577870Z [36;1m  "extras;google;m2repository"[0m
+2025-12-08T04:34:11.7578140Z [36;1m[0m
+2025-12-08T04:34:11.7583100Z [36;1mecho "✅ Android SDK setup complete"[0m
+2025-12-08T04:34:11.7611790Z shell: /bin/bash -e {0}
+2025-12-08T04:34:11.7612060Z env:
+2025-12-08T04:34:11.7612720Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:11.7613070Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:11.7613460Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:11.7613740Z   VERSION_CODE: 10
+2025-12-08T04:34:11.7613940Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:11.7614170Z   CREATE_RELEASE: true
+2025-12-08T04:34:11.7614380Z   DEBUG_MODE: true
+2025-12-08T04:34:11.7635540Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:11.7642020Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:11.7642340Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:11.7642600Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:11.7642880Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7643240Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:11.7643780Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:11.7649070Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:11.7649650Z ##[endgroup]
+2025-12-08T04:34:11.7797540Z === SETTING UP ANDROID SDK WITH API 35 ===
+2025-12-08T04:34:12.4883630Z Warning: Observed package id 'cmdline-tools;latest' in inconsistent location '/Users/admin/Library/Android/sdk/cmdline-tools/latest-2' (Expected '/Users/admin/Library/Android/sdk/cmdline-tools/latest')
+2025-12-08T04:34:12.5742160Z Warning: Observed package id 'cmdline-tools;latest' in inconsistent location '/Users/admin/Library/Android/sdk/cmdline-tools/latest-2' (Expected '/Users/admin/Library/Android/sdk/cmdline-tools/latest')
+2025-12-08T04:34:12.5951540Z Loading local repository...                                                     
+2025-12-08T04:34:12.6039460Z [=========                              ] 25% Loading local repository...       
+2025-12-08T04:34:12.6174470Z [=========                              ] 25% Fetch remote repository...        
+2025-12-08T04:34:12.8087520Z [==========                             ] 26% Fetch remote repository...        
+2025-12-08T04:34:12.8088550Z [============                           ] 31% Fetch remote repository...        
+2025-12-08T04:34:12.8795790Z [============                           ] 32% Fetch remote repository...        
+2025-12-08T04:34:12.8796640Z [=============                          ] 33% Fetch remote repository...        
+2025-12-08T04:34:12.9115390Z [=============                          ] 35% Fetch remote repository...        
+2025-12-08T04:34:12.9209410Z [==============                         ] 36% Fetch remote repository...        
+2025-12-08T04:34:12.9399050Z [==============                         ] 37% Fetch remote repository...        
+2025-12-08T04:34:12.9503820Z [===============                        ] 38% Fetch remote repository...        
+2025-12-08T04:34:12.9635140Z [===============                        ] 39% Fetch remote repository...        
+2025-12-08T04:34:12.9688100Z [================                       ] 40% Fetch remote repository...        
+2025-12-08T04:34:12.9789880Z [================                       ] 41% Fetch remote repository...        
+2025-12-08T04:34:12.9891410Z [================                       ] 42% Fetch remote repository...        
+2025-12-08T04:34:12.9952950Z [=================                      ] 44% Fetch remote repository...        
+2025-12-08T04:34:13.0054800Z [=================                      ] 45% Fetch remote repository...        
+2025-12-08T04:34:13.0078600Z [==================                     ] 46% Fetch remote repository...        
+2025-12-08T04:34:13.0180460Z [==================                     ] 47% Fetch remote repository...        
+2025-12-08T04:34:13.0283130Z [===================                    ] 48% Fetch remote repository...        
+2025-12-08T04:34:13.0384620Z [===================                    ] 49% Fetch remote repository...        
+2025-12-08T04:34:13.0485940Z [====================                   ] 50% Fetch remote repository...        
+2025-12-08T04:34:13.0588780Z [====================                   ] 51% Fetch remote repository...        
+2025-12-08T04:34:13.0738710Z [====================                   ] 53% Fetch remote repository...        
+2025-12-08T04:34:13.0767470Z [=====================                  ] 54% Fetch remote repository...        
+2025-12-08T04:34:13.0835960Z [=====================                  ] 55% Fetch remote repository...        
+2025-12-08T04:34:13.0855210Z [======================                 ] 56% Fetch remote repository...        
+2025-12-08T04:34:13.1085440Z [======================                 ] 57% Fetch remote repository...        
+2025-12-08T04:34:13.1086840Z [=======================                ] 58% Fetch remote repository...        
+2025-12-08T04:34:13.1379600Z [=======================                ] 59% Fetch remote repository...        
+2025-12-08T04:34:13.1479900Z [========================               ] 60% Fetch remote repository...        
+2025-12-08T04:34:13.1590330Z [========================               ] 61% Fetch remote repository...        
+2025-12-08T04:34:13.1700290Z [=========================              ] 63% Fetch remote repository...        
+2025-12-08T04:34:13.1813170Z [=========================              ] 64% Fetch remote repository...        
+2025-12-08T04:34:13.1913510Z [=========================              ] 65% Fetch remote repository...        
+2025-12-08T04:34:13.2014240Z [==========================             ] 66% Fetch remote repository...        
+2025-12-08T04:34:13.2114780Z [==========================             ] 67% Fetch remote repository...        
+2025-12-08T04:34:13.2122640Z [===========================            ] 68% Fetch remote repository...        
+2025-12-08T04:34:13.2221590Z [===========================            ] 69% Fetch remote repository...        
+2025-12-08T04:34:13.2281970Z [============================           ] 70% Fetch remote repository...        
+2025-12-08T04:34:13.2323800Z [============================           ] 72% Fetch remote repository...        
+2025-12-08T04:34:13.2338530Z [=============================          ] 73% Fetch remote repository...        
+2025-12-08T04:34:13.2439960Z [=============================          ] 74% Fetch remote repository...        
+2025-12-08T04:34:13.2470610Z [=============================          ] 75% Fetch remote repository...        
+2025-12-08T04:34:13.2656360Z [=============================          ] 75% Computing updates...              
+2025-12-08T04:34:13.2670270Z [=======================================] 100% Computing updates...             
+2025-12-08T04:34:13.3383360Z All SDK package licenses accepted.
+2025-12-08T04:34:13.3393240Z 
+2025-12-08T04:34:13.3665550Z yes: stdout: Broken pipe
+2025-12-08T04:34:13.8935290Z Warning: Observed package id 'cmdline-tools;latest' in inconsistent location '/Users/admin/Library/Android/sdk/cmdline-tools/latest-2' (Expected '/Users/admin/Library/Android/sdk/cmdline-tools/latest')
+2025-12-08T04:34:13.9392450Z Loading package information...                                                  
+2025-12-08T04:34:13.9573710Z Warning: Observed package id 'cmdline-tools;latest' in inconsistent location '/Users/admin/Library/Android/sdk/cmdline-tools/latest-2' (Expected '/Users/admin/Library/Android/sdk/cmdline-tools/latest')
+2025-12-08T04:34:13.9739410Z Loading local repository...                                                     
+2025-12-08T04:34:13.9740630Z [                                       ] 3% Loading local repository...        
+2025-12-08T04:34:13.9873330Z [                                       ] 3% Fetch remote repository...         
+2025-12-08T04:34:14.3594570Z [=                                      ] 3% Fetch remote repository...         
+2025-12-08T04:34:14.4294970Z [=                                      ] 4% Fetch remote repository...         
+2025-12-08T04:34:14.4614430Z [=                                      ] 5% Fetch remote repository...         
+2025-12-08T04:34:14.5002590Z [==                                     ] 5% Fetch remote repository...         
+2025-12-08T04:34:14.5706950Z [==                                     ] 6% Fetch remote repository...         
+2025-12-08T04:34:14.6208290Z [==                                     ] 7% Fetch remote repository...         
+2025-12-08T04:34:14.6246490Z [==                                     ] 7% Computing updates...               
+2025-12-08T04:34:14.6279760Z [===                                    ] 8% Computing updates...               
+2025-12-08T04:34:14.6315830Z [===                                    ] 10% Computing updates...              
+2025-12-08T04:34:14.6322750Z [=======================================] 100% Computing updates...             
+2025-12-08T04:34:14.6323830Z 
+2025-12-08T04:34:14.6530020Z ✅ Android SDK setup complete
+2025-12-08T04:34:14.6610200Z ##[group]Run echo "=== INITIAL PROJECT DIAGNOSTIC ==="
+2025-12-08T04:34:14.6610650Z [36;1mecho "=== INITIAL PROJECT DIAGNOSTIC ==="[0m
+2025-12-08T04:34:14.6611020Z [36;1mecho "Repository: j272-glitch/lingualink-android2"[0m
+2025-12-08T04:34:14.6616050Z [36;1mecho "Commit: 3574cc6fbc718d27f2270d6982fdc2772ef73d44"[0m
+2025-12-08T04:34:14.6616440Z [36;1mecho "Debug Mode: $DEBUG_MODE"[0m
+2025-12-08T04:34:14.6616700Z [36;1mecho ""[0m
+2025-12-08T04:34:14.6616890Z [36;1m[0m
+2025-12-08T04:34:14.6617090Z [36;1m# Check if android directory exists[0m
+2025-12-08T04:34:14.6617370Z [36;1mif [ ! -d android ]; then[0m
+2025-12-08T04:34:14.6617710Z [36;1m  echo "❌ CRITICAL ERROR: android/ directory not found!"[0m
+2025-12-08T04:34:14.6618070Z [36;1m  echo "Current directory contents:"[0m
+2025-12-08T04:34:14.6618340Z [36;1m  ls -la[0m
+2025-12-08T04:34:14.6622860Z [36;1m  exit 1[0m
+2025-12-08T04:34:14.6623050Z [36;1mfi[0m
+2025-12-08T04:34:14.6623220Z [36;1m[0m
+2025-12-08T04:34:14.6623470Z [36;1mecho "✅ android/ directory exists"[0m
+2025-12-08T04:34:14.6623740Z [36;1m[0m
+2025-12-08T04:34:14.6623950Z [36;1m# List critical files and their status[0m
+2025-12-08T04:34:14.6628530Z [36;1mecho ""[0m
+2025-12-08T04:34:14.6628780Z [36;1mecho "Critical Build Files Status:"[0m
+2025-12-08T04:34:14.6629080Z [36;1mecho "=============================="[0m
+2025-12-08T04:34:14.6629330Z [36;1m[0m
+2025-12-08T04:34:14.6629510Z [36;1mFILES_TO_CHECK=([0m
+2025-12-08T04:34:14.6629740Z [36;1m  "android/build.gradle"[0m
+2025-12-08T04:34:14.6630010Z [36;1m  "android/settings.gradle"[0m
+2025-12-08T04:34:14.6630270Z [36;1m  "android/app/build.gradle"[0m
+2025-12-08T04:34:14.6630540Z [36;1m  "android/gradle.properties"[0m
+2025-12-08T04:34:14.6630860Z [36;1m  "android/gradle/wrapper/gradle-wrapper.jar"[0m
+2025-12-08T04:34:14.6631250Z [36;1m  "android/gradle/wrapper/gradle-wrapper.properties"[0m
+2025-12-08T04:34:14.6631680Z [36;1m  "android/gradlew"[0m
+2025-12-08T04:34:14.6631970Z [36;1m  "android/app/src/main/AndroidManifest.xml"[0m
+2025-12-08T04:34:14.6636550Z [36;1m)[0m
+2025-12-08T04:34:14.6636760Z [36;1m[0m
+2025-12-08T04:34:14.6636940Z [36;1mMISSING_FILES=0[0m
+2025-12-08T04:34:14.6637190Z [36;1mfor file in "${FILES_TO_CHECK[@]}"; do[0m
+2025-12-08T04:34:14.6637490Z [36;1m  if [ -f "$file" ]; then[0m
+2025-12-08T04:34:14.6637770Z [36;1m    SIZE=$(ls -lh "$file" | awk '{print $5}')[0m
+2025-12-08T04:34:14.6638080Z [36;1m    echo "✅ $file (Size: $SIZE)"[0m
+2025-12-08T04:34:14.6642620Z [36;1m  else[0m
+2025-12-08T04:34:14.6642840Z [36;1m    echo "❌ $file - MISSING!"[0m
+2025-12-08T04:34:14.6643110Z [36;1m    ((MISSING_FILES++))[0m
+2025-12-08T04:34:14.6643340Z [36;1m  fi[0m
+2025-12-08T04:34:14.6643520Z [36;1mdone[0m
+2025-12-08T04:34:14.6643690Z [36;1m[0m
+2025-12-08T04:34:14.6648180Z [36;1mif [ $MISSING_FILES -gt 0 ]; then[0m
+2025-12-08T04:34:14.6648490Z [36;1m  echo ""[0m
+2025-12-08T04:34:14.6648810Z [36;1m  echo "⚠️ WARNING: $MISSING_FILES critical files are missing!"[0m
+2025-12-08T04:34:14.6649150Z [36;1mfi[0m
+2025-12-08T04:34:14.6649320Z [36;1m[0m
+2025-12-08T04:34:14.6649480Z [36;1mecho ""[0m
+2025-12-08T04:34:14.6649710Z [36;1mecho "✅ Initial diagnostic complete"[0m
+2025-12-08T04:34:14.6681790Z shell: /bin/bash -e {0}
+2025-12-08T04:34:14.6682020Z env:
+2025-12-08T04:34:14.6687180Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:14.6687570Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:14.6687910Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:14.6688160Z   VERSION_CODE: 10
+2025-12-08T04:34:14.6688360Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:14.6688560Z   CREATE_RELEASE: true
+2025-12-08T04:34:14.6688760Z   DEBUG_MODE: true
+2025-12-08T04:34:14.6709970Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:14.6710280Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:14.6710550Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:14.6710810Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:14.6715930Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.6716300Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.6716820Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.6717540Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.6718020Z ##[endgroup]
+2025-12-08T04:34:14.6877150Z === INITIAL PROJECT DIAGNOSTIC ===
+2025-12-08T04:34:14.6877640Z Repository: j272-glitch/lingualink-android2
+2025-12-08T04:34:14.6884640Z Commit: 3574cc6fbc718d27f2270d6982fdc2772ef73d44
+2025-12-08T04:34:14.6885080Z Debug Mode: true
+2025-12-08T04:34:14.6885250Z 
+2025-12-08T04:34:14.6885700Z ✅ android/ directory exists
+2025-12-08T04:34:14.6885910Z 
+2025-12-08T04:34:14.6886030Z Critical Build Files Status:
+2025-12-08T04:34:14.6886320Z ==============================
+2025-12-08T04:34:14.6939310Z ✅ android/build.gradle (Size: 11K)
+2025-12-08T04:34:14.6994720Z ✅ android/settings.gradle (Size: 14K)
+2025-12-08T04:34:14.7051450Z ✅ android/app/build.gradle (Size: 13K)
+2025-12-08T04:34:14.7105580Z ✅ android/gradle.properties (Size: 6.3K)
+2025-12-08T04:34:14.7159010Z ✅ android/gradle/wrapper/gradle-wrapper.jar (Size: 43K)
+2025-12-08T04:34:14.7211260Z ✅ android/gradle/wrapper/gradle-wrapper.properties (Size: 1.3K)
+2025-12-08T04:34:14.7267830Z ✅ android/gradlew (Size: 8.5K)
+2025-12-08T04:34:14.7321580Z ✅ android/app/src/main/AndroidManifest.xml (Size: 3.2K)
+2025-12-08T04:34:14.7321920Z 
+2025-12-08T04:34:14.7322120Z ✅ Initial diagnostic complete
+2025-12-08T04:34:14.7369560Z ##[group]Run echo "=== DEEP CONFIGURATION ANALYSIS ==="
+2025-12-08T04:34:14.7375300Z [36;1mecho "=== DEEP CONFIGURATION ANALYSIS ==="[0m
+2025-12-08T04:34:14.7375600Z [36;1m[0m
+2025-12-08T04:34:14.7375780Z [36;1mcd android[0m
+2025-12-08T04:34:14.7375970Z [36;1m[0m
+2025-12-08T04:34:14.7376180Z [36;1m# 1. Namespace and Package Analysis[0m
+2025-12-08T04:34:14.7376510Z [36;1mecho "1. NAMESPACE AND PACKAGE CONFIGURATION"[0m
+2025-12-08T04:34:14.7376840Z [36;1mecho "======================================="[0m
+2025-12-08T04:34:14.7377110Z [36;1m[0m
+2025-12-08T04:34:14.7377390Z [36;1m# Extract namespace from build.gradle (macOS compatible)[0m
+2025-12-08T04:34:14.7377780Z [36;1mif [ -f app/build.gradle ]; then[0m
+2025-12-08T04:34:14.7378130Z [36;1m  # Use sed instead of grep -oP for macOS compatibility[0m
+2025-12-08T04:34:14.7378600Z [36;1m  NAMESPACE=$(sed -n "s/.*namespace ['\"]\\([^'\"]*\\)['\"].*/\\1/p" app/build.gradle | head -1)[0m
+2025-12-08T04:34:14.7379040Z [36;1m  [0m
+2025-12-08T04:34:14.7379250Z [36;1m  if [ -z "$NAMESPACE" ]; then[0m
+2025-12-08T04:34:14.7379620Z [36;1m    # Try without quotes (for cases like: namespace com.example.app)[0m
+2025-12-08T04:34:14.7380140Z [36;1m    NAMESPACE=$(sed -n "s/.*namespace \\([^[:space:]]*\\).*/\\1/p" app/build.gradle | head -1)[0m
+2025-12-08T04:34:14.7380540Z [36;1m  fi[0m
+2025-12-08T04:34:14.7385230Z [36;1m  [0m
+2025-12-08T04:34:14.7385510Z [36;1m  if [ -z "$NAMESPACE" ]; then[0m
+2025-12-08T04:34:14.7385790Z [36;1m    NAMESPACE="NOT_FOUND"[0m
+2025-12-08T04:34:14.7386030Z [36;1m  fi[0m
+2025-12-08T04:34:14.7386200Z [36;1m  [0m
+2025-12-08T04:34:14.7386450Z [36;1m  echo "Namespace in app/build.gradle: $NAMESPACE"[0m
+2025-12-08T04:34:14.7387170Z [36;1m  [0m
+2025-12-08T04:34:14.7387390Z [36;1m  if [ "$NAMESPACE" = "NOT_FOUND" ]; then[0m
+2025-12-08T04:34:14.7387760Z [36;1m    echo "❌ CRITICAL: Namespace not found in app/build.gradle!"[0m
+2025-12-08T04:34:14.7388180Z [36;1m    echo "   AGP 8.x requires namespace to be defined"[0m
+2025-12-08T04:34:14.7388530Z [36;1m    echo ""[0m
+2025-12-08T04:34:14.7388790Z [36;1m    echo "   Add this to android/app/build.gradle:"[0m
+2025-12-08T04:34:14.7389090Z [36;1m    echo "   android {"[0m
+2025-12-08T04:34:14.7389390Z [36;1m    echo "       namespace 'com.lingualink.linguagt'"[0m
+2025-12-08T04:34:14.7389700Z [36;1m    echo "       ..."[0m
+2025-12-08T04:34:14.7389920Z [36;1m    echo "   }"[0m
+2025-12-08T04:34:14.7390130Z [36;1m  else[0m
+2025-12-08T04:34:14.7390360Z [36;1m    echo "✅ Namespace found: $NAMESPACE"[0m
+2025-12-08T04:34:14.7390640Z [36;1m  fi[0m
+2025-12-08T04:34:14.7390890Z [36;1melse[0m
+2025-12-08T04:34:14.7391110Z [36;1m  echo "❌ app/build.gradle not found!"[0m
+2025-12-08T04:34:14.7391400Z [36;1m  NAMESPACE="NOT_FOUND"[0m
+2025-12-08T04:34:14.7391640Z [36;1mfi[0m
+2025-12-08T04:34:14.7391810Z [36;1m[0m
+2025-12-08T04:34:14.7392090Z [36;1m# Extract package from AndroidManifest.xml (macOS compatible)[0m
+2025-12-08T04:34:14.7392520Z [36;1mif [ -f app/src/main/AndroidManifest.xml ]; then[0m
+2025-12-08T04:34:14.7392870Z [36;1m  # Use sed to extract package attribute[0m
+2025-12-08T04:34:14.7393340Z [36;1m  MANIFEST_PACKAGE=$(sed -n 's/.*package="\([^"]*\)".*/\1/p' app/src/main/AndroidManifest.xml | head -1)[0m
+2025-12-08T04:34:14.7393790Z [36;1m  [0m
+2025-12-08T04:34:14.7393990Z [36;1m  if [ -z "$MANIFEST_PACKAGE" ]; then[0m
+2025-12-08T04:34:14.7394290Z [36;1m    MANIFEST_PACKAGE="NOT_FOUND"[0m
+2025-12-08T04:34:14.7394550Z [36;1m  fi[0m
+2025-12-08T04:34:14.7394720Z [36;1m  [0m
+2025-12-08T04:34:14.7395060Z [36;1m  echo "Package in AndroidManifest.xml: $MANIFEST_PACKAGE"[0m
+2025-12-08T04:34:14.7395470Z [36;1melse[0m
+2025-12-08T04:34:14.7395760Z [36;1m  echo "❌ AndroidManifest.xml not found!"[0m
+2025-12-08T04:34:14.7400590Z [36;1m  MANIFEST_PACKAGE="NOT_FOUND"[0m
+2025-12-08T04:34:14.7400870Z [36;1mfi[0m
+2025-12-08T04:34:14.7401040Z [36;1m[0m
+2025-12-08T04:34:14.7401730Z [36;1m# Extract applicationId from build.gradle (macOS compatible)[0m
+2025-12-08T04:34:14.7402130Z [36;1mif [ -f app/build.gradle ]; then[0m
+2025-12-08T04:34:14.7402430Z [36;1m  # Use sed to extract applicationId[0m
+2025-12-08T04:34:14.7402850Z [36;1m  APP_ID=$(sed -n "s/.*applicationId ['\"]\\([^'\"]*\\)['\"].*/\\1/p" app/build.gradle | head -1)[0m
+2025-12-08T04:34:14.7407590Z [36;1m  [0m
+2025-12-08T04:34:14.7407800Z [36;1m  if [ -z "$APP_ID" ]; then[0m
+2025-12-08T04:34:14.7408070Z [36;1m    APP_ID="NOT_SPECIFIED"[0m
+2025-12-08T04:34:14.7408310Z [36;1m  fi[0m
+2025-12-08T04:34:14.7408490Z [36;1m  [0m
+2025-12-08T04:34:14.7408720Z [36;1m  echo "ApplicationId in build.gradle: $APP_ID"[0m
+2025-12-08T04:34:14.7413260Z [36;1melse[0m
+2025-12-08T04:34:14.7413500Z [36;1m  APP_ID="NOT_SPECIFIED"[0m
+2025-12-08T04:34:14.7413740Z [36;1mfi[0m
+2025-12-08T04:34:14.7413920Z [36;1m[0m
+2025-12-08T04:34:14.7414090Z [36;1m# Check alignment[0m
+2025-12-08T04:34:14.7414450Z [36;1mif [ "$NAMESPACE" != "NOT_FOUND" ] && [ "$MANIFEST_PACKAGE" != "NOT_FOUND" ]; then[0m
+2025-12-08T04:34:14.7414880Z [36;1m  if [ "$NAMESPACE" != "$MANIFEST_PACKAGE" ]; then[0m
+2025-12-08T04:34:14.7419570Z [36;1m    echo "❌ CRITICAL: Package name mismatch!"[0m
+2025-12-08T04:34:14.7419900Z [36;1m    echo "   Namespace: $NAMESPACE"[0m
+2025-12-08T04:34:14.7420210Z [36;1m    echo "   Manifest:  $MANIFEST_PACKAGE"[0m
+2025-12-08T04:34:14.7420550Z [36;1m    echo "   These MUST match for the build to succeed"[0m
+2025-12-08T04:34:14.7420860Z [36;1m  else[0m
+2025-12-08T04:34:14.7421070Z [36;1m    echo "✅ Package names are aligned"[0m
+2025-12-08T04:34:14.7425660Z [36;1m  fi[0m
+2025-12-08T04:34:14.7425880Z [36;1mfi[0m
+2025-12-08T04:34:14.7426430Z [36;1m[0m
+2025-12-08T04:34:14.7426620Z [36;1m# 2. Source Directory Structure[0m
+2025-12-08T04:34:14.7426880Z [36;1mecho ""[0m
+2025-12-08T04:34:14.7427100Z [36;1mecho "2. SOURCE DIRECTORY STRUCTURE"[0m
+2025-12-08T04:34:14.7427390Z [36;1mecho "=============================="[0m
+2025-12-08T04:34:14.7431950Z [36;1m[0m
+2025-12-08T04:34:14.7432200Z [36;1mif [ "$NAMESPACE" != "NOT_FOUND" ]; then[0m
+2025-12-08T04:34:14.7432600Z [36;1m  EXPECTED_PATH="app/src/main/java/$(echo $NAMESPACE | tr '.' '/')"[0m
+2025-12-08T04:34:14.7433020Z [36;1m  echo "Expected source path: $EXPECTED_PATH"[0m
+2025-12-08T04:34:14.7433310Z [36;1m  [0m
+2025-12-08T04:34:14.7433520Z [36;1m  if [ -d "$EXPECTED_PATH" ]; then[0m
+2025-12-08T04:34:14.7433810Z [36;1m    echo "✅ Source directory exists"[0m
+2025-12-08T04:34:14.7438410Z [36;1m    echo "Files in directory:"[0m
+2025-12-08T04:34:14.7438820Z [36;1m    ls -la "$EXPECTED_PATH" 2>/dev/null | head -5 || echo "   Directory is empty"[0m
+2025-12-08T04:34:14.7439200Z [36;1m  else[0m
+2025-12-08T04:34:14.7439450Z [36;1m    echo "❌ Source directory does NOT exist!"[0m
+2025-12-08T04:34:14.7439810Z [36;1m    echo "Available directories under app/src/main/java:"[0m
+2025-12-08T04:34:14.7440330Z [36;1m    find app/src/main/java -type d -maxdepth 3 2>/dev/null || echo "   No directories found"[0m
+2025-12-08T04:34:14.7445080Z [36;1m  fi[0m
+2025-12-08T04:34:14.7445300Z [36;1mfi[0m
+2025-12-08T04:34:14.7445520Z [36;1m[0m
+2025-12-08T04:34:14.7445720Z [36;1m# 3. Build Configuration Syntax Check[0m
+2025-12-08T04:34:14.7446000Z [36;1mecho ""[0m
+2025-12-08T04:34:14.7446230Z [36;1mecho "3. BUILD CONFIGURATION SYNTAX CHECK"[0m
+2025-12-08T04:34:14.7446550Z [36;1mecho "===================================="[0m
+2025-12-08T04:34:14.7451130Z [36;1m[0m
+2025-12-08T04:34:14.7451370Z [36;1m# Check for syntax issues in app/build.gradle[0m
+2025-12-08T04:34:14.7451700Z [36;1mif [ -f app/build.gradle ]; then[0m
+2025-12-08T04:34:14.7452200Z [36;1m  echo "Checking app/build.gradle for common issues..."[0m
+2025-12-08T04:34:14.7452570Z [36;1m  [0m
+2025-12-08T04:34:14.7452770Z [36;1m  # Check for unclosed braces[0m
+2025-12-08T04:34:14.7457430Z [36;1m  OPEN_BRACES=$(grep -o '{' app/build.gradle | wc -l)[0m
+2025-12-08T04:34:14.7458220Z [36;1m  CLOSE_BRACES=$(grep -o '}' app/build.gradle | wc -l)[0m
+2025-12-08T04:34:14.7458550Z [36;1m  [0m
+2025-12-08T04:34:14.7458780Z [36;1m  if [ "$OPEN_BRACES" -ne "$CLOSE_BRACES" ]; then[0m
+2025-12-08T04:34:14.7459150Z [36;1m    echo "❌ ERROR: Mismatched braces in app/build.gradle!"[0m
+2025-12-08T04:34:14.7459510Z [36;1m    echo "   Open braces: $OPEN_BRACES"[0m
+2025-12-08T04:34:14.7459820Z [36;1m    echo "   Close braces: $CLOSE_BRACES"[0m
+2025-12-08T04:34:14.7464490Z [36;1m  else[0m
+2025-12-08T04:34:14.7464730Z [36;1m    echo "✅ Braces are balanced"[0m
+2025-12-08T04:34:14.7464990Z [36;1m  fi[0m
+2025-12-08T04:34:14.7465170Z [36;1m  [0m
+2025-12-08T04:34:14.7465380Z [36;1m  # Check for buildConfigField issues[0m
+2025-12-08T04:34:14.7465750Z [36;1m  if grep -q "buildConfigField" app/build.gradle; then[0m
+2025-12-08T04:34:14.7466060Z [36;1m    echo ""[0m
+2025-12-08T04:34:14.7466320Z [36;1m    echo "BuildConfigField declarations found:"[0m
+2025-12-08T04:34:14.7471090Z [36;1m    grep -n "buildConfigField" app/build.gradle | while read -r line; do[0m
+2025-12-08T04:34:14.7471530Z [36;1m      echo "   $line"[0m
+2025-12-08T04:34:14.7471840Z [36;1m      # Check for common syntax error (unescaped quotes)[0m
+2025-12-08T04:34:14.7472310Z [36;1m      if echo "$line" | grep -q 'buildConfigField.*"[^"]*"[[:space:]]*"[^"\\]*"[[:space:]]*$'; then[0m
+2025-12-08T04:34:14.7472850Z [36;1m        echo "   ⚠️ WARNING: This line may have unescaped quotes in the value"[0m
+2025-12-08T04:34:14.7473210Z [36;1m      fi[0m
+2025-12-08T04:34:14.7473390Z [36;1m    done[0m
+2025-12-08T04:34:14.7477940Z [36;1m  fi[0m
+2025-12-08T04:34:14.7478130Z [36;1mfi[0m
+2025-12-08T04:34:14.7478300Z [36;1m[0m
+2025-12-08T04:34:14.7478500Z [36;1m# 4. Gradle Properties Validation[0m
+2025-12-08T04:34:14.7479180Z [36;1mecho ""[0m
+2025-12-08T04:34:14.7479410Z [36;1mecho "4. GRADLE PROPERTIES VALIDATION"[0m
+2025-12-08T04:34:14.7479710Z [36;1mecho "================================"[0m
+2025-12-08T04:34:14.7484300Z [36;1m[0m
+2025-12-08T04:34:14.7484530Z [36;1mif [ -f gradle.properties ]; then[0m
+2025-12-08T04:34:14.7484870Z [36;1m  echo "Validating gradle.properties format..."[0m
+2025-12-08T04:34:14.7485170Z [36;1m  [0m
+2025-12-08T04:34:14.7485360Z [36;1m  INVALID_LINES=0[0m
+2025-12-08T04:34:14.7485600Z [36;1m  while IFS= read -r line; do[0m
+2025-12-08T04:34:14.7490140Z [36;1m    # Skip comments and empty lines[0m
+2025-12-08T04:34:14.7490510Z [36;1m    if [[ "$line" =~ ^[[:space:]]*# ]] || [[ -z "${line// }" ]]; then[0m
+2025-12-08T04:34:14.7490830Z [36;1m      continue[0m
+2025-12-08T04:34:14.7491040Z [36;1m    fi[0m
+2025-12-08T04:34:14.7491220Z [36;1m    [0m
+2025-12-08T04:34:14.7491450Z [36;1m    # Check if line has proper key=value format[0m
+2025-12-08T04:34:14.7491770Z [36;1m    if [[ ! "$line" =~ ^[^=]+=.*$ ]]; then[0m
+2025-12-08T04:34:14.7496360Z [36;1m      echo "❌ Invalid line: $line"[0m
+2025-12-08T04:34:14.7496650Z [36;1m      ((INVALID_LINES++))[0m
+2025-12-08T04:34:14.7496890Z [36;1m    fi[0m
+2025-12-08T04:34:14.7497100Z [36;1m  done < gradle.properties[0m
+2025-12-08T04:34:14.7497350Z [36;1m  [0m
+2025-12-08T04:34:14.7497550Z [36;1m  if [ $INVALID_LINES -eq 0 ]; then[0m
+2025-12-08T04:34:14.7502170Z [36;1m    echo "✅ All non-comment lines are valid"[0m
+2025-12-08T04:34:14.7502500Z [36;1m  else[0m
+2025-12-08T04:34:14.7502800Z [36;1m    echo "❌ Found $INVALID_LINES invalid lines in gradle.properties"[0m
+2025-12-08T04:34:14.7503160Z [36;1m  fi[0m
+2025-12-08T04:34:14.7503340Z [36;1m  [0m
+2025-12-08T04:34:14.7503530Z [36;1m  # Show key properties[0m
+2025-12-08T04:34:14.7503770Z [36;1m  echo ""[0m
+2025-12-08T04:34:14.7508350Z [36;1m  echo "Key properties configured:"[0m
+2025-12-08T04:34:14.7509050Z [36;1m  grep -E "org.gradle.jvmargs|android.useAndroidX|android.enableJetifier" gradle.properties | head -5 || echo "No key properties found"[0m
+2025-12-08T04:34:14.7509680Z [36;1melse[0m
+2025-12-08T04:34:14.7509900Z [36;1m  echo "❌ gradle.properties not found!"[0m
+2025-12-08T04:34:14.7510180Z [36;1mfi[0m
+2025-12-08T04:34:14.7543310Z shell: /bin/bash -e {0}
+2025-12-08T04:34:14.7543580Z env:
+2025-12-08T04:34:14.7543800Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:14.7544140Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:14.7544480Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:14.7544730Z   VERSION_CODE: 10
+2025-12-08T04:34:14.7544920Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:14.7549610Z   CREATE_RELEASE: true
+2025-12-08T04:34:14.7549860Z   DEBUG_MODE: true
+2025-12-08T04:34:14.7570830Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:14.7571130Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:14.7571400Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:14.7571660Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:14.7576480Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.7576860Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.7577390Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.7578110Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.7578600Z ##[endgroup]
+2025-12-08T04:34:14.7717130Z === DEEP CONFIGURATION ANALYSIS ===
+2025-12-08T04:34:14.7717600Z 1. NAMESPACE AND PACKAGE CONFIGURATION
+2025-12-08T04:34:14.7717940Z =======================================
+2025-12-08T04:34:14.7762440Z Namespace in app/build.gradle: com.lingualink.linguagt
+2025-12-08T04:34:14.7763360Z ✅ Namespace found: com.lingualink.linguagt
+2025-12-08T04:34:14.7801330Z Package in AndroidManifest.xml: NOT_FOUND
+2025-12-08T04:34:14.7842270Z ApplicationId in build.gradle: com.lingualink.linguagt
+2025-12-08T04:34:14.7843200Z 
+2025-12-08T04:34:14.7843350Z 2. SOURCE DIRECTORY STRUCTURE
+2025-12-08T04:34:14.7843650Z ==============================
+2025-12-08T04:34:14.7879370Z Expected source path: app/src/main/java/com/lingualink/linguagt
+2025-12-08T04:34:14.7880090Z ✅ Source directory exists
+2025-12-08T04:34:14.7880500Z Files in directory:
+2025-12-08T04:34:14.7927550Z total 264
+2025-12-08T04:34:14.7928260Z drwxr-xr-x  15 admin  staff    480 Dec  7 23:34 .
+2025-12-08T04:34:14.7928750Z drwxr-xr-x   3 admin  staff     96 Dec  4 16:26 ..
+2025-12-08T04:34:14.7936200Z -rw-r--r--   1 admin  staff   2087 Dec  6 16:33 ActivityExtensions.kt
+2025-12-08T04:34:14.7936800Z -rw-r--r--   1 admin  staff   2524 Dec  6 16:39 ApiService.kt
+2025-12-08T04:34:14.7937070Z 
+2025-12-08T04:34:14.7937220Z 3. BUILD CONFIGURATION SYNTAX CHECK
+2025-12-08T04:34:14.7937520Z ====================================
+2025-12-08T04:34:14.7937800Z Checking app/build.gradle for common issues...
+2025-12-08T04:34:14.8008620Z ✅ Braces are balanced
+2025-12-08T04:34:14.8036410Z 
+2025-12-08T04:34:14.8036810Z BuildConfigField declarations found:
+2025-12-08T04:34:14.8065650Z    30:        buildConfigField "boolean", "DEBUG_MODE", "true"
+2025-12-08T04:34:14.8095930Z    31:        buildConfigField "String", "BASE_URL", "\"https://gtlingua.com\""
+2025-12-08T04:34:14.8129150Z    32:        buildConfigField "String", "WEBSOCKET_URL", "\"wss://gtlingua.com/ws\""
+2025-12-08T04:34:14.8159250Z    101:            buildConfigField "boolean", "ENABLE_LOGGING", "true"
+2025-12-08T04:34:14.8189540Z    102:            buildConfigField "boolean", "ALLOW_CLEARTEXT", "true"  // Only for local development
+2025-12-08T04:34:14.8219350Z    123:            buildConfigField "boolean", "ENABLE_LOGGING", "false"
+2025-12-08T04:34:14.8251300Z    124:            buildConfigField "boolean", "ALLOW_CLEARTEXT", "false"  // Strictly enforce HTTPS
+2025-12-08T04:34:14.8283880Z 
+2025-12-08T04:34:14.8284300Z 4. GRADLE PROPERTIES VALIDATION
+2025-12-08T04:34:14.8284650Z ================================
+2025-12-08T04:34:14.8285010Z Validating gradle.properties format...
+2025-12-08T04:34:14.8342450Z ✅ All non-comment lines are valid
+2025-12-08T04:34:14.8342710Z 
+2025-12-08T04:34:14.8342830Z Key properties configured:
+2025-12-08T04:34:14.8374320Z org.gradle.jvmargs=-Xmx8192m -XX:MaxMetaspaceSize=2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8
+2025-12-08T04:34:14.8374980Z android.useAndroidX=true
+2025-12-08T04:34:14.8375290Z android.enableJetifier=true
+2025-12-08T04:34:14.8375730Z # ✓ android.useAndroidX=true
+2025-12-08T04:34:14.8376090Z # ✓ android.enableJetifier=true
+2025-12-08T04:34:14.8428850Z ##[group]Run echo "=== GRADLE WRAPPER SETUP AND VALIDATION ==="
+2025-12-08T04:34:14.8433960Z [36;1mecho "=== GRADLE WRAPPER SETUP AND VALIDATION ==="[0m
+2025-12-08T04:34:14.8434310Z [36;1m[0m
+2025-12-08T04:34:14.8434490Z [36;1mcd android[0m
+2025-12-08T04:34:14.8434680Z [36;1m[0m
+2025-12-08T04:34:14.8434890Z [36;1m# Ensure gradle wrapper directory exists[0m
+2025-12-08T04:34:14.8435190Z [36;1mmkdir -p gradle/wrapper[0m
+2025-12-08T04:34:14.8435450Z [36;1m[0m
+2025-12-08T04:34:14.8435650Z [36;1m# Check and fix gradle-wrapper.jar[0m
+2025-12-08T04:34:14.8435990Z [36;1mif [ -f gradle/wrapper/gradle-wrapper.jar ]; then[0m
+2025-12-08T04:34:14.8436330Z [36;1m  echo "✅ gradle-wrapper.jar exists"[0m
+2025-12-08T04:34:14.8436620Z [36;1m  # Validate size (should be > 50KB)[0m
+2025-12-08T04:34:14.8437220Z [36;1m  JAR_SIZE=$(stat -f%z gradle/wrapper/gradle-wrapper.jar 2>/dev/null || stat -c%s gradle/wrapper/gradle-wrapper.jar 2>/dev/null || echo 0)[0m
+2025-12-08T04:34:14.8437890Z [36;1m  if [ $JAR_SIZE -lt 50000 ]; then[0m
+2025-12-08T04:34:14.8438290Z [36;1m    echo "⚠️ gradle-wrapper.jar seems corrupted (size: $JAR_SIZE bytes)"[0m
+2025-12-08T04:34:14.8443530Z [36;1m    echo "Downloading fresh copy..."[0m
+2025-12-08T04:34:14.8444060Z [36;1m    wget -q https://github.com/gradle/gradle/raw/v8.10.0/gradle/wrapper/gradle-wrapper.jar \[0m
+2025-12-08T04:34:14.8444590Z [36;1m         -O gradle/wrapper/gradle-wrapper.jar || {[0m
+2025-12-08T04:34:14.8445610Z [36;1m      echo "❌ Failed to download gradle-wrapper.jar"[0m
+2025-12-08T04:34:14.8445940Z [36;1m      exit 1[0m
+2025-12-08T04:34:14.8446150Z [36;1m    }[0m
+2025-12-08T04:34:14.8446340Z [36;1m  fi[0m
+2025-12-08T04:34:14.8446530Z [36;1melse[0m
+2025-12-08T04:34:14.8446870Z [36;1m  echo "⚠️ gradle-wrapper.jar missing, downloading Gradle 8.10 wrapper..."[0m
+2025-12-08T04:34:14.8447500Z [36;1m  wget -q https://github.com/gradle/gradle/raw/v8.10.0/gradle/wrapper/gradle-wrapper.jar \[0m
+2025-12-08T04:34:14.8453280Z [36;1m       -O gradle/wrapper/gradle-wrapper.jar || {[0m
+2025-12-08T04:34:14.8453700Z [36;1m    echo "❌ Failed to download gradle-wrapper.jar"[0m
+2025-12-08T04:34:14.8454000Z [36;1m    exit 1[0m
+2025-12-08T04:34:14.8454200Z [36;1m  }[0m
+2025-12-08T04:34:14.8454450Z [36;1m  echo "✅ gradle-wrapper.jar downloaded successfully"[0m
+2025-12-08T04:34:14.8454760Z [36;1mfi[0m
+2025-12-08T04:34:14.8454930Z [36;1m[0m
+2025-12-08T04:34:14.8459600Z [36;1m# Ensure gradle-wrapper.properties is correct[0m
+2025-12-08T04:34:14.8460010Z [36;1mif [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then[0m
+2025-12-08T04:34:14.8460450Z [36;1m  echo "Creating gradle-wrapper.properties for Gradle 8.10..."[0m
+2025-12-08T04:34:14.8460890Z [36;1m  cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'[0m
+2025-12-08T04:34:14.8461250Z [36;1mdistributionBase=GRADLE_USER_HOME[0m
+2025-12-08T04:34:14.8461540Z [36;1mdistributionPath=wrapper/dists[0m
+2025-12-08T04:34:14.8466290Z [36;1mdistributionUrl=https\://services.gradle.org/distributions/gradle-8.10-bin.zip[0m
+2025-12-08T04:34:14.8466780Z [36;1mnetworkTimeout=30000[0m
+2025-12-08T04:34:14.8467030Z [36;1mvalidateDistributionUrl=true[0m
+2025-12-08T04:34:14.8467310Z [36;1mzipStoreBase=GRADLE_USER_HOME[0m
+2025-12-08T04:34:14.8467590Z [36;1mzipStorePath=wrapper/dists[0m
+2025-12-08T04:34:14.8467830Z [36;1mEOF[0m
+2025-12-08T04:34:14.8468000Z [36;1melse[0m
+2025-12-08T04:34:14.8472550Z [36;1m  echo "✅ gradle-wrapper.properties exists"[0m
+2025-12-08T04:34:14.8472890Z [36;1m  # Verify Gradle version[0m
+2025-12-08T04:34:14.8473460Z [36;1m  GRADLE_VERSION=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed -n 's/.*gradle-\([0-9.]*\)-.*/\1/p')[0m
+2025-12-08T04:34:14.8474090Z [36;1m  echo "Configured Gradle version: $GRADLE_VERSION"[0m
+2025-12-08T04:34:14.8474380Z [36;1mfi[0m
+2025-12-08T04:34:14.8474560Z [36;1m[0m
+2025-12-08T04:34:14.8474750Z [36;1m# Ensure gradlew is executable[0m
+2025-12-08T04:34:14.8480240Z [36;1mchmod +x gradlew 2>/dev/null || true[0m
+2025-12-08T04:34:14.8480530Z [36;1m[0m
+2025-12-08T04:34:14.8480720Z [36;1m# Test Gradle wrapper[0m
+2025-12-08T04:34:14.8480950Z [36;1mecho ""[0m
+2025-12-08T04:34:14.8481160Z [36;1mecho "Testing Gradle wrapper..."[0m
+2025-12-08T04:34:14.8481460Z [36;1m./gradlew --version 2>&1 | head -10 || {[0m
+2025-12-08T04:34:14.8486090Z [36;1m  echo "❌ Gradle wrapper test failed!"[0m
+2025-12-08T04:34:14.8486430Z [36;1m  echo "Attempting to diagnose..."[0m
+2025-12-08T04:34:14.8486730Z [36;1m  java -version[0m
+2025-12-08T04:34:14.8486960Z [36;1m  echo "JAVA_HOME: $JAVA_HOME"[0m
+2025-12-08T04:34:14.8487210Z [36;1m  exit 1[0m
+2025-12-08T04:34:14.8487390Z [36;1m}[0m
+2025-12-08T04:34:14.8487550Z [36;1m[0m
+2025-12-08T04:34:14.8492080Z [36;1mecho "✅ Gradle wrapper setup complete"[0m
+2025-12-08T04:34:14.8518990Z shell: /bin/bash -e {0}
+2025-12-08T04:34:14.8519210Z env:
+2025-12-08T04:34:14.8519420Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:14.8519770Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:14.8525970Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:14.8526250Z   VERSION_CODE: 10
+2025-12-08T04:34:14.8526450Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:14.8526800Z   CREATE_RELEASE: true
+2025-12-08T04:34:14.8527010Z   DEBUG_MODE: true
+2025-12-08T04:34:14.8548340Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:14.8548640Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:14.8549490Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:14.8549740Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:14.8550000Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.8550330Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:14.8550850Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.8551560Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:14.8552040Z ##[endgroup]
+2025-12-08T04:34:14.8696700Z === GRADLE WRAPPER SETUP AND VALIDATION ===
+2025-12-08T04:34:14.8727510Z ✅ gradle-wrapper.jar exists
+2025-12-08T04:34:14.8764830Z ⚠️ gradle-wrapper.jar seems corrupted (size: 43583 bytes)
+2025-12-08T04:34:14.8765320Z Downloading fresh copy...
+2025-12-08T04:34:38.3268120Z ❌ Failed to download gradle-wrapper.jar
+2025-12-08T04:34:38.3292270Z ##[error]Process completed with exit code 1.
+2025-12-08T04:34:38.3415110Z ##[group]Run echo "=== POST-BUILD FAILURE DIAGNOSTIC ==="
+2025-12-08T04:34:38.3415920Z [36;1mecho "=== POST-BUILD FAILURE DIAGNOSTIC ==="[0m
+2025-12-08T04:34:38.3416220Z [36;1m[0m
+2025-12-08T04:34:38.3416400Z [36;1mcd android[0m
+2025-12-08T04:34:38.3416600Z [36;1m[0m
+2025-12-08T04:34:38.3423430Z [36;1mecho "1. Checking for partial build artifacts..."[0m
+2025-12-08T04:34:38.3424170Z [36;1mfind app/build -type f -name "*.class" 2>/dev/null | head -5 && echo "Some classes were compiled" || echo "No compiled classes found"[0m
+2025-12-08T04:34:38.3424750Z [36;1m[0m
+2025-12-08T04:34:38.3424950Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3425220Z [36;1mecho "2. Checking for generated files..."[0m
+2025-12-08T04:34:38.3425580Z [36;1mif [ -d app/build/generated ]; then[0m
+2025-12-08T04:34:38.3426160Z [36;1m  echo "Generated files found:"[0m
+2025-12-08T04:34:38.3426560Z [36;1m  find app/build/generated -type f | head -10[0m
+2025-12-08T04:34:38.3426900Z [36;1melse[0m
+2025-12-08T04:34:38.3427230Z [36;1m  echo "No generated files - build failed early"[0m
+2025-12-08T04:34:38.3427600Z [36;1mfi[0m
+2025-12-08T04:34:38.3427800Z [36;1m[0m
+2025-12-08T04:34:38.3428030Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3428310Z [36;1mecho "3. Checking Gradle cache for issues..."[0m
+2025-12-08T04:34:38.3428670Z [36;1mif [ -d .gradle ]; then[0m
+2025-12-08T04:34:38.3436000Z [36;1m  find .gradle -name "*.lock" -o -name "*.log" 2>/dev/null | head -10[0m
+2025-12-08T04:34:38.3436400Z [36;1mfi[0m
+2025-12-08T04:34:38.3436600Z [36;1m[0m
+2025-12-08T04:34:38.3436820Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3437100Z [36;1mecho "4. System resources at failure time..."[0m
+2025-12-08T04:34:38.3437410Z [36;1mdf -h | head -5[0m
+2025-12-08T04:34:38.3437620Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3437820Z [36;1m[0m
+2025-12-08T04:34:38.3438030Z [36;1mif command -v free &> /dev/null; then[0m
+2025-12-08T04:34:38.3438330Z [36;1m  free -h[0m
+2025-12-08T04:34:38.3445000Z [36;1melse[0m
+2025-12-08T04:34:38.3445280Z [36;1m  vm_stat | head -10[0m
+2025-12-08T04:34:38.3445550Z [36;1mfi[0m
+2025-12-08T04:34:38.3445750Z [36;1m[0m
+2025-12-08T04:34:38.3445940Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3446190Z [36;1mecho "5. Creating diagnostic archive..."[0m
+2025-12-08T04:34:38.3452320Z [36;1mtar -czf /tmp/build-diagnostic.tar.gz \[0m
+2025-12-08T04:34:38.3452850Z [36;1m  app/build.gradle \[0m
+2025-12-08T04:34:38.3453120Z [36;1m  build.gradle \[0m
+2025-12-08T04:34:38.3453390Z [36;1m  gradle.properties \[0m
+2025-12-08T04:34:38.3453680Z [36;1m  settings.gradle \[0m
+2025-12-08T04:34:38.3453980Z [36;1m  app/src/main/AndroidManifest.xml \[0m
+2025-12-08T04:34:38.3454330Z [36;1m  build-output.log \[0m
+2025-12-08T04:34:38.3460780Z [36;1m  gradle-tasks.log \[0m
+2025-12-08T04:34:38.3461180Z [36;1m  2>/dev/null || echo "Could not create diagnostic archive"[0m
+2025-12-08T04:34:38.3461540Z [36;1m[0m
+2025-12-08T04:34:38.3461740Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3462000Z [36;1mecho "=== DIAGNOSTIC SUMMARY ==="[0m
+2025-12-08T04:34:38.3463660Z [36;1mecho "Build failed at: $(date)"[0m
+2025-12-08T04:34:38.3464030Z [36;1mecho "Version attempted: $VERSION_NAME ($VERSION_CODE)"[0m
+2025-12-08T04:34:38.3470750Z [36;1mecho "Diagnostic archive: /tmp/build-diagnostic.tar.gz"[0m
+2025-12-08T04:34:38.3471140Z [36;1mecho ""[0m
+2025-12-08T04:34:38.3471380Z [36;1mecho "Common fixes to try:"[0m
+2025-12-08T04:34:38.3471770Z [36;1mecho "1. Check namespace is defined in app/build.gradle"[0m
+2025-12-08T04:34:38.3472270Z [36;1mecho "2. Verify all buildConfigField values have escaped quotes"[0m
+2025-12-08T04:34:38.3472720Z [36;1mecho "3. Ensure package names match across all files"[0m
+2025-12-08T04:34:38.3479350Z [36;1mecho "4. Check gradle.properties for syntax errors"[0m
+2025-12-08T04:34:38.3479920Z [36;1mecho "5. Verify source files are in correct package directory"[0m
+2025-12-08T04:34:38.3516070Z shell: /bin/bash -e {0}
+2025-12-08T04:34:38.3516350Z env:
+2025-12-08T04:34:38.3517230Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:38.3517660Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:38.3524590Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:38.3524920Z   VERSION_CODE: 10
+2025-12-08T04:34:38.3525140Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:38.3525380Z   CREATE_RELEASE: true
+2025-12-08T04:34:38.3525600Z   DEBUG_MODE: true
+2025-12-08T04:34:38.3548450Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:38.3555650Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:38.3556170Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:38.3556470Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:38.3556780Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.3557160Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.3557720Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.3558530Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.3559050Z ##[endgroup]
+2025-12-08T04:34:38.3774610Z === POST-BUILD FAILURE DIAGNOSTIC ===
+2025-12-08T04:34:38.3775160Z 1. Checking for partial build artifacts...
+2025-12-08T04:34:38.3823750Z Some classes were compiled
+2025-12-08T04:34:38.3824070Z 
+2025-12-08T04:34:38.3824220Z 2. Checking for generated files...
+2025-12-08T04:34:38.3824580Z No generated files - build failed early
+2025-12-08T04:34:38.3824820Z 
+2025-12-08T04:34:38.3824950Z 3. Checking Gradle cache for issues...
+2025-12-08T04:34:38.3886320Z .gradle/8.7/executionHistory/executionHistory.lock
+2025-12-08T04:34:38.3887680Z .gradle/8.7/checksums/checksums.lock
+2025-12-08T04:34:38.3888100Z .gradle/8.7/fileHashes/fileHashes.lock
+2025-12-08T04:34:38.3896590Z .gradle/buildOutputCleanup/buildOutputCleanup.lock
+2025-12-08T04:34:38.3897190Z .gradle/8.3/dependencies-accessors/dependencies-accessors.lock
+2025-12-08T04:34:38.3897660Z .gradle/8.3/checksums/checksums.lock
+2025-12-08T04:34:38.3898080Z .gradle/8.3/fileHashes/fileHashes.lock
+2025-12-08T04:34:38.3898580Z .gradle/8.5/dependencies-accessors/dependencies-accessors.lock
+2025-12-08T04:34:38.3899050Z .gradle/8.5/checksums/checksums.lock
+2025-12-08T04:34:38.3899410Z .gradle/8.5/fileHashes/fileHashes.lock
+2025-12-08T04:34:38.3899630Z 
+2025-12-08T04:34:38.3899740Z 4. System resources at failure time...
+2025-12-08T04:34:38.3935660Z Filesystem        Size    Used   Avail Capacity iused ifree %iused  Mounted on
+2025-12-08T04:34:38.3936460Z /dev/disk1s2s1    70Gi    10Gi    23Gi    32%    426k  237M    0%   /
+2025-12-08T04:34:38.3936940Z devfs            187Ki   187Ki     0Bi   100%     648     0  100%   /dev
+2025-12-08T04:34:38.3937390Z /dev/disk1s3      70Gi   2.6Gi    23Gi    11%    5.1k  237M    0%   /System/Volumes/Preboot
+2025-12-08T04:34:38.3937880Z /dev/disk1s5      70Gi   2.0Gi    23Gi     9%       6  237M    0%   /System/Volumes/VM
+2025-12-08T04:34:38.3938260Z 
+2025-12-08T04:34:38.3986440Z Mach Virtual Memory Statistics: (page size of 4096 bytes)
+2025-12-08T04:34:38.3987590Z Pages free:                             1002289.
+2025-12-08T04:34:38.3988880Z Pages active:                           1070573.
+2025-12-08T04:34:38.3989280Z Pages inactive:                         1562576.
+2025-12-08T04:34:38.3989690Z Pages speculative:                        15747.
+2025-12-08T04:34:38.3990120Z Pages throttled:                              0.
+2025-12-08T04:34:38.3990500Z Pages wired down:                        452040.
+2025-12-08T04:34:38.3990890Z Pages purgeable:                          11791.
+2025-12-08T04:34:38.3991280Z "Translation faults":                9546310792.
+2025-12-08T04:34:38.3991700Z Pages copy-on-write:                  211827887.
+2025-12-08T04:34:38.3991960Z 
+2025-12-08T04:34:38.3992130Z 5. Creating diagnostic archive...
+2025-12-08T04:34:38.4129880Z Could not create diagnostic archive
+2025-12-08T04:34:38.4130180Z 
+2025-12-08T04:34:38.4130360Z === DIAGNOSTIC SUMMARY ===
+2025-12-08T04:34:38.4188730Z Build failed at: Sun Dec  7 23:34:38 EST 2025
+2025-12-08T04:34:38.4190150Z Version attempted: 10.0.0 (10)
+2025-12-08T04:34:38.4190860Z Diagnostic archive: /tmp/build-diagnostic.tar.gz
+2025-12-08T04:34:38.4191150Z 
+2025-12-08T04:34:38.4191260Z Common fixes to try:
+2025-12-08T04:34:38.4191600Z 1. Check namespace is defined in app/build.gradle
+2025-12-08T04:34:38.4192060Z 2. Verify all buildConfigField values have escaped quotes
+2025-12-08T04:34:38.4192520Z 3. Ensure package names match across all files
+2025-12-08T04:34:38.4199260Z 4. Check gradle.properties for syntax errors
+2025-12-08T04:34:38.4199680Z 5. Verify source files are in correct package directory
+2025-12-08T04:34:38.4283200Z ##[group]Run echo "=== COLLECTING BUILD OUTPUTS ==="
+2025-12-08T04:34:38.4283830Z [36;1mecho "=== COLLECTING BUILD OUTPUTS ==="[0m
+2025-12-08T04:34:38.4284140Z [36;1m[0m
+2025-12-08T04:34:38.4284400Z [36;1m# Search for AAB in android/app/build/outputs[0m
+2025-12-08T04:34:38.4292140Z [36;1mRELEASE_AAB=$(find android/app/build/outputs -name "*.aab" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2025-12-08T04:34:38.4292770Z [36;1m[0m
+2025-12-08T04:34:38.4293000Z [36;1mif [ -n "$RELEASE_AAB" ]; then[0m
+2025-12-08T04:34:38.4293320Z [36;1m    echo "✅ Found AAB: $RELEASE_AAB"[0m
+2025-12-08T04:34:38.4294440Z [36;1m    echo "release_aab=$RELEASE_AAB" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4294870Z [36;1m    echo "status=success" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4295290Z [36;1m    echo "error_summary=Build successful" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4295660Z [36;1m    [0m
+2025-12-08T04:34:38.4303190Z [36;1m    # Copy AAB to a standardized name[0m
+2025-12-08T04:34:38.4304140Z [36;1m    cp "$RELEASE_AAB" "android/app/build/outputs/bundle/release/linguagt-v${VERSION_NAME}-${VERSION_CODE}.aab" 2>/dev/null || true[0m
+2025-12-08T04:34:38.4304770Z [36;1melse[0m
+2025-12-08T04:34:38.4304980Z [36;1m    echo "❌ No AAB found"[0m
+2025-12-08T04:34:38.4305290Z [36;1m    echo "release_aab=" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4305650Z [36;1m    echo "status=failed" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4312190Z [36;1m    [0m
+2025-12-08T04:34:38.4312430Z [36;1m    # Try to extract error summary[0m
+2025-12-08T04:34:38.4312780Z [36;1m    if [ -f android/build-output.log ]; then[0m
+2025-12-08T04:34:38.4313360Z [36;1m      ERROR_SUMMARY=$(grep -i "error\|failed" android/build-output.log | head -1 || echo "Unknown build error")[0m
+2025-12-08T04:34:38.4314000Z [36;1m      echo "error_summary=$ERROR_SUMMARY" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4314380Z [36;1m    else[0m
+2025-12-08T04:34:38.4314790Z [36;1m      echo "error_summary=Build failed - no output captured" >> $GITHUB_OUTPUT[0m
+2025-12-08T04:34:38.4315220Z [36;1m    fi[0m
+2025-12-08T04:34:38.4315440Z [36;1mfi[0m
+2025-12-08T04:34:38.4352500Z shell: /bin/bash -e {0}
+2025-12-08T04:34:38.4352780Z env:
+2025-12-08T04:34:38.4353000Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:38.4353380Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:38.4361080Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:38.4362490Z   VERSION_CODE: 10
+2025-12-08T04:34:38.4362710Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:38.4362950Z   CREATE_RELEASE: true
+2025-12-08T04:34:38.4363180Z   DEBUG_MODE: true
+2025-12-08T04:34:38.4385790Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:38.4394300Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:38.4394680Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:38.4394980Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:38.4395250Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.4395630Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.4396170Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.4396950Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.4397510Z ##[endgroup]
+2025-12-08T04:34:38.4602340Z === COLLECTING BUILD OUTPUTS ===
+2025-12-08T04:34:38.4658420Z ❌ No AAB found
+2025-12-08T04:34:38.4818050Z ##[group]Run actions/upload-artifact@v4
+2025-12-08T04:34:38.4818690Z with:
+2025-12-08T04:34:38.4818910Z   name: build-logs-136
+2025-12-08T04:34:38.4819330Z   path: android/build-output.log
+android/gradle-tasks.log
+/tmp/build-diagnostic.tar.gz
+
+2025-12-08T04:34:38.4819840Z   if-no-files-found: ignore
+2025-12-08T04:34:38.4820090Z   retention-days: 7
+2025-12-08T04:34:38.4820300Z   compression-level: 6
+2025-12-08T04:34:38.4820520Z   overwrite: false
+2025-12-08T04:34:38.4820740Z   include-hidden-files: false
+2025-12-08T04:34:38.4820970Z env:
+2025-12-08T04:34:38.4821200Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:38.4821600Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:38.4822120Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:38.4822510Z   VERSION_CODE: 10
+2025-12-08T04:34:38.4822850Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:38.4823180Z   CREATE_RELEASE: true
+2025-12-08T04:34:38.4823510Z   DEBUG_MODE: true
+2025-12-08T04:34:38.4845750Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:38.4846200Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:38.4846560Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:38.4853250Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:38.4853550Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.4853900Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:38.4854430Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.4855170Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:38.4855670Z ##[endgroup]
+2025-12-08T04:34:38.7289690Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2025-12-08T04:34:38.7292330Z The least common ancestor is /. This will be the root directory of the artifact
+2025-12-08T04:34:38.7293900Z With the provided path, there will be 1 file uploaded
+2025-12-08T04:34:38.7298540Z Artifact name is valid!
+2025-12-08T04:34:38.7299680Z Root directory input is valid!
+2025-12-08T04:34:43.0754470Z Beginning upload of artifact content to blob storage
+2025-12-08T04:34:44.6950030Z Uploaded bytes 12123
+2025-12-08T04:34:44.7201180Z Finished uploading artifact content to blob storage!
+2025-12-08T04:34:44.7204090Z SHA256 digest of uploaded artifact zip is bb85ed5ff86f503eee14016837c251bcae3528f81ba7789cedc698b312f7a75d
+2025-12-08T04:34:44.7206010Z Finalizing artifact upload
+2025-12-08T04:34:44.8235130Z Artifact build-logs-136.zip successfully finalized. Artifact ID 4793399413
+2025-12-08T04:34:44.8235830Z Artifact build-logs-136 has been successfully uploaded! Final size is 12123 bytes. Artifact ID is 4793399413
+2025-12-08T04:34:44.8250630Z Artifact download URL: https://github.com/j272-glitch/lingualink-android2/actions/runs/20016756375/artifacts/4793399413
+2025-12-08T04:34:44.8413850Z ##[group]Run echo ""
+2025-12-08T04:34:44.8414490Z [36;1mecho ""[0m
+2025-12-08T04:34:44.8414860Z [36;1mecho "========================================="[0m
+2025-12-08T04:34:44.8415970Z [36;1mecho "         BUILD SUMMARY REPORT"[0m
+2025-12-08T04:34:44.8416630Z [36;1mecho "========================================="[0m
+2025-12-08T04:34:44.8417020Z [36;1mecho ""[0m
+2025-12-08T04:34:44.8417350Z [36;1mecho "Build Status: failed"[0m
+2025-12-08T04:34:44.8417750Z [36;1mecho "Build Number: 136"[0m
+2025-12-08T04:34:44.8418210Z [36;1mecho "Version: 10.0.0 (Code: 10)"[0m
+2025-12-08T04:34:44.8418670Z [36;1mecho "Debug Mode: true"[0m
+2025-12-08T04:34:44.8419030Z [36;1mecho ""[0m
+2025-12-08T04:34:44.8419370Z [36;1m[0m
+2025-12-08T04:34:44.8419680Z [36;1mif [ "failed" = "success" ]; then[0m
+2025-12-08T04:34:44.8420080Z [36;1m  echo "✅ BUILD SUCCESSFUL"[0m
+2025-12-08T04:34:44.8432590Z [36;1m  echo ""[0m
+2025-12-08T04:34:44.8432890Z [36;1m  echo "AAB Location:"[0m
+2025-12-08T04:34:44.8433330Z [36;1m  echo "  "[0m
+2025-12-08T04:34:44.8433570Z [36;1m  echo ""[0m
+2025-12-08T04:34:44.8433850Z [36;1m  echo "Next Steps:"[0m
+2025-12-08T04:34:44.8434200Z [36;1m  echo "  1. Download AAB artifact from GitHub Actions"[0m
+2025-12-08T04:34:44.8434630Z [36;1m  echo "  2. Upload to Google Play Console"[0m
+2025-12-08T04:34:44.8435060Z [36;1m  echo "  3. Play Store will generate optimized APKs"[0m
+2025-12-08T04:34:44.8435470Z [36;1melse[0m
+2025-12-08T04:34:44.8435750Z [36;1m  echo "❌ BUILD FAILED"[0m
+2025-12-08T04:34:44.8436080Z [36;1m  echo ""[0m
+2025-12-08T04:34:44.8436440Z [36;1m  echo "Error Summary: Build failed - no output captured"[0m
+2025-12-08T04:34:44.8436900Z [36;1m  echo ""[0m
+2025-12-08T04:34:44.8437230Z [36;1m  echo "Diagnostic Information:"[0m
+2025-12-08T04:34:44.8437670Z [36;1m  echo "  - Check the 'Deep Configuration Analysis' step for misconfigurations"[0m
+2025-12-08T04:34:44.8438280Z [36;1m  echo "  - Review 'Pre-Build Gradle Diagnostic' for parsing errors"[0m
+2025-12-08T04:34:44.8438800Z [36;1m  echo "  - Look at 'Build Release AAB' for the actual error"[0m
+2025-12-08T04:34:44.8439260Z [36;1m  echo ""[0m
+2025-12-08T04:34:44.8448640Z [36;1m  echo "Common Solutions:"[0m
+2025-12-08T04:34:44.8449080Z [36;1m  echo "  1. Ensure namespace is defined in app/build.gradle"[0m
+2025-12-08T04:34:44.8449540Z [36;1m  echo "  2. Fix buildConfigField string escaping"[0m
+2025-12-08T04:34:44.8450000Z [36;1m  echo "  3. Align package names across all files"[0m
+2025-12-08T04:34:44.8450380Z [36;1m  echo "  4. Check gradle.properties syntax"[0m
+2025-12-08T04:34:44.8450780Z [36;1m  echo "  5. Verify Java source file locations"[0m
+2025-12-08T04:34:44.8451150Z [36;1mfi[0m
+2025-12-08T04:34:44.8451390Z [36;1mecho ""[0m
+2025-12-08T04:34:44.8451720Z [36;1mecho "========================================="[0m
+2025-12-08T04:34:44.8497200Z shell: /bin/bash -e {0}
+2025-12-08T04:34:44.8506320Z env:
+2025-12-08T04:34:44.8506710Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2025-12-08T04:34:44.8507100Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2025-12-08T04:34:44.8507490Z   WEBVIEW_URL: https://linguagt.com
+2025-12-08T04:34:44.8507830Z   VERSION_CODE: 10
+2025-12-08T04:34:44.8508100Z   VERSION_NAME: 10.0.0
+2025-12-08T04:34:44.8508370Z   CREATE_RELEASE: true
+2025-12-08T04:34:44.8508640Z   DEBUG_MODE: true
+2025-12-08T04:34:44.8538700Z   ANDROID_KEYSTORE_BASE64: ***
+2025-12-08T04:34:44.8539170Z   ANDROID_KEYSTORE_PASSWORD: ***
+2025-12-08T04:34:44.8539530Z   ANDROID_KEY_ALIAS: ***
+2025-12-08T04:34:44.8539850Z   ANDROID_KEY_PASSWORD: ***
+2025-12-08T04:34:44.8540180Z   ANDROID_HOME: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:44.8540590Z   ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
+2025-12-08T04:34:44.8548430Z   JAVA_HOME: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:44.8550480Z   JAVA_HOME_17_X64: /Users/admin/actions-runner/_work/_tool/Java_Temurin-Hotspot_jdk/17.0.17-10/x64/Contents/Home
+2025-12-08T04:34:44.8551270Z ##[endgroup]
+2025-12-08T04:34:44.8769210Z 
+2025-12-08T04:34:44.8769830Z =========================================
+2025-12-08T04:34:44.8772370Z          BUILD SUMMARY REPORT
+2025-12-08T04:34:44.8772840Z =========================================
+2025-12-08T04:34:44.8782010Z 
+2025-12-08T04:34:44.8782340Z Build Status: failed
+2025-12-08T04:34:44.8782650Z Build Number: 136
+2025-12-08T04:34:44.8782900Z Version: 10.0.0 (Code: 10)
+2025-12-08T04:34:44.8783150Z Debug Mode: true
+2025-12-08T04:34:44.8783360Z 
+2025-12-08T04:34:44.8784120Z ❌ BUILD FAILED
+2025-12-08T04:34:44.8784260Z 
+2025-12-08T04:34:44.8784410Z Error Summary: Build failed - no output captured
+2025-12-08T04:34:44.8784640Z 
+2025-12-08T04:34:44.8784730Z Diagnostic Information:
+2025-12-08T04:34:44.8785170Z   - Check the 'Deep Configuration Analysis' step for misconfigurations
+2025-12-08T04:34:44.8785710Z   - Review 'Pre-Build Gradle Diagnostic' for parsing errors
+2025-12-08T04:34:44.8786280Z   - Look at 'Build Release AAB' for the actual error
+2025-12-08T04:34:44.8786570Z 
+2025-12-08T04:34:44.8786680Z Common Solutions:
+2025-12-08T04:34:44.8787070Z   1. Ensure namespace is defined in app/build.gradle
+2025-12-08T04:34:44.8787550Z   2. Fix buildConfigField string escaping
+2025-12-08T04:34:44.8787980Z   3. Align package names across all files
+2025-12-08T04:34:44.8788400Z   4. Check gradle.properties syntax
+2025-12-08T04:34:44.8788760Z   5. Verify Java source file locations
+2025-12-08T04:34:44.8789020Z 
+2025-12-08T04:34:44.8789150Z =========================================
+2025-12-08T04:34:44.8953500Z Post job cleanup.
+2025-12-08T04:34:45.0972100Z Post job cleanup.
+2025-12-08T04:34:45.2196450Z [command]/usr/bin/git version
+2025-12-08T04:34:45.2346070Z git version 2.39.5 (Apple Git-154)
+2025-12-08T04:34:45.2389580Z Temporarily overriding HOME='/Users/admin/actions-runner/_work/_temp/3a281ef3-fa96-4990-93a5-f31240e3f30a' before making global git config changes
+2025-12-08T04:34:45.2390520Z Adding repository directory to the temporary git global config as a safe directory
+2025-12-08T04:34:45.2394960Z [command]/usr/bin/git config --global --add safe.directory /Users/admin/actions-runner/_work/lingualink-android2/lingualink-android2
+2025-12-08T04:34:45.2552750Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-12-08T04:34:45.2701920Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-12-08T04:34:45.3811750Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-12-08T04:34:45.3944840Z http.https://github.com/.extraheader
+2025-12-08T04:34:45.3957130Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-12-08T04:34:45.4118890Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-12-08T04:34:45.5220750Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2025-12-08T04:34:45.5369980Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2025-12-08T04:34:45.6633160Z Evaluate and set job outputs
+2025-12-08T04:34:45.6652220Z Set output 'build_status'
+2025-12-08T04:34:45.6656030Z Set output 'error_summary'
+2025-12-08T04:34:45.6657670Z Cleaning up orphan processes
