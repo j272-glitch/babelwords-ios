@@ -525,11 +525,29 @@ class MainActivity : BaseActivity() {
      * 2. Second prompt: Android RECORD_AUDIO permission
      * 
      * Uses PermissionSession to track state and ensure FIFO processing
+     * 
+     * CRASH PREVENTION SOLUTIONS:
+     * - Solution #91: Check window attachment before permission dialog
      */
     @android.annotation.SuppressLint("InlinedApi")
     private fun handleWebViewAudioPermission(request: PermissionRequest) {
         val sessionPhase = currentSession?.phase ?: PermissionPhase.IDLE
         TestRigorLogger.logDebug("handleWebViewAudioPermission called, currentPhase=$sessionPhase, queueSize=${sessionQueue.size}")
+
+        // Solution #91: Ensure activity is fully ready before showing permission dialog
+        if (!isFullyReady()) {
+            TestRigorLogger.logWarning("Activity not fully ready for permission request - deferring")
+            // Defer the request slightly to allow activity to become ready
+            lifecycleHandler.postDelayed({
+                if (isFullyReady()) {
+                    handleWebViewAudioPermission(request)
+                } else {
+                    TestRigorLogger.logError("Activity still not ready after delay - denying permission", null)
+                    try { request.deny() } catch (e: Exception) { }
+                }
+            }, 200)
+            return
+        }
 
         // TESTRIGOR: In test mode, auto-grant without system permission
         if (isTestMode) {
@@ -593,9 +611,22 @@ class MainActivity : BaseActivity() {
     /**
      * TESTRIGOR FIX: Process a permission session
      * Handles both pre-granted and permission-required cases
+     * 
+     * CRASH PREVENTION SOLUTIONS:
+     * - Solution #91: Verify activity ready state before processing
      */
     private fun processSession(session: PermissionSession) {
         TestRigorLogger.logMilestone("Processing permission session (phase: ${session.phase})")
+
+        // Solution #91: Verify activity is still ready
+        if (!isFullyReady()) {
+            TestRigorLogger.logWarning("Activity not ready during processSession - aborting")
+            synchronized(permissionLock) {
+                session.phase = PermissionPhase.COMPLETED
+            }
+            finalizeSession(session)
+            return
+        }
 
         // STEP 1: Check if Android permission is already granted
         if (permissionManager.hasMicrophonePermission()) {
