@@ -129,8 +129,19 @@ class MainActivity : BaseActivity() {
     // Solution #89: Track AdMob consent initialization state
     private var isAdMobConsentInitialized = false
     private var isWebViewFullyLoaded = false
+    
+    // Solution #90: Track if content view is set for Appium compatibility
+    private var isContentViewSet = false
 
     fun getWebView(): WebView = webView
+    
+    /**
+     * Solution #90: Check if activity is fully ready for Appium/TestRigor operations
+     */
+    fun isFullyReady(): Boolean {
+        return isContentViewSet && isWindowAttached() && isSafeToUpdateUI() && 
+               LinguaLinkApplication.isAppReady
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Solution #89: Global onCreate crash protection
@@ -537,6 +548,10 @@ class MainActivity : BaseActivity() {
 
         webView.contentDescription = "LinguaLink Translation App WebView"
         setContentView(webView)
+        
+        // Solution #90: Track content view set for Appium compatibility
+        isContentViewSet = true
+        TestRigorLogger.logMilestone("Content view set - ready for automation")
     }
 
     /**
@@ -895,6 +910,7 @@ class MainActivity : BaseActivity() {
 
     /**
      * TESTRIGOR: JavaScript bridge for state inspection
+     * Solution #90: Added isAppReady() for Appium compatibility
      */
     inner class TestRigorBridge {
         @JavascriptInterface
@@ -908,9 +924,26 @@ class MainActivity : BaseActivity() {
                     "debounceMs": $MIC_DEBOUNCE_MS,
                     "timeSinceLastClick": ${System.currentTimeMillis() - lastMicClickTime},
                     "activityFinishing": $isFinishing,
-                    "activityDestroyed": $isDestroyed
+                    "activityDestroyed": $isDestroyed,
+                    "isWindowAttached": ${isWindowAttached()},
+                    "isContentViewSet": $isContentViewSet,
+                    "isAppReady": ${LinguaLinkApplication.isAppReady},
+                    "isFullyReady": ${isFullyReady()}
                 }
             """.trimIndent()
+        }
+        
+        /**
+         * Solution #90: Check if app is fully ready for automation operations
+         * Returns true only when:
+         * - Application is initialized
+         * - Activity window is attached
+         * - Content view is set
+         * - Activity is not finishing/destroyed
+         */
+        @JavascriptInterface
+        fun isAppReady(): Boolean {
+            return isFullyReady()
         }
 
         @JavascriptInterface
@@ -1171,6 +1204,10 @@ class MainActivity : BaseActivity() {
         layout.addView(conversationText)
 
         setContentView(layout)
+        
+        // Solution #90: Track content view set for Appium compatibility
+        isContentViewSet = true
+        TestRigorLogger.logMilestone("Native fallback content view set - ready for automation")
     }
 
     private fun updateTranslationResult(text: String) {

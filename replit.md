@@ -51,7 +51,7 @@ Preferred communication style: Simple, everyday language.
 
 **Deep Linking**: Configured with Android App Links for linguagt.com domain using assetlinks.json verification. Supports both HTTPS and custom scheme (linguagt://) deep links.
 
-**Crash Prevention (88 Solutions)**: Comprehensive crash prevention system organized into 8 categories:
+**Crash Prevention (90 Solutions)**: Comprehensive crash prevention system organized into 9 categories:
 
 1. **Permission Flow Sequencing (21 solutions)**: Session-based queue with synchronized locking, MAX_SESSION_QUEUE_SIZE=10, duplicate detection, finalizeSession() for all state transitions
 2. **WebView Lifecycle (15 solutions)**: State checking before operations, page load/unload tracking in WebAppBridge
@@ -61,8 +61,11 @@ Preferred communication style: Simple, everyday language.
 6. **JavaScript Bridge Timing (7 solutions)**: Page load state tracking in WebAppBridge, data encoding checks, size limits
 7. **Activity Lifecycle (6 solutions)**: Dialog tracking, isSafeToShowDialog, handler callback cleanup
 8. **Resource Leak & Exception (11 solutions)**: Cleanup in onDestroy, LifecycleAwareHandler with allPendingWrappers list, OOM protection
+9. **Appium/TestRigor Compatibility (2 solutions)**:
+   - Solution #89: AdMob consent timing - deferred initialization until WebView fully loaded
+   - Solution #90: Window measurement safety - isWindowAttached(), isFullyReady() tracking, exception handler chain protection, content view tracking for Appium getCurrentWindowSize compatibility
 
-Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, TestRigorLogger.kt
+Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, TestRigorLogger.kt, LinguaLinkApplication.kt
 
 ## Third-Party Integrations
 

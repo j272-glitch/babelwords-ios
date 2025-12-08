@@ -9,25 +9,47 @@ import androidx.lifecycle.LifecycleOwner
 /**
  * Main Application class for LinguaLink
  * Handles global initialization and lifecycle management
+ * 
+ * CRASH PREVENTION SOLUTIONS:
+ * - Solution #90: Global crash protection during app initialization
  */
 class LinguaLinkApplication : Application(), DefaultLifecycleObserver {
 
     companion object {
         private const val TAG = "LinguaLinkApplication"
+        
+        // Solution #90: Track if app is fully initialized for Appium compatibility
+        @Volatile
+        var isAppReady = false
+            private set
     }
 
     override fun onCreate() {
-        super<Application>.onCreate()  // Fixed: Explicit super type to avoid ambiguity
-        Log.d(TAG, "Application initialized - WebView mode for TestRigor compatibility")
+        // Solution #90: Wrap entire onCreate in try-catch for crash protection
+        try {
+            super<Application>.onCreate()  // Fixed: Explicit super type to avoid ambiguity
+            Log.d(TAG, "Application initialized - WebView mode for TestRigor compatibility")
 
-        // Setup global exception handler
-        setupGlobalExceptionHandler()
+            // Setup global exception handler
+            setupGlobalExceptionHandler()
 
-        // Initialize any global settings here
-        setupWebViewDefaults()
+            // Initialize any global settings here
+            setupWebViewDefaults()
 
-        // Register lifecycle observer to track app foreground/background state
-        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+            // Register lifecycle observer to track app foreground/background state
+            try {
+                ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to register lifecycle observer", e)
+            }
+            
+            // Solution #90: Mark app as ready for Appium/TestRigor
+            isAppReady = true
+            Log.d(TAG, "Application fully initialized and ready for automation")
+        } catch (e: Exception) {
+            Log.e(TAG, "CRITICAL: Application onCreate failed", e)
+            // Don't rethrow - allow app to continue with degraded functionality
+        }
     }
 
     /**

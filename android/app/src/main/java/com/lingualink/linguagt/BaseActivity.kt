@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewTreeObserver
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * - Solution #78: Handler callbacks cleanup in onDestroy
  * - Solution #87: Global RuntimeException handler
  * - Solution #88: OutOfMemoryError protection
+ * - Solution #90: Appium/TestRigor window measurement safety
  */
 abstract class BaseActivity : ComponentActivity() {
 
@@ -26,10 +28,18 @@ abstract class BaseActivity : ComponentActivity() {
         
         // Solution #88: Memory pressure threshold
         private const val LOW_MEMORY_THRESHOLD = 0.15f
+        
+        // Solution #90: Saved default exception handler (avoid re-wrapping)
+        @Volatile
+        private var originalDefaultHandler: Thread.UncaughtExceptionHandler? = null
+        private var handlerInstalled = false
     }
 
     // Track if activity is in valid state for UI operations
     private val isActivityAlive = AtomicBoolean(false)
+    
+    // Solution #90: Track if window is attached and ready for measurements
+    private val isWindowReady = AtomicBoolean(false)
     
     // Solution #74: Track dialog/permission state
     private val activeDialogCount = AtomicInteger(0)
@@ -40,32 +50,71 @@ abstract class BaseActivity : ComponentActivity() {
     private val runnableLock = Object()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        isActivityAlive.set(true)
+        // Solution #90: Wrap entire onCreate in try-catch for Appium compatibility
+        try {
+            super.onCreate(savedInstanceState)
+            isActivityAlive.set(true)
 
-        // Solution #87: Set up global exception handler for this activity
-        val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e(TAG, "Uncaught exception in ${this::class.simpleName}", throwable)
-            
-            // Solution #87: Log RuntimeException specifically
-            if (throwable is RuntimeException) {
-                TestRigorLogger.logError("RuntimeException in ${this::class.simpleName}", throwable)
+            // Solution #90: Install global exception handler only once (avoid chain loops)
+            synchronized(BaseActivity::class.java) {
+                if (!handlerInstalled) {
+                    originalDefaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+                    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+                        Log.e(TAG, "Uncaught exception in ${this::class.simpleName}", throwable)
+                        
+                        // Solution #87: Log RuntimeException specifically
+                        if (throwable is RuntimeException) {
+                            try {
+                                TestRigorLogger.logError("RuntimeException in ${this::class.simpleName}", throwable)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to log RuntimeException", e)
+                            }
+                        }
+                        
+                        // Solution #88: Handle OOM specially
+                        if (throwable is OutOfMemoryError) {
+                            try {
+                                TestRigorLogger.logError("OutOfMemoryError in ${this::class.simpleName}", throwable)
+                                handleOutOfMemory()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to handle OOM", e)
+                            }
+                        }
+                        
+                        handleUncaughtException(throwable)
+                        // Call original handler
+                        originalDefaultHandler?.uncaughtException(thread, throwable)
+                    }
+                    handlerInstalled = true
+                }
             }
             
-            // Solution #88: Handle OOM specially
-            if (throwable is OutOfMemoryError) {
-                TestRigorLogger.logError("OutOfMemoryError in ${this::class.simpleName}", throwable)
-                handleOutOfMemory()
+            // Solution #88: Check memory on startup
+            checkMemoryPressure()
+        } catch (e: Exception) {
+            Log.e(TAG, "onCreate crash in ${this::class.simpleName}", e)
+            try {
+                TestRigorLogger.logError("onCreate crash prevented", e)
+            } catch (e2: Exception) {
+                Log.e(TAG, "Failed to log onCreate crash", e2)
             }
-            
-            handleUncaughtException(throwable)
-            // Call default handler
-            defaultHandler?.uncaughtException(thread, throwable)
         }
-        
-        // Solution #88: Check memory on startup
-        checkMemoryPressure()
+    }
+    
+    /**
+     * Solution #90: Track window attachment for Appium compatibility
+     * Window must be attached before measurements can succeed
+     */
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        isWindowReady.set(true)
+        Log.d(TAG, "Window attached: ${this::class.simpleName}")
+    }
+    
+    override fun onDetachedFromWindow() {
+        isWindowReady.set(false)
+        Log.d(TAG, "Window detached: ${this::class.simpleName}")
+        super.onDetachedFromWindow()
     }
 
     override fun onStart() {
@@ -114,9 +163,25 @@ abstract class BaseActivity : ComponentActivity() {
 
     /**
      * Check if it's safe to perform UI operations
+     * Solution #90: Also check window attachment state
      */
     fun isSafeToUpdateUI(): Boolean {
         return !isFinishing && !isDestroyed && isActivityAlive.get()
+    }
+    
+    /**
+     * Solution #90: Check if window is ready for measurements (Appium compatibility)
+     */
+    fun isWindowAttached(): Boolean {
+        return isWindowReady.get()
+    }
+    
+    /**
+     * Solution #90: Check if fully ready for Appium/TestRigor operations
+     * This includes window attachment check
+     */
+    fun isReadyForAutomation(): Boolean {
+        return isSafeToUpdateUI() && isWindowReady.get()
     }
     
     /**
