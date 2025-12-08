@@ -60,7 +60,7 @@ class MainActivity : BaseActivity() {
     // TESTRIGOR FIX: Dual permission synchronization using ActiveSession pattern
     // Web apps may trigger TWO permission prompts: web getUserMedia + Android RECORD_AUDIO
     // This queue ensures they are processed sequentially, not concurrently
-    
+
     /**
      * Represents an active permission session with all its state
      * Solution #11: Match session by object reference in handlers
@@ -73,7 +73,7 @@ class MainActivity : BaseActivity() {
         val timestamp: Long = System.currentTimeMillis(),
         val origin: String = request.origin?.toString() ?: "unknown"
     )
-    
+
     // Permission phases for dual-prompt coordination
     private enum class PermissionPhase {
         IDLE,                    // No permission request in progress
@@ -82,13 +82,13 @@ class MainActivity : BaseActivity() {
         WEB_PENDING,             // Waiting for web permission
         COMPLETED                // Both permissions resolved
     }
-    
+
     // Queue of pending sessions (FIFO)
     private val sessionQueue = mutableListOf<PermissionSession>()
-    
+
     // Currently active session (null when idle)
     private var currentSession: PermissionSession? = null
-    
+
     // Guard flag - true when processing or queue not empty
     private var isProcessingPermission = false
 
@@ -108,68 +108,154 @@ class MainActivity : BaseActivity() {
 
     // TESTRIGOR: Test mode support
     private var isTestRigorDetected = false
-    
+
     // TESTRIGOR FIX: Lock to prevent concurrent permission processing
     // Solution #21: Use synchronized block for all state mutations
     private val permissionLock = Object()
-    
+
     // Solution #20: Limit queue size to prevent unbounded growth
     private val MAX_SESSION_QUEUE_SIZE = 10
-    
+
     // Solution #72: Track configuration changes
     private var savedPermissionState: Bundle? = null
-    
+
     // Solution #34: Track pending file chooser state
     private var pendingFileChooser = false
-    
+
     // Solution #69: Bridge call throttling
     private var lastBridgeCallTime = 0L
     private val BRIDGE_THROTTLE_MS = 100L
+    
+    // Solution #89: Track AdMob consent initialization state
+    private var isAdMobConsentInitialized = false
+    private var isWebViewFullyLoaded = false
 
     fun getWebView(): WebView = webView
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        
-        // Solution #62: Clear all session state on create (activity recreation)
-        synchronized(permissionLock) {
-            sessionQueue.clear()
-            currentSession = null
-            pendingPermissionRequest = null
-            isWaitingForAndroidPermission = false
-            isProcessingPermission = false
-        }
-        
-        // Solution #72: Restore saved permission state if available
-        savedInstanceState?.let { bundle ->
-            savedPermissionState = bundle.getBundle("permission_state")
-            TestRigorLogger.logDebug("Restored permission state from savedInstanceState")
-        }
-
-        lifecycleHandler = LifecycleAwareHandler(this)
-        permissionManager = SafePermissionManager(this, isTestMode)
-        webAppBridge = WebAppBridge(this)
-        adMobManager = AdMobManager.getInstance(this)
-
-        adMobManager.initialize(this) { consentGranted ->
-            TestRigorLogger.logAdEvent("AdMob initialized. Consent: $consentGranted")
-        }
-
-        requestPermissions()
-
-        tracker = UserActivityTracker(this, appId)
-        tracker?.sendUserActivity(appId)
-        tracker?.getTesterMob()
-
-        initializeTesterMobLib()
-
+        // Solution #89: Global onCreate crash protection
         try {
-            setupWebViewForConversationMode()
-            handleDeepLink(intent)
-            TestRigorLogger.logMilestone("WebView setup completed")
+            super.onCreate(savedInstanceState)
+
+            // Solution #62: Clear all session state on create (activity recreation)
+            synchronized(permissionLock) {
+                sessionQueue.clear()
+                currentSession = null
+                pendingPermissionRequest = null
+                isWaitingForAndroidPermission = false
+                isProcessingPermission = false
+                isAdMobConsentInitialized = false
+                isWebViewFullyLoaded = false
+            }
+
+            // Solution #72: Restore saved permission state if available
+            savedInstanceState?.let { bundle ->
+                savedPermissionState = bundle.getBundle("permission_state")
+                TestRigorLogger.logDebug("Restored permission state from savedInstanceState")
+            }
+
+            lifecycleHandler = LifecycleAwareHandler(this)
+            permissionManager = SafePermissionManager(this, isTestMode)
+            webAppBridge = WebAppBridge(this)
+            adMobManager = AdMobManager.getInstance(this)
+
+            // Solution #89: Delay AdMob consent initialization until WebView is fully loaded
+            // AdMob SDK initialization (without consent) - consent will be requested in onPageFinished
+            TestRigorLogger.logAdEvent("AdMob SDK reference obtained - consent deferred until WebView ready")
+
+            requestPermissions()
+
+            tracker = UserActivityTracker(this, appId)
+            tracker?.sendUserActivity(appId)
+            tracker?.getTesterMob()
+
+            initializeTesterMobLib()
+
+            try {
+                setupWebViewForConversationMode()
+                handleDeepLink(intent)
+                TestRigorLogger.logMilestone("WebView setup completed")
+            } catch (e: Exception) {
+                TestRigorLogger.logError("WebView setup failed", e)
+                createNativeTranslationInterface()
+            }
         } catch (e: Exception) {
-            TestRigorLogger.logError("WebView setup failed", e)
-            createNativeTranslationInterface()
+            // Solution #89: Graceful recovery from onCreate crash
+            TestRigorLogger.logError("onCreate crash prevented", e)
+            try {
+                // Attempt minimal recovery
+                setContentView(android.widget.FrameLayout(this))
+            } catch (e2: Exception) {
+                TestRigorLogger.logError("Recovery failed", e2)
+            }
+        }
+    }
+    
+    /**
+     * Solution #89: Initialize AdMob consent after activity is fully ready
+     * Called from onPageFinished to ensure WebView and activity are stable
+     */
+    private fun initializeAdMobConsentSafely() {
+        if (isAdMobConsentInitialized) {
+            TestRigorLogger.logDebug("AdMob consent already initialized, skipping")
+            return
+        }
+        
+        if (isFinishing || isDestroyed) {
+            TestRigorLogger.logWarning("Cannot initialize AdMob consent - activity invalid")
+            return
+        }
+        
+        isAdMobConsentInitialized = true
+        TestRigorLogger.logAdEvent("Initializing AdMob consent (WebView fully loaded)")
+        
+        try {
+            adMobManager.initialize(this) { consentGranted ->
+                TestRigorLogger.logAdEvent("AdMob consent completed: $consentGranted")
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob consent initialization failed", e)
+            isAdMobConsentInitialized = false // Allow retry on next page load
+        }
+    }
+    
+    /**
+     * Solution #89: onResume fallback for AdMob consent
+     * Ensures consent is checked even after activity recreation
+     */
+    override fun onResume() {
+        super.onResume()
+        
+        // Resume AdMob ads if initialized
+        try {
+            if (::adMobManager.isInitialized) {
+                adMobManager.resume()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob resume failed", e)
+        }
+        
+        // Fallback: Initialize consent if WebView is loaded but consent wasn't initialized
+        if (isWebViewFullyLoaded && !isAdMobConsentInitialized) {
+            TestRigorLogger.logDebug("onResume: Triggering deferred AdMob consent initialization")
+            lifecycleHandler.postDelayed({
+                initializeAdMobConsentSafely()
+            }, 500) // Small delay to ensure activity is fully resumed
+        }
+    }
+    
+    /**
+     * Solution #89: onPause to pause AdMob
+     */
+    override fun onPause() {
+        super.onPause()
+        
+        try {
+            if (::adMobManager.isInitialized) {
+                adMobManager.pause()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob pause failed", e)
         }
     }
 
@@ -345,12 +431,12 @@ class MainActivity : BaseActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 TestRigorLogger.logWebView("Page started", url)
-                
+
                 // Solution #68: Notify WebAppBridge that page is unloading
                 if (::webAppBridge.isInitialized) {
                     webAppBridge.onPageUnloaded()
                 }
-                
+
                 super.onPageStarted(view, url, favicon)
             }
 
@@ -363,11 +449,19 @@ class MainActivity : BaseActivity() {
                 }
 
                 injectMicrophoneDetectionScript(view)
-                
+
                 // Solution #65: Notify WebAppBridge that page is loaded
                 if (::webAppBridge.isInitialized) {
                     webAppBridge.onPageLoaded()
                 }
+                
+                // Solution #89: Mark WebView as fully loaded and initialize AdMob consent
+                isWebViewFullyLoaded = true
+                
+                // Delay AdMob consent slightly to ensure page is stable
+                lifecycleHandler.postDelayed({
+                    initializeAdMobConsentSafely()
+                }, 1000) // 1 second delay for stability
 
                 super.onPageFinished(view, url)
             }
@@ -407,16 +501,16 @@ class MainActivity : BaseActivity() {
             override fun onPermissionRequestCanceled(request: PermissionRequest?) {
                 val sessionPhase = currentSession?.phase ?: PermissionPhase.IDLE
                 TestRigorLogger.logWarning("Permission canceled by WebView (phase=$sessionPhase)")
-                
+
                 if (request == null) return
-                
+
                 // TESTRIGOR FIX: Route all cleanup through finalizeSession
                 var sessionToFinalize: PermissionSession? = null
-                
+
                 synchronized(permissionLock) {
                     // Remove from queue if present
                     sessionQueue.removeIf { it.request == request }
-                    
+
                     // Check if this is the current session
                     if (currentSession?.request == request) {
                         sessionToFinalize = currentSession
@@ -424,7 +518,7 @@ class MainActivity : BaseActivity() {
                         currentSession?.phase = PermissionPhase.COMPLETED
                     }
                 }
-                
+
                 // Finalize the cancelled session outside the lock
                 sessionToFinalize?.let { session ->
                     permissionManager.cleanupPendingRequests()
@@ -492,7 +586,7 @@ class MainActivity : BaseActivity() {
                 TestRigorLogger.logWarning("Duplicate session for origin ${session.origin} - ignoring")
                 return
             }
-            
+
             // Solution #20: Limit queue size to prevent unbounded growth
             if (sessionQueue.size >= MAX_SESSION_QUEUE_SIZE) {
                 TestRigorLogger.logWarning("Session queue full (${sessionQueue.size}/${MAX_SESSION_QUEUE_SIZE}) - rejecting request")
@@ -501,14 +595,14 @@ class MainActivity : BaseActivity() {
                 }
                 return
             }
-            
+
             if (isProcessingPermission || currentSession != null) {
                 // Already processing - queue this request
                 sessionQueue.add(session)
                 TestRigorLogger.logDebug("Session queued (queue size: ${sessionQueue.size})")
                 return
             }
-            
+
             // No active session - process this one
             currentSession = session
             isProcessingPermission = true
@@ -532,7 +626,7 @@ class MainActivity : BaseActivity() {
                 session.phase = PermissionPhase.ANDROID_RESOLVED
             }
             TestRigorLogger.logDebug("Android permission already granted, proceeding to web grant")
-            
+
             // Grant to WebView immediately
             grantWebViewPermissionForSession(session)
         } else {
@@ -572,9 +666,9 @@ class MainActivity : BaseActivity() {
                 true
             }
         }
-        
+
         if (!isCurrentSession) return
-        
+
         TestRigorLogger.logDebug("Granting permission to WebView for session")
 
         lifecycleHandler.post {
@@ -584,7 +678,7 @@ class MainActivity : BaseActivity() {
                 TestRigorLogger.logWarning("Session no longer current on main thread, skipping grant")
                 return@post
             }
-            
+
             try {
                 if (!isFinishing && !isDestroyed) {
                     session.request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
@@ -618,7 +712,7 @@ class MainActivity : BaseActivity() {
         val isCurrentSession = synchronized(permissionLock) {
             pendingPermissionRequest = null
             isWaitingForAndroidPermission = false
-            
+
             if (currentSession != session || session.phase == PermissionPhase.COMPLETED) {
                 TestRigorLogger.logWarning("Session already finalized or not current, skipping permission result handling")
                 false
@@ -626,7 +720,7 @@ class MainActivity : BaseActivity() {
                 true
             }
         }
-        
+
         if (!isCurrentSession) return
 
         if (granted) {
@@ -641,7 +735,7 @@ class MainActivity : BaseActivity() {
                     TestRigorLogger.logWarning("Session no longer current on main thread, skipping deny")
                     return@post
                 }
-                
+
                 try {
                     session.request.deny()
                     TestRigorLogger.logDebug("WebView permission denied after Android denial")
@@ -660,14 +754,14 @@ class MainActivity : BaseActivity() {
      */
     private fun finalizeSession(session: PermissionSession) {
         var nextSession: PermissionSession? = null
-        
+
         synchronized(permissionLock) {
             // Only finalize if this is the current session
             if (currentSession == session) {
                 currentSession = null
                 pendingPermissionRequest = null
                 isWaitingForAndroidPermission = false
-                
+
                 // Check for next session in queue
                 if (sessionQueue.isNotEmpty() && !isFinishing && !isDestroyed) {
                     nextSession = sessionQueue.removeAt(0)
@@ -677,7 +771,7 @@ class MainActivity : BaseActivity() {
                 } else {
                     // No more sessions - fully idle
                     isProcessingPermission = false
-                    
+
                     // Clear queue if activity is finishing
                     if (isFinishing || isDestroyed) {
                         val remaining = sessionQueue.size
@@ -696,7 +790,7 @@ class MainActivity : BaseActivity() {
                 TestRigorLogger.logWarning("Attempted to finalize non-current session")
             }
         }
-        
+
         // Process next session OUTSIDE the lock
         nextSession?.let { next ->
             lifecycleHandler.post {
@@ -915,7 +1009,7 @@ class MainActivity : BaseActivity() {
      */
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        
+
         val permissionBundle = Bundle().apply {
             putBoolean("isProcessingPermission", isProcessingPermission)
             putBoolean("isWaitingForAndroidPermission", isWaitingForAndroidPermission)
@@ -925,20 +1019,20 @@ class MainActivity : BaseActivity() {
         outState.putBundle("permission_state", permissionBundle)
         TestRigorLogger.logDebug("Saved permission state to outState")
     }
-    
+
     /**
      * Solution #73: Handle configuration changes gracefully
      */
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
         TestRigorLogger.logDebug("Configuration changed: ${newConfig.orientation}")
-        
+
         // Preserve WebView state during configuration change
         if (::webView.isInitialized) {
             webView.requestLayout()
         }
     }
-    
+
     /**
      * Solution #75: Handle back press during permission flow
      */
@@ -962,7 +1056,7 @@ class MainActivity : BaseActivity() {
             cancelPermissionTimeoutsAndRetries()
             return
         }
-        
+
         if (::webView.isInitialized && webView.canGoBack()) {
             webView.goBack()
         } else {
@@ -970,7 +1064,7 @@ class MainActivity : BaseActivity() {
             super.onBackPressed()
         }
     }
-    
+
     /**
      * Solution #76: Check multi-window mode for race conditions
      * Note: onMultiWindowModeChanged is deprecated in newer Android versions
@@ -979,7 +1073,7 @@ class MainActivity : BaseActivity() {
     override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean) {
         super.onMultiWindowModeChanged(isInMultiWindowMode)
         TestRigorLogger.logDebug("Multi-window mode changed: $isInMultiWindowMode")
-        
+
         if (isInMultiWindowMode) {
             // Pause any active permission flows
             synchronized(permissionLock) {
@@ -1133,26 +1227,26 @@ class MainActivity : BaseActivity() {
             currentSession?.let { session ->
                 try { session.request.deny() } catch (e: Exception) { }
             }
-            
+
             // Deny all queued sessions
             sessionQueue.forEach { session ->
                 try { session.request.deny() } catch (e: Exception) { }
             }
             sessionQueue.clear()
-            
+
             // Clear current session
             currentSession = null
             pendingPermissionRequest = null
             isWaitingForAndroidPermission = false
             isProcessingPermission = false
         }
-        
+
         // Solution #82: Clean up permission manager
         permissionManager.cleanupPendingRequests()
-        
+
         // Solution #83: Cancel timeouts
         cancelPermissionTimeoutsAndRetries()
-        
+
         // Solution #71: Clean up WebAppBridge
         try {
             if (::webAppBridge.isInitialized) {
@@ -1161,7 +1255,7 @@ class MainActivity : BaseActivity() {
         } catch (e: Exception) {
             TestRigorLogger.logError("WebAppBridge cleanup", e)
         }
-        
+
         // Solution #78: Clean up lifecycleHandler
         try {
             if (::lifecycleHandler.isInitialized) {
