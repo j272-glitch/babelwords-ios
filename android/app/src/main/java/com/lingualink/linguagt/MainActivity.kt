@@ -230,45 +230,8 @@ class MainActivity : BaseActivity() {
         }
     }
     
-    /**
-     * Solution #89: onResume fallback for AdMob consent
-     * Ensures consent is checked even after activity recreation
-     */
-    override fun onResume() {
-        super.onResume()
-        
-        // Resume AdMob ads if initialized
-        try {
-            if (::adMobManager.isInitialized) {
-                adMobManager.resume()
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob resume failed", e)
-        }
-        
-        // Fallback: Initialize consent if WebView is loaded but consent wasn't initialized
-        if (isWebViewFullyLoaded && !isAdMobConsentInitialized) {
-            TestRigorLogger.logDebug("onResume: Triggering deferred AdMob consent initialization")
-            lifecycleHandler.postDelayed({
-                initializeAdMobConsentSafely()
-            }, 500) // Small delay to ensure activity is fully resumed
-        }
-    }
-    
-    /**
-     * Solution #89: onPause to pause AdMob
-     */
-    override fun onPause() {
-        super.onPause()
-        
-        try {
-            if (::adMobManager.isInitialized) {
-                adMobManager.pause()
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob pause failed", e)
-        }
-    }
+    // Note: onResume() and onPause() are defined later in the file
+    // to consolidate all lifecycle functionality in one place
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
@@ -1003,11 +966,36 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /**
+     * Unified onResume: WebView, AdMob, Tracker, and Permission handling
+     * Solution #89: Includes AdMob resume and deferred consent initialization
+     */
     override fun onResume() {
         super.onResume()
+        
+        // Tracker activity
         tracker?.sendUserActivity(appId)
+        
+        // WebView resume
         if (::webView.isInitialized) {
             webView.onResume()
+        }
+        
+        // Solution #89: Resume AdMob ads if initialized
+        try {
+            if (::adMobManager.isInitialized) {
+                adMobManager.resume()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob resume failed", e)
+        }
+        
+        // Solution #89: Fallback consent initialization if WebView loaded but consent wasn't initialized
+        if (isWebViewFullyLoaded && !isAdMobConsentInitialized) {
+            TestRigorLogger.logDebug("onResume: Triggering deferred AdMob consent initialization")
+            lifecycleHandler.postDelayed({
+                initializeAdMobConsentSafely()
+            }, 500) // Small delay to ensure activity is fully resumed
         }
 
         // TESTRIGOR FIX: Re-verify pending permission state on resume
@@ -1020,10 +1008,25 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /**
+     * Unified onPause: WebView and AdMob handling
+     * Solution #89: Includes AdMob pause
+     */
     override fun onPause() {
         super.onPause()
+        
+        // WebView pause
         if (::webView.isInitialized) {
             webView.onPause()
+        }
+        
+        // Solution #89: Pause AdMob ads
+        try {
+            if (::adMobManager.isInitialized) {
+                adMobManager.pause()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdMob pause failed", e)
         }
     }
 
