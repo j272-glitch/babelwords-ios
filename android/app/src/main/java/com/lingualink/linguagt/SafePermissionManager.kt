@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
  * - Solution #17: Synchronized callback access
  * - Solution #53: Initialize before onCreate completes
  * - Solution #84: Uncaught exception wrapper
+ * - Solution #91: Window attachment check before permission dialog
  */
 class SafePermissionManager(
     private val activity: Activity,
@@ -104,6 +105,14 @@ class SafePermissionManager(
             if (activity.isFinishing || activity.isDestroyed) {
                 Log.w(TAG, "Cannot request permission - activity invalid")
                 TestRigorLogger.logWarning("SafePermissionManager: Activity invalid, cannot request permission.")
+                safeInvokeCallback(callback, false)
+                return
+            }
+            
+            // Solution #91: Check if activity window is attached (for Appium/TestRigor compatibility)
+            if (activity is BaseActivity && !activity.isWindowAttached()) {
+                Log.w(TAG, "Cannot request permission - window not attached")
+                TestRigorLogger.logWarning("SafePermissionManager: Window not attached, cannot show permission dialog.")
                 safeInvokeCallback(callback, false)
                 return
             }
