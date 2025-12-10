@@ -125,16 +125,16 @@ class MainActivity : BaseActivity() {
     // Solution #69: Bridge call throttling
     private var lastBridgeCallTime = 0L
     private val BRIDGE_THROTTLE_MS = 100L
-    
+
     // Solution #89: Track AdMob consent initialization state
     private var isAdMobConsentInitialized = false
     private var isWebViewFullyLoaded = false
-    
+
     // Solution #90: Track if content view is set for Appium compatibility
     private var isContentViewSet = false
 
     fun getWebView(): WebView = webView
-    
+
     /**
      * Solution #90: Check if activity is fully ready for Appium/TestRigor operations
      */
@@ -201,7 +201,7 @@ class MainActivity : BaseActivity() {
             }
         }
     }
-    
+
     /**
      * Solution #89: Initialize AdMob consent after activity is fully ready
      * Called from onPageFinished to ensure WebView and activity are stable
@@ -211,15 +211,15 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logDebug("AdMob consent already initialized, skipping")
             return
         }
-        
+
         if (isFinishing || isDestroyed) {
             TestRigorLogger.logWarning("Cannot initialize AdMob consent - activity invalid")
             return
         }
-        
+
         isAdMobConsentInitialized = true
         TestRigorLogger.logAdEvent("Initializing AdMob consent (WebView fully loaded)")
-        
+
         try {
             adMobManager.initialize(this) { consentGranted ->
                 TestRigorLogger.logAdEvent("AdMob consent completed: $consentGranted")
@@ -229,7 +229,7 @@ class MainActivity : BaseActivity() {
             isAdMobConsentInitialized = false // Allow retry on next page load
         }
     }
-    
+
     // Note: onResume() and onPause() are defined later in the file
     // to consolidate all lifecycle functionality in one place
 
@@ -349,6 +349,11 @@ class MainActivity : BaseActivity() {
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
 
+        // TESTRIGOR FIX: Register AdBridge BEFORE loading URL to prevent crashes
+        val adBridge = com.lingualink.linguagt.ads.AdBridge(this, webView)
+        webView.addJavascriptInterface(adBridge, "AdBridge")
+        TestRigorLogger.logAdEvent("AdBridge registered with WebView")
+
         // TESTRIGOR: Add test inspection bridge
         if (BuildConfig.DEBUG) {
             webView.addJavascriptInterface(TestRigorBridge(), "TestRigorBridge")
@@ -428,10 +433,10 @@ class MainActivity : BaseActivity() {
                 if (::webAppBridge.isInitialized) {
                     webAppBridge.onPageLoaded()
                 }
-                
+
                 // Solution #89: Mark WebView as fully loaded and initialize AdMob consent
                 isWebViewFullyLoaded = true
-                
+
                 // Delay AdMob consent slightly to ensure page is stable
                 lifecycleHandler.postDelayed({
                     initializeAdMobConsentSafely()
@@ -511,7 +516,7 @@ class MainActivity : BaseActivity() {
 
         webView.contentDescription = "LinguaLink Translation App WebView"
         setContentView(webView)
-        
+
         // Solution #90: Track content view set for Appium compatibility
         isContentViewSet = true
         TestRigorLogger.logMilestone("Content view set - ready for automation")
@@ -926,7 +931,7 @@ class MainActivity : BaseActivity() {
                 }
             """.trimIndent()
         }
-        
+
         /**
          * Solution #90: Check if app is fully ready for automation operations
          * Returns true only when:
@@ -1003,15 +1008,15 @@ class MainActivity : BaseActivity() {
      */
     override fun onResume() {
         super.onResume()
-        
+
         // Tracker activity
         tracker?.sendUserActivity(appId)
-        
+
         // WebView resume
         if (::webView.isInitialized) {
             webView.onResume()
         }
-        
+
         // Solution #89: Resume AdMob ads if initialized
         try {
             if (::adMobManager.isInitialized) {
@@ -1020,7 +1025,7 @@ class MainActivity : BaseActivity() {
         } catch (e: Exception) {
             TestRigorLogger.logError("AdMob resume failed", e)
         }
-        
+
         // Solution #89: Fallback consent initialization if WebView loaded but consent wasn't initialized
         if (isWebViewFullyLoaded && !isAdMobConsentInitialized) {
             TestRigorLogger.logDebug("onResume: Triggering deferred AdMob consent initialization")
@@ -1045,12 +1050,12 @@ class MainActivity : BaseActivity() {
      */
     override fun onPause() {
         super.onPause()
-        
+
         // WebView pause
         if (::webView.isInitialized) {
             webView.onPause()
         }
-        
+
         // Solution #89: Pause AdMob ads
         try {
             if (::adMobManager.isInitialized) {
@@ -1238,7 +1243,7 @@ class MainActivity : BaseActivity() {
         layout.addView(conversationText)
 
         setContentView(layout)
-        
+
         // Solution #90: Track content view set for Appium compatibility
         isContentViewSet = true
         TestRigorLogger.logMilestone("Native fallback content view set - ready for automation")
