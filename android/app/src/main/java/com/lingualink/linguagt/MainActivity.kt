@@ -174,6 +174,10 @@ class MainActivity : BaseActivity() {
             // AdMob SDK initialization (without consent) - consent will be requested in onPageFinished
             TestRigorLogger.logAdEvent("AdMob SDK reference obtained - consent deferred until WebView ready")
 
+            // CRITICAL: Register AdBridge with WebView BEFORE loading URL
+            webView.addJavascriptInterface(adBridge, "AdBridge")
+            TestRigorLogger.logAdEvent("AdBridge registered with WebView")
+
             requestPermissions()
 
             tracker = UserActivityTracker(this, appId)
