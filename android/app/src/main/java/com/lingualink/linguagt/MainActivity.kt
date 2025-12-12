@@ -52,6 +52,7 @@ class MainActivity : BaseActivity() {
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
     private lateinit var adMobManager: AdMobManager
+    private lateinit var adBridge: com.lingualink.linguagt.ads.AdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -172,11 +173,8 @@ class MainActivity : BaseActivity() {
 
             // Solution #89: Delay AdMob consent initialization until WebView is fully loaded
             // AdMob SDK initialization (without consent) - consent will be requested in onPageFinished
+            // Note: AdBridge is registered in setupWebViewForConversationMode() after WebView is created
             TestRigorLogger.logAdEvent("AdMob SDK reference obtained - consent deferred until WebView ready")
-
-            // CRITICAL: Register AdBridge with WebView BEFORE loading URL
-            webView.addJavascriptInterface(adBridge, "AdBridge")
-            TestRigorLogger.logAdEvent("AdBridge registered with WebView")
 
             requestPermissions()
 
@@ -354,7 +352,7 @@ class MainActivity : BaseActivity() {
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
 
         // TESTRIGOR FIX: Register AdBridge BEFORE loading URL to prevent crashes
-        val adBridge = com.lingualink.linguagt.ads.AdBridge(this, webView)
+        adBridge = com.lingualink.linguagt.ads.AdBridge(this, webView)
         webView.addJavascriptInterface(adBridge, "AdBridge")
         TestRigorLogger.logAdEvent("AdBridge registered with WebView")
 

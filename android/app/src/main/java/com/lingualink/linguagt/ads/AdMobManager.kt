@@ -66,7 +66,7 @@ class AdMobManager private constructor(private val context: Context) {
     }
 
     // State management
-    private val isInitialized = AtomicBoolean(false)
+    internal val isInitialized = AtomicBoolean(false)
     private val hasConsent = AtomicBoolean(false)
     private val lastInterstitialTime = AtomicLong(0)
     private val lastRewardedTime = AtomicLong(0)
