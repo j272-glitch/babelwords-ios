@@ -98,6 +98,32 @@ class AdBridge(
     }
 
     /**
+     * Check if AdMob is initialized
+     * Usage: window.AdBridge.isInitialized()
+     */
+    @JavascriptInterface
+    fun isInitialized(): Boolean {
+        return adMobManager.isInitialized.get()
+    }
+
+    /**
+     * Get diagnostic information
+     * Usage: window.AdBridge.getDiagnostics()
+     */
+    @JavascriptInterface
+    fun getDiagnostics(): String {
+        return """
+            {
+                "adBridgeAvailable": true,
+                "nativeAdBridge": true,
+                "adMobInitialized": ${adMobManager.isInitialized.get()},
+                "rewardedReady": ${adMobManager.isRewardedAdAvailable()},
+                "timestamp": ${System.currentTimeMillis()}
+            }
+        """.trimIndent()
+    }
+
+    /**
      * Notify web app of events via JavaScript callback
      */
     private fun notifyWebApp(eventType: String, data: String) {

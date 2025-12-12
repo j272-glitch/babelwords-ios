@@ -441,6 +441,13 @@ class MainActivity : BaseActivity() {
                 // Solution #89: Mark WebView as fully loaded and initialize AdMob consent
                 isWebViewFullyLoaded = true
 
+                // Notify web app that AdBridge is ready
+                view?.evaluateJavascript(
+                    "if (window.onAdBridgeReady) { window.onAdBridgeReady(); }",
+                    null
+                )
+                TestRigorLogger.logAdEvent("AdBridge ready signal sent to web app")
+
                 // Delay AdMob consent slightly to ensure page is stable
                 lifecycleHandler.postDelayed({
                     initializeAdMobConsentSafely()
