@@ -425,6 +425,10 @@
                     <a href="#features" class="btn-secondary">Learn More</a>
                     <a href="#" class="btn-secondary" onclick="showRewardedAdForPremium(); return false;">Get Premium Access</a>
                 </div>
+                <!-- Translation counter display for debugging -->
+                <div id="translationCounter" style="margin-top: 1rem; color: white; font-size: 0.9rem; display: none;">
+                    Translations: <span id="countDisplay">0</span>/<span id="limitDisplay">5</span>
+                </div>
                 <!-- Debug buttons (only visible in Android WebView) -->
                 <div id="adDebugButtons" style="display: none; margin-top: 1rem; gap: 0.5rem; justify-content: center;">
                     <button onclick="testInterstitialAd()" style="padding: 0.5rem 1rem; background: #ff6b6b; color: white; border: none; border-radius: 8px; cursor: pointer;">Test Interstitial</button>
@@ -606,29 +610,51 @@
 
         // Handle ad events from native Android
         window.onAdBridgeEvent = function(eventType, data) {
-            console.log('Ad event received:', eventType, data);
+            console.log('📱 Ad event received:', eventType, data);
             
             switch(eventType) {
                 case 'adMobInitialized':
-                    console.log('AdMob initialized:', data);
+                    console.log('✅ AdMob initialized:', data);
+                    // Log that we're ready to show ads
+                    if (window.AdBridge) {
+                        const diagnostics = window.AdBridge.getDiagnostics();
+                        console.log('AdMob diagnostics:', diagnostics);
+                    }
                     break;
+                    
+                case 'interstitialShown':
+                    console.log('🎉 INTERSTITIAL AD SHOWN - Impression should be counted!');
+                    break;
+                    
                 case 'interstitialClosed':
-                    console.log('Interstitial ad closed - resetting translation count');
+                    console.log('✅ Interstitial ad closed - resetting translation count');
+                    translationCount = 0;
+                    // Optionally show a message
+                    console.log('You can now continue translating');
+                    break;
+                    
+                case 'interstitialFailed':
+                    console.error('❌ Interstitial ad failed:', data);
+                    // Reset count so user isn't blocked
                     translationCount = 0;
                     break;
-                case 'interstitialFailed':
-                    console.log('Interstitial ad failed:', data);
-                    break;
+                    
                 case 'rewardEarned':
-                    console.log('Reward earned:', data);
+                    console.log('🎁 Reward earned:', data);
                     alert('Premium access granted for 30 minutes!');
                     break;
+                    
                 case 'rewardedClosed':
-                    console.log('Rewarded ad closed');
+                    console.log('✅ Rewarded ad closed');
                     break;
+                    
                 case 'rewardedFailed':
-                    console.log('Rewarded ad failed:', data);
+                    console.error('❌ Rewarded ad failed:', data);
+                    alert('Unable to load rewarded ad. Please try again later.');
                     break;
+                    
+                default:
+                    console.log('Unknown ad event:', eventType, data);
             }
         };
 
@@ -637,16 +663,54 @@
             translationCount++;
             console.log('Translation count:', translationCount);
             
+            // Update counter display
+            updateTranslationCounter();
+            
             if (translationCount >= TRANSLATION_LIMIT) {
                 showTranslationLimitAd();
+            } else {
+                // Log progress
+                console.log(`${translationCount}/${TRANSLATION_LIMIT} translations used`);
+            }
+        }
+        
+        // Update visual counter
+        function updateTranslationCounter() {
+            const counterDisplay = document.getElementById('countDisplay');
+            const counterContainer = document.getElementById('translationCounter');
+            
+            if (counterDisplay && counterContainer) {
+                counterDisplay.textContent = translationCount;
+                
+                // Show counter in Android app only
+                if (window.AdBridge) {
+                    counterContainer.style.display = 'block';
+                }
             }
         }
 
         // Show interstitial ad when translation limit reached
         function showTranslationLimitAd() {
             if (window.AdBridge) {
-                console.log('Translation limit reached - showing interstitial ad');
-                window.AdBridge.showInterstitial();
+                console.log('🎯 Translation limit reached - attempting to show interstitial ad');
+                
+                // Check if ad is ready before showing
+                const isInitialized = window.AdBridge.isInitialized();
+                console.log('AdBridge initialized:', isInitialized);
+                
+                if (isInitialized) {
+                    try {
+                        // CRITICAL: Actually call the show method
+                        window.AdBridge.showInterstitial();
+                        console.log('✅ showInterstitial() called successfully');
+                    } catch (e) {
+                        console.error('❌ Error showing interstitial:', e);
+                        translationCount = 0; // Reset on error
+                    }
+                } else {
+                    console.warn('⚠️ AdBridge not initialized yet - resetting count');
+                    translationCount = 0;
+                }
             } else {
                 console.log('AdBridge not available - would show ad in Android app');
                 translationCount = 0; // Reset for browser testing
