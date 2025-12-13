@@ -250,19 +250,23 @@ class AdMobManager private constructor(private val context: Context) {
 
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdDismissedFullScreenContent() {
-                            TestRigorLogger.logAdEvent("Interstitial dismissed")
+                            TestRigorLogger.logAdEvent("✅ INTERSTITIAL DISMISSED - User saw the ad")
                             interstitialAd = null
                             // Reload after delay
                             handler.postDelayed({ loadInterstitialAd() }, RETRY_DELAY_LONG)
                         }
 
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            TestRigorLogger.logError("Interstitial failed to show: ${error.message}", null)
+                            TestRigorLogger.logError("❌ INTERSTITIAL FAILED TO SHOW: ${error.message} (code: ${error.code})", null)
                             interstitialAd = null
                         }
 
                         override fun onAdShowedFullScreenContent() {
-                            TestRigorLogger.logAdEvent("Interstitial showed")
+                            TestRigorLogger.logAdEvent("🎉 INTERSTITIAL IMPRESSION RECORDED - Ad is visible to user!")
+                        }
+
+                        override fun onAdImpression() {
+                            TestRigorLogger.logAdEvent("📊 INTERSTITIAL AD IMPRESSION counted by AdMob")
                         }
                     }
                 }
@@ -282,9 +286,11 @@ class AdMobManager private constructor(private val context: Context) {
      * TESTRIGOR FIX: Check activity state before showing to prevent WindowManagerBadTokenException
      */
     fun showInterstitialAd(activity: Activity, onAdClosed: () -> Unit = {}) {
+        TestRigorLogger.logAdEvent("📊 showInterstitialAd() called - checking conditions...")
+        
         // TESTRIGOR FIX: Check activity state before showing ad
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show interstitial - activity invalid")
+            TestRigorLogger.logWarning("❌ Cannot show interstitial - activity invalid")
             onAdClosed()
             return
         }
@@ -293,19 +299,25 @@ class AdMobManager private constructor(private val context: Context) {
         val timeSinceLastAd = currentTime - lastInterstitialTime.get()
 
         if (timeSinceLastAd < INTERSTITIAL_MIN_INTERVAL) {
-            TestRigorLogger.logAdEvent("Interstitial ad skipped - frequency cap (${timeSinceLastAd}ms)")
+            TestRigorLogger.logAdEvent("⏱️ Interstitial ad skipped - frequency cap (${timeSinceLastAd}ms < ${INTERSTITIAL_MIN_INTERVAL}ms)")
             onAdClosed()
             return
         }
 
         if (interstitialAd != null) {
-            interstitialAd?.show(activity)
-            lastInterstitialTime.set(currentTime)
+            TestRigorLogger.logAdEvent("🎬 SHOWING INTERSTITIAL AD NOW - calling show()")
+            try {
+                interstitialAd?.show(activity)
+                lastInterstitialTime.set(currentTime)
+                TestRigorLogger.logAdEvent("✅ Interstitial ad show() called successfully")
+            } catch (e: Exception) {
+                TestRigorLogger.logError("❌ Exception showing interstitial: ${e.message}", e)
+            }
 
             // Call callback after ad dismissal
             handler.postDelayed(onAdClosed, 100)
         } else {
-            TestRigorLogger.logAdEvent("Interstitial ad not ready")
+            TestRigorLogger.logAdEvent("❌ Interstitial ad not ready (null)")
             loadInterstitialAd() // Try to load
             onAdClosed()
         }
@@ -333,18 +345,22 @@ class AdMobManager private constructor(private val context: Context) {
 
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdDismissedFullScreenContent() {
-                            TestRigorLogger.logAdEvent("Rewarded ad dismissed")
+                            TestRigorLogger.logAdEvent("✅ REWARDED AD DISMISSED - User saw the ad")
                             rewardedAd = null
                             handler.postDelayed({ loadRewardedAd() }, RETRY_DELAY_LONG)
                         }
 
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            TestRigorLogger.logError("Rewarded ad failed to show: ${error.message}", null)
+                            TestRigorLogger.logError("❌ REWARDED AD FAILED TO SHOW: ${error.message} (code: ${error.code})", null)
                             rewardedAd = null
                         }
 
                         override fun onAdShowedFullScreenContent() {
-                            TestRigorLogger.logAdEvent("Rewarded ad showed")
+                            TestRigorLogger.logAdEvent("🎉 REWARDED AD IMPRESSION RECORDED - Ad is visible to user!")
+                        }
+
+                        override fun onAdImpression() {
+                            TestRigorLogger.logAdEvent("📊 REWARDED AD IMPRESSION counted by AdMob")
                         }
                     }
                 }
@@ -363,9 +379,11 @@ class AdMobManager private constructor(private val context: Context) {
      * TESTRIGOR FIX: Check activity state before showing to prevent WindowManagerBadTokenException
      */
     fun showRewardedAd(activity: Activity, onRewarded: (Int) -> Unit, onAdClosed: () -> Unit = {}) {
+        TestRigorLogger.logAdEvent("📊 showRewardedAd() called - checking conditions...")
+        
         // TESTRIGOR FIX: Check activity state before showing ad
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
+            TestRigorLogger.logWarning("❌ Cannot show rewarded ad - activity invalid")
             onAdClosed()
             return
         }
@@ -374,22 +392,28 @@ class AdMobManager private constructor(private val context: Context) {
         val timeSinceLastAd = currentTime - lastRewardedTime.get()
 
         if (timeSinceLastAd < REWARDED_MIN_INTERVAL) {
-            TestRigorLogger.logAdEvent("Rewarded ad skipped - frequency cap (${timeSinceLastAd}ms)")
+            TestRigorLogger.logAdEvent("⏱️ Rewarded ad skipped - frequency cap (${timeSinceLastAd}ms < ${REWARDED_MIN_INTERVAL}ms)")
             onAdClosed()
             return
         }
 
         if (rewardedAd != null) {
-            rewardedAd?.show(activity) { rewardItem ->
-                val amount = rewardItem.amount
-                TestRigorLogger.logAdEvent("User earned reward: $amount")
-                onRewarded(amount)
+            TestRigorLogger.logAdEvent("🎬 SHOWING REWARDED AD NOW - calling show()")
+            try {
+                rewardedAd?.show(activity) { rewardItem ->
+                    val amount = rewardItem.amount
+                    TestRigorLogger.logAdEvent("💰 User earned reward: $amount")
+                    onRewarded(amount)
+                }
+                lastRewardedTime.set(currentTime)
+                TestRigorLogger.logAdEvent("✅ Rewarded ad show() called successfully")
+            } catch (e: Exception) {
+                TestRigorLogger.logError("❌ Exception showing rewarded ad: ${e.message}", e)
             }
-            lastRewardedTime.set(currentTime)
 
             handler.postDelayed(onAdClosed, 100)
         } else {
-            TestRigorLogger.logAdEvent("Rewarded ad not ready")
+            TestRigorLogger.logAdEvent("❌ Rewarded ad not ready (null)")
             loadRewardedAd()
             onAdClosed()
         }
@@ -431,6 +455,27 @@ class AdMobManager private constructor(private val context: Context) {
             .build()
 
         adLoader.loadAd(AdRequest.Builder().build())
+    }
+
+    /**
+     * Force show interstitial (bypass frequency cap - for testing only)
+     */
+    internal fun forceShowInterstitial(activity: Activity, onAdClosed: () -> Unit = {}) {
+        TestRigorLogger.logAdEvent("🧪 FORCE SHOW - bypassing frequency cap")
+        
+        if (interstitialAd != null) {
+            TestRigorLogger.logAdEvent("🎬 FORCE SHOWING INTERSTITIAL AD")
+            try {
+                interstitialAd?.show(activity)
+                TestRigorLogger.logAdEvent("✅ Force show() called")
+            } catch (e: Exception) {
+                TestRigorLogger.logError("❌ Force show exception: ${e.message}", e)
+            }
+            handler.postDelayed(onAdClosed, 100)
+        } else {
+            TestRigorLogger.logAdEvent("❌ Cannot force show - ad is null")
+            onAdClosed()
+        }
     }
 
     /**

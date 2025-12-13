@@ -39,15 +39,24 @@ class AdBridge(
      */
     @JavascriptInterface
     fun showInterstitial() {
-        TestRigorLogger.logAdEvent("AdBridge.showInterstitial() called from web app")
+        TestRigorLogger.logAdEvent("🎯 AdBridge.showInterstitial() CALLED from web app")
         
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show interstitial - activity invalid")
+            TestRigorLogger.logWarning("❌ Cannot show interstitial - activity invalid")
+            notifyWebApp("interstitialFailed", "activity_invalid")
+            return
+        }
+        
+        if (!adMobManager.isInitialized.get()) {
+            TestRigorLogger.logWarning("❌ Cannot show interstitial - AdMob not initialized")
+            notifyWebApp("interstitialFailed", "not_initialized")
             return
         }
         
         activity.runOnUiThread {
+            TestRigorLogger.logAdEvent("🚀 Attempting to show interstitial ad...")
             adMobManager.showInterstitialAd(activity) {
+                TestRigorLogger.logAdEvent("✅ Interstitial ad closed callback")
                 notifyWebApp("interstitialClosed", "true")
             }
         }
@@ -59,20 +68,36 @@ class AdBridge(
      */
     @JavascriptInterface
     fun showRewarded() {
-        TestRigorLogger.logAdEvent("AdBridge.showRewarded() called from web app")
+        TestRigorLogger.logAdEvent("🎯 AdBridge.showRewarded() CALLED from web app")
         
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
+            TestRigorLogger.logWarning("❌ Cannot show rewarded ad - activity invalid")
+            notifyWebApp("rewardedFailed", "activity_invalid")
+            return
+        }
+        
+        if (!adMobManager.isInitialized.get()) {
+            TestRigorLogger.logWarning("❌ Cannot show rewarded ad - AdMob not initialized")
+            notifyWebApp("rewardedFailed", "not_initialized")
+            return
+        }
+        
+        if (!adMobManager.isRewardedAdAvailable()) {
+            TestRigorLogger.logWarning("❌ Rewarded ad not ready yet")
+            notifyWebApp("rewardedFailed", "not_ready")
             return
         }
         
         activity.runOnUiThread {
+            TestRigorLogger.logAdEvent("🚀 Attempting to show rewarded ad...")
             adMobManager.showRewardedAd(
                 activity,
                 onRewarded = { amount ->
+                    TestRigorLogger.logAdEvent("💰 Reward earned: $amount")
                     notifyWebApp("rewardEarned", amount.toString())
                 },
                 onAdClosed = {
+                    TestRigorLogger.logAdEvent("✅ Rewarded ad closed callback")
                     notifyWebApp("rewardedClosed", "true")
                 }
             )
@@ -121,6 +146,27 @@ class AdBridge(
                 "timestamp": ${System.currentTimeMillis()}
             }
         """.trimIndent()
+    }
+
+    /**
+     * Force show interstitial ad (bypass frequency cap for testing)
+     * Usage: window.AdBridge.testShowInterstitial()
+     */
+    @JavascriptInterface
+    fun testShowInterstitial() {
+        TestRigorLogger.logAdEvent("🧪 TEST: Force showing interstitial ad")
+        
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("❌ Cannot test - activity invalid")
+            return
+        }
+        
+        activity.runOnUiThread {
+            adMobManager.forceShowInterstitial(activity) {
+                TestRigorLogger.logAdEvent("✅ TEST: Interstitial closed")
+                notifyWebApp("testInterstitialClosed", "true")
+            }
+        }
     }
 
     /**
