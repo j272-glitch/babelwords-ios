@@ -122,6 +122,32 @@ class AdBridge(
     }
 
     /**
+     * Get diagnostic information
+     * Usage: window.AdBridge.getDiagnostics()
+     */
+    @JavascriptInterface
+    fun getDiagnostics(): String {
+        val lifecycle = if (activity is AppCompatActivity) {
+            (activity as AppCompatActivity).lifecycle.currentState.name
+        } else {
+            "UNKNOWN"
+        }
+        
+        return """
+        {
+            "adMobInitialized": ${adMobManager.isInitialized.get()},
+            "interstitialReady": ${adMobManager.interstitialAd != null},
+            "rewardedReady": ${adMobManager.isRewardedAdAvailable()},
+            "activityState": "$lifecycle",
+            "hasWindowFocus": ${activity.hasWindowFocus()},
+            "isFinishing": ${activity.isFinishing},
+            "isDestroyed": ${activity.isDestroyed},
+            "timestamp": ${System.currentTimeMillis()}
+        }
+        """.trimIndent()
+    }
+    
+    /**
      * Check if AdMob is initialized
      * Usage: window.AdBridge.isInitialized()
      */

@@ -266,7 +266,8 @@ class AdMobManager private constructor(private val context: Context) {
                         }
 
                         override fun onAdImpression() {
-                            TestRigorLogger.logAdEvent("📊 INTERSTITIAL AD IMPRESSION counted by AdMob")
+                            TestRigorLogger.logAdEvent("💰💰💰 INTERSTITIAL AD IMPRESSION COUNTED BY ADMOB 💰💰💰")
+                            TestRigorLogger.logAdEvent("This should now appear in AdMob dashboard")
                         }
                     }
                 }
@@ -309,39 +310,16 @@ class AdMobManager private constructor(private val context: Context) {
         }
 
         if (interstitialAd != null) {
-            TestRigorLogger.logAdEvent("🎬 SHOWING INTERSTITIAL AD NOW - setting callbacks and calling show()")
+            TestRigorLogger.logAdEvent("🎬 SHOWING INTERSTITIAL AD NOW")
             
-            // CRITICAL FIX: Set callbacks RIGHT BEFORE showing the ad
-            interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
-                override fun onAdShowedFullScreenContent() {
-                    TestRigorLogger.logAdEvent("✅ IMPRESSION LOGGED: Interstitial ad is now showing on screen")
-                    TestRigorLogger.logAdEvent("💰 This impression should be counted by AdMob")
-                    onAdShown()
-                }
-
-                override fun onAdDismissedFullScreenContent() {
-                    TestRigorLogger.logAdEvent("✅ INTERSTITIAL DISMISSED - User saw the ad")
-                    interstitialAd = null
-                    onAdClosed()
-                    // Reload after delay
-                    handler.postDelayed({ loadInterstitialAd() }, RETRY_DELAY_LONG)
-                }
-
-                override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                    TestRigorLogger.logError("❌ INTERSTITIAL FAILED TO SHOW: ${error.message} (code: ${error.code})", null)
-                    interstitialAd = null
-                    onAdClosed()
-                }
-
-                override fun onAdImpression() {
-                    TestRigorLogger.logAdEvent("📊 INTERSTITIAL AD IMPRESSION counted by AdMob")
-                }
-            }
+            // DO NOT set callbacks here - they are already set in loadInterstitialAd()
+            // Setting them again here OVERWRITES the impression tracking!
             
             try {
                 interstitialAd?.show(activity)
                 lastInterstitialTime.set(currentTime)
                 TestRigorLogger.logAdEvent("✅ Interstitial ad show() called successfully")
+                onAdShown()
             } catch (e: Exception) {
                 TestRigorLogger.logError("❌ Exception showing interstitial: ${e.message}", e)
                 onAdClosed()
@@ -390,7 +368,8 @@ class AdMobManager private constructor(private val context: Context) {
                         }
 
                         override fun onAdImpression() {
-                            TestRigorLogger.logAdEvent("📊 REWARDED AD IMPRESSION counted by AdMob")
+                            TestRigorLogger.logAdEvent("💰💰💰 REWARDED AD IMPRESSION COUNTED BY ADMOB 💰💰💰")
+                            TestRigorLogger.logAdEvent("This should now appear in AdMob dashboard")
                         }
                     }
                 }
@@ -428,33 +407,10 @@ class AdMobManager private constructor(private val context: Context) {
         }
 
         if (rewardedAd != null) {
-            TestRigorLogger.logAdEvent("🎬 SHOWING REWARDED AD NOW - setting callbacks and calling show()")
+            TestRigorLogger.logAdEvent("🎬 SHOWING REWARDED AD NOW")
             
-            // CRITICAL FIX: Set callbacks RIGHT BEFORE showing the ad
-            rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
-                override fun onAdShowedFullScreenContent() {
-                    TestRigorLogger.logAdEvent("✅ IMPRESSION LOGGED: Rewarded ad is now showing on screen")
-                    TestRigorLogger.logAdEvent("💰 This impression should be counted by AdMob")
-                }
-
-                override fun onAdDismissedFullScreenContent() {
-                    TestRigorLogger.logAdEvent("✅ REWARDED AD DISMISSED")
-                    rewardedAd = null
-                    onAdClosed()
-                    // Reload after delay
-                    handler.postDelayed({ loadRewardedAd() }, RETRY_DELAY_LONG)
-                }
-
-                override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                    TestRigorLogger.logError("❌ REWARDED AD FAILED TO SHOW: ${error.message} (code: ${error.code})", null)
-                    rewardedAd = null
-                    onAdClosed()
-                }
-
-                override fun onAdImpression() {
-                    TestRigorLogger.logAdEvent("📊 REWARDED AD IMPRESSION counted by AdMob")
-                }
-            }
+            // DO NOT set callbacks here - they are already set in loadRewardedAd()
+            // Setting them again here OVERWRITES the impression tracking!
             
             try {
                 rewardedAd?.show(activity) { rewardItem ->
