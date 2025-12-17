@@ -437,6 +437,11 @@ class AdMobManager private constructor(private val context: Context) {
     fun isRewardedAdAvailable(): Boolean = rewardedAd != null
 
     /**
+     * Check if interstitial ad is available
+     */
+    fun isInterstitialAdAvailable(): Boolean = interstitialAd != null
+
+    /**
      * Load native ad
      */
     fun loadNativeAd(onAdLoaded: (NativeAd) -> Unit) {

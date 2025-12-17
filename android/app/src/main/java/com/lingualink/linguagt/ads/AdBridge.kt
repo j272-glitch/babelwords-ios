@@ -3,6 +3,7 @@ package com.lingualink.linguagt.ads
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
+import androidx.appcompat.app.AppCompatActivity
 import com.lingualink.linguagt.TestRigorLogger
 
 /**
@@ -136,7 +137,7 @@ class AdBridge(
         return """
         {
             "adMobInitialized": ${adMobManager.isInitialized.get()},
-            "interstitialReady": ${adMobManager.interstitialAd != null},
+            "interstitialReady": ${adMobManager.isInterstitialAdAvailable()},
             "rewardedReady": ${adMobManager.isRewardedAdAvailable()},
             "activityState": "$lifecycle",
             "hasWindowFocus": ${activity.hasWindowFocus()},
@@ -154,23 +155,6 @@ class AdBridge(
     @JavascriptInterface
     fun isInitialized(): Boolean {
         return adMobManager.isInitialized.get()
-    }
-
-    /**
-     * Get diagnostic information
-     * Usage: window.AdBridge.getDiagnostics()
-     */
-    @JavascriptInterface
-    fun getDiagnostics(): String {
-        return """
-            {
-                "adBridgeAvailable": true,
-                "nativeAdBridge": true,
-                "adMobInitialized": ${adMobManager.isInitialized.get()},
-                "rewardedReady": ${adMobManager.isRewardedAdAvailable()},
-                "timestamp": ${System.currentTimeMillis()}
-            }
-        """.trimIndent()
     }
 
     /**
