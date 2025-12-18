@@ -586,25 +586,25 @@
     </div>
 
     <script>
-        // AdBridge integration for Android app
+        // NativeAdBridge integration for Android app
         let translationCount = 0;
         const TRANSLATION_LIMIT = 5;
 
-        // Initialize AdBridge when page loads (Android WebView)
+        // Initialize NativeAdBridge when page loads (Android WebView)
         function initializeAdBridge() {
-            if (window.AdBridge) {
-                console.log('AdBridge detected - initializing AdMob');
-                window.AdBridge.initialize();
+            if (window.NativeAdBridge) {
+                console.log('NativeAdBridge detected - initializing AdMob');
+                window.NativeAdBridge.initialize();
                 
                 // Get diagnostics
                 try {
-                    const diagnostics = window.AdBridge.getDiagnostics();
-                    console.log('AdBridge diagnostics:', diagnostics);
+                    const diagnostics = window.NativeAdBridge.getDiagnostics();
+                    console.log('NativeAdBridge diagnostics:', diagnostics);
                 } catch (e) {
                     console.error('Error getting diagnostics:', e);
                 }
             } else {
-                console.log('AdBridge not available (running in browser)');
+                console.log('NativeAdBridge not available (running in browser)');
             }
         }
 
@@ -683,7 +683,7 @@
                 counterDisplay.textContent = translationCount;
                 
                 // Show counter in Android app only
-                if (window.AdBridge) {
+                if (window.NativeAdBridge) {
                     counterContainer.style.display = 'block';
                 }
             }
@@ -691,39 +691,39 @@
 
         // Show interstitial ad when translation limit reached
         function showTranslationLimitAd() {
-            if (window.AdBridge) {
+            if (window.NativeAdBridge) {
                 console.log('🎯 Translation limit reached - attempting to show interstitial ad');
                 
                 // Check if ad is ready before showing
-                const isInitialized = window.AdBridge.isInitialized();
-                console.log('AdBridge initialized:', isInitialized);
+                const isInitialized = window.NativeAdBridge.isInitialized();
+                console.log('NativeAdBridge initialized:', isInitialized);
                 
                 if (isInitialized) {
                     try {
                         // CRITICAL: Actually call the show method
-                        window.AdBridge.showInterstitial();
+                        window.NativeAdBridge.showInterstitial();
                         console.log('✅ showInterstitial() called successfully');
                     } catch (e) {
                         console.error('❌ Error showing interstitial:', e);
                         translationCount = 0; // Reset on error
                     }
                 } else {
-                    console.warn('⚠️ AdBridge not initialized yet - resetting count');
+                    console.warn('⚠️ NativeAdBridge not initialized yet - resetting count');
                     translationCount = 0;
                 }
             } else {
-                console.log('AdBridge not available - would show ad in Android app');
+                console.log('NativeAdBridge not available - would show ad in Android app');
                 translationCount = 0; // Reset for browser testing
             }
         }
 
         // Show rewarded ad for premium access
         function showRewardedAdForPremium() {
-            if (window.AdBridge) {
-                const isReady = window.AdBridge.isRewardedReady();
+            if (window.NativeAdBridge) {
+                const isReady = window.NativeAdBridge.isRewardedReady();
                 if (isReady) {
                     console.log('Showing rewarded ad for premium access');
-                    window.AdBridge.showRewarded();
+                    window.NativeAdBridge.showRewarded();
                 } else {
                     alert('Rewarded ad is loading. Please try again in a moment.');
                 }
@@ -734,9 +734,9 @@
 
         // Test interstitial ad (for debugging)
         function testInterstitialAd() {
-            if (window.AdBridge) {
+            if (window.NativeAdBridge) {
                 console.log('Testing interstitial ad');
-                window.AdBridge.testShowInterstitial();
+                window.NativeAdBridge.testShowInterstitial();
             } else {
                 alert('Test ads only available in Android app');
             }
@@ -820,7 +820,7 @@
         setTimeout(injectAndroidPrivacyBanner, 1000);
         
         // Show debug buttons if in Android WebView
-        if (window.AdBridge || navigator.userAgent.includes('LinguaLink')) {
+        if (window.NativeAdBridge || navigator.userAgent.includes('LinguaLink')) {
             const debugButtons = document.getElementById('adDebugButtons');
             if (debugButtons) {
                 debugButtons.style.display = 'flex';
