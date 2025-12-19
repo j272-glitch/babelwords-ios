@@ -320,6 +320,14 @@ class MainActivity : BaseActivity() {
         // This ensures Android permission is already granted BEFORE web app asks
         if (!permissionManager.hasMicrophonePermission()) {
             TestRigorLogger.logMilestone("Proactively requesting microphone permission on startup")
+            
+            // Show rationale if needed
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
+                // User has previously denied permission, show rationale
+                val rationale = getString(R.string.permission_audio_rationale)
+                TestRigorLogger.logDebug("Showing permission rationale: $rationale")
+            }
+            
             permissionManager.requestMicrophonePermission { granted ->
                 TestRigorLogger.logPermission(Manifest.permission.RECORD_AUDIO, granted, true, 
                     "Startup request")
