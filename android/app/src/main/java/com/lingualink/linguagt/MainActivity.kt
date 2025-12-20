@@ -10,6 +10,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceError
 import android.webkit.JavascriptInterface
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -18,6 +19,10 @@ import com.lingualink.linguagt.ads.AdMobManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.media.AudioManager
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
+import android.media.audiofx.AutomaticGainControl
 
 /**
  * MainActivity with TestRigor enhancements
@@ -130,6 +135,12 @@ class MainActivity : BaseActivity() {
     // Solution #89: Track AdMob consent initialization state
     private var isAdMobConsentInitialized = false
     private var isWebViewFullyLoaded = false
+
+    // Audio enhancement components for speech recognition
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var gainControl: AutomaticGainControl? = null
+    private var isAudioEnhancementEnabled = false
 
     // Solution #90: Track if content view is set for Appium compatibility
     private var isContentViewSet = false
@@ -1017,6 +1028,84 @@ class MainActivity : BaseActivity() {
                 }
             }
         }
+
+        // Enable audio enhancements when microphone permission is granted
+        if (isGranted) {
+            setupAudioEnhancements()
+        }
+    }
+
+    /**
+     * Setup audio enhancements for improved speech recognition
+     * Enables echo cancellation, noise suppression, and automatic gain control
+     */
+    private fun setupAudioEnhancements() {
+        if (isAudioEnhancementEnabled) {
+            TestRigorLogger.logDebug("Audio enhancements already enabled")
+            return
+        }
+
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+            TestRigorLogger.logDebug("AudioManager set to MODE_IN_COMMUNICATION for echo cancellation")
+
+            // Get audio session ID for audio effects
+            val audioSessionId = 0 // Default session ID; WebView handles its own audio session
+
+            // Enable Acoustic Echo Canceler if available
+            if (AcousticEchoCanceler.isAvailable()) {
+                echoCanceler = AcousticEchoCanceler.create(audioSessionId)
+                echoCanceler?.enabled = true
+                TestRigorLogger.logDebug("AcousticEchoCanceler enabled")
+            } else {
+                TestRigorLogger.logWarning("AcousticEchoCanceler not available on this device")
+            }
+
+            // Enable Noise Suppressor if available
+            if (NoiseSuppressor.isAvailable()) {
+                noiseSuppressor = NoiseSuppressor.create(audioSessionId)
+                noiseSuppressor?.enabled = true
+                TestRigorLogger.logDebug("NoiseSuppressor enabled")
+            } else {
+                TestRigorLogger.logWarning("NoiseSuppressor not available on this device")
+            }
+
+            // Enable Automatic Gain Control if available
+            if (AutomaticGainControl.isAvailable()) {
+                gainControl = AutomaticGainControl.create(audioSessionId)
+                gainControl?.enabled = true
+                TestRigorLogger.logDebug("AutomaticGainControl enabled")
+            } else {
+                TestRigorLogger.logWarning("AutomaticGainControl not available on this device")
+            }
+
+            isAudioEnhancementEnabled = true
+            TestRigorLogger.logMilestone("Audio enhancements setup completed")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Failed to setup audio enhancements", e)
+        }
+    }
+
+    /**
+     * Release audio enhancement resources
+     */
+    private fun releaseAudioEnhancements() {
+        try {
+            echoCanceler?.release()
+            echoCanceler = null
+
+            noiseSuppressor?.release()
+            noiseSuppressor = null
+
+            gainControl?.release()
+            gainControl = null
+
+            isAudioEnhancementEnabled = false
+            TestRigorLogger.logDebug("Audio enhancements released")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Failed to release audio enhancements", e)
+        }
     }
 
     /**
@@ -1366,6 +1455,9 @@ class MainActivity : BaseActivity() {
         } catch (e: Exception) {
             TestRigorLogger.logError("AdMob cleanup", e)
         }
+
+        // Release audio enhancement resources
+        releaseAudioEnhancements()
 
         try {
             tracker?.endSession()
