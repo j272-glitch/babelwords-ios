@@ -16,7 +16,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.lingualink.linguagt.ads.AdMobManager
+import com.lingualink.linguagt.ads.IMAManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -57,7 +57,7 @@ class MainActivity : BaseActivity() {
     private lateinit var lifecycleHandler: LifecycleAwareHandler
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
-    private lateinit var adMobManager: AdMobManager
+    private lateinit var imaManager: IMAManager
     private lateinit var adBridge: com.lingualink.linguagt.ads.AdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
@@ -133,8 +133,8 @@ class MainActivity : BaseActivity() {
     private var lastBridgeCallTime = 0L
     private val BRIDGE_THROTTLE_MS = 100L
 
-    // Solution #89: Track AdMob consent initialization state
-    private var isAdMobConsentInitialized = false
+    // Solution #89: Track IMA consent initialization state
+    private var isIMAConsentInitialized = false
     private var isWebViewFullyLoaded = false
 
     // Audio enhancement components for speech recognition
@@ -168,7 +168,7 @@ class MainActivity : BaseActivity() {
                 pendingPermissionRequest = null
                 isWaitingForAndroidPermission = false
                 isProcessingPermission = false
-                isAdMobConsentInitialized = false
+                isIMAConsentInitialized = false
                 isWebViewFullyLoaded = false
             }
 
@@ -181,12 +181,12 @@ class MainActivity : BaseActivity() {
             lifecycleHandler = LifecycleAwareHandler(this)
             permissionManager = SafePermissionManager(this, isTestMode)
             webAppBridge = WebAppBridge(this)
-            adMobManager = AdMobManager.getInstance(this)
+            imaManager = IMAManager.getInstance(this)
 
-            // Solution #89: Delay AdMob consent initialization until WebView is fully loaded
-            // AdMob SDK initialization (without consent) - consent will be requested in onPageFinished
+            // Solution #89: Delay IMA consent initialization until WebView is fully loaded
+            // IMA SDK initialization (without consent) - consent will be requested in onPageFinished
             // Note: AdBridge is registered in setupWebViewForConversationMode() after WebView is created
-            TestRigorLogger.logAdEvent("AdMob SDK reference obtained - consent deferred until WebView ready")
+            TestRigorLogger.logAdEvent("IMA SDK reference obtained - consent deferred until WebView ready")
 
             requestPermissions()
 
@@ -217,30 +217,30 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Solution #89: Initialize AdMob consent after activity is fully ready
+     * Solution #89: Initialize IMA consent after activity is fully ready
      * Called from onPageFinished to ensure WebView and activity are stable
      */
-    private fun initializeAdMobConsentSafely() {
-        if (isAdMobConsentInitialized) {
-            TestRigorLogger.logDebug("AdMob consent already initialized, skipping")
+    private fun initializeIMAConsentSafely() {
+        if (isIMAConsentInitialized) {
+            TestRigorLogger.logDebug("IMA consent already initialized, skipping")
             return
         }
 
         if (isFinishing || isDestroyed) {
-            TestRigorLogger.logWarning("Cannot initialize AdMob consent - activity invalid")
+            TestRigorLogger.logWarning("Cannot initialize IMA consent - activity invalid")
             return
         }
 
-        isAdMobConsentInitialized = true
-        TestRigorLogger.logAdEvent("Initializing AdMob consent (WebView fully loaded)")
+        isIMAConsentInitialized = true
+        TestRigorLogger.logAdEvent("Initializing IMA consent (WebView fully loaded)")
 
         try {
-            adMobManager.initialize(this) { consentGranted ->
-                TestRigorLogger.logAdEvent("AdMob consent completed: $consentGranted")
+            imaManager.initialize(this) { consentGranted ->
+                TestRigorLogger.logAdEvent("IMA consent completed: $consentGranted")
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob consent initialization failed", e)
-            isAdMobConsentInitialized = false // Allow retry on next page load
+            TestRigorLogger.logError("IMA consent initialization failed", e)
+            isIMAConsentInitialized = false // Allow retry on next page load
         }
     }
 
@@ -456,7 +456,7 @@ class MainActivity : BaseActivity() {
                     webAppBridge.onPageLoaded()
                 }
 
-                // Solution #89: Mark WebView as fully loaded and initialize AdMob consent
+                // Solution #89: Mark WebView as fully loaded and initialize IMA consent
                 isWebViewFullyLoaded = true
 
                 // Notify web app that AdBridge is ready
@@ -466,9 +466,9 @@ class MainActivity : BaseActivity() {
                 )
                 TestRigorLogger.logAdEvent("AdBridge ready signal sent to web app")
 
-                // Delay AdMob consent slightly to ensure page is stable
+                // Delay IMA consent slightly to ensure page is stable
                 lifecycleHandler.postDelayed({
-                    initializeAdMobConsentSafely()
+                    initializeIMAConsentSafely()
                 }, 1000) // 1 second delay for stability
 
                 super.onPageFinished(view, url)
@@ -543,7 +543,7 @@ class MainActivity : BaseActivity() {
             }
         }
 
-        webView.contentDescription = "LinguaLink Translation App WebView"
+        webView.contentDescription = "LinguaVibe Translation App WebView"
         setContentView(webView)
 
         // Solution #90: Track content view set for Appium compatibility
@@ -1110,8 +1110,8 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onResume: WebView, AdMob, Tracker, and Permission handling
-     * Solution #89: Includes AdMob resume and deferred consent initialization
+     * Unified onResume: WebView, IMA, Tracker, and Permission handling
+     * Solution #89: Includes IMA resume and deferred consent initialization
      */
     override fun onResume() {
         super.onResume()
@@ -1124,20 +1124,20 @@ class MainActivity : BaseActivity() {
             webView.onResume()
         }
 
-        // Solution #89: Resume AdMob ads if initialized
+        // Solution #89: Resume IMA ads if initialized
         try {
-            if (::adMobManager.isInitialized) {
-                adMobManager.resume()
+            if (::imaManager.isInitialized) {
+                imaManager.resume()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob resume failed", e)
+            TestRigorLogger.logError("IMA resume failed", e)
         }
 
         // Solution #89: Fallback consent initialization if WebView loaded but consent wasn't initialized
-        if (isWebViewFullyLoaded && !isAdMobConsentInitialized) {
-            TestRigorLogger.logDebug("onResume: Triggering deferred AdMob consent initialization")
+        if (isWebViewFullyLoaded && !isIMAConsentInitialized) {
+            TestRigorLogger.logDebug("onResume: Triggering deferred IMA consent initialization")
             lifecycleHandler.postDelayed({
-                initializeAdMobConsentSafely()
+                initializeIMAConsentSafely()
             }, 500) // Small delay to ensure activity is fully resumed
         }
 
@@ -1152,8 +1152,8 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onPause: WebView and AdMob handling
-     * Solution #89: Includes AdMob pause
+     * Unified onPause: WebView and IMA handling
+     * Solution #89: Includes IMA pause
      */
     override fun onPause() {
         super.onPause()
@@ -1163,13 +1163,13 @@ class MainActivity : BaseActivity() {
             webView.onPause()
         }
 
-        // Solution #89: Pause AdMob ads
+        // Solution #89: Pause IMA ads
         try {
-            if (::adMobManager.isInitialized) {
-                adMobManager.pause()
+            if (::imaManager.isInitialized) {
+                imaManager.pause()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob pause failed", e)
+            TestRigorLogger.logError("IMA pause failed", e)
         }
     }
 
@@ -1270,10 +1270,10 @@ class MainActivity : BaseActivity() {
         layout.setBackgroundColor(android.graphics.Color.WHITE)
 
         val titleText = android.widget.TextView(this)
-        titleText.text = "LinguaLink - Conversation Mode"
+        titleText.text = "LinguaVibe - Conversation Mode"
         titleText.textSize = 24f
         titleText.id = android.R.id.title
-        titleText.contentDescription = "LinguaLink Translation App"
+        titleText.contentDescription = "LinguaVibe Translation App"
         titleText.setTextColor(android.graphics.Color.BLACK)
         layout.addView(titleText)
 
@@ -1448,13 +1448,13 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logError("LifecycleHandler cleanup", e)
         }
 
-        // Solution #81: Clean up AdMob
+        // Solution #81: Clean up IMA
         try {
-            if (::adMobManager.isInitialized) {
-                adMobManager.destroy()
+            if (::imaManager.isInitialized) {
+                imaManager.destroy()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdMob cleanup", e)
+            TestRigorLogger.logError("IMA cleanup", e)
         }
 
         // Release audio enhancement resources

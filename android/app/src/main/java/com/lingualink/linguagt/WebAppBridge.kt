@@ -5,7 +5,8 @@ import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.widget.Toast
-import com.lingualink.linguagt.ads.AdMobManager
+import androidx.appcompat.app.AppCompatActivity
+import com.lingualink.linguagt.ads.IMAManager
 import org.json.JSONObject
 
 /**
@@ -38,8 +39,8 @@ class WebAppBridge(private val activity: Activity) {
         private const val MAX_SYNC_DATA_SIZE = 10000
     }
 
-    private val adMobManager: AdMobManager by lazy {
-        AdMobManager.getInstance(activity)
+    private val imaManager: IMAManager by lazy {
+        IMAManager.getInstance(activity)
     }
     
     // TESTRIGOR FIX: Handler for safe UI thread execution
@@ -83,45 +84,42 @@ class WebAppBridge(private val activity: Activity) {
      * Solution #69: Check throttle for rapid calls
      */
     private fun shouldThrottle(): Boolean {
+        val now = System.currentTimeMillis()
         synchronized(bridgeLock) {
-            val now = System.currentTimeMillis()
             if (now - lastBridgeCallTime < THROTTLE_MS) {
                 TestRigorLogger.logDebug("WebAppBridge: Throttling rapid call")
                 return true
             }
             lastBridgeCallTime = now
-            return false
         }
+        return false
     }
     
     /**
-     * Solution #65: Execute or defer operation based on page load state
+     * Solution #65: Defer operation until page is loaded
      */
-    private fun executeOrDefer(operation: () -> Unit) {
+    private fun deferUntilPageLoaded(operation: () -> Unit) {
         if (isPageLoaded) {
             safeExecuteOnUiThread(operation)
         } else {
+            TestRigorLogger.logDebug("WebAppBridge: Deferring operation until page loaded")
             synchronized(bridgeLock) {
                 deferredOperations.add(operation)
-                TestRigorLogger.logDebug("WebAppBridge: Operation deferred until page loads")
             }
         }
     }
 
     /**
-     * TESTRIGOR FIX: Safe UI thread execution with lifecycle validation
-     * Uses Handler-based approach to avoid IllegalStateException during WebView destruction
-     * 
-     * Solution #67: Wrap all JS calls in try-catch
+     * TESTRIGOR FIX: Safe execution on UI thread with activity state check
+     * All UI operations should use this to prevent crashes when activity is invalid
      */
     private fun safeExecuteOnUiThread(action: () -> Unit) {
-        // Pre-check activity state
+        // First check: Quick validation before posting
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("safeExecuteOnUiThread skipped - activity invalid")
+            TestRigorLogger.logWarning("safeExecuteOnUiThread skipped - activity already invalid")
             return
         }
-        
-        // Use Handler for safer execution (same pattern as ActivityExtensions.safeRunOnUiThread)
+
         mainHandler.post {
             // Double-check activity state inside handler
             if (!activity.isFinishing && !activity.isDestroyed) {
@@ -153,9 +151,11 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            adMobManager.showInterstitialAd(activity) {
-                // After ad closes, notify web app
-                notifyWebApp("interstitial_closed")
+            if (activity is AppCompatActivity) {
+                imaManager.showInterstitialAd(activity) { success ->
+                    // After ad closes, notify web app
+                    notifyWebApp("interstitial_closed")
+                }
             }
         }
     }
@@ -176,21 +176,23 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            if (adMobManager.isRewardedAdAvailable()) {
-                adMobManager.showRewardedAd(
-                    activity,
-                    onRewarded = { amount ->
-                        TestRigorLogger.logAdEvent("User earned reward: $amount")
-                        // Grant 30 minutes of premium access
-                        grantPremiumAccess(30)
-                    },
-                    onAdClosed = {
-                        notifyWebApp("rewarded_closed")
-                    }
-                )
-            } else {
-                Toast.makeText(activity, "Ad not available yet. Please try again.", Toast.LENGTH_SHORT).show()
-                notifyWebApp("rewarded_not_available")
+            if (activity is AppCompatActivity) {
+                if (imaManager.isRewardedAdAvailable()) {
+                    imaManager.showRewardedAd(
+                        activity,
+                        onRewarded = {
+                            TestRigorLogger.logAdEvent("User earned reward")
+                            // Grant 30 minutes of premium access
+                            grantPremiumAccess(30)
+                        },
+                        onComplete = { success ->
+                            notifyWebApp("rewarded_closed")
+                        }
+                    )
+                } else {
+                    Toast.makeText(activity, "Ad not available yet. Please try again.", Toast.LENGTH_SHORT).show()
+                    notifyWebApp("rewarded_not_available")
+                }
             }
         }
     }
@@ -201,7 +203,7 @@ class WebAppBridge(private val activity: Activity) {
      */
     @JavascriptInterface
     fun isRewardedAdReady(): Boolean {
-        return adMobManager.isRewardedAdAvailable()
+        return imaManager.isRewardedAdAvailable()
     }
 
     /**
@@ -252,126 +254,52 @@ class WebAppBridge(private val activity: Activity) {
 
         // TESTRIGOR FIX: Use safe UI thread access for Toast
         safeExecuteOnUiThread {
-            Toast.makeText(activity, "Premium access granted for $minutes minutes!", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                activity,
+                "Premium access granted for $minutes minutes!",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
     /**
-     * Check if user has active premium access
+     * Check if user has premium access
      * Web app should call: window.AndroidBridge.hasPremiumAccess()
      */
     @JavascriptInterface
     fun hasPremiumAccess(): Boolean {
         val prefs = activity.getSharedPreferences("lingualink_prefs", Activity.MODE_PRIVATE)
-        val expiryTime = prefs.getLong("premium_expiry", 0)
         val isPremium = prefs.getBoolean("is_premium", false)
+        val expiryTime = prefs.getLong("premium_expiry", 0)
 
-        val hasAccess = isPremium && System.currentTimeMillis() < expiryTime
-
-        if (!hasAccess && isPremium) {
-            // Premium expired, clear it
-            prefs.edit()
-                .putBoolean("is_premium", false)
-                .remove("premium_expiry")
-                .apply()
-        }
-
-        return hasAccess
+        return isPremium && System.currentTimeMillis() < expiryTime
     }
 
     /**
-     * Get remaining premium time in minutes
-     * Web app should call: window.AndroidBridge.getPremiumMinutesRemaining()
+     * Get premium status details as JSON
+     * Web app should call: window.AndroidBridge.getPremiumStatus()
      */
     @JavascriptInterface
-    fun getPremiumMinutesRemaining(): Int {
-        if (!hasPremiumAccess()) return 0
-
+    fun getPremiumStatus(): String {
         val prefs = activity.getSharedPreferences("lingualink_prefs", Activity.MODE_PRIVATE)
+        val isPremium = prefs.getBoolean("is_premium", false)
         val expiryTime = prefs.getLong("premium_expiry", 0)
-        val remainingMs = expiryTime - System.currentTimeMillis()
+        val now = System.currentTimeMillis()
+        val isActive = isPremium && now < expiryTime
 
-        return (remainingMs / 60000).toInt().coerceAtLeast(0)
+        return JSONObject().apply {
+            put("isPremium", isPremium)
+            put("isActive", isActive)
+            put("expiryTime", expiryTime)
+            put("remainingMs", if (isActive) expiryTime - now else 0)
+        }.toString()
     }
 
     /**
-     * Notify web app of events
-     * TESTRIGOR FIX: Added null checks, activity state validation, and safe UI thread access
-     * 
-     * CRASH PREVENTION SOLUTIONS:
-     * - Solution #66: Post results to UI thread
-     * - Solution #67: Wrap JS calls in try-catch
-     * - Solution #70: Handle Unicode/encoding safely
-     * - Solution #71: Use async for large data
+     * Solution #70: Sanitize data for JavaScript execution
      */
-    private fun notifyWebApp(eventType: String, data: String = "{}") {
-        // TESTRIGOR FIX: Check activity state before attempting to notify
-        if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot notify web app - activity invalid: $eventType")
-            return
-        }
-        
-        // Solution #69: Check throttle
-        if (shouldThrottle()) {
-            TestRigorLogger.logDebug("Throttled notifyWebApp: $eventType")
-            return
-        }
-        
-        // Solution #70: Sanitize data for JavaScript injection
-        val sanitizedData = sanitizeForJavaScript(data)
-        val sanitizedEventType = sanitizeForJavaScript(eventType)
-        
-        // Solution #71: Check data size
-        if (sanitizedData.length > MAX_SYNC_DATA_SIZE) {
-            TestRigorLogger.logWarning("Data too large for sync notify: ${sanitizedData.length} bytes")
-            // For large data, use chunked or async approach
-        }
-        
-        // Solution #65: Execute or defer based on page state
-        executeOrDefer {
-            val js = """
-                (function() {
-                    try {
-                        if (window.onNativeEvent) {
-                            window.onNativeEvent('$sanitizedEventType', $sanitizedData);
-                        }
-
-                        // Also dispatch custom event
-                        const event = new CustomEvent('native_$sanitizedEventType', { 
-                            detail: $sanitizedData 
-                        });
-                        window.dispatchEvent(event);
-
-                        console.log('Native event dispatched: $sanitizedEventType', $sanitizedData);
-                    } catch(e) {
-                        console.error('Error dispatching native event:', e);
-                    }
-                })();
-            """.trimIndent()
-
-            // Solution #67: Wrap in try-catch
-            try {
-                // TESTRIGOR FIX: Null check for WebView
-                val webView = (activity as? MainActivity)?.getWebView()
-                if (webView == null) {
-                    TestRigorLogger.logWarning("WebView null in notifyWebApp: $eventType")
-                    return@executeOrDefer
-                }
-                
-                // Solution #66: evaluateJavascript already posts to UI thread
-                webView.evaluateJavascript(js, null)
-            } catch (e: Exception) {
-                TestRigorLogger.logError("Failed to notify web app: $eventType", e)
-            }
-        }
-    }
-    
-    /**
-     * Solution #70: Sanitize string for safe JavaScript injection
-     * Prevents XSS and encoding issues
-     */
-    private fun sanitizeForJavaScript(input: String): String {
-        return input
+    private fun sanitizeForJs(data: String): String {
+        return data
             .replace("\\", "\\\\")
             .replace("'", "\\'")
             .replace("\"", "\\\"")
@@ -379,15 +307,107 @@ class WebAppBridge(private val activity: Activity) {
             .replace("\r", "\\r")
             .replace("\t", "\\t")
     }
-    
+
     /**
-     * Solution #71: Clear deferred operations on cleanup
+     * Solution #71: Check if data should be sent async
+     */
+    private fun shouldUseAsync(data: String): Boolean {
+        return data.length > MAX_SYNC_DATA_SIZE
+    }
+
+    /**
+     * Notify web app of events via JavaScript callback
+     * Solution #66: Post to UI thread
+     * Solution #67: Wrap in try-catch
+     * Solution #70: Handle encoding
+     */
+    private fun notifyWebApp(event: String, data: String = "{}") {
+        if (!isPageLoaded) {
+            TestRigorLogger.logDebug("WebAppBridge: Cannot notify - page not loaded")
+            return
+        }
+        
+        // TESTRIGOR FIX: Check activity state before UI operation
+        if (activity.isFinishing || activity.isDestroyed) {
+            TestRigorLogger.logWarning("Cannot notify web app - activity invalid")
+            return
+        }
+
+        // Solution #70: Sanitize data
+        val safeData = sanitizeForJs(data)
+        
+        // Solution #71: Use chunked transfer for large data
+        if (shouldUseAsync(safeData)) {
+            notifyWebAppAsync(event, safeData)
+            return
+        }
+
+        val jsCode = """
+            try {
+                if (typeof window.onNativeEvent === 'function') {
+                    window.onNativeEvent('$event', $safeData);
+                }
+            } catch(e) {
+                console.error('Native event error:', e);
+            }
+        """.trimIndent()
+
+        safeExecuteOnUiThread {
+            try {
+                (activity as? MainActivity)?.let { mainActivity ->
+                    try {
+                        // Access webView through a method instead of direct property access
+                        mainActivity.evaluateJavaScript(jsCode)
+                    } catch (e: Exception) {
+                        TestRigorLogger.logError("JS evaluation failed", e)
+                    }
+                }
+            } catch (e: Exception) {
+                TestRigorLogger.logError("notifyWebApp failed", e)
+            }
+        }
+    }
+
+    /**
+     * Solution #71: Async notification for large data
+     */
+    private fun notifyWebAppAsync(event: String, data: String) {
+        TestRigorLogger.logDebug("WebAppBridge: Using async transfer for large data (${data.length} chars)")
+        
+        // Split into chunks
+        val chunkSize = MAX_SYNC_DATA_SIZE / 2
+        val chunks = data.chunked(chunkSize)
+        
+        // Send start signal
+        notifyWebApp("${event}_start", """{"totalChunks": ${chunks.size}}""")
+        
+        // Send chunks with delay
+        chunks.forEachIndexed { index, chunk ->
+            mainHandler.postDelayed({
+                if (!activity.isFinishing && !activity.isDestroyed && isPageLoaded) {
+                    val chunkData = """{"chunk": "$chunk", "index": $index}"""
+                    notifyWebApp("${event}_chunk", chunkData)
+                    
+                    // Send complete signal after last chunk
+                    if (index == chunks.lastIndex) {
+                        mainHandler.postDelayed({
+                            notifyWebApp("${event}_complete", "{}")
+                        }, 50)
+                    }
+                }
+            }, (index * 50).toLong())
+        }
+    }
+
+    /**
+     * Cleanup resources
      */
     fun cleanup() {
         synchronized(bridgeLock) {
             deferredOperations.clear()
-            isPageLoaded = false
         }
+        isPageLoaded = false
+        mainHandler.removeCallbacksAndMessages(null)
         TestRigorLogger.logDebug("WebAppBridge: Cleaned up")
     }
 }

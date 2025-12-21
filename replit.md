@@ -1,12 +1,13 @@
 # Overview
 
-LinguaGT is an Android-based real-time speech translation application. The project wraps a web application (hosted at linguagt.com/gtlingua.com) in a native Android WebView container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
+LinguaVibe (formerly LinguaGT/LinguaLink) is an Android-based real-time speech translation application. The project wraps a web application (hosted at linguagt.com/gtlingua.com) in a native Android WebView container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
 
 The application is built using:
 - **Native Android (Kotlin)** - WebView wrapper with permission handling
 - **GitHub Actions** - Automated CI/CD for APK/AAB builds
 - **Capacitor** - Cross-platform mobile framework
 - **Node.js** - Development tooling and web serving
+- **Google IMA SDK** - Video ad monetization
 
 # User Preferences
 
@@ -62,17 +63,19 @@ Preferred communication style: Simple, everyday language.
 7. **Activity Lifecycle (6 solutions)**: Dialog tracking, isSafeToShowDialog, handler callback cleanup
 8. **Resource Leak & Exception (11 solutions)**: Cleanup in onDestroy, LifecycleAwareHandler with allPendingWrappers list, OOM protection
 9. **Appium/TestRigor Compatibility (3 solutions)**:
-   - Solution #89: AdMob consent timing - deferred initialization until WebView fully loaded
+   - Solution #89: IMA consent timing - deferred initialization until WebView fully loaded
    - Solution #90: Window measurement safety - isWindowAttached(), isFullyReady() tracking, exception handler chain protection, content view tracking for Appium getCurrentWindowSize compatibility
    - Solution #91: Permission dialog crash prevention - isFullyReady() check before showing permission dialog, deferred permission request if activity not ready
 
-Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, TestRigorLogger.kt, LinguaLinkApplication.kt
+Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, TestRigorLogger.kt, LinguaLinkApplication.kt, IMAManager.kt, AdBridge.kt
 
 ## Third-Party Integrations
 
-**Ad Integration**: Multiple ad SDK integrations explored:
-- AppLovin SDK for interstitial/rewarded ads
-- Unity LevelPlay for ad mediation
+**Ad Integration (IMA SDK)**: Migrated from AdMob to Google Interactive Media Ads (IMA) SDK for video ad monetization:
+- IMAManager.kt handles SDK initialization, ad loading, and playback
+- AdBridge.kt provides JavaScript bridge for web app ad triggers
+- WebAppBridge.kt handles interstitial/rewarded ad requests from web app
+- Supports interstitial and rewarded video ads
 - Conversation-based ad triggers (after N translations)
 
 **Analytics**: User activity tracking with conversation counting and session management.

@@ -7,19 +7,19 @@ import androidx.appcompat.app.AppCompatActivity
 import com.lingualink.linguagt.TestRigorLogger
 
 /**
- * JavaScript bridge for AdMob functionality
+ * JavaScript bridge for IMA SDK functionality
  * Exposes ad methods to the web app via window.AdBridge
  */
 class AdBridge(
     private val activity: Activity,
     private val webView: WebView
 ) {
-    private val adMobManager: AdMobManager by lazy {
-        AdMobManager.getInstance(activity)
+    private val imaManager: IMAManager by lazy {
+        IMAManager.getInstance(activity)
     }
 
     /**
-     * Initialize AdMob - called from web app
+     * Initialize IMA SDK - called from web app
      * Usage: window.AdBridge.initialize()
      */
     @JavascriptInterface
@@ -27,8 +27,13 @@ class AdBridge(
         TestRigorLogger.logAdEvent("AdBridge.initialize() called from web app")
 
         activity.runOnUiThread {
-            adMobManager.initialize(activity) { success ->
-                notifyWebApp("adMobInitialized", success.toString())
+            if (activity is AppCompatActivity) {
+                imaManager.initialize(activity) { success ->
+                    notifyWebApp("imaInitialized", success.toString())
+                }
+            } else {
+                TestRigorLogger.logWarning("Activity is not AppCompatActivity")
+                notifyWebApp("imaInitialized", "false")
             }
         }
     }
@@ -48,17 +53,17 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            adMobManager.showInterstitialAd(
-                activity,
-                onAdShown = {
-                    TestRigorLogger.logAdEvent("🎉 Interstitial ad SHOWN - notifying web app")
-                    notifyWebApp("interstitialShown", "true")
-                },
-                onAdClosed = {
-                    TestRigorLogger.logAdEvent("Interstitial ad closed from AdBridge")
+            if (activity is AppCompatActivity) {
+                imaManager.showInterstitialAd(activity) { success ->
+                    if (success) {
+                        TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
+                        notifyWebApp("interstitialShown", "true")
+                    } else {
+                        notifyWebApp("interstitialFailed", "Ad not available")
+                    }
                     notifyWebApp("interstitialClosed", "true")
                 }
-            )
+            }
         }
     }
 
@@ -68,39 +73,41 @@ class AdBridge(
      */
     @JavascriptInterface
     fun showRewarded() {
-        TestRigorLogger.logAdEvent("🎯 AdBridge.showRewarded() CALLED from web app")
+        TestRigorLogger.logAdEvent("AdBridge.showRewarded() CALLED from web app")
 
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("❌ Cannot show rewarded ad - activity invalid")
+            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
             notifyWebApp("rewardedFailed", "activity_invalid")
             return
         }
 
-        if (!adMobManager.isInitialized.get()) {
-            TestRigorLogger.logWarning("❌ Cannot show rewarded ad - AdMob not initialized")
+        if (!imaManager.isInitialized.get()) {
+            TestRigorLogger.logWarning("Cannot show rewarded ad - IMA SDK not initialized")
             notifyWebApp("rewardedFailed", "not_initialized")
             return
         }
 
-        if (!adMobManager.isRewardedAdAvailable()) {
-            TestRigorLogger.logWarning("❌ Rewarded ad not ready yet")
+        if (!imaManager.isRewardedAdAvailable()) {
+            TestRigorLogger.logWarning("Rewarded ad not ready yet")
             notifyWebApp("rewardedFailed", "not_ready")
             return
         }
 
         activity.runOnUiThread {
-            TestRigorLogger.logAdEvent("🚀 Attempting to show rewarded ad...")
-            adMobManager.showRewardedAd(
-                activity,
-                onRewarded = { amount ->
-                    TestRigorLogger.logAdEvent("💰 Reward earned: $amount")
-                    notifyWebApp("rewardEarned", amount.toString())
-                },
-                onAdClosed = {
-                    TestRigorLogger.logAdEvent("✅ Rewarded ad closed callback")
-                    notifyWebApp("rewardedClosed", "true")
-                }
-            )
+            if (activity is AppCompatActivity) {
+                TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
+                imaManager.showRewardedAd(
+                    activity,
+                    onRewarded = {
+                        TestRigorLogger.logAdEvent("Reward earned")
+                        notifyWebApp("rewardEarned", "1")
+                    },
+                    onComplete = { success ->
+                        TestRigorLogger.logAdEvent("Rewarded ad closed callback")
+                        notifyWebApp("rewardedClosed", "true")
+                    }
+                )
+            }
         }
     }
 
@@ -110,7 +117,7 @@ class AdBridge(
      */
     @JavascriptInterface
     fun isRewardedReady(): Boolean {
-        return adMobManager.isRewardedAdAvailable()
+        return imaManager.isRewardedAdAvailable()
     }
 
     /**
@@ -136,9 +143,9 @@ class AdBridge(
         
         return """
         {
-            "adMobInitialized": ${adMobManager.isInitialized.get()},
-            "interstitialReady": ${adMobManager.isInterstitialAdAvailable()},
-            "rewardedReady": ${adMobManager.isRewardedAdAvailable()},
+            "imaInitialized": ${imaManager.isInitialized.get()},
+            "interstitialReady": ${imaManager.isInterstitialAdAvailable()},
+            "rewardedReady": ${imaManager.isRewardedAdAvailable()},
             "activityState": "$lifecycle",
             "hasWindowFocus": ${activity.hasWindowFocus()},
             "isFinishing": ${activity.isFinishing},
@@ -149,31 +156,33 @@ class AdBridge(
     }
     
     /**
-     * Check if AdMob is initialized
+     * Check if IMA SDK is initialized
      * Usage: window.AdBridge.isInitialized()
      */
     @JavascriptInterface
     fun isInitialized(): Boolean {
-        return adMobManager.isInitialized.get()
+        return imaManager.isInitialized.get()
     }
 
     /**
-     * Force show interstitial ad (bypass frequency cap for testing)
+     * Force show interstitial ad (for testing)
      * Usage: window.AdBridge.testShowInterstitial()
      */
     @JavascriptInterface
     fun testShowInterstitial() {
-        TestRigorLogger.logAdEvent("🧪 TEST: Force showing interstitial ad")
+        TestRigorLogger.logAdEvent("TEST: Force showing interstitial ad")
 
         if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("❌ Cannot test - activity invalid")
+            TestRigorLogger.logWarning("Cannot test - activity invalid")
             return
         }
 
         activity.runOnUiThread {
-            adMobManager.forceShowInterstitial(activity) {
-                TestRigorLogger.logAdEvent("✅ TEST: Interstitial closed")
-                notifyWebApp("testInterstitialClosed", "true")
+            if (activity is AppCompatActivity) {
+                imaManager.forceShowInterstitial(activity) { success ->
+                    TestRigorLogger.logAdEvent("TEST: Interstitial closed")
+                    notifyWebApp("testInterstitialClosed", "true")
+                }
             }
         }
     }

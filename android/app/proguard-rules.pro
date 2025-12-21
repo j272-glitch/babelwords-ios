@@ -8,7 +8,7 @@
 # ========================================
 # WebView JavaScript Interface
 # ========================================
-# Keep JavaScript interface for AdMob ads bridge
+# Keep JavaScript interface for IMA/ads bridge
 -keepclassmembers class com.lingualink.translator.ads.WebAppInterface {
     @android.webkit.JavascriptInterface <methods>;
 }
@@ -29,7 +29,19 @@
 }
 
 # ========================================
-# Google AdMob (Primary Ad Network)
+# Google IMA SDK (Interactive Media Ads - Video Ads)
+# ========================================
+# Keep IMA SDK classes
+-keep class com.google.ads.interactivemedia.v3.** { *; }
+-keep interface com.google.ads.interactivemedia.v3.** { *; }
+-dontwarn com.google.ads.interactivemedia.v3.**
+
+# Keep IMA SDK internal classes
+-keep class com.google.ads.interactivemedia.** { *; }
+-dontwarn com.google.ads.interactivemedia.**
+
+# ========================================
+# Google AdMob (Legacy - kept for compatibility)
 # ========================================
 # Keep AdMob SDK classes
 -keep public class com.google.android.gms.ads.** {
@@ -420,26 +432,42 @@
 # -keep class com.google.firebase.analytics.** { *; }
 
 # ========================================
-# Custom Rules for AdMob Integration
+# Custom Rules for IMA SDK Integration
 # ========================================
 # Ensure ad callbacks work properly
 -keepclassmembers class * {
     void on*Ad*(***);
 }
 
-# Keep ad listener interfaces
+# Keep IMA SDK listener interfaces
+-keep interface com.google.ads.interactivemedia.v3.api.** { *; }
+
+# Keep IMA SDK player classes
+-keep class com.google.ads.interactivemedia.v3.api.player.** { *; }
+
+# Keep IMA SDK ad event listeners
+-keep class com.google.ads.interactivemedia.v3.api.AdEvent { *; }
+-keep class com.google.ads.interactivemedia.v3.api.AdEvent$AdEventListener { *; }
+-keep class com.google.ads.interactivemedia.v3.api.AdErrorEvent { *; }
+-keep class com.google.ads.interactivemedia.v3.api.AdErrorEvent$AdErrorListener { *; }
+
+# Keep ad listener interfaces (legacy AdMob)
 -keep interface com.google.android.gms.ads.** { *; }
 
-# Keep FullScreenContentCallback
+# Keep FullScreenContentCallback (legacy)
 -keep class com.google.android.gms.ads.FullScreenContentCallback { *; }
 
-# Keep AdLoadCallback classes
+# Keep AdLoadCallback classes (legacy)
 -keep class com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback { *; }
 -keep class com.google.android.gms.ads.rewarded.RewardedAdLoadCallback { *; }
 
-# Keep OnUserEarnedRewardListener
+# Keep OnUserEarnedRewardListener (legacy)
 -keep class com.google.android.gms.ads.OnUserEarnedRewardListener { *; }
 -keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
+
+# Keep IMAManager class
+-keep class com.lingualink.linguagt.ads.IMAManager { *; }
+-keepclassmembers class com.lingualink.linguagt.ads.IMAManager { *; }
 
 # ========================================
 # End of ProGuard Rules

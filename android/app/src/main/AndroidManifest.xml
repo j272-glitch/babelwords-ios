@@ -14,7 +14,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- AdMob: Required for advertising ID access -->
+    <!-- IMA SDK: Required for advertising ID access -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <!-- CRITICAL: Declare microphone as optional for devices without microphone -->
@@ -73,9 +73,6 @@
             android:foregroundServiceType="microphone"
             tools:targetApi="29" />
 
-        <!-- AdMob App ID -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-9277938970928959~7782802034"/>
+        <!-- IMA SDK does not require App ID metadata -->
     </application>
 </manifest>
