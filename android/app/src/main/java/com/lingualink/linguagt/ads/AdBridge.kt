@@ -3,7 +3,6 @@ package com.lingualink.linguagt.ads
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import androidx.appcompat.app.AppCompatActivity
 import com.lingualink.linguagt.TestRigorLogger
 
 /**
@@ -27,13 +26,8 @@ class AdBridge(
         TestRigorLogger.logAdEvent("AdBridge.initialize() called from web app")
 
         activity.runOnUiThread {
-            if (activity is AppCompatActivity) {
-                imaManager.initialize(activity) { success ->
-                    notifyWebApp("imaInitialized", success.toString())
-                }
-            } else {
-                TestRigorLogger.logWarning("Activity is not AppCompatActivity")
-                notifyWebApp("imaInitialized", "false")
+            imaManager.initialize(activity) { success ->
+                notifyWebApp("imaInitialized", success.toString())
             }
         }
     }
@@ -53,16 +47,14 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            if (activity is AppCompatActivity) {
-                imaManager.showInterstitialAd(activity) { success ->
-                    if (success) {
-                        TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
-                        notifyWebApp("interstitialShown", "true")
-                    } else {
-                        notifyWebApp("interstitialFailed", "Ad not available")
-                    }
-                    notifyWebApp("interstitialClosed", "true")
+            imaManager.showInterstitialAd(activity) { success ->
+                if (success) {
+                    TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
+                    notifyWebApp("interstitialShown", "true")
+                } else {
+                    notifyWebApp("interstitialFailed", "Ad not available")
                 }
+                notifyWebApp("interstitialClosed", "true")
             }
         }
     }
@@ -94,20 +86,18 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            if (activity is AppCompatActivity) {
-                TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
-                imaManager.showRewardedAd(
-                    activity,
-                    onRewarded = {
-                        TestRigorLogger.logAdEvent("Reward earned")
-                        notifyWebApp("rewardEarned", "1")
-                    },
-                    onComplete = { success ->
-                        TestRigorLogger.logAdEvent("Rewarded ad closed callback")
-                        notifyWebApp("rewardedClosed", "true")
-                    }
-                )
-            }
+            TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
+            imaManager.showRewardedAd(
+                activity,
+                onRewarded = {
+                    TestRigorLogger.logAdEvent("Reward earned")
+                    notifyWebApp("rewardEarned", "1")
+                },
+                onComplete = { success ->
+                    TestRigorLogger.logAdEvent("Rewarded ad closed callback")
+                    notifyWebApp("rewardedClosed", "true")
+                }
+            )
         }
     }
 
@@ -135,18 +125,11 @@ class AdBridge(
      */
     @JavascriptInterface
     fun getDiagnostics(): String {
-        val lifecycle = if (activity is AppCompatActivity) {
-            (activity as AppCompatActivity).lifecycle.currentState.name
-        } else {
-            "UNKNOWN"
-        }
-        
         return """
         {
             "imaInitialized": ${imaManager.isInitialized.get()},
             "interstitialReady": ${imaManager.isInterstitialAdAvailable()},
             "rewardedReady": ${imaManager.isRewardedAdAvailable()},
-            "activityState": "$lifecycle",
             "hasWindowFocus": ${activity.hasWindowFocus()},
             "isFinishing": ${activity.isFinishing},
             "isDestroyed": ${activity.isDestroyed},
@@ -178,11 +161,9 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            if (activity is AppCompatActivity) {
-                imaManager.forceShowInterstitial(activity) { success ->
-                    TestRigorLogger.logAdEvent("TEST: Interstitial closed")
-                    notifyWebApp("testInterstitialClosed", "true")
-                }
+            imaManager.forceShowInterstitial(activity) { success ->
+                TestRigorLogger.logAdEvent("TEST: Interstitial closed")
+                notifyWebApp("testInterstitialClosed", "true")
             }
         }
     }

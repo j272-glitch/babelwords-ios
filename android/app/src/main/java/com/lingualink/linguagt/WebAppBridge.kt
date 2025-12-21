@@ -4,8 +4,8 @@ import android.app.Activity
 import android.os.Handler
 import android.os.Looper
 import android.webkit.JavascriptInterface
+import android.webkit.WebView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import com.lingualink.linguagt.ads.IMAManager
 import org.json.JSONObject
 
@@ -56,6 +56,13 @@ class WebAppBridge(private val activity: Activity) {
     
     // Solution #65: Queue for deferred operations
     private val deferredOperations = mutableListOf<() -> Unit>()
+    
+    // Reference to WebView for JS callbacks
+    private var webViewRef: WebView? = null
+    
+    fun setWebView(webView: WebView) {
+        this.webViewRef = webView
+    }
 
     /**
      * Solution #68: Mark page as loaded for deferred operations
@@ -151,11 +158,9 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            if (activity is AppCompatActivity) {
-                imaManager.showInterstitialAd(activity) { success ->
-                    // After ad closes, notify web app
-                    notifyWebApp("interstitial_closed")
-                }
+            imaManager.showInterstitialAd(activity) { success ->
+                // After ad closes, notify web app
+                notifyWebApp("interstitial_closed")
             }
         }
     }
@@ -176,23 +181,21 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            if (activity is AppCompatActivity) {
-                if (imaManager.isRewardedAdAvailable()) {
-                    imaManager.showRewardedAd(
-                        activity,
-                        onRewarded = {
-                            TestRigorLogger.logAdEvent("User earned reward")
-                            // Grant 30 minutes of premium access
-                            grantPremiumAccess(30)
-                        },
-                        onComplete = { success ->
-                            notifyWebApp("rewarded_closed")
-                        }
-                    )
-                } else {
-                    Toast.makeText(activity, "Ad not available yet. Please try again.", Toast.LENGTH_SHORT).show()
-                    notifyWebApp("rewarded_not_available")
-                }
+            if (imaManager.isRewardedAdAvailable()) {
+                imaManager.showRewardedAd(
+                    activity,
+                    onRewarded = {
+                        TestRigorLogger.logAdEvent("User earned reward")
+                        // Grant 30 minutes of premium access
+                        grantPremiumAccess(30)
+                    },
+                    onComplete = { success ->
+                        notifyWebApp("rewarded_closed")
+                    }
+                )
+            } else {
+                Toast.makeText(activity, "Ad not available yet. Please try again.", Toast.LENGTH_SHORT).show()
+                notifyWebApp("rewarded_not_available")
             }
         }
     }
@@ -354,16 +357,9 @@ class WebAppBridge(private val activity: Activity) {
 
         safeExecuteOnUiThread {
             try {
-                (activity as? MainActivity)?.let { mainActivity ->
-                    try {
-                        // Access webView through a method instead of direct property access
-                        mainActivity.evaluateJavaScript(jsCode)
-                    } catch (e: Exception) {
-                        TestRigorLogger.logError("JS evaluation failed", e)
-                    }
-                }
+                webViewRef?.evaluateJavascript(jsCode, null)
             } catch (e: Exception) {
-                TestRigorLogger.logError("notifyWebApp failed", e)
+                TestRigorLogger.logError("JS evaluation failed", e)
             }
         }
     }
@@ -407,6 +403,7 @@ class WebAppBridge(private val activity: Activity) {
             deferredOperations.clear()
         }
         isPageLoaded = false
+        webViewRef = null
         mainHandler.removeCallbacksAndMessages(null)
         TestRigorLogger.logDebug("WebAppBridge: Cleaned up")
     }

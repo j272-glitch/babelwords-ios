@@ -370,6 +370,7 @@ class MainActivity : BaseActivity() {
         }
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
+        webAppBridge.setWebView(webView)
 
         // TESTRIGOR FIX: Register AdBridge BEFORE loading URL to prevent crashes
         adBridge = com.lingualink.linguagt.ads.AdBridge(this, webView)

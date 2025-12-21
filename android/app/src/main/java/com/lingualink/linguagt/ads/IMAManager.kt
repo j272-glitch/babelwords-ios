@@ -1,28 +1,21 @@
 package com.lingualink.linguagt.ads
 
+import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ima.ImaAdsLoader
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import com.google.ads.interactivemedia.v3.api.AdErrorEvent
-import com.google.ads.interactivemedia.v3.api.AdEvent
-import com.google.ads.interactivemedia.v3.api.AdsLoader
-import com.google.ads.interactivemedia.v3.api.AdsManager
-import com.google.ads.interactivemedia.v3.api.AdsManagerLoadedEvent
-import com.google.ads.interactivemedia.v3.api.AdsRequest
-import com.google.ads.interactivemedia.v3.api.ImaSdkFactory
-import com.google.ads.interactivemedia.v3.api.ImaSdkSettings
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.lingualink.linguagt.TestRigorLogger
 import java.util.concurrent.atomic.AtomicBoolean
-import androidx.appcompat.app.AppCompatActivity
 
 class IMAManager private constructor(private val context: Context) {
     
@@ -54,18 +47,17 @@ class IMAManager private constructor(private val context: Context) {
     }
     
     val isInitialized = AtomicBoolean(false)
-    private var sdkFactory: ImaSdkFactory? = null
-    private var adsLoader: AdsLoader? = null
-    private var adsManager: AdsManager? = null
     private var consentInformation: ConsentInformation? = null
     private var isConsentGranted = false
     
     private var player: ExoPlayer? = null
     private var imaAdsLoader: ImaAdsLoader? = null
+    private var playerView: PlayerView? = null
     
     private var pendingAdCallback: ((Boolean) -> Unit)? = null
+    private var pendingRewardCallback: (() -> Unit)? = null
     
-    fun initialize(activity: AppCompatActivity, onComplete: (Boolean) -> Unit) {
+    fun initialize(activity: Activity, onComplete: (Boolean) -> Unit) {
         if (isInitialized.get()) {
             TestRigorLogger.logAdEvent("IMA SDK already initialized")
             onComplete(true)
@@ -74,26 +66,20 @@ class IMAManager private constructor(private val context: Context) {
         
         TestRigorLogger.logAdEvent("Initializing IMA SDK")
         
-        handleConsentAndInitialize(activity) { consentGranted ->
-            isConsentGranted = consentGranted
-            
-            try {
-                sdkFactory = ImaSdkFactory.getInstance()
-                
-                val settings: ImaSdkSettings = sdkFactory!!.createImaSdkSettings()
-                settings.isDebugMode = false
-                
-                isInitialized.set(true)
-                TestRigorLogger.logAdEvent("IMA SDK initialized successfully")
-                onComplete(true)
-            } catch (e: Exception) {
-                TestRigorLogger.logError("IMA SDK initialization failed", e)
-                onComplete(false)
-            }
+        try {
+            handleConsentAndInitialize(activity, onComplete)
+        } catch (e: Exception) {
+            TestRigorLogger.logError("IMA SDK initialization failed", e)
+            onComplete(false)
         }
     }
     
-    private fun handleConsentAndInitialize(activity: AppCompatActivity, onComplete: (Boolean) -> Unit) {
+    private fun completeInitialization() {
+        isInitialized.set(true)
+        TestRigorLogger.logAdEvent("IMA SDK initialized successfully")
+    }
+    
+    private fun handleConsentAndInitialize(activity: Activity, onComplete: (Boolean) -> Unit) {
         try {
             val params = ConsentRequestParameters.Builder()
                 .setTagForUnderAgeOfConsent(false)
@@ -110,101 +96,112 @@ class IMAManager private constructor(private val context: Context) {
                                 TestRigorLogger.logWarning("Consent form error: ${formError.message}")
                             }
                             val canShowAds = consentInformation?.canRequestAds() ?: false
+                            isConsentGranted = canShowAds
+                            completeInitialization()
                             onComplete(canShowAds)
                         }
                     } else {
                         val canShowAds = consentInformation?.canRequestAds() ?: true
+                        isConsentGranted = canShowAds
+                        completeInitialization()
                         onComplete(canShowAds)
                     }
                 },
                 { requestConsentError ->
                     TestRigorLogger.logWarning("Consent info update failed: ${requestConsentError.message}")
+                    completeInitialization()
                     onComplete(true)
                 }
             )
         } catch (e: Exception) {
             TestRigorLogger.logError("Consent handling failed", e)
+            completeInitialization()
             onComplete(true)
         }
     }
     
-    fun requestAds(activity: AppCompatActivity, adTagUrl: String = SAMPLE_AD_TAG_URL, onComplete: (Boolean) -> Unit) {
+    fun showInterstitialAd(activity: Activity, onComplete: (Boolean) -> Unit) {
         if (!isInitialized.get()) {
-            TestRigorLogger.logWarning("IMA SDK not initialized")
+            TestRigorLogger.logWarning("IMA SDK not initialized - cannot show interstitial")
             onComplete(false)
             return
         }
         
+        TestRigorLogger.logAdEvent("Showing interstitial video ad")
+        pendingAdCallback = onComplete
+        
         try {
-            val adsLoader = sdkFactory?.createAdsLoader(activity, sdkFactory!!.createImaSdkSettings(), null)
-            
-            adsLoader?.addAdErrorListener { adErrorEvent ->
-                TestRigorLogger.logError("Ad error: ${adErrorEvent.error.message}", null)
-                onComplete(false)
-            }
-            
-            adsLoader?.addAdsLoadedListener { adsManagerLoadedEvent ->
-                adsManager = adsManagerLoadedEvent.adsManager
-                adsManager?.addAdEventListener { adEvent ->
-                    when (adEvent.type) {
-                        AdEvent.AdEventType.LOADED -> {
-                            TestRigorLogger.logAdEvent("Ad loaded")
-                        }
-                        AdEvent.AdEventType.STARTED -> {
-                            TestRigorLogger.logAdEvent("Ad started")
-                        }
-                        AdEvent.AdEventType.COMPLETED -> {
-                            TestRigorLogger.logAdEvent("Ad completed")
-                            onComplete(true)
-                        }
-                        AdEvent.AdEventType.ALL_ADS_COMPLETED -> {
-                            TestRigorLogger.logAdEvent("All ads completed")
-                            adsManager?.destroy()
-                        }
-                        else -> {}
-                    }
-                }
-                adsManager?.addAdErrorListener { adErrorEvent ->
-                    TestRigorLogger.logError("AdsManager error: ${adErrorEvent.error.message}", null)
-                    onComplete(false)
-                }
-                adsManager?.init()
-            }
-            
-            val adsRequest: AdsRequest = sdkFactory!!.createAdsRequest()
-            adsRequest.adTagUrl = adTagUrl
-            adsLoader?.requestAds(adsRequest)
-            
+            createAndShowVideoAd(activity, onComplete)
         } catch (e: Exception) {
-            TestRigorLogger.logError("Failed to request ads", e)
+            TestRigorLogger.logError("Failed to show interstitial ad", e)
             onComplete(false)
         }
     }
     
-    fun showVideoAd(activity: AppCompatActivity, playerView: PlayerView?, onComplete: (Boolean) -> Unit) {
+    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit, onComplete: (Boolean) -> Unit) {
         if (!isInitialized.get()) {
-            TestRigorLogger.logWarning("IMA SDK not initialized - cannot show video ad")
+            TestRigorLogger.logWarning("IMA SDK not initialized - cannot show rewarded ad")
             onComplete(false)
             return
         }
         
+        TestRigorLogger.logAdEvent("Showing rewarded video ad")
         pendingAdCallback = onComplete
+        pendingRewardCallback = onRewarded
         
         try {
+            createAndShowVideoAd(activity, onComplete)
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Failed to show rewarded ad", e)
+            onComplete(false)
+        }
+    }
+    
+    private fun createAndShowVideoAd(activity: Activity, onComplete: (Boolean) -> Unit) {
+        try {
+            // Create a temporary PlayerView for the ad
+            playerView = PlayerView(activity).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
+            }
+            
+            // Build IMA ads loader
             imaAdsLoader = ImaAdsLoader.Builder(activity).build()
             
+            // Build ExoPlayer with IMA integration
             player = ExoPlayer.Builder(activity)
                 .setMediaSourceFactory(
                     DefaultMediaSourceFactory(activity)
-                        .setLocalAdInsertionComponents({ imaAdsLoader }, playerView ?: PlayerView(activity))
+                        .setLocalAdInsertionComponents({ imaAdsLoader }, playerView!!)
                 )
                 .build()
             
             playerView?.player = player
             imaAdsLoader?.setPlayer(player)
             
+            // Set up player listener for ad completion
+            player?.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    when (playbackState) {
+                        Player.STATE_ENDED -> {
+                            TestRigorLogger.logAdEvent("Video ad playback ended")
+                            pendingRewardCallback?.invoke()
+                            cleanupPlayer()
+                            onComplete(true)
+                        }
+                        Player.STATE_IDLE -> {
+                            // Player stopped or error
+                        }
+                        else -> {}
+                    }
+                }
+            })
+            
+            // Use a short video with pre-roll ad
             val contentUri = Uri.parse("https://storage.googleapis.com/gvabox/media/samples/stock.mp4")
-            val adTagUri = Uri.parse(SAMPLE_AD_TAG_URL)
+            val adTagUri = Uri.parse(SAMPLE_AD_TAG_URL + System.currentTimeMillis())
             val mediaItem = MediaItem.Builder()
                 .setUri(contentUri)
                 .setAdsConfiguration(MediaItem.AdsConfiguration.Builder(adTagUri).build())
@@ -212,32 +209,33 @@ class IMAManager private constructor(private val context: Context) {
             
             player?.setMediaItem(mediaItem)
             player?.prepare()
-            player?.playWhenReady = true
+            player?.play()
             
-            player?.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        TestRigorLogger.logAdEvent("Video ad playback ended")
-                        pendingAdCallback?.invoke(true)
-                        pendingAdCallback = null
-                    }
-                }
-            })
-            
-            TestRigorLogger.logAdEvent("Video ad started")
+            TestRigorLogger.logAdEvent("Video ad player started")
             
         } catch (e: Exception) {
-            TestRigorLogger.logError("Failed to show video ad", e)
+            TestRigorLogger.logError("Failed to create video ad", e)
+            cleanupPlayer()
             onComplete(false)
         }
     }
     
-    fun showInterstitialAd(activity: AppCompatActivity, onComplete: (Boolean) -> Unit) {
-        requestAds(activity) { success ->
-            if (success) {
-                adsManager?.start()
-            }
-            onComplete(success)
+    private fun cleanupPlayer() {
+        try {
+            player?.release()
+            player = null
+            
+            imaAdsLoader?.release()
+            imaAdsLoader = null
+            
+            playerView = null
+            
+            pendingAdCallback = null
+            pendingRewardCallback = null
+            
+            TestRigorLogger.logAdEvent("Video ad player cleaned up")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Error cleaning up player", e)
         }
     }
     
@@ -245,63 +243,38 @@ class IMAManager private constructor(private val context: Context) {
         return isInitialized.get() && isConsentGranted
     }
     
-    fun isRewardedAdAvailable(): Boolean {
-        return isAdAvailable()
-    }
-    
     fun isInterstitialAdAvailable(): Boolean {
         return isAdAvailable()
     }
     
-    fun showRewardedAd(activity: AppCompatActivity, onRewarded: () -> Unit, onComplete: (Boolean) -> Unit) {
-        requestAds(activity) { success ->
-            if (success) {
-                adsManager?.start()
-                onRewarded()
-            }
-            onComplete(success)
-        }
-    }
-    
-    fun pause() {
-        player?.pause()
-        TestRigorLogger.logDebug("IMA Manager paused")
+    fun isRewardedAdAvailable(): Boolean {
+        return isAdAvailable()
     }
     
     fun resume() {
         player?.play()
-        TestRigorLogger.logDebug("IMA Manager resumed")
+    }
+    
+    fun pause() {
+        player?.pause()
     }
     
     fun destroy() {
-        try {
-            adsManager?.destroy()
-            adsManager = null
-            
-            imaAdsLoader?.release()
-            imaAdsLoader = null
-            
-            player?.release()
-            player = null
-            
-            isInitialized.set(false)
-            TestRigorLogger.logAdEvent("IMA Manager destroyed")
-        } catch (e: Exception) {
-            TestRigorLogger.logError("Error destroying IMA Manager", e)
-        }
+        cleanupPlayer()
+        isInitialized.set(false)
+        TestRigorLogger.logAdEvent("IMAManager destroyed")
     }
     
     fun getDiagnostics(): String {
         return """
-            IMA SDK Diagnostics:
+            IMA SDK Status:
             - Initialized: ${isInitialized.get()}
             - Consent Granted: $isConsentGranted
-            - AdsManager Active: ${adsManager != null}
             - Player Active: ${player != null}
         """.trimIndent()
     }
     
-    fun forceShowInterstitial(activity: AppCompatActivity, onComplete: (Boolean) -> Unit) {
+    fun forceShowInterstitial(activity: Activity, onComplete: (Boolean) -> Unit) {
         showInterstitialAd(activity, onComplete)
     }
 }
