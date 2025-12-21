@@ -294,10 +294,13 @@ dependencies {
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
-    // ========== ADMOB AD INTEGRATION ==========
+    // ========== IMA SDK AD INTEGRATION ==========
 
-    // Google Mobile Ads SDK (AdMob)
-    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    // Google Interactive Media Ads (IMA) SDK for video ads
+    implementation 'com.google.ads.interactivemedia.v3:interactivemedia:3.31.0'
+
+    // ExoPlayer IMA extension for seamless video ad integration
+    implementation 'androidx.media3:media3-exoplayer-ima:1.2.1'
 
     // User Messaging Platform (GDPR/CCPA Consent)
     implementation 'com.google.android.ump:user-messaging-platform:2.1.0'
