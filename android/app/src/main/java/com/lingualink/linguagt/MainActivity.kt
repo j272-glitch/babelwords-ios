@@ -17,6 +17,7 @@ import android.net.Uri
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.lingualink.linguagt.ads.IMAManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -314,13 +315,21 @@ class MainActivity : BaseActivity() {
 
     /**
      * REFACTORED: Now uses SafePermissionManager consistently
+     * Solution #91: Request BLUETOOTH_CONNECT for Android 12+ audio device support
      */
     private fun requestPermissions() {
-        val permissions = arrayOf(
+        // Build permission list based on Android version
+        val permissions = mutableListOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.MODIFY_AUDIO_SETTINGS,
             Manifest.permission.ACCESS_NETWORK_STATE
         )
+
+        // REQUIRED for Android 12+ (API 31+): Bluetooth audio device enumeration
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+            TestRigorLogger.logMilestone("Android 12+ detected - adding BLUETOOTH_CONNECT to permission requests")
+        }
 
         permissions.forEach { permission ->
             val isGranted = ContextCompat.checkSelfPermission(this, permission) == 
@@ -349,6 +358,17 @@ class MainActivity : BaseActivity() {
             }
         } else {
             TestRigorLogger.logMilestone("Microphone already authorized on startup")
+        }
+
+        // Request BLUETOOTH_CONNECT for Android 12+ if not already granted
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) !=
+                PackageManager.PERMISSION_GRANTED) {
+                TestRigorLogger.logMilestone("Requesting BLUETOOTH_CONNECT permission for Android 12+")
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.BLUETOOTH_CONNECT), 100)
+            } else {
+                TestRigorLogger.logMilestone("BLUETOOTH_CONNECT already authorized on startup")
+            }
         }
     }
 
@@ -996,6 +1016,7 @@ class MainActivity : BaseActivity() {
 
     /**
      * REFACTORED: Now delegates to SafePermissionManager
+     * Solution #91: Handle BLUETOOTH_CONNECT permission results
      */
     override fun onRequestPermissionsResult(
         requestCode: Int,
@@ -1008,13 +1029,29 @@ class MainActivity : BaseActivity() {
             // Callback handled automatically by SafePermissionManager
         }
 
-        val isGranted = grantResults.isNotEmpty() && 
-                       grantResults[0] == PackageManager.PERMISSION_GRANTED
-
-        Log.d("MainActivity", "Microphone permission ${if (isGranted) "granted" else "denied"}")
-
-        // TESTRIGOR FIX: Broadcast state to WebView
-        broadcastPermissionStateToWebView(isGranted)
+        // Solution #91: Handle BLUETOOTH_CONNECT permission result
+        if (requestCode == 100) {
+            for (i in permissions.indices) {
+                val permission = permissions[i]
+                val isGranted = grantResults[i] == PackageManager.PERMISSION_GRANTED
+                
+                if (permission == Manifest.permission.BLUETOOTH_CONNECT) {
+                    TestRigorLogger.logPermission(permission, isGranted, true, "Bluetooth request result")
+                    Log.d("MainActivity", "BLUETOOTH_CONNECT permission ${if (isGranted) "granted" else "denied"}")
+                } else if (permission == Manifest.permission.RECORD_AUDIO) {
+                    TestRigorLogger.logPermission(permission, isGranted, true, "Microphone request result")
+                    Log.d("MainActivity", "Microphone permission ${if (isGranted) "granted" else "denied"}")
+                    // Broadcast state to WebView only for microphone
+                    broadcastPermissionStateToWebView(isGranted)
+                }
+            }
+        } else {
+            // Legacy handling for other permission requests
+            val isGranted = grantResults.isNotEmpty() && 
+                           grantResults[0] == PackageManager.PERMISSION_GRANTED
+            Log.d("MainActivity", "Permission ${if (isGranted) "granted" else "denied"}")
+            broadcastPermissionStateToWebView(isGranted)
+        }
     }
 
     private fun broadcastPermissionStateToWebView(isGranted: Boolean) {
