@@ -405,7 +405,7 @@ class MainActivity : BaseActivity() {
 
         val webSettings: WebSettings = webView.settings
         webSettings.apply {
-            // Enable JavaScript (required for conversation mode)
+            // Enable JavaScript (required for conversation mode and IMA SDK)
             javaScriptEnabled = true
 
             // TESTRIGOR FIX: Detect TestRigor from User-Agent
@@ -415,17 +415,31 @@ class MainActivity : BaseActivity() {
                 TestRigorLogger.logMilestone("TestRigor detected via User-Agent")
                 isTestMode = true
             }
+            
+            // DOM and Database access for web app functionality
             domStorageEnabled = true
             databaseEnabled = true
-            allowFileAccess = true
+            
+            // Security: Disable file access, allow content access
+            allowFileAccess = false
             allowContentAccess = true
+            
+            // Zoom controls
             setSupportZoom(true)
             builtInZoomControls = true
             displayZoomControls = false
             loadWithOverviewMode = true
             useWideViewPort = true
+            
+            // IMPORTANT: IMA SDK requires mediaPlaybackRequiresUserGesture = false for ads
             mediaPlaybackRequiresUserGesture = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            
+            // Enable mixed content for ad servers (IMA SDK requirement)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            }
+            
+            // Cache and other settings
             cacheMode = WebSettings.LOAD_DEFAULT
             setSupportMultipleWindows(false)
             textZoom = 100
