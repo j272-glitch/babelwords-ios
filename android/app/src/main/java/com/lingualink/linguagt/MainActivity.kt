@@ -201,13 +201,18 @@ class MainActivity : BaseActivity() {
 
             initializeTesterMobLib()
 
-            try {
-                setupWebViewForConversationMode()
-                handleDeepLink(intent)
-                TestRigorLogger.logMilestone("WebView setup completed")
-            } catch (e: Exception) {
-                TestRigorLogger.logError("WebView setup failed", e)
-                createNativeTranslationInterface()
+            // ANR PREVENTION: Defer heavy WebView initialization to next frame
+            // This allows the UI thread to respond within 5 seconds
+            // WebView creation triggers Chromium network stack setup which can block for 2-3 seconds
+            window.decorView.post {
+                try {
+                    setupWebViewForConversationMode()
+                    handleDeepLink(intent)
+                    TestRigorLogger.logMilestone("WebView setup completed (deferred)")
+                } catch (e: Exception) {
+                    TestRigorLogger.logError("WebView setup failed", e)
+                    createNativeTranslationInterface()
+                }
             }
         } catch (e: Exception) {
             // Solution #89: Graceful recovery from onCreate crash
