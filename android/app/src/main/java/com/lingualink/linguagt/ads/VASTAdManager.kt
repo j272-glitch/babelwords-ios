@@ -61,6 +61,7 @@ class VASTAdManager private constructor(private val context: Context) {
     }
     
     val isInitialized = AtomicBoolean(false)
+    private val isAdShowing = AtomicBoolean(false)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -77,6 +78,7 @@ class VASTAdManager private constructor(private val context: Context) {
     private var currentAdData: VASTAdData? = null
     private var hasEarnedReward = false
     private var quartilesFired = mutableSetOf<String>()
+    private var rewardCallbackFired = false
     
     fun initialize(activity: Activity, onComplete: (Boolean) -> Unit) {
         if (isInitialized.get()) {
@@ -116,8 +118,15 @@ class VASTAdManager private constructor(private val context: Context) {
             return
         }
         
+        if (!isAdShowing.compareAndSet(false, true)) {
+            TestRigorLogger.logWarning("Ad already showing - ignoring request")
+            onComplete(false)
+            return
+        }
+        
         TestRigorLogger.logAdEvent("Fetching VAST ad (rewarded=$isRewarded)")
         hasEarnedReward = false
+        rewardCallbackFired = false
         quartilesFired.clear()
         
         scope.launch {
@@ -262,7 +271,8 @@ class VASTAdManager private constructor(private val context: Context) {
                                 TestRigorLogger.logAdEvent("Ad video playback completed")
                                 fireTrackingEvent("complete")
                                 
-                                if (isRewarded) {
+                                if (isRewarded && !rewardCallbackFired) {
+                                    rewardCallbackFired = true
                                     hasEarnedReward = true
                                     onRewarded?.invoke()
                                 }
@@ -402,11 +412,13 @@ class VASTAdManager private constructor(private val context: Context) {
                 adDialog = null
                 
                 currentAdData = null
+                isAdShowing.set(false)
                 
                 TestRigorLogger.logAdEvent("Ad closed (success=$success)")
                 onComplete(success)
             } catch (e: Exception) {
                 TestRigorLogger.logError("Error closing ad", e)
+                isAdShowing.set(false)
                 onComplete(false)
             }
         }
@@ -467,12 +479,14 @@ class VASTAdManager private constructor(private val context: Context) {
     
     fun destroy() {
         try {
+            mainHandler.removeCallbacksAndMessages(null)
             player?.release()
             player = null
             adDialog?.dismiss()
             adDialog = null
             currentAdData = null
             isInitialized.set(false)
+            isAdShowing.set(false)
             TestRigorLogger.logAdEvent("VASTAdManager destroyed")
         } catch (e: Exception) {
             TestRigorLogger.logError("Error destroying VASTAdManager", e)
