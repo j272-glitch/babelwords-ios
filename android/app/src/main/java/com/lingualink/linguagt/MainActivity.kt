@@ -1076,6 +1076,9 @@ class MainActivity : BaseActivity() {
     /**
      * Setup audio enhancements for improved speech recognition
      * Enables echo cancellation, noise suppression, and automatic gain control
+     * 
+     * Note: These effects may fail on some devices when WebView manages its own audio session.
+     * Failures are non-critical and logged as warnings.
      */
     private fun setupAudioEnhancements() {
         if (isAudioEnhancementEnabled) {
@@ -1083,46 +1086,63 @@ class MainActivity : BaseActivity() {
             return
         }
 
+        // Note: Audio effects may not work with WebView's audio session on all devices
+        // Each effect is wrapped in try-catch for graceful degradation
+        TestRigorLogger.logDebug("Attempting to setup audio enhancements (optional)")
+
         try {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
-            TestRigorLogger.logDebug("AudioManager set to MODE_IN_COMMUNICATION for echo cancellation")
+            TestRigorLogger.logDebug("AudioManager set to MODE_IN_COMMUNICATION")
+        } catch (e: Exception) {
+            TestRigorLogger.logDebug("AudioManager mode change skipped: ${e.message}")
+        }
 
-            // Get audio session ID for audio effects
-            val audioSessionId = 0 // Default session ID; WebView handles its own audio session
+        // Audio session ID 0 may not work with WebView on all devices
+        // Effects will fail gracefully if not supported
+        val audioSessionId = 0
 
-            // Enable Acoustic Echo Canceler if available
+        // Enable Acoustic Echo Canceler if available (graceful failure)
+        try {
             if (AcousticEchoCanceler.isAvailable()) {
                 echoCanceler = AcousticEchoCanceler.create(audioSessionId)
-                echoCanceler?.enabled = true
-                TestRigorLogger.logDebug("AcousticEchoCanceler enabled")
-            } else {
-                TestRigorLogger.logWarning("AcousticEchoCanceler not available on this device")
+                if (echoCanceler != null) {
+                    echoCanceler?.enabled = true
+                    TestRigorLogger.logDebug("AcousticEchoCanceler enabled")
+                }
             }
+        } catch (e: Exception) {
+            TestRigorLogger.logDebug("AcousticEchoCanceler skipped (non-critical): ${e.message}")
+        }
 
-            // Enable Noise Suppressor if available
+        // Enable Noise Suppressor if available (graceful failure)
+        try {
             if (NoiseSuppressor.isAvailable()) {
                 noiseSuppressor = NoiseSuppressor.create(audioSessionId)
-                noiseSuppressor?.enabled = true
-                TestRigorLogger.logDebug("NoiseSuppressor enabled")
-            } else {
-                TestRigorLogger.logWarning("NoiseSuppressor not available on this device")
+                if (noiseSuppressor != null) {
+                    noiseSuppressor?.enabled = true
+                    TestRigorLogger.logDebug("NoiseSuppressor enabled")
+                }
             }
+        } catch (e: Exception) {
+            TestRigorLogger.logDebug("NoiseSuppressor skipped (non-critical): ${e.message}")
+        }
 
-            // Enable Automatic Gain Control if available
+        // Enable Automatic Gain Control if available (graceful failure)
+        try {
             if (AutomaticGainControl.isAvailable()) {
                 gainControl = AutomaticGainControl.create(audioSessionId)
-                gainControl?.enabled = true
-                TestRigorLogger.logDebug("AutomaticGainControl enabled")
-            } else {
-                TestRigorLogger.logWarning("AutomaticGainControl not available on this device")
+                if (gainControl != null) {
+                    gainControl?.enabled = true
+                    TestRigorLogger.logDebug("AutomaticGainControl enabled")
+                }
             }
-
-            isAudioEnhancementEnabled = true
-            TestRigorLogger.logMilestone("Audio enhancements setup completed")
         } catch (e: Exception) {
-            TestRigorLogger.logError("Failed to setup audio enhancements", e)
+            TestRigorLogger.logDebug("AutomaticGainControl skipped (non-critical): ${e.message}")
         }
+
+        isAudioEnhancementEnabled = true
+        TestRigorLogger.logDebug("Audio enhancements setup completed (some effects may be unavailable)")
     }
 
     /**
