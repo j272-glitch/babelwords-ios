@@ -189,19 +189,20 @@ class MainActivity : BaseActivity() {
             // Note: AdBridge is registered in setupWebViewForConversationMode() after WebView is created
             TestRigorLogger.logAdEvent("IMA SDK reference obtained - consent deferred until WebView ready")
 
-            requestPermissions()
-
             tracker = UserActivityTracker(this, appId)
             tracker?.sendUserActivity(appId)
             tracker?.getTesterMob()
 
             initializeTesterMobLib()
 
-            // ANR PREVENTION: Defer heavy WebView initialization to next frame
+            // ANR PREVENTION: Defer heavy WebView initialization and permission requests to next frame
             // This allows the UI thread to respond within 5 seconds
-            // WebView creation triggers Chromium network stack setup which can block for 2-3 seconds
+            // Permissions must be requested after window is attached
             window.decorView.post {
                 try {
+                    // Request permissions after window is attached
+                    requestPermissions()
+                    
                     setupWebViewForConversationMode()
                     handleDeepLink(intent)
                     TestRigorLogger.logMilestone("WebView setup completed (deferred)")

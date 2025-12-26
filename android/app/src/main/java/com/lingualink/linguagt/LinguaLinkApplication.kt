@@ -1,6 +1,8 @@
 package com.lingualink.linguagt
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.webkit.WebView
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -74,28 +76,21 @@ class LinguaLinkApplication : Application(), DefaultLifecycleObserver {
     }
 
     /**
-     * ANR PREVENTION: Pre-warm WebView initialization on background thread
-     * This creates a temporary WebView instance to initialize Chromium before actual use
+     * ANR PREVENTION: Pre-warm WebView initialization
+     * Uses main thread Handler with delay to initialize Chromium before Activity needs it
+     * WebView requires a Looper so we use main thread with delayed post
      */
     private fun preWarmWebView() {
-        Thread {
+        Handler(Looper.getMainLooper()).postDelayed({
             try {
-                // Short delay to allow app initialization to complete
-                Thread.sleep(500)
-                
-                // Create temporary WebView to initialize Chromium
+                // Create temporary WebView on main thread to initialize Chromium
                 val tempWebView = WebView(this@LinguaLinkApplication)
                 tempWebView.destroy()
-                
                 Log.d(TAG, "WebView pre-warm completed - Chromium initialized")
             } catch (e: Exception) {
                 Log.w(TAG, "WebView pre-warm failed (non-critical): ${e.message}")
             }
-        }.apply {
-            isDaemon = true
-            name = "WebViewPreWarmThread"
-            start()
-        }
+        }, 100) // Small delay to allow app initialization
     }
 
     /**
