@@ -1,0 +1,32 @@
+12-26 17:45:21.148 W/UserMessagingPlatform(11840): The UMP SDK requires a valid application ID in your AndroidManifest.xml through a com.google.android.gms.ads.APPLICATION_ID meta-data tag.12-26 17:45:21.148 W/UserMessagingPlatform(11840): Example AndroidManifest:12-26 17:45:21.148 W/UserMessagingPlatform(11840):     <meta-data12-26 17:45:21.148 W/UserMessagingPlatform(11840):         android:name="com.google.android.gms.ads.APPLICATION_ID"12-26 17:45:21.148 W/UserMessagingPlatform(11840):         android:value="ca-app-pub-0000000000000000~0000000000">12-26 17:45:21.149 W/TESTRIGOR(11840): ========================================12-26 17:45:21.149 W/TESTRIGOR(11840): WARNING: Consent info update failed: The UMP SDK requires a valid application ID in your AndroidManifest.xml through a com.google.android.gms.ads.APPLICATION_ID meta-data tag.12-26 17:45:21.149 W/TESTRIGOR(11840): Example AndroidManifest:12-26 17:45:21.149 W/TESTRIGOR(11840):     <meta-data12-26 17:45:21.149 W/TESTRIGOR(11840):         android:name="com.google.android.gms.ads.APPLICATION_ID"12-26 17:45:21.149 W/TESTRIGOR(11840):         android:value="ca-app-pub-0000000000000000~0000000000">12-26 17:45:21.149 W/TESTRIGOR(11840): Thread: main12-26 17:45:21.149 W/TESTRIGOR(11840): Time: 176677112114912-26 17:45:21.149 W/TESTRIGOR(11840): ========================================12-26 17:45:31.411 E/AudioEffect(11840): set(): AudioFlinger could not create effect 7b491460-8d4d-11e0-bd61-0002a5d5c51b / ec7178ec-e5e1-4432-a3f4-4657e6795210, status: -2212-26 17:45:31.412 E/AudioEffects-JNI(11840): AudioEffect initCheck failed -312-26 17:45:31.412 E/AudioEffect-JAVA(11840): Error code -3 when initializing AudioEffect.12-26 17:45:31.412 W/AcousticEchoCanceler(11840): not enough memory12-26 17:45:31.759 W/AudioStreamLegacy(11840): onMoreData() data, stream disconnected12-26 17:45:31.759 E/AudioTrack(11840): processAudioBuffer(236): EVENT_MORE_DATA requested 1536 bytes but callback returned -1 bytes12-26 17:45:31.759 W/AAudioStream(11840): setState(2) tried to set to 9 but already DISCONNECTED12-26 17:45:31.760 W/AAudioStream(11840): setState(2) tried to set to 9 but already DISCONNECTED12-26 17:45:31.812 E/AudioEffect(11840): set(): AudioFlinger could not create effect 58b4b260-8e06-11e0-aa8e-0002a5d5c51b / ec7178ec-e5e1-4432-a3f4-4657e6795210, status: -2212-26 17:45:31.812 E/AudioEffects-JNI(11840): AudioEffect initCheck failed -312-26 17:45:31.812 E/AudioEffect-JAVA(11840): Error code -3 when initializing AudioEffect.12-26 17:45:31.812 W/NoiseSuppressor(11840): not enough memory
+PRO
+
+Switch Device
+
+Local testing
+
+
+Zoom
+
+Record Session
+
+DevTools
+
+Report a bug
+
+Settings
+
+Stop Session
+
+
+
+
+
+
+
+
+
+
+
+
+
