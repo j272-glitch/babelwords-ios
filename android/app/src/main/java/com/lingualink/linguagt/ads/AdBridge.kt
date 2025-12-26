@@ -6,19 +6,19 @@ import android.webkit.WebView
 import com.lingualink.linguagt.TestRigorLogger
 
 /**
- * JavaScript bridge for IMA SDK functionality
+ * JavaScript bridge for VAST ad functionality
  * Exposes ad methods to the web app via window.AdBridge
  */
 class AdBridge(
     private val activity: Activity,
     private val webView: WebView
 ) {
-    private val imaManager: IMAManager by lazy {
-        IMAManager.getInstance(activity)
+    private val vastAdManager: VASTAdManager by lazy {
+        VASTAdManager.getInstance(activity)
     }
 
     /**
-     * Initialize IMA SDK - called from web app
+     * Initialize VAST Ad Manager - called from web app
      * Usage: window.AdBridge.initialize()
      */
     @JavascriptInterface
@@ -26,8 +26,8 @@ class AdBridge(
         TestRigorLogger.logAdEvent("AdBridge.initialize() called from web app")
 
         activity.runOnUiThread {
-            imaManager.initialize(activity) { success ->
-                notifyWebApp("imaInitialized", success.toString())
+            vastAdManager.initialize(activity) { success ->
+                notifyWebApp("vastInitialized", success.toString())
             }
         }
     }
@@ -47,7 +47,7 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            imaManager.showInterstitialAd(activity) { success ->
+            vastAdManager.showInterstitialAd(activity) { success ->
                 if (success) {
                     TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
                     notifyWebApp("interstitialShown", "true")
@@ -73,13 +73,13 @@ class AdBridge(
             return
         }
 
-        if (!imaManager.isInitialized.get()) {
-            TestRigorLogger.logWarning("Cannot show rewarded ad - IMA SDK not initialized")
+        if (!vastAdManager.isInitialized.get()) {
+            TestRigorLogger.logWarning("Cannot show rewarded ad - VAST not initialized")
             notifyWebApp("rewardedFailed", "not_initialized")
             return
         }
 
-        if (!imaManager.isRewardedAdAvailable()) {
+        if (!vastAdManager.isRewardedAdAvailable()) {
             TestRigorLogger.logWarning("Rewarded ad not ready yet")
             notifyWebApp("rewardedFailed", "not_ready")
             return
@@ -87,7 +87,7 @@ class AdBridge(
 
         activity.runOnUiThread {
             TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
-            imaManager.showRewardedAd(
+            vastAdManager.showRewardedAd(
                 activity,
                 onRewarded = {
                     TestRigorLogger.logAdEvent("Reward earned")
@@ -107,7 +107,7 @@ class AdBridge(
      */
     @JavascriptInterface
     fun isRewardedReady(): Boolean {
-        return imaManager.isRewardedAdAvailable()
+        return vastAdManager.isRewardedAdAvailable()
     }
 
     /**
@@ -127,9 +127,9 @@ class AdBridge(
     fun getDiagnostics(): String {
         return """
         {
-            "imaInitialized": ${imaManager.isInitialized.get()},
-            "interstitialReady": ${imaManager.isInterstitialAdAvailable()},
-            "rewardedReady": ${imaManager.isRewardedAdAvailable()},
+            "vastInitialized": ${vastAdManager.isInitialized.get()},
+            "interstitialReady": ${vastAdManager.isInterstitialAdAvailable()},
+            "rewardedReady": ${vastAdManager.isRewardedAdAvailable()},
             "hasWindowFocus": ${activity.hasWindowFocus()},
             "isFinishing": ${activity.isFinishing},
             "isDestroyed": ${activity.isDestroyed},
@@ -139,12 +139,12 @@ class AdBridge(
     }
     
     /**
-     * Check if IMA SDK is initialized
+     * Check if VAST Ad Manager is initialized
      * Usage: window.AdBridge.isInitialized()
      */
     @JavascriptInterface
     fun isInitialized(): Boolean {
-        return imaManager.isInitialized.get()
+        return vastAdManager.isInitialized.get()
     }
 
     /**
@@ -161,7 +161,7 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            imaManager.forceShowInterstitial(activity) { success ->
+            vastAdManager.forceShowInterstitial(activity) { success ->
                 TestRigorLogger.logAdEvent("TEST: Interstitial closed")
                 notifyWebApp("testInterstitialClosed", "true")
             }

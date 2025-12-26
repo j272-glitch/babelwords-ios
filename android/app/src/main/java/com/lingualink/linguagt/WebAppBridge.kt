@@ -6,7 +6,7 @@ import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
-import com.lingualink.linguagt.ads.IMAManager
+import com.lingualink.linguagt.ads.VASTAdManager
 import org.json.JSONObject
 
 /**
@@ -39,8 +39,8 @@ class WebAppBridge(private val activity: Activity) {
         private const val MAX_SYNC_DATA_SIZE = 10000
     }
 
-    private val imaManager: IMAManager by lazy {
-        IMAManager.getInstance(activity)
+    private val vastAdManager: VASTAdManager by lazy {
+        VASTAdManager.getInstance(activity)
     }
     
     // TESTRIGOR FIX: Handler for safe UI thread execution
@@ -158,7 +158,7 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            imaManager.showInterstitialAd(activity) { success ->
+            vastAdManager.showInterstitialAd(activity) { success ->
                 // After ad closes, notify web app
                 notifyWebApp("interstitial_closed")
             }
@@ -181,8 +181,8 @@ class WebAppBridge(private val activity: Activity) {
         }
 
         safeExecuteOnUiThread {
-            if (imaManager.isRewardedAdAvailable()) {
-                imaManager.showRewardedAd(
+            if (vastAdManager.isRewardedAdAvailable()) {
+                vastAdManager.showRewardedAd(
                     activity,
                     onRewarded = {
                         TestRigorLogger.logAdEvent("User earned reward")
@@ -206,7 +206,7 @@ class WebAppBridge(private val activity: Activity) {
      */
     @JavascriptInterface
     fun isRewardedAdReady(): Boolean {
-        return imaManager.isRewardedAdAvailable()
+        return vastAdManager.isRewardedAdAvailable()
     }
 
     /**

@@ -294,16 +294,10 @@ dependencies {
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
-    // ========== IMA SDK AD INTEGRATION ==========
-
-    // Google Interactive Media Ads (IMA) SDK for video ads
-    implementation 'com.google.ads.interactivemedia.v3:interactivemedia:3.31.0'
-
-    // ExoPlayer IMA extension for seamless video ad integration
-    implementation 'androidx.media3:media3-exoplayer-ima:1.2.1'
-
-    // User Messaging Platform (GDPR/CCPA Consent)
-    implementation 'com.google.android.ump:user-messaging-platform:2.1.0'
+    // ========== NATIVE VAST AD INTEGRATION ==========
+    // Using native VAST implementation with OkHttp + ExoPlayer (no IMA SDK)
+    // OkHttp already included above for network/websocket support
+    // ExoPlayer already included above for media playback
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
