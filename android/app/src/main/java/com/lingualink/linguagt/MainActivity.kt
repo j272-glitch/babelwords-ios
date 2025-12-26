@@ -25,10 +25,6 @@ import android.media.AudioManager
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
 import android.media.audiofx.AutomaticGainControl
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * MainActivity with TestRigor enhancements
@@ -399,59 +395,56 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logMilestone("TestRigor JavaScript bridge enabled")
         }
 
-        // ANR FIX #1: Move heavy initialization off main thread
-        lifecycleScope.launch(Dispatchers.Default) {
-            val webSettings: WebSettings = webView.settings
-            webSettings.apply {
-                // Enable JavaScript (required for conversation mode and IMA SDK)
-                javaScriptEnabled = true
+        // Configure WebView settings on main thread (WebView is NOT thread-safe)
+        // ANR prevention comes from window.decorView.post() deferral in onCreate
+        val webSettings: WebSettings = webView.settings
+        webSettings.apply {
+            // Enable JavaScript (required for conversation mode and IMA SDK)
+            javaScriptEnabled = true
 
-                // TESTRIGOR FIX: Detect TestRigor from User-Agent
-                val userAgent = userAgentString
-                isTestRigorDetected = userAgent?.contains("TestRigor", ignoreCase = true) ?: false
-                if (isTestRigorDetected) {
-                    TestRigorLogger.logMilestone("TestRigor detected via User-Agent")
-                    isTestMode = true
-                }
-                
-                // DOM and Database access for web app functionality
-                domStorageEnabled = true
-                databaseEnabled = true
-                
-                // Security: Disable file access, allow content access
-                allowFileAccess = false
-                allowContentAccess = true
-                
-                // Zoom controls
-                setSupportZoom(true)
-                builtInZoomControls = true
-                displayZoomControls = false
-                loadWithOverviewMode = true
-                useWideViewPort = true
-                
-                // IMPORTANT: IMA SDK requires mediaPlaybackRequiresUserGesture = false for ads
-                mediaPlaybackRequiresUserGesture = false
-                
-                // Enable mixed content for ad servers (IMA SDK requirement)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                }
-                
-                // Cache and other settings
-                cacheMode = WebSettings.LOAD_DEFAULT
-                setSupportMultipleWindows(false)
-                textZoom = 100
-                minimumFontSize = 8
+            // TESTRIGOR FIX: Detect TestRigor from User-Agent
+            val userAgent = userAgentString
+            isTestRigorDetected = userAgent?.contains("TestRigor", ignoreCase = true) ?: false
+            if (isTestRigorDetected) {
+                TestRigorLogger.logMilestone("TestRigor detected via User-Agent")
+                isTestMode = true
             }
+            
+            // DOM and Database access for web app functionality
+            domStorageEnabled = true
+            databaseEnabled = true
+            
+            // Security: Disable file access, allow content access
+            allowFileAccess = false
+            allowContentAccess = true
+            
+            // Zoom controls
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            loadWithOverviewMode = true
+            useWideViewPort = true
+            
+            // IMPORTANT: IMA SDK requires mediaPlaybackRequiresUserGesture = false for ads
+            mediaPlaybackRequiresUserGesture = false
+            
+            // Enable mixed content for ad servers (IMA SDK requirement)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            }
+            
+            // Cache and other settings
+            cacheMode = WebSettings.LOAD_DEFAULT
+            setSupportMultipleWindows(false)
+            textZoom = 100
+            minimumFontSize = 8
+        }
 
-            // ANR FIX #2: Request focus after layout is complete on main thread
-            withContext(Dispatchers.Main) {
-                webView.post {
-                    webView.requestFocus()
-                    webView.isFocusableInTouchMode = true
-                    TestRigorLogger.logMilestone("WebView focus requested - ANR prevention")
-                }
-            }
+        // ANR FIX: Request focus after layout is complete
+        webView.post {
+            webView.requestFocus()
+            webView.isFocusableInTouchMode = true
+            TestRigorLogger.logMilestone("WebView focus requested - ANR prevention")
         }
 
         webView.webViewClient = object : WebViewClient() {
