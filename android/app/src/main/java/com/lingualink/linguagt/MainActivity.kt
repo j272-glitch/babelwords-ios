@@ -16,7 +16,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.lingualink.linguagt.ads.VASTAdManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -63,8 +62,6 @@ class MainActivity : BaseActivity() {
     private lateinit var lifecycleHandler: LifecycleAwareHandler
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
-    private lateinit var vastAdManager: VASTAdManager
-    private lateinit var adBridge: com.lingualink.linguagt.ads.AdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -187,11 +184,6 @@ class MainActivity : BaseActivity() {
             lifecycleHandler = LifecycleAwareHandler(this)
             permissionManager = SafePermissionManager(this, isTestMode)
             webAppBridge = WebAppBridge(this)
-            vastAdManager = VASTAdManager.getInstance(this)
-
-            // VAST Ad Manager obtained - initialization will complete when first ad is requested
-            // Note: AdBridge is registered in setupWebViewForConversationMode() after WebView is created
-            TestRigorLogger.logAdEvent("VAST Ad Manager reference obtained")
 
             tracker = UserActivityTracker(this, appId)
             tracker?.sendUserActivity(appId)
@@ -224,34 +216,6 @@ class MainActivity : BaseActivity() {
             } catch (e2: Exception) {
                 TestRigorLogger.logError("Recovery failed", e2)
             }
-        }
-    }
-
-    /**
-     * Initialize VAST Ad Manager after activity is fully ready
-     * Called from onPageFinished to ensure WebView and activity are stable
-     */
-    private fun initializeVASTAdManagerSafely() {
-        if (isIMAConsentInitialized) {
-            TestRigorLogger.logDebug("VAST Ad Manager already initialized, skipping")
-            return
-        }
-
-        if (isFinishing || isDestroyed) {
-            TestRigorLogger.logWarning("Cannot initialize VAST Ad Manager - activity invalid")
-            return
-        }
-
-        isIMAConsentInitialized = true
-        TestRigorLogger.logAdEvent("Initializing VAST Ad Manager (WebView fully loaded)")
-
-        try {
-            vastAdManager.initialize(this) { success ->
-                TestRigorLogger.logAdEvent("VAST Ad Manager initialized: $success")
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("VAST Ad Manager initialization failed", e)
-            isIMAConsentInitialized = false // Allow retry on next page load
         }
     }
 
@@ -389,11 +353,6 @@ class MainActivity : BaseActivity() {
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
         webAppBridge.setWebView(webView)
 
-        // TESTRIGOR FIX: Register AdBridge BEFORE loading URL to prevent crashes
-        adBridge = com.lingualink.linguagt.ads.AdBridge(this, webView)
-        webView.addJavascriptInterface(adBridge, "AdBridge")
-        TestRigorLogger.logAdEvent("AdBridge registered with WebView")
-
         // TESTRIGOR: Add test inspection bridge
         if (BuildConfig.DEBUG) {
             webView.addJavascriptInterface(TestRigorBridge(), "TestRigorBridge")
@@ -497,23 +456,18 @@ class MainActivity : BaseActivity() {
                     webAppBridge.onPageLoaded()
                 }
 
-                // Mark WebView as fully loaded and initialize VAST Ad Manager
+                // Mark WebView as fully loaded
                 isWebViewFullyLoaded = true
 
-                // Notify web app that AdBridge is ready
+                // Notify web app that Android container is ready
                 view?.evaluateJavascript(
-                    "if (window.onAdBridgeReady) { window.onAdBridgeReady(); }",
+                    "if (window.onAndroidReady) { window.onAndroidReady(); }",
                     null
                 )
-                TestRigorLogger.logAdEvent("AdBridge ready signal sent to web app")
+                TestRigorLogger.logDebug("Android ready signal sent to web app")
 
-                // Inject device advertising ID for ad targeting
+                // Inject device advertising ID for ad targeting (used by web VAST player)
                 injectDeviceAdId()
-
-                // Delay VAST initialization slightly to ensure page is stable
-                lifecycleHandler.postDelayed({
-                    initializeVASTAdManagerSafely()
-                }, 1000) // 1 second delay for stability
 
                 super.onPageFinished(view, url)
             }
@@ -1222,7 +1176,7 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onResume: WebView, VAST Ads, Tracker, and Permission handling
+     * Unified onResume: WebView, Tracker, and Permission handling
      */
     override fun onResume() {
         super.onResume()
@@ -1233,23 +1187,6 @@ class MainActivity : BaseActivity() {
         // WebView resume
         if (::webView.isInitialized) {
             webView.onResume()
-        }
-
-        // Resume VAST ads if initialized
-        try {
-            if (::vastAdManager.isInitialized) {
-                vastAdManager.resume()
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("VAST ad resume failed", e)
-        }
-
-        // Fallback initialization if WebView loaded but ads weren't initialized
-        if (isWebViewFullyLoaded && !isIMAConsentInitialized) {
-            TestRigorLogger.logDebug("onResume: Triggering deferred VAST Ad Manager initialization")
-            lifecycleHandler.postDelayed({
-                initializeVASTAdManagerSafely()
-            }, 500) // Small delay to ensure activity is fully resumed
         }
 
         // TESTRIGOR FIX: Re-verify pending permission state on resume
@@ -1263,7 +1200,7 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onPause: WebView and VAST ads handling
+     * Unified onPause: WebView handling
      */
     override fun onPause() {
         super.onPause()
@@ -1271,15 +1208,6 @@ class MainActivity : BaseActivity() {
         // WebView pause
         if (::webView.isInitialized) {
             webView.onPause()
-        }
-
-        // Pause VAST ads
-        try {
-            if (::vastAdManager.isInitialized) {
-                vastAdManager.pause()
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("VAST ad pause failed", e)
         }
     }
 
@@ -1570,15 +1498,6 @@ class MainActivity : BaseActivity() {
             }
         } catch (e: Exception) {
             TestRigorLogger.logError("LifecycleHandler cleanup", e)
-        }
-
-        // Clean up VAST Ad Manager
-        try {
-            if (::vastAdManager.isInitialized) {
-                vastAdManager.destroy()
-            }
-        } catch (e: Exception) {
-            TestRigorLogger.logError("VAST Ad Manager cleanup", e)
         }
 
         // Release audio enhancement resources

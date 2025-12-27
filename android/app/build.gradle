@@ -273,8 +273,6 @@ dependencies {
 
     // Speech/Audio - CRITICAL FOR CONVERSATION MODE
     implementation 'androidx.media:media:1.7.0'
-    implementation 'androidx.media3:media3-exoplayer:1.2.1'
-    implementation 'androidx.media3:media3-ui:1.2.1'
 
     // Permissions handling - REQUIRED FOR MICROPHONE ACCESS
     implementation 'pub.devrel:easypermissions:3.0.0'
@@ -296,11 +294,6 @@ dependencies {
 
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
-
-    // ========== NATIVE VAST AD INTEGRATION ==========
-    // Using native VAST implementation with OkHttp + ExoPlayer (no IMA SDK)
-    // OkHttp already included above for network/websocket support
-    // ExoPlayer already included above for media playback
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
