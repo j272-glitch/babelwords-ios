@@ -43,17 +43,37 @@ class AdBridge(
 
         if (activity.isFinishing || activity.isDestroyed) {
             TestRigorLogger.logWarning("Cannot show ad - activity is invalid")
-            notifyWebApp("interstitialFailed", "Activity is invalid")
+            notifyWebApp("interstitialFailed", "activity_invalid")
+            notifyWebApp("interstitialClosed", "true")
             return
         }
 
+        if (!vastAdManager.isInitialized.get()) {
+            TestRigorLogger.logWarning("Cannot show interstitial ad - VAST not initialized, auto-initializing...")
+            activity.runOnUiThread {
+                vastAdManager.initialize(activity) { success ->
+                    if (success) {
+                        showInterstitialInternal(vastUrl)
+                    } else {
+                        notifyWebApp("interstitialFailed", "init_failed")
+                        notifyWebApp("interstitialClosed", "true")
+                    }
+                }
+            }
+            return
+        }
+
+        showInterstitialInternal(vastUrl)
+    }
+
+    private fun showInterstitialInternal(vastUrl: String?) {
         activity.runOnUiThread {
             vastAdManager.showInterstitialAd(activity, vastUrl) { success ->
                 if (success) {
                     TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
                     notifyWebApp("interstitialShown", "true")
                 } else {
-                    notifyWebApp("interstitialFailed", "Ad not available")
+                    notifyWebApp("interstitialFailed", "ad_not_available")
                 }
                 notifyWebApp("interstitialClosed", "true")
             }
@@ -72,21 +92,29 @@ class AdBridge(
         if (activity.isFinishing || activity.isDestroyed) {
             TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
             notifyWebApp("rewardedFailed", "activity_invalid")
+            notifyWebApp("rewardedClosed", "true")
             return
         }
 
         if (!vastAdManager.isInitialized.get()) {
-            TestRigorLogger.logWarning("Cannot show rewarded ad - VAST not initialized")
-            notifyWebApp("rewardedFailed", "not_initialized")
+            TestRigorLogger.logWarning("Cannot show rewarded ad - VAST not initialized, auto-initializing...")
+            activity.runOnUiThread {
+                vastAdManager.initialize(activity) { success ->
+                    if (success) {
+                        showRewardedInternal(vastUrl)
+                    } else {
+                        notifyWebApp("rewardedFailed", "init_failed")
+                        notifyWebApp("rewardedClosed", "true")
+                    }
+                }
+            }
             return
         }
 
-        if (!vastAdManager.isRewardedAdAvailable()) {
-            TestRigorLogger.logWarning("Rewarded ad not ready yet")
-            notifyWebApp("rewardedFailed", "not_ready")
-            return
-        }
+        showRewardedInternal(vastUrl)
+    }
 
+    private fun showRewardedInternal(vastUrl: String?) {
         activity.runOnUiThread {
             TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
             vastAdManager.showRewardedAd(
@@ -98,6 +126,9 @@ class AdBridge(
                 },
                 onComplete = { success ->
                     TestRigorLogger.logAdEvent("Rewarded ad closed callback")
+                    if (!success) {
+                        notifyWebApp("rewardedFailed", "ad_not_available")
+                    }
                     notifyWebApp("rewardedClosed", "true")
                 }
             )
