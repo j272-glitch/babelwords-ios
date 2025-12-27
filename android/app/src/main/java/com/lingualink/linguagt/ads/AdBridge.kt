@@ -35,10 +35,11 @@ class AdBridge(
     /**
      * Show interstitial ad
      * Usage: window.AdBridge.showInterstitial()
+     * Usage with custom URL: window.AdBridge.showInterstitial("https://your-vast-url")
      */
     @JavascriptInterface
-    fun showInterstitial() {
-        TestRigorLogger.logAdEvent("AdBridge.showInterstitial() called from web app")
+    fun showInterstitial(vastUrl: String? = null) {
+        TestRigorLogger.logAdEvent("AdBridge.showInterstitial() called from web app, vastUrl=${vastUrl?.take(30) ?: "default"}")
 
         if (activity.isFinishing || activity.isDestroyed) {
             TestRigorLogger.logWarning("Cannot show ad - activity is invalid")
@@ -47,7 +48,7 @@ class AdBridge(
         }
 
         activity.runOnUiThread {
-            vastAdManager.showInterstitialAd(activity) { success ->
+            vastAdManager.showInterstitialAd(activity, vastUrl) { success ->
                 if (success) {
                     TestRigorLogger.logAdEvent("Interstitial ad shown successfully")
                     notifyWebApp("interstitialShown", "true")
@@ -62,10 +63,11 @@ class AdBridge(
     /**
      * Show rewarded ad
      * Usage: window.AdBridge.showRewarded()
+     * Usage with custom URL: window.AdBridge.showRewarded("https://your-vast-url")
      */
     @JavascriptInterface
-    fun showRewarded() {
-        TestRigorLogger.logAdEvent("AdBridge.showRewarded() CALLED from web app")
+    fun showRewarded(vastUrl: String? = null) {
+        TestRigorLogger.logAdEvent("AdBridge.showRewarded() CALLED from web app, vastUrl=${vastUrl?.take(30) ?: "default"}")
 
         if (activity.isFinishing || activity.isDestroyed) {
             TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
@@ -89,6 +91,7 @@ class AdBridge(
             TestRigorLogger.logAdEvent("Attempting to show rewarded ad...")
             vastAdManager.showRewardedAd(
                 activity,
+                vastUrl,
                 onRewarded = {
                     TestRigorLogger.logAdEvent("Reward earned")
                     notifyWebApp("rewardEarned", "1")

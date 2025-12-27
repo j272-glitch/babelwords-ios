@@ -92,16 +92,17 @@ class VASTAdManager private constructor(private val context: Context) {
         onComplete(true)
     }
     
-    fun showInterstitialAd(activity: Activity, onComplete: (Boolean) -> Unit) {
-        showAd(activity, isRewarded = false, onRewarded = null, onComplete = onComplete)
+    fun showInterstitialAd(activity: Activity, vastUrl: String? = null, onComplete: (Boolean) -> Unit) {
+        showAd(activity, vastUrl = vastUrl, isRewarded = false, onRewarded = null, onComplete = onComplete)
     }
     
-    fun showRewardedAd(activity: Activity, onRewarded: () -> Unit, onComplete: (Boolean) -> Unit) {
-        showAd(activity, isRewarded = true, onRewarded = onRewarded, onComplete = onComplete)
+    fun showRewardedAd(activity: Activity, vastUrl: String? = null, onRewarded: () -> Unit, onComplete: (Boolean) -> Unit) {
+        showAd(activity, vastUrl = vastUrl, isRewarded = true, onRewarded = onRewarded, onComplete = onComplete)
     }
     
     private fun showAd(
         activity: Activity,
+        vastUrl: String? = null,
         isRewarded: Boolean,
         onRewarded: (() -> Unit)?,
         onComplete: (Boolean) -> Unit
@@ -129,9 +130,12 @@ class VASTAdManager private constructor(private val context: Context) {
         rewardCallbackFired = false
         quartilesFired.clear()
         
+        val effectiveUrl = if (!vastUrl.isNullOrBlank()) vastUrl else DEFAULT_VAST_TAG_URL
+        TestRigorLogger.logAdEvent("Using VAST URL: ${effectiveUrl.take(50)}...")
+        
         scope.launch {
             try {
-                val vastXml = fetchVastXml(DEFAULT_VAST_TAG_URL + System.currentTimeMillis())
+                val vastXml = fetchVastXml(effectiveUrl + System.currentTimeMillis())
                 if (vastXml == null) {
                     TestRigorLogger.logWarning("Failed to fetch VAST XML")
                     onComplete(false)
