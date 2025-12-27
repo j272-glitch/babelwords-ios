@@ -12,8 +12,8 @@ android {
         applicationId "com.lingualink.linguagt"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
-        versionCode 15
-        versionName "15.0.0"
+        versionCode 19
+        versionName "19.0.0"
 
         // MultiDex support
         multiDexEnabled true
