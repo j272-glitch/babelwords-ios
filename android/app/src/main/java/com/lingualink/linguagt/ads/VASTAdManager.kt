@@ -507,6 +507,6 @@ class VASTAdManager private constructor(private val context: Context) {
     }
     
     fun forceShowInterstitial(activity: Activity, onComplete: (Boolean) -> Unit) {
-        showInterstitialAd(activity, onComplete)
+        showInterstitialAd(activity, vastUrl = null, onComplete = onComplete)
     }
 }
