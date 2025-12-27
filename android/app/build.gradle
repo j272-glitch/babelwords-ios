@@ -42,10 +42,9 @@ android {
             appLabel: "@string/app_name"
         ]
 
-        // CRITICAL: Include all ABIs to support both 32-bit and 64-bit devices
-        // This ensures Play Console doesn't drop device support
+        // 64-bit only - smaller APK, modern devices only
         ndk {
-            abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+            abiFilters 'arm64-v8a', 'x86_64'
         }
     }
 
