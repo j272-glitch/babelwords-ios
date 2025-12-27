@@ -25,6 +25,11 @@ import android.media.AudioManager
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
 import android.media.audiofx.AutomaticGainControl
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * MainActivity with TestRigor enhancements
@@ -502,6 +507,9 @@ class MainActivity : BaseActivity() {
                 )
                 TestRigorLogger.logAdEvent("AdBridge ready signal sent to web app")
 
+                // Inject device advertising ID for ad targeting
+                injectDeviceAdId()
+
                 // Delay VAST initialization slightly to ensure page is stable
                 lifecycleHandler.postDelayed({
                     initializeVASTAdManagerSafely()
@@ -969,6 +977,54 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logDebug("Microphone detection script injected successfully")
         } catch (e: Exception) {
             TestRigorLogger.logError("Script injection failed", e)
+        }
+    }
+
+    /**
+     * Inject device advertising ID for ad targeting
+     * Called after page loads to provide GAID to web app for VAST ad requests
+     */
+    private fun injectDeviceAdId() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val adInfo = AdvertisingIdClient.getAdvertisingIdInfo(applicationContext)
+                val gaid = adInfo.id ?: ""
+                val limitTracking = adInfo.isLimitAdTrackingEnabled
+                
+                val js = """
+                    window.DEVICE_AD_INFO = {
+                        id: '$gaid',
+                        limitTracking: $limitTracking,
+                        platform: 'android'
+                    };
+                    console.log('[LinguaVibe] Device Ad Info injected:', window.DEVICE_AD_INFO);
+                    if (window.onDeviceAdInfoReady) { window.onDeviceAdInfoReady(window.DEVICE_AD_INFO); }
+                """.trimIndent()
+                
+                withContext(Dispatchers.Main) {
+                    if (::webView.isInitialized && !isFinishing && !isDestroyed) {
+                        webView.evaluateJavascript(js, null)
+                        TestRigorLogger.logAdEvent("Device Ad ID injected: ${gaid.take(8)}...")
+                    }
+                }
+            } catch (e: Exception) {
+                TestRigorLogger.logWarning("Failed to get advertising ID: ${e.message}")
+                // Fallback - ads will still work but with lower targeting accuracy
+                withContext(Dispatchers.Main) {
+                    if (::webView.isInitialized && !isFinishing && !isDestroyed) {
+                        val js = """
+                            window.DEVICE_AD_INFO = {
+                                id: '',
+                                limitTracking: true,
+                                platform: 'android',
+                                error: 'unavailable'
+                            };
+                            console.log('[LinguaVibe] Device Ad Info unavailable');
+                        """.trimIndent()
+                        webView.evaluateJavascript(js, null)
+                    }
+                }
+            }
         }
     }
 

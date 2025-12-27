@@ -233,6 +233,9 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-process:2.7.0'  // Required for ProcessLifecycleOwner
 
+    // Google Play Services - Advertising ID for ad targeting
+    implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
+
     // ConstraintLayout
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
