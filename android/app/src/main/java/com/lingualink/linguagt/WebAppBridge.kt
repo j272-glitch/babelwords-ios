@@ -6,7 +6,6 @@ import android.os.Looper
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.widget.Toast
-import com.lingualink.linguagt.ads.VASTAdManager
 import org.json.JSONObject
 
 /**
@@ -39,10 +38,6 @@ class WebAppBridge(private val activity: Activity) {
         private const val MAX_SYNC_DATA_SIZE = 10000
     }
 
-    private val vastAdManager: VASTAdManager by lazy {
-        VASTAdManager.getInstance(activity)
-    }
-    
     // TESTRIGOR FIX: Handler for safe UI thread execution
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -145,68 +140,36 @@ class WebAppBridge(private val activity: Activity) {
     /**
      * Show interstitial ad (called when user hits 5 translation limit)
      * Web app should call: window.AndroidBridge.showInterstitialAd()
-     * TESTRIGOR FIX: Use safe UI thread access with activity state validation
+     * NOTE: Ads are now handled entirely by the web app's VAST player
      */
     @JavascriptInterface
     fun showInterstitialAd() {
-        TestRigorLogger.logAdEvent("Web app requested interstitial ad")
-
-        // TESTRIGOR FIX: Check activity state before UI operation
-        if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show interstitial ad - activity invalid")
-            return
-        }
-
-        safeExecuteOnUiThread {
-            vastAdManager.showInterstitialAd(activity) { success ->
-                // After ad closes, notify web app
-                notifyWebApp("interstitial_closed")
-            }
-        }
+        TestRigorLogger.logAdEvent("Web app requested interstitial ad (handled by web VAST player)")
+        // Ads are now handled by the web app's unified VAST player
+        // This method exists for backwards compatibility
     }
 
     /**
      * Show rewarded ad for 30 minutes of premium access
      * Web app should call: window.AndroidBridge.showRewardedAd()
-     * TESTRIGOR FIX: Use safe UI thread access with activity state validation
+     * NOTE: Ads are now handled entirely by the web app's VAST player
      */
     @JavascriptInterface
     fun showRewardedAd() {
-        TestRigorLogger.logAdEvent("Web app requested rewarded ad")
-
-        // TESTRIGOR FIX: Check activity state before UI operation
-        if (activity.isFinishing || activity.isDestroyed) {
-            TestRigorLogger.logWarning("Cannot show rewarded ad - activity invalid")
-            return
-        }
-
-        safeExecuteOnUiThread {
-            if (vastAdManager.isRewardedAdAvailable()) {
-                vastAdManager.showRewardedAd(
-                    activity,
-                    onRewarded = {
-                        TestRigorLogger.logAdEvent("User earned reward")
-                        // Grant 30 minutes of premium access
-                        grantPremiumAccess(30)
-                    },
-                    onComplete = { success ->
-                        notifyWebApp("rewarded_closed")
-                    }
-                )
-            } else {
-                Toast.makeText(activity, "Ad not available yet. Please try again.", Toast.LENGTH_SHORT).show()
-                notifyWebApp("rewarded_not_available")
-            }
-        }
+        TestRigorLogger.logAdEvent("Web app requested rewarded ad (handled by web VAST player)")
+        // Ads are now handled by the web app's unified VAST player
+        // This method exists for backwards compatibility
     }
 
     /**
      * Check if rewarded ad is available
      * Web app should call: window.AndroidBridge.isRewardedAdReady()
+     * NOTE: Always returns true since web app handles ad availability
      */
     @JavascriptInterface
     fun isRewardedAdReady(): Boolean {
-        return vastAdManager.isRewardedAdAvailable()
+        // Web app now manages ad availability via its own VAST player
+        return true
     }
 
     /**
