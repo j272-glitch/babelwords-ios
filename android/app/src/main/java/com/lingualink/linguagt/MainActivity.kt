@@ -16,7 +16,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.lingualink.linguagt.ads.IMAManager
+import com.lingualink.linguagt.ads.VASTAdManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -58,7 +58,7 @@ class MainActivity : BaseActivity() {
     private lateinit var lifecycleHandler: LifecycleAwareHandler
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
-    private lateinit var imaManager: IMAManager
+    private lateinit var vastAdManager: VASTAdManager
     private lateinit var adBridge: com.lingualink.linguagt.ads.AdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
@@ -134,7 +134,7 @@ class MainActivity : BaseActivity() {
     private var lastBridgeCallTime = 0L
     private val BRIDGE_THROTTLE_MS = 100L
 
-    // Solution #89: Track IMA consent initialization state
+    // Track VAST Ad Manager initialization state
     private var isIMAConsentInitialized = false
     private var isWebViewFullyLoaded = false
 
@@ -182,12 +182,11 @@ class MainActivity : BaseActivity() {
             lifecycleHandler = LifecycleAwareHandler(this)
             permissionManager = SafePermissionManager(this, isTestMode)
             webAppBridge = WebAppBridge(this)
-            imaManager = IMAManager.getInstance(this)
+            vastAdManager = VASTAdManager.getInstance(this)
 
-            // Solution #89: Delay IMA consent initialization until WebView is fully loaded
-            // IMA SDK initialization (without consent) - consent will be requested in onPageFinished
+            // VAST Ad Manager obtained - initialization will complete when first ad is requested
             // Note: AdBridge is registered in setupWebViewForConversationMode() after WebView is created
-            TestRigorLogger.logAdEvent("IMA SDK reference obtained - consent deferred until WebView ready")
+            TestRigorLogger.logAdEvent("VAST Ad Manager reference obtained")
 
             tracker = UserActivityTracker(this, appId)
             tracker?.sendUserActivity(appId)
@@ -224,29 +223,29 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Solution #89: Initialize IMA consent after activity is fully ready
+     * Initialize VAST Ad Manager after activity is fully ready
      * Called from onPageFinished to ensure WebView and activity are stable
      */
-    private fun initializeIMAConsentSafely() {
+    private fun initializeVASTAdManagerSafely() {
         if (isIMAConsentInitialized) {
-            TestRigorLogger.logDebug("IMA consent already initialized, skipping")
+            TestRigorLogger.logDebug("VAST Ad Manager already initialized, skipping")
             return
         }
 
         if (isFinishing || isDestroyed) {
-            TestRigorLogger.logWarning("Cannot initialize IMA consent - activity invalid")
+            TestRigorLogger.logWarning("Cannot initialize VAST Ad Manager - activity invalid")
             return
         }
 
         isIMAConsentInitialized = true
-        TestRigorLogger.logAdEvent("Initializing IMA consent (WebView fully loaded)")
+        TestRigorLogger.logAdEvent("Initializing VAST Ad Manager (WebView fully loaded)")
 
         try {
-            imaManager.initialize(this) { consentGranted ->
-                TestRigorLogger.logAdEvent("IMA consent completed: $consentGranted")
+            vastAdManager.initialize(this) { success ->
+                TestRigorLogger.logAdEvent("VAST Ad Manager initialized: $success")
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("IMA consent initialization failed", e)
+            TestRigorLogger.logError("VAST Ad Manager initialization failed", e)
             isIMAConsentInitialized = false // Allow retry on next page load
         }
     }
@@ -400,7 +399,7 @@ class MainActivity : BaseActivity() {
         // ANR prevention comes from window.decorView.post() deferral in onCreate
         val webSettings: WebSettings = webView.settings
         webSettings.apply {
-            // Enable JavaScript (required for conversation mode and IMA SDK)
+            // Enable JavaScript (required for conversation mode and VAST ads)
             javaScriptEnabled = true
 
             // TESTRIGOR FIX: Detect TestRigor from User-Agent
@@ -426,10 +425,10 @@ class MainActivity : BaseActivity() {
             loadWithOverviewMode = true
             useWideViewPort = true
             
-            // IMPORTANT: IMA SDK requires mediaPlaybackRequiresUserGesture = false for ads
+            // IMPORTANT: Video ads require mediaPlaybackRequiresUserGesture = false
             mediaPlaybackRequiresUserGesture = false
             
-            // Enable mixed content for ad servers (IMA SDK requirement)
+            // Enable mixed content for ad servers (VAST requirement)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             }
@@ -493,7 +492,7 @@ class MainActivity : BaseActivity() {
                     webAppBridge.onPageLoaded()
                 }
 
-                // Solution #89: Mark WebView as fully loaded and initialize IMA consent
+                // Mark WebView as fully loaded and initialize VAST Ad Manager
                 isWebViewFullyLoaded = true
 
                 // Notify web app that AdBridge is ready
@@ -503,9 +502,9 @@ class MainActivity : BaseActivity() {
                 )
                 TestRigorLogger.logAdEvent("AdBridge ready signal sent to web app")
 
-                // Delay IMA consent slightly to ensure page is stable
+                // Delay VAST initialization slightly to ensure page is stable
                 lifecycleHandler.postDelayed({
-                    initializeIMAConsentSafely()
+                    initializeVASTAdManagerSafely()
                 }, 1000) // 1 second delay for stability
 
                 super.onPageFinished(view, url)
@@ -1167,8 +1166,7 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onResume: WebView, IMA, Tracker, and Permission handling
-     * Solution #89: Includes IMA resume and deferred consent initialization
+     * Unified onResume: WebView, VAST Ads, Tracker, and Permission handling
      */
     override fun onResume() {
         super.onResume()
@@ -1181,20 +1179,20 @@ class MainActivity : BaseActivity() {
             webView.onResume()
         }
 
-        // Solution #89: Resume IMA ads if initialized
+        // Resume VAST ads if initialized
         try {
-            if (::imaManager.isInitialized) {
-                imaManager.resume()
+            if (::vastAdManager.isInitialized) {
+                vastAdManager.resume()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("IMA resume failed", e)
+            TestRigorLogger.logError("VAST ad resume failed", e)
         }
 
-        // Solution #89: Fallback consent initialization if WebView loaded but consent wasn't initialized
+        // Fallback initialization if WebView loaded but ads weren't initialized
         if (isWebViewFullyLoaded && !isIMAConsentInitialized) {
-            TestRigorLogger.logDebug("onResume: Triggering deferred IMA consent initialization")
+            TestRigorLogger.logDebug("onResume: Triggering deferred VAST Ad Manager initialization")
             lifecycleHandler.postDelayed({
-                initializeIMAConsentSafely()
+                initializeVASTAdManagerSafely()
             }, 500) // Small delay to ensure activity is fully resumed
         }
 
@@ -1209,8 +1207,7 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * Unified onPause: WebView and IMA handling
-     * Solution #89: Includes IMA pause
+     * Unified onPause: WebView and VAST ads handling
      */
     override fun onPause() {
         super.onPause()
@@ -1220,13 +1217,13 @@ class MainActivity : BaseActivity() {
             webView.onPause()
         }
 
-        // Solution #89: Pause IMA ads
+        // Pause VAST ads
         try {
-            if (::imaManager.isInitialized) {
-                imaManager.pause()
+            if (::vastAdManager.isInitialized) {
+                vastAdManager.pause()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("IMA pause failed", e)
+            TestRigorLogger.logError("VAST ad pause failed", e)
         }
     }
 
@@ -1519,13 +1516,13 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logError("LifecycleHandler cleanup", e)
         }
 
-        // Solution #81: Clean up IMA
+        // Clean up VAST Ad Manager
         try {
-            if (::imaManager.isInitialized) {
-                imaManager.destroy()
+            if (::vastAdManager.isInitialized) {
+                vastAdManager.destroy()
             }
         } catch (e: Exception) {
-            TestRigorLogger.logError("IMA cleanup", e)
+            TestRigorLogger.logError("VAST Ad Manager cleanup", e)
         }
 
         // Release audio enhancement resources
