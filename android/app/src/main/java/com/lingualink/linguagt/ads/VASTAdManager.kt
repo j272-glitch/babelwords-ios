@@ -138,6 +138,7 @@ class VASTAdManager private constructor(private val context: Context) {
                 val vastXml = fetchVastXml(effectiveUrl + System.currentTimeMillis())
                 if (vastXml == null) {
                     TestRigorLogger.logWarning("Failed to fetch VAST XML")
+                    isAdShowing.set(false)
                     onComplete(false)
                     return@launch
                 }
@@ -146,6 +147,7 @@ class VASTAdManager private constructor(private val context: Context) {
                 if (adData?.mediaUrl == null) {
                     TestRigorLogger.logWarning("Failed to parse VAST or no media URL")
                     fireErrorTracking(adData?.errorUrls)
+                    isAdShowing.set(false)
                     onComplete(false)
                     return@launch
                 }
@@ -154,6 +156,7 @@ class VASTAdManager private constructor(private val context: Context) {
                 
                 withContext(Dispatchers.Main) {
                     if (activity.isFinishing || activity.isDestroyed) {
+                        isAdShowing.set(false)
                         onComplete(false)
                         return@withContext
                     }
@@ -164,6 +167,7 @@ class VASTAdManager private constructor(private val context: Context) {
                 
             } catch (e: Exception) {
                 TestRigorLogger.logError("Error showing VAST ad", e)
+                isAdShowing.set(false)
                 onComplete(false)
             }
         }
