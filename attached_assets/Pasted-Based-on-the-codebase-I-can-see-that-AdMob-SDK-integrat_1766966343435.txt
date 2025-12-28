@@ -1,0 +1,182 @@
+Based on the codebase, I can see that AdMob SDK integration was attempted previously but there are critical gaps that would prevent it from working. Here's what needs to change for success this time:
+
+What Was Missing Previously
+No Native Android Implementation: The codebase has JavaScript bridge files () and documentation (), but there's no actual native Android code to:
+Initialize the AdMob SDK
+Load ads from Google's servers
+Display ads on screen
+Communicate with the JavaScript bridge
+JavaScript Bridge Expects Native Methods: The  file expects  to be a native Android interface, but it's not being injected by any Kotlin/Java code.
+What Needs to Happen for Success
+Required Native Android Changes
+You need to create an actual Android app wrapper with these components:
+
+1. Create  (Native Kotlin Code)
+
+This file needs to be created in your Android project at :
+
+package com.lingualink.speechtranslator
+import android.app.Activity
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+class AdBridge(
+    private val activity: Activity,
+    private val webView: WebView
+) {
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    
+    companion object {
+        private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9277938970928959/1473642031"
+        private const val REWARDED_AD_UNIT = "ca-app-pub-9277938970928959/8777416980"
+    }
+    
+    init {
+        MobileAds.initialize(activity) {
+            Log.d("AdBridge", "AdMob initialized")
+            loadInterstitialAd()
+            loadRewardedAd()
+        }
+    }
+    
+    private fun loadInterstitialAd() {
+        InterstitialAd.load(
+            activity,
+            INTERSTITIAL_AD_UNIT,
+            AdRequest.Builder().build(),
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    interstitialAd = ad
+                    notifyWeb("interstitialLoaded", "true")
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e("AdBridge", "Interstitial failed: ${error.message}")
+                    interstitialAd = null
+                }
+            }
+        )
+    }
+    
+    private fun loadRewardedAd() {
+        RewardedAd.load(
+            activity,
+            REWARDED_AD_UNIT,
+            AdRequest.Builder().build(),
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    rewardedAd = ad
+                    notifyWeb("rewardedLoaded", "true")
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e("AdBridge", "Rewarded failed: ${error.message}")
+                    rewardedAd = null
+                }
+            }
+        )
+    }
+    
+    @JavascriptInterface
+    fun showInterstitial() {
+        activity.runOnUiThread {
+            interstitialAd?.let { ad ->
+                ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                    override fun onAdDismissedFullScreenContent() {
+                        notifyWeb("interstitialClosed", "")
+                        loadInterstitialAd()
+                    }
+                    
+                    override fun onAdShowedFullScreenContent() {
+                        notifyWeb("interstitialShown", "")
+                        interstitialAd = null
+                    }
+                }
+                ad.show(activity)
+            } ?: run {
+                notifyWeb("interstitialFailed", "Ad not ready")
+            }
+        }
+    }
+    
+    @JavascriptInterface
+    fun showRewarded() {
+        activity.runOnUiThread {
+            rewardedAd?.show(activity) { rewardItem ->
+                notifyWeb("rewardedEarned", rewardItem.amount.toString())
+            } ?: run {
+                notifyWeb("rewardedFailed", "Ad not ready")
+            }
+        }
+    }
+    
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean = interstitialAd != null
+    
+    @JavascriptInterface
+    fun isRewardedAdReady(): Boolean = rewardedAd != null
+    
+    private fun notifyWeb(event: String, data: String) {
+        val js = "window.onAdBridgeEvent('$event', '$data');"
+        activity.runOnUiThread {
+            webView.evaluateJavascript(js, null)
+        }
+    }
+}
+2. Register in MainActivity.kt
+
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private lateinit var adBridge: AdBridge
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        
+        webView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+        }
+        
+        // CRITICAL: Register bridge BEFORE loading URL
+        adBridge = AdBridge(this, webView)
+        webView.addJavascriptInterface(adBridge, "AdBridge")
+        
+        webView.loadUrl("https://your-repl.replit.app")
+        setContentView(webView)
+    }
+}
+3. Update AndroidManifest.xml
+
+<manifest>
+    <application>
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9277938970928959~7782802034"/>
+    </application>
+</manifest>
+4. Add Gradle Dependencies
+
+In :
+
+dependencies {
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
+}
+Why It Will Work This Time
+Native SDK Actually Loads: Previous attempt only had JavaScript expecting a bridge that didn't exist
+Proper Lifecycle Management: Native code handles Activity lifecycle correctly
+Real Ad Loading: Actual network requests to Google's ad servers
+Two-Way Communication: Native → JavaScript callbacks via notifyWeb()
+Production Ad Units: Using your actual AdMob IDs instead of test ads
+Verification Steps
+After implementing native Android code:
+
+Check Logs: You should see "AdMob initialized" in Android Studio logcat
+Test Bridge: Run window.AdBridge.isInterstitialReady() in WebView console
+Ad Inspector: Use MobileAds.openAdInspector() to verify ad units
+The JavaScript side () is already correctly implemented. The issue was simply the missing native Android implementation to make it functional.
