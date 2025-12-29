@@ -62,6 +62,7 @@ class MainActivity : BaseActivity() {
     private lateinit var lifecycleHandler: LifecycleAwareHandler
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
+    private lateinit var adBridge: AdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -200,6 +201,12 @@ class MainActivity : BaseActivity() {
                     requestPermissions()
                     
                     setupWebViewForConversationMode()
+                    
+                    // Initialize and register AdBridge for AdMob integration
+                    adBridge = AdBridge(this@MainActivity, webView)
+                    webView.addJavascriptInterface(adBridge, "AdBridge")
+                    TestRigorLogger.logMilestone("AdBridge registered with WebView")
+                    
                     handleDeepLink(intent)
                     TestRigorLogger.logMilestone("WebView setup completed (deferred)")
                 } catch (e: Exception) {

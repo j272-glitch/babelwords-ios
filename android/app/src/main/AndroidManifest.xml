@@ -41,6 +41,11 @@
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="35">
 
+        <!-- AdMob Application ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9277938970928959~7782802034"/>
+
         <!-- Main Activity with proper configuration changes -->
         <activity
             android:name=".MainActivity"

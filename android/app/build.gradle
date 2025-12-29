@@ -32,7 +32,7 @@ android {
         buildConfigField "String", "WEBSOCKET_URL", "\"wss://linguagt.com/ws\""
 
         // Resource configs - include all 36 Deepgram languages
-        resConfigs "en", "es", "fr", "de", "zh", "ja", "ko", "hi", "pt", "ru", 
+        resConfigs "en", "es", "fr", "de", "zh", "ja", "ko", "hi", "pt", "ru",
                    "ar", "it", "nl", "pl", "tr", "sv", "da", "no", "fi", "id",
                    "ms", "th", "vi", "cs", "el", "he", "hu", "ro", "sk", "uk",
                    "ca", "hr", "sr", "sl", "tl", "ta"
@@ -201,14 +201,14 @@ android {
 
     // Disable splits for TestRigor
     splits {
-        abi { 
-            enable false 
+        abi {
+            enable false
         }
-        density { 
-            enable false 
+        density {
+            enable false
         }
-        language { 
-            enable false 
+        language {
+            enable false
         }
     }
 
@@ -299,6 +299,9 @@ dependencies {
 
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+
+    // Google Mobile Ads SDK
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
