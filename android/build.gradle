@@ -43,8 +43,8 @@ subprojects {
                     targetSdk rootProject.ext.target_sdk
 
                     // Add version info
-                    versionCode 62
-                    versionName "1.0.62"
+                    versionCode 20
+                    versionName "1.0.20"
 
                     // Multimethod support
                     multiDexEnabled true
