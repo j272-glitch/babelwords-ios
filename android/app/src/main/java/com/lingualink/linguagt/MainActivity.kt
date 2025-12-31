@@ -414,6 +414,18 @@ class MainActivity : BaseActivity() {
             minimumFontSize = 8
         }
 
+        // ADMOB FIX: Enable cookies for ad tracking (ANDROID_WEBVIEW_012)
+        try {
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                cookieManager.setAcceptThirdPartyCookies(webView, true)
+            }
+            TestRigorLogger.logMilestone("WebView cookies enabled for ads")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Cookie setup failed", e)
+        }
+
         // ANR FIX: Request focus after layout is complete
         webView.post {
             webView.requestFocus()
@@ -1459,6 +1471,32 @@ class MainActivity : BaseActivity() {
         permissionTimeoutRunnable?.let {
             permissionTimeoutHandler.removeCallbacks(it)
             permissionTimeoutRunnable = null
+        }
+    }
+
+    // ADMOB FIX: Handle low memory by releasing cached ads (ANDROID_MEMORY_001)
+    override fun onLowMemory() {
+        super.onLowMemory()
+        TestRigorLogger.logMilestone("onLowMemory - releasing cached ads")
+        try {
+            if (::adBridge.isInitialized) {
+                adBridge.onLowMemory()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdBridge onLowMemory", e)
+        }
+    }
+
+    // ADMOB FIX: Handle memory trim levels (ANDROID_MEMORY_006)
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        TestRigorLogger.logMilestone("onTrimMemory level: $level")
+        try {
+            if (::adBridge.isInitialized) {
+                adBridge.onTrimMemory(level)
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdBridge onTrimMemory", e)
         }
     }
 

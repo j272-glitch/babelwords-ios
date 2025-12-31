@@ -477,5 +477,27 @@
 -keepclassmembers class com.lingualink.linguagt.ads.IMAManager { *; }
 
 # ========================================
+# AdMob Best Practices (from ANDROID_ADMOB_220 Guide)
+# ========================================
+# Keep AdMob callback classes (ANDROID_PROGUARD_004)
+-keep class com.google.android.gms.ads.FullScreenContentCallback { *; }
+-keep class com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback { *; }
+-keep class com.google.android.gms.ads.rewarded.RewardedAdLoadCallback { *; }
+-keep class com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback { *; }
+-keep class com.google.android.gms.ads.OnUserEarnedRewardListener { *; }
+-keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
+-keep class com.google.android.gms.ads.AdError { *; }
+-keep class com.google.android.gms.ads.LoadAdError { *; }
+
+# Keep Google Play Services connection classes
+-keep class com.google.android.gms.common.ConnectionResult { *; }
+-keep class com.google.android.gms.common.GoogleApiAvailability { *; }
+
+# Keep BuildConfig for debug/release differentiation (ANDROID_PROGUARD_015)
+-keepclassmembers class **.BuildConfig {
+    public static <fields>;
+}
+
+# ========================================
 # End of ProGuard Rules
 # ========================================
