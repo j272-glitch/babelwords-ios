@@ -22,6 +22,13 @@
 
 -keep class com.lingualink.linguagt.WebAppBridge { *; }
 
+# Keep AdBridge JavaScript interface methods for AdMob integration
+-keepclassmembers class com.lingualink.linguagt.ads.AdBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-keep class com.lingualink.linguagt.ads.AdBridge { *; }
+
 # Keep all JavaScript interface methods
 -keepattributes JavascriptInterface
 -keepclassmembers class * {

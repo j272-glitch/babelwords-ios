@@ -25,6 +25,8 @@ import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
 import android.media.audiofx.AutomaticGainControl
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
+import com.google.android.gms.ads.MobileAds
+import com.lingualink.linguagt.ads.AdBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -202,10 +204,11 @@ class MainActivity : BaseActivity() {
                     
                     setupWebViewForConversationMode()
                     
-                    // Initialize and register AdBridge for AdMob integration
+                    // Initialize AdMob SDK and register AdBridge
                     adBridge = AdBridge(this@MainActivity, webView)
                     webView.addJavascriptInterface(adBridge, "AdBridge")
-                    TestRigorLogger.logMilestone("AdBridge registered with WebView")
+                    adBridge.initialize()
+                    TestRigorLogger.logMilestone("AdBridge registered and AdMob initialized")
                     
                     handleDeepLink(intent)
                     TestRigorLogger.logMilestone("WebView setup completed (deferred)")
@@ -1496,6 +1499,15 @@ class MainActivity : BaseActivity() {
             }
         } catch (e: Exception) {
             TestRigorLogger.logError("WebAppBridge cleanup", e)
+        }
+
+        // Clean up AdBridge
+        try {
+            if (::adBridge.isInitialized) {
+                adBridge.cleanup()
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdBridge cleanup", e)
         }
 
         // Solution #78: Clean up lifecycleHandler
