@@ -1,0 +1,34 @@
+12-31 20:44:46.995 E/AudioTrack(20104): processAudioBuffer(64): EVENT_MORE_DATA requested 1536 bytes but callback returned -1 bytes12-31 20:44:46.995 E/AudioTrack(20104): processAudioBuffer(62): EVENT_MORE_DATA requested 1024 bytes but callback returned -1 bytes12-31 20:44:46.995 W/AudioStreamLegacy(20104): processCallbackCommon() data, stream disconnected12-31 20:44:46.995 E/AudioTrack(20104): processAudioBuffer(67): EVENT_MORE_DATA requested 1536 bytes but callback returned -1 bytes12-31 20:44:46.996 W/AAudioStream(20104): setState(4) tried to set to 9 but already DISCONNECTED12-31 20:44:46.998 W/AAudioStream(20104): setState(4) tried to set to 9 but already DISCONNECTED12-31 20:44:47.172 W/AAudioStream(20104): setState(7) tried to set to 9 but already DISCONNECTED12-31 20:44:47.172 W/AAudioStream(20104): setState(7) tried to set to 9 but already DISCONNECTED12-31 20:44:47.216 W/AAudioStream(20104): setState(15) tried to set to 9 but already DISCONNECTED12-31 20:44:47.218 W/AAudioStream(20104): setState(15) tried to set to 9 but already DISCONNECTED12-31 20:44:47.310 W/AAudioStream(20104): setState(9) tried to set to 9 but already DISCONNECTED12-31 20:44:47.312 W/AAudioStream(20104): setState(9) tried to set to 9 but already DISCONNECTED12-31 20:44:47.405 W/AAudioStream(20104): setState(11) tried to set to 9 but already DISCONNECTED12-31 20:44:47.406 W/AAudioStream(20104): setState(11) tried to set to 9 but already DISCONNECTED12-31 20:44:47.508 W/AAudioStream(20104): setState(13) tried to set to 9 but already DISCONNECTED12-31 20:44:47.511 W/AAudioStream(20104): setState(13) tried to set to 9 but already DISCONNECTED12-31 20:44:48.135 W/cr_AwAutofillManager(20104): Autofill is disabled: AutofillManager isn't available in given Context.12-31 20:44:48.566 W/chromium(20104): [WARNING:services/audio/sync_reader.cc:171] SyncReader::Read timed out, audio glitch count=1012-31 20:44:53.513 W/Choreographer(20104): Frame time is 0.015992 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.12-31 20:44:53.764 W/IInputConnectionWrapper(20104): requestCursorAnchorInfo on inactive InputConnection12-31 20:44:57.710 W/chromium(20104): [WARNING:services/audio/sync_reader.cc:171] SyncReader::Read timed out, audio glitch count=1012-31 20:45:18.281 W/Choreographer(20104): Frame time is 0.237033 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.12-31 20:45:18.581 W/Choreographer(20104): Frame time is 0.045364 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.12-31 20:45:18.982 W/Choreographer(20104): Frame time is 0.160245 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.12-31 20:45:26.398 W/Choreographer(20104): Frame time is 0.232367 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.12-31 20:46:07.700 W/Choreographer(20104): Frame time is 0.078822 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+PRO
+
+Switch Device
+
+Local testing
+
+
+Zoom
+
+Record Session
+
+DevTools
+
+Report a bug
+
+Settings
+
+Stop Session
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
