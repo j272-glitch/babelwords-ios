@@ -138,7 +138,7 @@ class AdBridge(
             .setTagForUnderAgeOfConsent(false)
             .build()
         
-        consentInformation = ConsentInformation.getInstance(activity)
+        consentInformation = UserMessagingPlatform.getConsentInformation(activity)
         consentInformation?.requestConsentInfoUpdate(
             activity,
             params,
