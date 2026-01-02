@@ -29,9 +29,9 @@ class AdBridge(
     companion object {
         private const val TAG = "AdBridge"
         
-        private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9277938970928959/1473642031"
-        private const val REWARDED_AD_UNIT = "ca-app-pub-9277938970928959/8777416980"
-        private const val REWARDED_INTERSTITIAL_AD_UNIT = "ca-app-pub-9277938970928959/6843749135"
+        private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/5076005693"
+        private const val REWARDED_AD_UNIT = "ca-app-pub-9991891515643313/6313049833"
+        private const val REWARDED_INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/8883372855"
         
         private const val TEST_INTERSTITIAL = "ca-app-pub-3940256099942544/1033173712"
         private const val TEST_REWARDED = "ca-app-pub-3940256099942544/5224354917"

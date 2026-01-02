@@ -1,0 +1,215 @@
+
+# Android AdMob Diagnostic Checklist
+
+## Current Status (BrowserStack Pixel 9 Pro)
+
+### ❌ Issues Detected
+- Native AdBridge interface NOT registered (`window.AdBridge === undefined`)
+- Falling back to server-side VAST ads (which also fail)
+- AdMob account active but no impressions
+
+### Server Diagnostics Show
+```json
+{
+  "platform": "android_webview",
+  "nativeAdMobAvailable": false,
+  "interfaces": {
+    "adBridge": { "exists": false }
+  }
+}
+```
+
+---
+
+## Phase 1: Verify Android App Has AdMob SDK
+
+### 1.1 Check `app/build.gradle`
+```gradle
+dependencies {
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+}
+```
+
+### 1.2 Check `AndroidManifest.xml`
+```xml
+<application>
+    <meta-data
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="ca-app-pub-9991891515643313~7514450861"/>
+</application>
+```
+
+### 1.3 Check MainActivity.kt
+Must have:
+```kotlin
+import com.google.android.gms.ads.MobileAds
+
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    
+    // Initialize AdMob SDK
+    MobileAds.initialize(this) { }
+    
+    // Create and register AdBridge
+    val adBridge = AdBridge(this, webView)
+    webView.addJavascriptInterface(adBridge, "AdBridge")
+    
+    webView.loadUrl("https://your-domain.replit.dev")
+}
+```
+
+---
+
+## Phase 2: Implement AdBridge.kt
+
+### 2.1 Create AdBridge.kt
+See: [`docs/ADMOB_ANDROID_INTEGRATION.md`](rag://rag_source_0) for complete implementation.
+
+**Critical Methods Required**:
+```kotlin
+@JavascriptInterface
+fun showInterstitial(): String
+
+@JavascriptInterface
+fun showRewarded(): String
+
+@JavascriptInterface
+fun isInterstitialReady(): Boolean
+
+@JavascriptInterface
+fun isRewardedAdReady(): Boolean
+```
+
+### 2.2 Test JavaScript Bridge
+Add to your Android app's debug build:
+```kotlin
+webView.evaluateJavascript("""
+    console.log('AdBridge available:', typeof window.AdBridge);
+    console.log('AdBridge methods:', Object.keys(window.AdBridge || {}));
+""", null)
+```
+
+---
+
+## Phase 3: Server-Side Diagnostics
+
+### 3.1 Check Ad Unit IDs
+Your production IDs:
+- **App ID**: `ca-app-pub-9991891515643313~7514450861`
+- **Interstitial**: `ca-app-pub-9991891515643313/5076005693`
+- **Rewarded**: `ca-app-pub-9991891515643313/6313049833`
+- **Rewarded Interstitial**: `ca-app-pub-9991891515643313/8883372855`
+
+### 3.2 Verify in AdMob Console
+1. Go to https://apps.admob.com
+2. Check app is approved
+3. Verify ad units are active
+4. Check for any policy violations
+
+---
+
+## Phase 4: Test Ad Loading
+
+### 4.1 Enable Test Ads First
+In AdBridge.kt, temporarily use test IDs:
+```kotlin
+private const val TEST_INTERSTITIAL = "ca-app-pub-3940256099942544/1033173712"
+private const val TEST_REWARDED = "ca-app-pub-3940256099942544/5224354917"
+```
+
+### 4.2 Test Flow
+1. Open app on BrowserStack
+2. Open Chrome DevTools Remote Debugging
+3. Check console: `typeof window.AdBridge`
+4. Should return `"object"` not `"undefined"`
+5. Try clicking ad button
+6. Should show Google test ad
+
+---
+
+## Phase 5: ProGuard Configuration
+
+If using release build with ProGuard:
+```proguard
+# Keep AdBridge JavaScript interface
+-keepclassmembers class com.lingualink.linguagt.AdBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Keep AdMob classes
+-keep class com.google.android.gms.ads.** { *; }
+```
+
+---
+
+## Quick Test Commands
+
+### In Android Studio Logcat
+```
+adb logcat | grep -i "AdBridge"
+adb logcat | grep -i "AdMob"
+```
+
+### In Chrome DevTools (remote debugging)
+```javascript
+// Check bridge availability
+console.log('AdBridge:', typeof window.AdBridge);
+
+// Check methods
+if (window.AdBridge) {
+    console.log('showInterstitial:', typeof window.AdBridge.showInterstitial);
+    console.log('showRewarded:', typeof window.AdBridge.showRewarded);
+}
+
+// Test ad request
+if (window.adService) {
+    window.adService.showInterstitial();
+}
+```
+
+---
+
+## Expected Behavior After Fix
+
+### Before Fix (Current State)
+```
+[AdService] 📍 Current environment: {
+  hasNativeAdMob: false,  ❌
+  userAgent: "...Android..."
+}
+[AdService] 📡 Using VAST ad for interstitial
+[Ads] No ad available  ❌
+```
+
+### After Fix (Target State)
+```
+[AdService] 📍 Current environment: {
+  hasNativeAdMob: true,  ✅
+  userAgent: "...Android..."
+}
+[AdService] Native AdMob detected, using native ads  ✅
+[AdBridge] 🎬 Calling native showInterstitial()...
+[AdMob] Interstitial ad shown  ✅
+```
+
+---
+
+## Next Steps
+
+1. **Share Android Container App Code**
+   - Provide MainActivity.kt
+   - Provide build.gradle
+   - Provide AndroidManifest.xml
+
+2. **Implement AdBridge.kt**
+   - Copy from [`docs/ADMOB_ANDROID_INTEGRATION.md`](rag://rag_source_0)
+   - Register with WebView
+
+3. **Test on BrowserStack**
+   - Verify bridge detection
+   - Test ad display
+   - Check AdMob console for impressions
+
+4. **Monitor Diagnostics**
+   - Server endpoint: `GET /api/ads/diagnostics/interfaces`
+   - Should show `"adBridge": { "exists": true }`
