@@ -1,0 +1,65 @@
+Here's what I found about the AdBridge communication flow:
+
+Current Architecture
+Native Android AdMob Flow (when window.adBridge exists):
+Detection: hasNativeAdMob() checks if window.adBridge.showInterstitial is a function
+Ad Request: Calls adBridge.showInterstitial() or adBridge.showRewarded() directly
+Result: Native SDK handles everything - the web app just receives success/failure
+Web Fallback Flow (no AdBridge):
+Detection: hasNativeAdMob() returns false
+Ad Request: Calls showServerProxiedAd() which fetches from /api/ads/request
+VAST: Server fetches VAST XML from Google sample URLs (NOT your AdMob units)
+Video: Web app plays video in an overlay
+The Problem
+Your database shows ALL requests are from Android WebView but using web fallback:
+
+fill_source: ui_fallback  (Video playback failed)
+fill_source: webm_fallback (VAST parsing failed)
+User agents show Android:
+
+Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro...) wv) AppleWebKit...
+This means:
+
+The Android app is loading the web app in WebView
+BUT window.adBridge is NOT being injected properly
+So hasNativeAdMob() returns false
+Web app falls back to server VAST (which returns empty)
+Diagnostic Check
+Let me add a quick diagnostic to check what's happening:
+
+Summary: Why Ads Default to Fallback
+The database confirms the issue:
+
+Fill Source	Count	Platform
+(empty)	18	web
+webm_fallback	10	web
+ui_fallback	2	web
+admob_native	0	android
+Zero native AdMob fills - all requests are being treated as "web" even from Android WebView.
+
+Root Causes:
+AdBridge Not Injected: The Android app's AdBridge.kt must inject itself into the WebView via:
+
+webView.addJavascriptInterface(adBridge, "adBridge")
+Detection Check: The web app checks for window.adBridge.showInterstitial:
+
+private hasNativeAdMob(): boolean {
+  return typeof window.adBridge === 'object' &&
+         typeof window.adBridge.showInterstitial === 'function';
+}
+If AdBridge missing: Falls back to server VAST → empty response → fallback video
+
+How to Test/Diagnose:
+In the Android WebView, run this JavaScript in the console:
+
+console.log('adBridge exists:', typeof window.adBridge);
+console.log('AdBridge functions:', window.adBridge ? Object.keys(window.adBridge) : 'N/A');
+console.log('AndroidAds exists:', typeof window.AndroidAds);
+console.log('AndroidApp exists:', typeof window.AndroidApp);
+Solutions:
+Verify Android Native Integration: Ensure AdBridge.kt is properly added to your Android project and the WebView has:
+
+webView.addJavascriptInterface(AdBridge(this, webView), "adBridge")
+Check AdMob SDK Initialization: The Android app must call MobileAds.initialize() before ads can be loaded
+
+For Web-Only Testing: The current fallback ads are working (users see video) - this is expected behavior when native AdBridge isn't available

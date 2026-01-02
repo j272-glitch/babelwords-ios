@@ -205,10 +205,11 @@ class MainActivity : BaseActivity() {
                     setupWebViewForConversationMode()
                     
                     // Initialize AdMob SDK and register AdBridge
+                    // CRITICAL: Use lowercase "adBridge" to match web app's window.adBridge check
                     adBridge = AdBridge(this@MainActivity, webView)
-                    webView.addJavascriptInterface(adBridge, "AdBridge")
+                    webView.addJavascriptInterface(adBridge, "adBridge")
                     adBridge.initialize()
-                    TestRigorLogger.logMilestone("AdBridge registered and AdMob initialized")
+                    TestRigorLogger.logMilestone("adBridge registered (lowercase) and AdMob initialized")
                     
                     handleDeepLink(intent)
                     TestRigorLogger.logMilestone("WebView setup completed (deferred)")
