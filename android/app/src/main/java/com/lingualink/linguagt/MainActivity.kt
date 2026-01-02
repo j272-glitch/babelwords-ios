@@ -202,14 +202,9 @@ class MainActivity : BaseActivity() {
                     // Request permissions after window is attached
                     requestPermissions()
                     
+                    // setupWebViewForConversationMode() now handles AdBridge registration
+                    // BEFORE any URL loads to fix timing race condition
                     setupWebViewForConversationMode()
-                    
-                    // Initialize AdMob SDK and register AdBridge
-                    // CRITICAL: Use lowercase "adBridge" to match web app's window.adBridge check
-                    adBridge = AdBridge(this@MainActivity, webView)
-                    webView.addJavascriptInterface(adBridge, "adBridge")
-                    adBridge.initialize()
-                    TestRigorLogger.logMilestone("adBridge registered (lowercase) and AdMob initialized")
                     
                     handleDeepLink(intent)
                     TestRigorLogger.logMilestone("WebView setup completed (deferred)")
@@ -360,6 +355,14 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logError("WebView creation", e)
             throw e
         }
+
+        // CRITICAL FIX: Register AdBridge IMMEDIATELY after WebView creation
+        // This MUST happen BEFORE any URL can be loaded to avoid race condition
+        // where page loads before bridge is available (window.adBridge === undefined)
+        adBridge = AdBridge(this, webView)
+        webView.addJavascriptInterface(adBridge, "adBridge")
+        adBridge.initialize()
+        TestRigorLogger.logMilestone("adBridge registered BEFORE page load - timing fix")
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
         webAppBridge.setWebView(webView)
