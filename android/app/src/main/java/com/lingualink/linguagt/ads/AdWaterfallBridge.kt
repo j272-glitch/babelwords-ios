@@ -138,16 +138,14 @@ class AdWaterfallBridge(
             logDiag("  Account ID: $INMOBI_ACCOUNT_ID")
             val consentObject = JSONObject()
             consentObject.put("gdpr", "0")
-            InMobiSdk.init(activity, INMOBI_ACCOUNT_ID, consentObject, object : InMobiSdk.SdkInitializationListener {
-                override fun onInitializationComplete(error: Error?) {
-                    if (error == null) {
-                        logDiag("✓ InMobi SDK initialized successfully")
-                        logDiag("  SDK Version: ${InMobiSdk.getVersion()}")
-                    } else {
-                        logDiag("✗ InMobi SDK initialization FAILED: ${error.message}", "E")
-                    }
+            InMobiSdk.init(activity, INMOBI_ACCOUNT_ID, consentObject) { error ->
+                if (error == null) {
+                    logDiag("✓ InMobi SDK initialized successfully")
+                    logDiag("  SDK Version: ${InMobiSdk.getVersion()}")
+                } else {
+                    logDiag("✗ InMobi SDK initialization FAILED: ${error.message}", "E")
                 }
-            })
+            }
         } catch (e: Exception) {
             logDiag("✗ InMobi init exception: ${e.message}", "E")
         }
@@ -474,7 +472,7 @@ class AdWaterfallBridge(
                         isInMobiInterstitialReady = true
                         successfulLoads++
                         logDiag("✓ INMOBI INTERSTITIAL LOADED")
-                        logDiag("  isReady(): ${ad.isReady}")
+                        logDiag("  isReady(): ${ad.isReady()}")
                         notifyJs("adLoaded", "inmobi", "interstitial")
                     }
                     
@@ -699,7 +697,7 @@ class AdWaterfallBridge(
         logDiag("→ Attempting to show interstitial...")
         logDiag("  InMobi ready: $isInMobiInterstitialReady")
         logDiag("  InMobi object: ${inMobiInterstitial != null}")
-        logDiag("  InMobi isReady(): ${inMobiInterstitial?.isReady}")
+        logDiag("  InMobi isReady(): ${inMobiInterstitial?.isReady()}")
         logDiag("  AdMob ready: $isAdMobInterstitialReady")
         logDiag("  AdMob object: ${adMobInterstitial != null}")
         
@@ -712,7 +710,7 @@ class AdWaterfallBridge(
         }
         
         when {
-            isInMobiInterstitialReady && inMobiInterstitial?.isReady == true -> {
+            isInMobiInterstitialReady && inMobiInterstitial?.isReady() == true -> {
                 logDiag("  ► Calling InMobi interstitial.show()")
                 try {
                     inMobiInterstitial?.show()
