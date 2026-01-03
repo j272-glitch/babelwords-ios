@@ -551,6 +551,8 @@ class AdWaterfallBridge(
         
         try {
             val adRequest = AdRequest.Builder().build()
+            logDiag("  AdRequest isTestDevice: ${adRequest.isTestDevice(act)}")
+            logDiag("  If TRUE = test ads only. Check AdMob console for device registration.")
             InterstitialAd.load(act, currentAdMobInterstitialId, adRequest,
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
@@ -628,6 +630,8 @@ class AdWaterfallBridge(
         
         try {
             val adRequest = AdRequest.Builder().build()
+            logDiag("  AdRequest isTestDevice: ${adRequest.isTestDevice(act)}")
+            logDiag("  If TRUE = test ads only. Check AdMob console for device registration.")
             RewardedAd.load(act, currentAdMobRewardedId, adRequest,
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
