@@ -27,6 +27,7 @@ import android.media.audiofx.AutomaticGainControl
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.ads.MobileAds
 import com.lingualink.linguagt.ads.AdBridge
+import com.lingualink.linguagt.ads.InMobiAdBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ class MainActivity : BaseActivity() {
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
     private lateinit var adBridge: AdBridge
+    private lateinit var inMobiAdBridge: InMobiAdBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -356,13 +358,21 @@ class MainActivity : BaseActivity() {
             throw e
         }
 
-        // CRITICAL FIX: Register AdBridge IMMEDIATELY after WebView creation
+        // CRITICAL FIX: Register ad bridges IMMEDIATELY after WebView creation
         // This MUST happen BEFORE any URL can be loaded to avoid race condition
         // where page loads before bridge is available (window.adBridge === undefined)
+        
+        // InMobi is PRIMARY - registered as "adBridge" for web app compatibility
+        inMobiAdBridge = InMobiAdBridge(this, webView, null)
+        webView.addJavascriptInterface(inMobiAdBridge, "adBridge")
+        inMobiAdBridge.initialize()
+        TestRigorLogger.logMilestone("InMobi adBridge registered as PRIMARY - timing fix")
+        
+        // AdMob is FALLBACK - registered as "adBridgeFallback"
         adBridge = AdBridge(this, webView)
-        webView.addJavascriptInterface(adBridge, "adBridge")
+        webView.addJavascriptInterface(adBridge, "adBridgeFallback")
         adBridge.initialize()
-        TestRigorLogger.logMilestone("adBridge registered BEFORE page load - timing fix")
+        TestRigorLogger.logMilestone("AdMob adBridgeFallback registered as FALLBACK")
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
         webAppBridge.setWebView(webView)
