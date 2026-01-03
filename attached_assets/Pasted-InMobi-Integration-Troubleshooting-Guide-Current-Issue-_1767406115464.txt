@@ -1,0 +1,210 @@
+InMobi Integration Troubleshooting Guide
+Current Issue
+InMobi interstitial ads are failing with "The InMobi SDK encountered an internal error." The waterfall correctly falls back to AdMob, but InMobi impressions are not being recorded.
+
+Required Android App Changes
+1. Fix JavaScript Interface Name (CRITICAL)
+File: MainActivity.kt (line 368)
+
+// BEFORE (incorrect):
+webView.addJavascriptInterface(adWaterfallBridge, "adBridge")
+// AFTER (correct):
+webView.addJavascriptInterface(adWaterfallBridge, "AndroidAdBridge")
+This ensures the web app can communicate with the native ad bridge.
+
+2. Remove Duplicate AdMob Dependency
+File: app/build.gradle
+
+Remove the older duplicate version:
+
+// REMOVE this line (~line 226):
+implementation 'com.google.android.gms:play-services-ads:22.6.0'
+// KEEP this line (~line 310):
+implementation 'com.google.android.gms:play-services-ads:23.0.0'
+3. Verify InMobi Initialization
+File: AdWaterfallBridge.kt
+
+Ensure the InMobi SDK is properly initialized with consent:
+
+private fun initializeInMobi() {
+    val activity = activityRef.get() ?: return
+    
+    // CRITICAL: Consent object must be properly configured
+    val consentObject = JSONObject().apply {
+        put("gdpr_consent_available", AdConfig.Privacy.gdprConsent)
+        put("gdpr", if (AdConfig.Privacy.gdprConsent) "1" else "0")
+    }
+    
+    InMobiSdk.init(activity, AdConfig.InMobi.ACCOUNT_ID, consentObject, object : SdkInitializationListener {
+        override fun onInitializationComplete(error: Error?) {
+            if (error == null) {
+                isInMobiInitialized = true
+                Log.d(AdConfig.LOG_TAG, "InMobi SDK initialized successfully")
+                
+                // Enable debug logging to see detailed errors
+                if (AdConfig.DEBUG_MODE) {
+                    InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
+                }
+                
+                // Pre-load ads after initialization
+                preloadInMobiInterstitial()
+                preloadInMobiRewarded()
+            } else {
+                Log.e(AdConfig.LOG_TAG, "InMobi init failed: ${error.message}")
+            }
+        }
+    })
+}
+4. Add Initialization Delay for Interstitials
+InMobi may need time to fully initialize before loading ads. Add a delay:
+
+private fun preloadInMobiInterstitial() {
+    if (!isInMobiInitialized) {
+        Log.d(AdConfig.LOG_TAG, "InMobi not initialized yet, delaying interstitial load")
+        Handler(Looper.getMainLooper()).postDelayed({
+            preloadInMobiInterstitial()
+        }, 1000)
+        return
+    }
+    
+    // Proceed with loading...
+}
+5. Verify InMobi Dashboard Configuration
+Log into InMobi Dashboard and verify:
+
+Setting	Expected Value
+Account Status	Active/Approved
+App Status	Approved
+Banner Placement (10000582111)	Active
+Interstitial Placement (10000582110)	Active
+Rewarded Placement (10000582112)	Active
+Common Issues:
+
+New accounts may be in "Pending Review" status
+Placements may need manual approval
+GDPR/CCPA compliance settings may block ads in certain regions
+6. Enable Verbose InMobi Logging
+File: AdWaterfallBridge.kt
+
+Add detailed logging for debugging:
+
+private fun initializeInMobi() {
+    val activity = activityRef.get() ?: return
+    
+    Log.d(AdConfig.LOG_TAG, "Starting InMobi initialization...")
+    Log.d(AdConfig.LOG_TAG, "Account ID: ${AdConfig.InMobi.ACCOUNT_ID}")
+    Log.d(AdConfig.LOG_TAG, "GDPR Consent: ${AdConfig.Privacy.gdprConsent}")
+    
+    // Always enable debug logging during testing
+    InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
+    
+    // ... rest of initialization
+}
+7. Add Error Details to Interstitial Listener
+File: AdWaterfallBridge.kt
+
+Get more details about why InMobi ads fail:
+
+private fun preloadInMobiInterstitial() {
+    val activity = activityRef.get() ?: return
+    
+    inMobiInterstitial = InMobiInterstitial(
+        activity, 
+        AdConfig.InMobi.Placements.INTERSTITIAL
+    ).apply {
+        setListener(object : InterstitialAdEventListener() {
+            override fun onAdLoadSucceeded(ad: InMobiInterstitial, info: AdMetaInfo) {
+                Log.d(AdConfig.LOG_TAG, "InMobi interstitial loaded - bid: ${info.bidInfo}")
+                isInMobiInterstitialReady = true
+            }
+            
+            override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
+                // Log detailed error information
+                Log.e(AdConfig.LOG_TAG, "InMobi interstitial failed:")
+                Log.e(AdConfig.LOG_TAG, "  Status Code: ${status.statusCode}")
+                Log.e(AdConfig.LOG_TAG, "  Message: ${status.message}")
+                Log.e(AdConfig.LOG_TAG, "  Placement: ${AdConfig.InMobi.Placements.INTERSTITIAL}")
+                
+                // Fall back to AdMob
+                preloadAdMobInterstitial()
+            }
+            
+            override fun onAdDisplayed(ad: InMobiInterstitial, info: AdMetaInfo) {
+                Log.d(AdConfig.LOG_TAG, "InMobi interstitial displayed")
+                recordImpression(AdNetwork.INMOBI, "interstitial")
+            }
+            
+            override fun onAdDismissed(ad: InMobiInterstitial) {
+                Log.d(AdConfig.LOG_TAG, "InMobi interstitial dismissed")
+                isInMobiInterstitialReady = false
+                preloadInMobiInterstitial() // Reload for next time
+            }
+        })
+    }
+    
+    inMobiInterstitial?.load()
+}
+Logcat Debugging Commands
+Filter for Ad-Related Logs Only
+# All ad-related logs
+adb logcat -s AdWaterfall:* InMobi:* Ads:*
+# Just InMobi logs
+adb logcat -s InMobi:*
+# Just your bridge logs
+adb logcat -s AdWaterfall:*
+# Search for errors
+adb logcat | grep -iE "(inmobi|admob|ad.*error|ad.*fail|no.fill)"
+Expected Log Flow (Success)
+D/AdWaterfall: Starting InMobi initialization...
+D/AdWaterfall: InMobi SDK initialized successfully
+D/AdWaterfall: Loading InMobi interstitial...
+D/AdWaterfall: InMobi interstitial loaded - bid: $X.XX
+D/AdWaterfall: Showing InMobi interstitial
+D/AdWaterfall: InMobi interstitial displayed
+D/AdWaterfall: Impression recorded: inmobi, interstitial
+Current Log Flow (Error - Fallback to AdMob)
+D/AdWaterfall: Starting InMobi initialization...
+D/AdWaterfall: InMobi SDK initialized successfully
+D/AdWaterfall: Loading InMobi interstitial...
+D/AdWaterfall: InMobi interstitial failed: The InMobi SDK encountered an internal error.
+D/AdWaterfall: Falling back to AdMob interstitial...
+D/AdWaterfall: AdMob interstitial loaded
+InMobi "Internal Error" Common Causes
+Cause	Solution
+Account pending approval	Wait for InMobi to approve your account
+Placement not active	Activate placements in InMobi dashboard
+Missing consent	Ensure GDPR consent is passed correctly
+SDK version mismatch	Update to latest InMobi SDK (10.6.7+)
+Network issues	Check device has internet connectivity
+Rate limiting	Wait and retry (new accounts have limits)
+Testing Checklist
+ JavaScript interface registered as "AndroidAdBridge"
+ Duplicate AdMob dependency removed
+ InMobi SDK initializes without error
+ Debug logging enabled
+ GDPR consent passed correctly
+ InMobi placements active in dashboard
+ Logcat shows detailed error messages
+ AdMob fallback working correctly
+Impression Tracking
+The waterfall tracks impressions separately:
+
+// In AdWaterfallBridge.kt
+@JavascriptInterface
+fun getInMobiImpressions(): Int = inMobiImpressions
+@JavascriptInterface
+fun getAdMobImpressions(): Int = adMobImpressions
+@JavascriptInterface
+fun getImpressionProgress(): Float = (inMobiImpressions.toFloat() / 10000) * 100
+Target: 10,000 InMobi impressions to fully activate the account.
+
+Contact InMobi Support
+If the "internal error" persists after all fixes:
+
+Go to InMobi Support
+Provide:
+Account ID: 9d81516c365f4acaa52f1fc627370cf9
+Placement IDs: 10000582111, 10000582110, 10000582112
+Error message: "The InMobi SDK encountered an internal error"
+SDK Version: 10.6.7
+Device/Android version tested

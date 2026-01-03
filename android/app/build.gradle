@@ -238,9 +238,6 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-process:2.7.0'  // Required for ProcessLifecycleOwner
 
-    // Google Mobile Ads SDK (AdMob) - Fallback
-    implementation 'com.google.android.gms:play-services-ads:22.6.0'
-    
     // Google User Messaging Platform (UMP) for GDPR consent
     implementation 'com.google.android.ump:user-messaging-platform:2.1.0'
     

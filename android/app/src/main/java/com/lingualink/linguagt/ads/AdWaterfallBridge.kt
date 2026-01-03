@@ -144,6 +144,13 @@ class AdWaterfallBridge(
     private fun initializeInMobi() {
         val activity = activityRef.get() ?: return
         
+        log("Starting InMobi initialization...")
+        log("Account ID: ${AdConfig.InMobi.ACCOUNT_ID}")
+        log("GDPR Consent: ${AdConfig.Privacy.gdprConsent}")
+        
+        // Always enable debug logging during initialization for troubleshooting
+        InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
+        
         val consentObject = JSONObject().apply {
             put("gdpr_consent_available", AdConfig.Privacy.gdprConsent)
             put("gdpr", if (AdConfig.Privacy.gdprConsent) "1" else "0")
@@ -153,15 +160,14 @@ class AdWaterfallBridge(
             override fun onInitializationComplete(error: Error?) {
                 if (error == null) {
                     isInMobiInitialized = true
-                    log("InMobi SDK initialized")
+                    log("InMobi SDK initialized successfully")
                     TestRigorLogger.logAdEvent("InMobi SDK initialized successfully")
                     
-                    if (AdConfig.DEBUG_MODE) {
-                        InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
-                    }
-                    
-                    preloadInMobiInterstitial()
-                    preloadInMobiRewarded()
+                    // Delay ad preload to ensure SDK is fully ready
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        preloadInMobiInterstitial()
+                        preloadInMobiRewarded()
+                    }, 1000)
                 } else {
                     log("InMobi init failed: ${error.message}", isError = true)
                     TestRigorLogger.logAdEvent("InMobi init failed: ${error.message}")
@@ -405,7 +411,11 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
-                    log("InMobi interstitial failed: ${status.message}")
+                    log("InMobi interstitial failed:", isError = true)
+                    log("  Status Code: ${status.statusCode}", isError = true)
+                    log("  Message: ${status.message}", isError = true)
+                    log("  Placement: ${AdConfig.InMobi.Placements.INTERSTITIAL}", isError = true)
+                    TestRigorLogger.logAdEvent("InMobi interstitial failed: ${status.statusCode} - ${status.message}")
                     isInMobiInterstitialReady = false
                     scheduleRetry { preloadInMobiInterstitial() }
                 }
@@ -530,7 +540,11 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
-                    log("InMobi rewarded failed: ${status.message}")
+                    log("InMobi rewarded failed:", isError = true)
+                    log("  Status Code: ${status.statusCode}", isError = true)
+                    log("  Message: ${status.message}", isError = true)
+                    log("  Placement: ${AdConfig.InMobi.Placements.REWARDED}", isError = true)
+                    TestRigorLogger.logAdEvent("InMobi rewarded failed: ${status.statusCode} - ${status.message}")
                     isInMobiRewardedReady = false
                     scheduleRetry { preloadInMobiRewarded() }
                 }

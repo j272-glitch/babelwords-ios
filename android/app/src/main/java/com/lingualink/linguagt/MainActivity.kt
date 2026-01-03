@@ -363,11 +363,11 @@ class MainActivity : BaseActivity() {
         // where page loads before bridge is available (window.adBridge === undefined)
         
         // AdWaterfallBridge is PRIMARY - uses InMobi first, falls back to AdMob
-        // Registered as "adBridge" for web app compatibility
+        // Registered as "AndroidAdBridge" per InMobi integration requirements
         adWaterfallBridge = AdWaterfallBridge(this, webView, null)
-        webView.addJavascriptInterface(adWaterfallBridge, "adBridge")
+        webView.addJavascriptInterface(adWaterfallBridge, "AndroidAdBridge")
         lifecycle.addObserver(adWaterfallBridge)
-        TestRigorLogger.logMilestone("AdWaterfallBridge registered as window.adBridge")
+        TestRigorLogger.logMilestone("AdWaterfallBridge registered as window.AndroidAdBridge")
         
         // AdMob/UMP handles consent - propagates to waterfall bridge
         adBridge = AdBridge(this, webView)
