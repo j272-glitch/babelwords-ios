@@ -129,6 +129,31 @@ class AdWaterfallBridge(
     private var failedLoads = 0
     private var failedShows = 0
     private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
+    
+    // Current placement IDs (set from JavaScript or use defaults)
+    private var currentAdMobBannerId = AdConfig.AdMob.BANNER
+    private var currentAdMobInterstitialId = AdConfig.AdMob.INTERSTITIAL
+    private var currentAdMobRewardedId = AdConfig.AdMob.REWARDED
+    
+    private fun isAdMobId(id: String): Boolean = id.startsWith("ca-app-pub-")
+    
+    private fun getEffectiveAdMobId(jsId: String?, defaultId: String): String {
+        return if (!jsId.isNullOrEmpty() && isAdMobId(jsId)) {
+            log("  ✓ Using AdMob ID from JS: $jsId")
+            jsId
+        } else {
+            val effectiveId = if (AdConfig.USE_ADMOB_TEST_ADS) {
+                when (defaultId) {
+                    AdConfig.AdMob.BANNER -> AdConfig.AdMob.Test.BANNER
+                    AdConfig.AdMob.INTERSTITIAL -> AdConfig.AdMob.Test.INTERSTITIAL
+                    AdConfig.AdMob.REWARDED -> AdConfig.AdMob.Test.REWARDED
+                    else -> defaultId
+                }
+            } else defaultId
+            log("  Using default AdMob ID: $effectiveId")
+            effectiveId
+        }
+    }
 
     init {
         log("═".repeat(50))
