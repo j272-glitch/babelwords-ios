@@ -54,6 +54,7 @@ object AdConfig {
     }
     
     const val USE_ADMOB_TEST_ADS = false
+    const val USE_INMOBI = false  // InMobi disabled - not yet activated
     const val DEBUG_MODE = true
     const val WATERFALL_TIMEOUT = 5000L
     
@@ -170,15 +171,18 @@ class AdWaterfallBridge(
     
     private fun logState(context: String) {
         log("--- STATE: $context ---")
-        log("  InMobi Init: $isInMobiInitialized | AdMob Init: $isAdMobInitialized")
-        log("  InMobi Interstitial Ready: $isInMobiInterstitialReady")
+        log("  InMobi Enabled: ${AdConfig.USE_INMOBI} | Init: $isInMobiInitialized")
+        log("  AdMob Init: $isAdMobInitialized")
+        if (AdConfig.USE_INMOBI) {
+            log("  InMobi Interstitial Ready: $isInMobiInterstitialReady")
+            log("  InMobi Rewarded Ready: $isInMobiRewardedReady")
+        }
         log("  AdMob Interstitial Ready: $isAdMobInterstitialReady")
-        log("  InMobi Rewarded Ready: $isInMobiRewardedReady")
         log("  AdMob Rewarded Ready: $isAdMobRewardedReady")
         log("  Impressions - InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Total: $totalImpressions")
         log("  Loads: $totalLoadRequests (OK: $successfulLoads, Fail: $failedLoads)")
         log("  Shows: $totalShowRequests (OK: $successfulShows, Fail: $failedShows)")
-        log("  Current IDs:")
+        log("  Current AdMob IDs:")
         log("    Banner: $currentAdMobBannerId")
         log("    Interstitial: $currentAdMobInterstitialId")
         log("    Rewarded: $currentAdMobRewardedId")
@@ -186,7 +190,12 @@ class AdWaterfallBridge(
 
     fun initialize() {
         log("Starting SDK initialization...")
-        initializeInMobi()
+        log("InMobi enabled: ${AdConfig.USE_INMOBI}")
+        if (AdConfig.USE_INMOBI) {
+            initializeInMobi()
+        } else {
+            log("InMobi DISABLED - skipping initialization")
+        }
         initializeAdMob()
     }
 
@@ -195,7 +204,7 @@ class AdWaterfallBridge(
         AdConfig.Privacy.ccpaDoNotSell = ccpaDoNotSell
         log("Consent updated - GDPR: $gdprConsent, CCPA DoNotSell: $ccpaDoNotSell")
         
-        if (!isInMobiInitialized) {
+        if (AdConfig.USE_INMOBI && !isInMobiInitialized) {
             initializeInMobi()
         }
         if (!isAdMobInitialized) {
@@ -204,6 +213,11 @@ class AdWaterfallBridge(
     }
 
     private fun initializeInMobi() {
+        if (!AdConfig.USE_INMOBI) {
+            log("InMobi DISABLED - skipping initialization")
+            return
+        }
+        
         val activity = activityRef.get() ?: return
         
         log("Starting InMobi initialization...")
@@ -289,7 +303,7 @@ class AdWaterfallBridge(
             log("  ✓ Using AdMob Interstitial ID from JS: $currentAdMobInterstitialId")
         }
         runOnUiThread { 
-            preloadInMobiInterstitial()
+            if (AdConfig.USE_INMOBI) preloadInMobiInterstitial()
             preloadAdMobInterstitial()
         }
     }
@@ -316,7 +330,7 @@ class AdWaterfallBridge(
             log("  ✓ Using AdMob Rewarded ID from JS: $currentAdMobRewardedId")
         }
         runOnUiThread { 
-            preloadInMobiRewarded()
+            if (AdConfig.USE_INMOBI) preloadInMobiRewarded()
             preloadAdMobRewarded()
         }
     }
@@ -383,6 +397,7 @@ class AdWaterfallBridge(
         logState("Diagnostic Report")
         return JSONObject().apply {
             put("timestamp", dateFormat.format(Date()))
+            put("inmobiEnabled", AdConfig.USE_INMOBI)
             put("inmobiInitialized", isInMobiInitialized)
             put("admobInitialized", isAdMobInitialized)
             put("inmobiBannerReady", currentBannerNetwork == AdNetwork.INMOBI)
@@ -427,7 +442,8 @@ class AdWaterfallBridge(
         
         log("Loading banner waterfall...")
         
-        if (isInMobiInitialized) {
+        // InMobi disabled - go directly to AdMob
+        if (AdConfig.USE_INMOBI && isInMobiInitialized) {
             loadInMobiBanner(position)
         } else if (isAdMobInitialized) {
             loadAdMobBanner(position)
@@ -670,17 +686,19 @@ class AdWaterfallBridge(
         val activity = activityRef.get() ?: return
         
         log("=== SHOW INTERSTITIAL FLOW ===")
+        log("InMobi enabled: ${AdConfig.USE_INMOBI}")
         log("InMobi ready: $isInMobiInterstitialReady, isReady(): ${inMobiInterstitial?.isReady()}")
         log("AdMob ready: $isAdMobInterstitialReady")
         
-        if (isInMobiInterstitialReady && inMobiInterstitial?.isReady() == true) {
+        // Only try InMobi if enabled
+        if (AdConfig.USE_INMOBI && isInMobiInterstitialReady && inMobiInterstitial?.isReady() == true) {
             log("→ Showing InMobi interstitial")
             inMobiInterstitial?.show()
             return
         }
         
         if (isAdMobInterstitialReady && adMobInterstitial != null) {
-            log("→ Showing AdMob interstitial (fallback)")
+            log("→ Showing AdMob interstitial")
             adMobInterstitial?.show(activity)
             return
         }
@@ -688,7 +706,7 @@ class AdWaterfallBridge(
         log("✗ No interstitial ready to show!", isError = true)
         sendEventToWeb(AdEvent("adFailed", "interstitial", "none", error = "No ad ready"))
         
-        preloadInMobiInterstitial()
+        if (AdConfig.USE_INMOBI) preloadInMobiInterstitial()
         preloadAdMobInterstitial()
     }
 
@@ -818,17 +836,19 @@ class AdWaterfallBridge(
         val activity = activityRef.get() ?: return
         
         log("=== SHOW REWARDED FLOW ===")
+        log("InMobi enabled: ${AdConfig.USE_INMOBI}")
         log("InMobi ready: $isInMobiRewardedReady, isReady(): ${inMobiRewarded?.isReady()}")
         log("AdMob ready: $isAdMobRewardedReady")
         
-        if (isInMobiRewardedReady && inMobiRewarded?.isReady() == true) {
+        // Only try InMobi if enabled
+        if (AdConfig.USE_INMOBI && isInMobiRewardedReady && inMobiRewarded?.isReady() == true) {
             log("→ Showing InMobi rewarded")
             inMobiRewarded?.show()
             return
         }
         
         if (isAdMobRewardedReady && adMobRewarded != null) {
-            log("→ Showing AdMob rewarded (fallback)")
+            log("→ Showing AdMob rewarded")
             adMobRewarded?.show(activity) { rewardItem ->
                 log("AdMob reward earned: ${rewardItem.amount} ${rewardItem.type}")
                 sendEventToWeb(AdEvent(
@@ -844,7 +864,7 @@ class AdWaterfallBridge(
         log("✗ No rewarded ready to show!", isError = true)
         sendEventToWeb(AdEvent("adFailed", "rewarded", "none", error = "No ad ready"))
         
-        preloadInMobiRewarded()
+        if (AdConfig.USE_INMOBI) preloadInMobiRewarded()
         preloadAdMobRewarded()
     }
 
