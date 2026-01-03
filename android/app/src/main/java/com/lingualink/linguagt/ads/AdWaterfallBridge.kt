@@ -26,6 +26,8 @@ import com.inmobi.sdk.SdkInitializationListener
 import com.lingualink.linguagt.TestRigorLogger
 import org.json.JSONObject
 import java.lang.ref.WeakReference
+import java.text.SimpleDateFormat
+import java.util.*
 
 object AdConfig {
     
@@ -118,10 +120,34 @@ class AdWaterfallBridge(
     private var inMobiImpressions = 0
     private var adMobImpressions = 0
     private val targetImpressions = 10000
+    
+    // Diagnostic counters
+    private var totalLoadRequests = 0
+    private var totalShowRequests = 0
+    private var successfulLoads = 0
+    private var successfulShows = 0
+    private var failedLoads = 0
+    private var failedShows = 0
+    private val dateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
     init {
-        log("Initializing Ad Waterfall Bridge...")
+        log("═".repeat(50))
+        log("ADWATERFALL BRIDGE INITIALIZED")
+        log("═".repeat(50))
         loadImpressionData()
+        logState("Init")
+    }
+    
+    private fun logState(context: String) {
+        log("--- STATE: $context ---")
+        log("  InMobi Init: $isInMobiInitialized | AdMob Init: $isAdMobInitialized")
+        log("  InMobi Interstitial Ready: $isInMobiInterstitialReady")
+        log("  AdMob Interstitial Ready: $isAdMobInterstitialReady")
+        log("  InMobi Rewarded Ready: $isInMobiRewardedReady")
+        log("  AdMob Rewarded Ready: $isAdMobRewardedReady")
+        log("  Impressions - InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Total: $totalImpressions")
+        log("  Loads: $totalLoadRequests (OK: $successfulLoads, Fail: $failedLoads)")
+        log("  Shows: $totalShowRequests (OK: $successfulShows, Fail: $failedShows)")
     }
 
     fun initialize() {
@@ -208,7 +234,8 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun loadInterstitial() {
-        log("JS -> loadInterstitial()")
+        totalLoadRequests++
+        log("JS -> loadInterstitial() [request #$totalLoadRequests]")
         runOnUiThread { 
             preloadInMobiInterstitial()
             preloadAdMobInterstitial()
@@ -217,13 +244,16 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun showInterstitial() {
-        log("JS -> showInterstitial()")
+        totalShowRequests++
+        log("JS -> showInterstitial() [request #$totalShowRequests]")
+        logState("Before showInterstitial")
         runOnUiThread { showInterstitialWaterfall() }
     }
     
     @JavascriptInterface
     fun loadRewarded() {
-        log("JS -> loadRewarded()")
+        totalLoadRequests++
+        log("JS -> loadRewarded() [request #$totalLoadRequests]")
         runOnUiThread { 
             preloadInMobiRewarded()
             preloadAdMobRewarded()
@@ -232,7 +262,9 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun showRewarded() {
-        log("JS -> showRewarded()")
+        totalShowRequests++
+        log("JS -> showRewarded() [request #$totalShowRequests]")
+        logState("Before showRewarded")
         runOnUiThread { showRewardedWaterfall() }
     }
     
@@ -253,6 +285,49 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun getImpressionProgress(): Float = (inMobiImpressions.toFloat() / targetImpressions) * 100
+    
+    @JavascriptInterface
+    fun getImpressionStats(): String {
+        return JSONObject().apply {
+            put("inmobi", inMobiImpressions)
+            put("admob", adMobImpressions)
+            put("total", totalImpressions)
+            put("target", targetImpressions)
+            put("progressPercent", getImpressionProgress())
+            put("loadRequests", totalLoadRequests)
+            put("showRequests", totalShowRequests)
+            put("successfulLoads", successfulLoads)
+            put("successfulShows", successfulShows)
+            put("failedLoads", failedLoads)
+            put("failedShows", failedShows)
+        }.toString()
+    }
+    
+    @JavascriptInterface
+    fun getDiagnosticReport(): String {
+        logState("Diagnostic Report")
+        return JSONObject().apply {
+            put("timestamp", dateFormat.format(Date()))
+            put("inmobiInitialized", isInMobiInitialized)
+            put("admobInitialized", isAdMobInitialized)
+            put("inmobiBannerReady", currentBannerNetwork == AdNetwork.INMOBI)
+            put("inmobiInterstitialReady", isInMobiInterstitialReady)
+            put("inmobiRewardedReady", isInMobiRewardedReady)
+            put("admobBannerReady", currentBannerNetwork == AdNetwork.ADMOB)
+            put("admobInterstitialReady", isAdMobInterstitialReady)
+            put("admobRewardedReady", isAdMobRewardedReady)
+            put("inmobiImpressions", inMobiImpressions)
+            put("admobImpressions", adMobImpressions)
+            put("totalImpressions", totalImpressions)
+            put("targetImpressions", targetImpressions)
+            put("loadRequests", totalLoadRequests)
+            put("showRequests", totalShowRequests)
+            put("successfulLoads", successfulLoads)
+            put("successfulShows", successfulShows)
+            put("failedLoads", failedLoads)
+            put("failedShows", failedShows)
+        }.toString()
+    }
 
     private fun sendEventToWeb(event: AdEvent) {
         val webView = webViewRef.get() ?: return
@@ -407,13 +482,15 @@ class AdWaterfallBridge(
             AdConfig.InMobi.Placements.INTERSTITIAL,
             object : InterstitialAdEventListener() {
                 override fun onAdLoadSucceeded(ad: InMobiInterstitial, info: AdMetaInfo) {
-                    log("InMobi interstitial loaded")
+                    successfulLoads++
+                    log("✓ InMobi interstitial loaded [loads: $successfulLoads]")
                     isInMobiInterstitialReady = true
                     sendEventToWeb(AdEvent("adLoaded", "interstitial", "inmobi"))
                 }
                 
                 override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
-                    log("InMobi interstitial failed:", isError = true)
+                    failedLoads++
+                    log("✗ InMobi interstitial failed [fails: $failedLoads]:", isError = true)
                     log("  Status Code: ${status.statusCode}", isError = true)
                     log("  Message: ${status.message}", isError = true)
                     log("  Placement: ${AdConfig.InMobi.Placements.INTERSTITIAL}", isError = true)
@@ -423,7 +500,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdDisplayed(ad: InMobiInterstitial, info: AdMetaInfo) {
-                    log("InMobi interstitial displayed")
+                    successfulShows++
+                    log("✓ InMobi interstitial displayed [shows: $successfulShows]")
                     recordImpression(AdNetwork.INMOBI, "interstitial")
                     sendEventToWeb(AdEvent("adImpression", "interstitial", "inmobi"))
                 }
@@ -436,7 +514,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdDisplayFailed(ad: InMobiInterstitial) {
-                    log("InMobi interstitial display failed")
+                    failedShows++
+                    log("✗ InMobi interstitial display failed [fails: $failedShows]", isError = true)
                     isInMobiInterstitialReady = false
                 }
                 
@@ -467,13 +546,15 @@ class AdWaterfallBridge(
             AdRequest.Builder().build(),
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
-                    log("AdMob interstitial loaded")
+                    successfulLoads++
+                    log("✓ AdMob interstitial loaded [loads: $successfulLoads]")
                     adMobInterstitial = ad
                     isAdMobInterstitialReady = true
                     
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdShowedFullScreenContent() {
-                            log("AdMob interstitial displayed")
+                            successfulShows++
+                            log("✓ AdMob interstitial displayed [shows: $successfulShows]")
                             recordImpression(AdNetwork.ADMOB, "interstitial")
                             sendEventToWeb(AdEvent("adImpression", "interstitial", "admob"))
                         }
@@ -487,7 +568,8 @@ class AdWaterfallBridge(
                         }
                         
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            log("AdMob interstitial show failed: ${error.message}")
+                            failedShows++
+                            log("✗ AdMob interstitial show failed [fails: $failedShows]: ${error.message}", isError = true)
                             isAdMobInterstitialReady = false
                             adMobInterstitial = null
                         }
@@ -495,7 +577,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    log("AdMob interstitial load failed: ${error.message}")
+                    failedLoads++
+                    log("✗ AdMob interstitial load failed [fails: $failedLoads]: ${error.message}", isError = true)
                     isAdMobInterstitialReady = false
                     scheduleRetry { preloadAdMobInterstitial() }
                 }
@@ -540,13 +623,15 @@ class AdWaterfallBridge(
             AdConfig.InMobi.Placements.REWARDED,
             object : InterstitialAdEventListener() {
                 override fun onAdLoadSucceeded(ad: InMobiInterstitial, info: AdMetaInfo) {
-                    log("InMobi rewarded loaded")
+                    successfulLoads++
+                    log("✓ InMobi rewarded loaded [loads: $successfulLoads]")
                     isInMobiRewardedReady = true
                     sendEventToWeb(AdEvent("adLoaded", "rewarded", "inmobi"))
                 }
                 
                 override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
-                    log("InMobi rewarded failed:", isError = true)
+                    failedLoads++
+                    log("✗ InMobi rewarded failed [fails: $failedLoads]:", isError = true)
                     log("  Status Code: ${status.statusCode}", isError = true)
                     log("  Message: ${status.message}", isError = true)
                     log("  Placement: ${AdConfig.InMobi.Placements.REWARDED}", isError = true)
@@ -556,7 +641,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdDisplayed(ad: InMobiInterstitial, info: AdMetaInfo) {
-                    log("InMobi rewarded displayed")
+                    successfulShows++
+                    log("✓ InMobi rewarded displayed [shows: $successfulShows]")
                     recordImpression(AdNetwork.INMOBI, "rewarded")
                     sendEventToWeb(AdEvent("adImpression", "rewarded", "inmobi"))
                 }
@@ -569,7 +655,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdDisplayFailed(ad: InMobiInterstitial) {
-                    log("InMobi rewarded display failed")
+                    failedShows++
+                    log("✗ InMobi rewarded display failed [fails: $failedShows]", isError = true)
                     isInMobiRewardedReady = false
                 }
                 
@@ -606,13 +693,15 @@ class AdWaterfallBridge(
             AdRequest.Builder().build(),
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
-                    log("AdMob rewarded loaded")
+                    successfulLoads++
+                    log("✓ AdMob rewarded loaded [loads: $successfulLoads]")
                     adMobRewarded = ad
                     isAdMobRewardedReady = true
                     
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdShowedFullScreenContent() {
-                            log("AdMob rewarded displayed")
+                            successfulShows++
+                            log("✓ AdMob rewarded displayed [shows: $successfulShows]")
                             recordImpression(AdNetwork.ADMOB, "rewarded")
                             sendEventToWeb(AdEvent("adImpression", "rewarded", "admob"))
                         }
@@ -626,7 +715,8 @@ class AdWaterfallBridge(
                         }
                         
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                            log("AdMob rewarded show failed: ${error.message}")
+                            failedShows++
+                            log("✗ AdMob rewarded show failed [fails: $failedShows]: ${error.message}", isError = true)
                             isAdMobRewardedReady = false
                             adMobRewarded = null
                         }
@@ -634,7 +724,8 @@ class AdWaterfallBridge(
                 }
                 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    log("AdMob rewarded load failed: ${error.message}")
+                    failedLoads++
+                    log("✗ AdMob rewarded load failed [fails: $failedLoads]: ${error.message}", isError = true)
                     isAdMobRewardedReady = false
                     scheduleRetry { preloadAdMobRewarded() }
                 }
@@ -767,11 +858,14 @@ class AdWaterfallBridge(
     private fun log(message: String, isError: Boolean = false) {
         if (!AdConfig.DEBUG_MODE && !isError) return
         
+        val timestamp = dateFormat.format(Date())
         val tag = AdConfig.LOG_TAG
+        val fullMessage = "[$timestamp] $message"
+        
         if (isError) {
-            Log.e(tag, message)
+            Log.e(tag, fullMessage)
         } else {
-            Log.d(tag, message)
+            Log.d(tag, fullMessage)
         }
     }
 }
