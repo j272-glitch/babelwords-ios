@@ -494,7 +494,7 @@ class AdWaterfallBridge(
     private fun showInterstitialWaterfall() {
         val activity = activityRef.get() ?: return
         
-        if (isInMobiInterstitialReady && inMobiInterstitial?.isReady == true) {
+        if (isInMobiInterstitialReady && inMobiInterstitial?.isReady() == true) {
             log("Showing InMobi interstitial")
             inMobiInterstitial?.show()
             return
@@ -625,7 +625,7 @@ class AdWaterfallBridge(
     private fun showRewardedWaterfall() {
         val activity = activityRef.get() ?: return
         
-        if (isInMobiRewardedReady && inMobiRewarded?.isReady == true) {
+        if (isInMobiRewardedReady && inMobiRewarded?.isReady() == true) {
             log("Showing InMobi rewarded")
             inMobiRewarded?.show()
             return
