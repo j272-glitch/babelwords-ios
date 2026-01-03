@@ -121,6 +121,11 @@ class AdWaterfallBridge(
     private var adMobImpressions = 0
     private val targetImpressions = 10000
     
+    // By-type impression counters
+    private var bannerImpressions = 0
+    private var interstitialImpressions = 0
+    private var rewardedImpressions = 0
+    
     // Diagnostic counters
     private var totalLoadRequests = 0
     private var totalShowRequests = 0
@@ -340,6 +345,15 @@ class AdWaterfallBridge(
     fun getAdMobImpressions(): Int = adMobImpressions
     
     @JavascriptInterface
+    fun getBannerImpressions(): Int = bannerImpressions
+    
+    @JavascriptInterface
+    fun getInterstitialImpressions(): Int = interstitialImpressions
+    
+    @JavascriptInterface
+    fun getRewardedImpressions(): Int = rewardedImpressions
+    
+    @JavascriptInterface
     fun getImpressionProgress(): Float = (inMobiImpressions.toFloat() / targetImpressions) * 100
     
     @JavascriptInterface
@@ -356,6 +370,11 @@ class AdWaterfallBridge(
             put("successfulShows", successfulShows)
             put("failedLoads", failedLoads)
             put("failedShows", failedShows)
+            put("byType", JSONObject().apply {
+                put("banner", bannerImpressions)
+                put("interstitial", interstitialImpressions)
+                put("rewarded", rewardedImpressions)
+            })
         }.toString()
     }
     
@@ -376,6 +395,9 @@ class AdWaterfallBridge(
             put("admobImpressions", adMobImpressions)
             put("totalImpressions", totalImpressions)
             put("targetImpressions", targetImpressions)
+            put("bannerImpressions", bannerImpressions)
+            put("interstitialImpressions", interstitialImpressions)
+            put("rewardedImpressions", rewardedImpressions)
             put("loadRequests", totalLoadRequests)
             put("showRequests", totalShowRequests)
             put("successfulLoads", successfulLoads)
@@ -835,11 +857,19 @@ class AdWaterfallBridge(
             AdNetwork.NONE -> {}
         }
         
+        // Track by ad type
+        when (adType.lowercase()) {
+            "banner" -> bannerImpressions++
+            "interstitial" -> interstitialImpressions++
+            "rewarded" -> rewardedImpressions++
+        }
+        
         saveImpressionData()
         
         val progress = (inMobiImpressions.toFloat() / targetImpressions * 100).toInt()
         log("Impression #$totalImpressions ($adType via ${network.name})")
         log("   InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Progress: $progress%")
+        log("   By Type - Banner: $bannerImpressions | Interstitial: $interstitialImpressions | Rewarded: $rewardedImpressions")
         TestRigorLogger.logAdEvent("Impression: $adType via ${network.name} - InMobi: $inMobiImpressions/$targetImpressions")
         
         if (inMobiImpressions % 100 == 0 && inMobiImpressions > 0) {
@@ -859,6 +889,9 @@ class AdWaterfallBridge(
             .putInt("total_impressions", totalImpressions)
             .putInt("inmobi_impressions", inMobiImpressions)
             .putInt("admob_impressions", adMobImpressions)
+            .putInt("banner_impressions", bannerImpressions)
+            .putInt("interstitial_impressions", interstitialImpressions)
+            .putInt("rewarded_impressions", rewardedImpressions)
             .putLong("last_impression_time", System.currentTimeMillis())
             .apply()
     }
@@ -869,8 +902,12 @@ class AdWaterfallBridge(
         totalImpressions = prefs.getInt("total_impressions", 0)
         inMobiImpressions = prefs.getInt("inmobi_impressions", 0)
         adMobImpressions = prefs.getInt("admob_impressions", 0)
+        bannerImpressions = prefs.getInt("banner_impressions", 0)
+        interstitialImpressions = prefs.getInt("interstitial_impressions", 0)
+        rewardedImpressions = prefs.getInt("rewarded_impressions", 0)
         
         log("Loaded impressions - InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Total: $totalImpressions")
+        log("  By Type - Banner: $bannerImpressions | Interstitial: $interstitialImpressions | Rewarded: $rewardedImpressions")
     }
 
     override fun onCreate(owner: LifecycleOwner) {
