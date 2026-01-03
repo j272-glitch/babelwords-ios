@@ -1,0 +1,1218 @@
+# LinguaVibe Android WebView Container
+
+# InMobi Ads Integration Guide
+
+## Overview
+
+This guide walks you through integrating InMobi Banner, Interstitial, and Rewarded ads into your Android WebView container app for LinguaVibe.
+
+**Account:** Global Translation  
+**Account ID:** `9d81516c365f4acaa52f1fc627370cf9`
+
+|Ad Type     |Placement ID |Name           |
+|------------|-------------|---------------|
+|Banner      |`10000582111`|LV-Banner      |
+|Interstitial|`10000582110`|LV-Interstitial|
+|Rewarded    |`10000582112`|LV-Rewarded    |
+
+-----
+
+## Part 1: Project Setup
+
+### 1.1 Add InMobi SDK to build.gradle (app level)
+
+```groovy
+// app/build.gradle
+
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.linguavibe.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.linguavibe.app"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+        
+        // Required for InMobi
+        multiDexEnabled true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    // Kotlin
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    
+    // WebView
+    implementation 'androidx.webkit:webkit:1.10.0'
+    
+    // InMobi SDK
+    implementation 'com.inmobi.monetization:inmobi-ads-kotlin:10.6.7'
+    
+    // InMobi Dependencies
+    implementation 'com.squareup.picasso:picasso:2.71828'
+    implementation 'androidx.browser:browser:1.7.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    
+    // Multidex (if needed)
+    implementation 'androidx.multidex:multidex:2.0.1'
+}
+```
+
+### 1.2 Add Permissions to AndroidManifest.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Required Permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Optional but recommended for better ad targeting -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    
+    <!-- Optional: Location for better ad relevance (requires user permission) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <application
+        android:name=".LinguaVibeApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.LinguaVibe"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
+        
+        <!-- Main Activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+        <!-- InMobi Required Activity -->
+        <activity
+            android:name="com.inmobi.rendering.InMobiAdActivity"
+            android:configChanges="keyboardHidden|orientation|keyboard|smallestScreenSize|screenSize|screenLayout"
+            android:hardwareAccelerated="true"
+            android:resizeableActivity="false"
+            android:theme="@android:style/Theme.NoTitleBar" />
+
+    </application>
+
+</manifest>
+```
+
+### 1.3 Add ProGuard Rules
+
+```proguard
+# proguard-rules.pro
+
+# InMobi SDK
+-keepattributes SourceFile,LineNumberTable
+-keep class com.inmobi.** { *; }
+-dontwarn com.inmobi.**
+
+# Picasso (InMobi dependency)
+-keep class com.squareup.picasso.** { *; }
+-dontwarn com.squareup.picasso.**
+
+# Keep JavaScript interface
+-keepclassmembers class com.linguavibe.app.ads.InMobiAdBridge$AdJsBridge {
+    public *;
+}
+
+# Keep ad event callbacks
+-keep class com.linguavibe.app.ads.** { *; }
+```
+
+-----
+
+## Part 2: Application Class
+
+### 2.1 Create LinguaVibeApplication.kt
+
+```kotlin
+// app/src/main/java/com/linguavibe/app/LinguaVibeApplication.kt
+
+package com.linguavibe.app
+
+import android.app.Application
+import androidx.multidex.MultiDexApplication
+
+class LinguaVibeApplication : MultiDexApplication() {
+    
+    override fun onCreate() {
+        super.onCreate()
+        
+        // InMobi SDK is initialized in InMobiAdBridge when MainActivity starts
+        // This ensures we have an Activity context for proper initialization
+    }
+}
+```
+
+-----
+
+## Part 3: InMobi Ad Bridge
+
+### 3.1 Create InMobiAdBridge.kt
+
+```kotlin
+// app/src/main/java/com/linguavibe/app/ads/InMobiAdBridge.kt
+
+package com.linguavibe.app.ads
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.util.Log
+import android.view.Gravity
+import android.view.ViewGroup
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import android.widget.FrameLayout
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import com.inmobi.ads.*
+import com.inmobi.ads.listeners.BannerAdEventListener
+import com.inmobi.ads.listeners.InterstitialAdEventListener
+import com.inmobi.sdk.InMobiSdk
+import com.inmobi.sdk.SdkInitializationListener
+import org.json.JSONObject
+import java.lang.ref.WeakReference
+
+/**
+ * InMobi Ad Bridge for LinguaVibe
+ * 
+ * Provides JavaScript interface for web app to control native InMobi ads.
+ * Supports Banner, Interstitial, and Rewarded ad formats.
+ * 
+ * Account: Global Translation
+ * Target: 10,000 impressions
+ */
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+object InMobiConfig {
+    // Global Translation Account
+    const val ACCOUNT_ID = "9d81516c365f4acaa52f1fc627370cf9"
+    
+    // LinguaVibe Placement IDs
+    object Placements {
+        const val BANNER: Long = 10000582111L        // LV-Banner
+        const val INTERSTITIAL: Long = 10000582110L  // LV-Interstitial
+        const val REWARDED: Long = 10000582112L      // LV-Rewarded
+    }
+    
+    // Privacy settings - update based on user consent
+    object Privacy {
+        var gdprConsent: Boolean = true
+        var ccpaDoNotSell: Boolean = false
+    }
+    
+    // Debug settings
+    // ⚠️ Set to FALSE for production to count real impressions!
+    const val TEST_MODE = false
+    const val LOG_TAG = "InMobiAds"
+}
+
+// =============================================================================
+// AD EVENT DATA CLASS
+// =============================================================================
+
+data class AdEvent(
+    val type: String,
+    val placementId: String,
+    val data: Map<String, Any>? = null,
+    val error: String? = null
+) {
+    fun toJson(): String {
+        return JSONObject().apply {
+            put("type", type)
+            put("placementId", placementId)
+            data?.let { put("data", JSONObject(it)) }
+            error?.let { put("error", it) }
+        }.toString()
+    }
+}
+
+// =============================================================================
+// MAIN AD BRIDGE CLASS
+// =============================================================================
+
+class InMobiAdBridge(
+    activity: Activity,
+    webView: WebView,
+    private val rootLayout: FrameLayout
+) : DefaultLifecycleObserver {
+
+    private val activityRef = WeakReference(activity)
+    private val webViewRef = WeakReference(webView)
+    
+    // SDK State
+    private var isInitialized = false
+    
+    // Ad Instances
+    private var bannerAd: InMobiBanner? = null
+    private var interstitialAd: InMobiInterstitial? = null
+    private var rewardedAd: InMobiInterstitial? = null
+    
+    // Ready States
+    private var isBannerVisible = false
+    private var isInterstitialReady = false
+    private var isRewardedReady = false
+    
+    // Impression Tracking
+    private var totalImpressions = 0
+    private val targetImpressions = 10000
+
+    // ==========================================================================
+    // INITIALIZATION
+    // ==========================================================================
+
+    init {
+        log("Initializing InMobi Ad Bridge...")
+        setupJavaScriptBridge()
+        initializeInMobiSdk()
+    }
+
+    private fun initializeInMobiSdk() {
+        val activity = activityRef.get() ?: run {
+            log("Activity is null, cannot initialize SDK", isError = true)
+            return
+        }
+        
+        // Build consent object
+        val consentObject = JSONObject().apply {
+            put("gdpr_consent_available", InMobiConfig.Privacy.gdprConsent)
+            put("gdpr", if (InMobiConfig.Privacy.gdprConsent) "1" else "0")
+        }
+        
+        InMobiSdk.init(activity, InMobiConfig.ACCOUNT_ID, consentObject, object : SdkInitializationListener {
+            override fun onInitializationComplete(error: Error?) {
+                if (error == null) {
+                    isInitialized = true
+                    log("✅ InMobi SDK initialized successfully")
+                    log("   Account: ${InMobiConfig.ACCOUNT_ID}")
+                    log("   Test Mode: ${InMobiConfig.TEST_MODE}")
+                    
+                    if (InMobiConfig.TEST_MODE) {
+                        InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
+                        log("⚠️ TEST MODE ON - Impressions will NOT count!")
+                    } else {
+                        log("✅ PRODUCTION MODE - Impressions will count toward 10K")
+                    }
+                    
+                    // Preload ads
+                    preloadInterstitial()
+                    preloadRewarded()
+                    
+                    sendEventToWeb(AdEvent("sdkInitialized", ""))
+                } else {
+                    log("❌ SDK initialization failed: ${error.message}", isError = true)
+                    sendEventToWeb(AdEvent("sdkInitFailed", "", error = error.message))
+                }
+            }
+        })
+    }
+
+    // ==========================================================================
+    // JAVASCRIPT BRIDGE
+    // ==========================================================================
+
+    @SuppressLint("JavascriptInterface")
+    private fun setupJavaScriptBridge() {
+        val webView = webViewRef.get() ?: return
+        webView.addJavascriptInterface(AdJsBridge(), "AndroidAdBridge")
+        log("JavaScript bridge registered: window.AndroidAdBridge")
+    }
+
+    /**
+     * JavaScript Interface
+     * 
+     * Web app calls these methods via:
+     * - window.AndroidAdBridge.loadBanner(placementId, position)
+     * - window.AndroidAdBridge.showInterstitial(placementId)
+     * - window.AndroidAdBridge.showRewarded(placementId)
+     * - etc.
+     */
+    inner class AdJsBridge {
+        
+        // ----- BANNER -----
+        
+        @JavascriptInterface
+        fun loadBanner(placementId: String, position: String) {
+            log("JS → loadBanner(position=$position)")
+            runOnUiThread { loadBannerAd(position) }
+        }
+        
+        @JavascriptInterface
+        fun hideBanner(placementId: String) {
+            log("JS → hideBanner()")
+            runOnUiThread { hideBannerAd() }
+        }
+        
+        // ----- INTERSTITIAL -----
+        
+        @JavascriptInterface
+        fun loadInterstitial(placementId: String) {
+            log("JS → loadInterstitial()")
+            runOnUiThread { preloadInterstitial() }
+        }
+        
+        @JavascriptInterface
+        fun showInterstitial(placementId: String) {
+            log("JS → showInterstitial()")
+            runOnUiThread { showInterstitialAd() }
+        }
+        
+        // ----- REWARDED -----
+        
+        @JavascriptInterface
+        fun loadRewarded(placementId: String) {
+            log("JS → loadRewarded()")
+            runOnUiThread { preloadRewarded() }
+        }
+        
+        @JavascriptInterface
+        fun showRewarded(placementId: String) {
+            log("JS → showRewarded()")
+            runOnUiThread { showRewardedAd() }
+        }
+        
+        // ----- STATUS -----
+        
+        @JavascriptInterface
+        fun isAdReady(placementId: String): Boolean {
+            return when {
+                placementId.contains("banner", ignoreCase = true) -> isBannerVisible
+                placementId.contains("interstitial", ignoreCase = true) -> isInterstitialReady
+                placementId.contains("rewarded", ignoreCase = true) -> isRewardedReady
+                else -> false
+            }
+        }
+        
+        @JavascriptInterface
+        fun getImpressionCount(): Int = totalImpressions
+        
+        @JavascriptInterface
+        fun getImpressionProgress(): Float = 
+            (totalImpressions.toFloat() / targetImpressions) * 100
+        
+        @JavascriptInterface
+        fun trackImpression(eventJson: String) {
+            // Optional: receive tracking data from web
+            log("JS → trackImpression: $eventJson")
+        }
+    }
+
+    /**
+     * Send event to web app
+     * Web app receives via window.onAdEvent(jsonString)
+     */
+    private fun sendEventToWeb(event: AdEvent) {
+        val webView = webViewRef.get() ?: return
+        val escapedJson = event.toJson().replace("\\", "\\\\").replace("'", "\\'")
+        val js = "javascript:if(window.onAdEvent){window.onAdEvent('$escapedJson');}"
+        
+        runOnUiThread {
+            webView.evaluateJavascript(js, null)
+        }
+        
+        log("→ Web: ${event.type} (${event.placementId})")
+    }
+
+    // ==========================================================================
+    // BANNER ADS
+    // ==========================================================================
+
+    private fun loadBannerAd(position: String) {
+        if (!isInitialized) {
+            log("Cannot load banner - SDK not initialized", isError = true)
+            sendEventToWeb(AdEvent(
+                "adFailed",
+                InMobiConfig.Placements.BANNER.toString(),
+                error = "SDK not initialized"
+            ))
+            return
+        }
+        
+        val activity = activityRef.get() ?: return
+        
+        // Remove existing banner first
+        hideBannerAd()
+        
+        log("Loading banner ad...")
+        
+        bannerAd = InMobiBanner(activity, InMobiConfig.Placements.BANNER).apply {
+            
+            // Set size and position
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                dpToPx(activity, 50)  // Standard banner height
+            ).apply {
+                gravity = if (position.equals("top", ignoreCase = true)) {
+                    Gravity.TOP
+                } else {
+                    Gravity.BOTTOM
+                }
+            }
+            
+            // Set event listener
+            setListener(object : BannerAdEventListener() {
+                
+                override fun onAdLoadSucceeded(ad: InMobiBanner, info: AdMetaInfo) {
+                    log("✅ Banner loaded successfully")
+                    isBannerVisible = true
+                    sendEventToWeb(AdEvent(
+                        "adLoaded",
+                        InMobiConfig.Placements.BANNER.toString()
+                    ))
+                }
+                
+                override fun onAdLoadFailed(ad: InMobiBanner, status: InMobiAdRequestStatus) {
+                    log("❌ Banner load failed: ${status.message}", isError = true)
+                    isBannerVisible = false
+                    sendEventToWeb(AdEvent(
+                        "adFailed",
+                        InMobiConfig.Placements.BANNER.toString(),
+                        error = status.message
+                    ))
+                }
+                
+                override fun onAdDisplayed(ad: InMobiBanner) {
+                    log("Banner displayed")
+                    recordImpression("banner")
+                    sendEventToWeb(AdEvent(
+                        "adImpression",
+                        InMobiConfig.Placements.BANNER.toString()
+                    ))
+                }
+                
+                override fun onAdClicked(ad: InMobiBanner, params: MutableMap<Any, Any>?) {
+                    log("Banner clicked")
+                    sendEventToWeb(AdEvent(
+                        "adClicked",
+                        InMobiConfig.Placements.BANNER.toString()
+                    ))
+                }
+                
+                override fun onAdDismissed(ad: InMobiBanner) {
+                    log("Banner dismissed")
+                    sendEventToWeb(AdEvent(
+                        "adClosed",
+                        InMobiConfig.Placements.BANNER.toString()
+                    ))
+                }
+            })
+            
+            // Enable auto-refresh for more impressions
+            setEnableAutoRefresh(true)
+            setRefreshInterval(45)  // Refresh every 45 seconds
+        }
+        
+        // Add banner to layout
+        rootLayout.addView(bannerAd)
+        
+        // Load the ad
+        bannerAd?.load()
+    }
+
+    private fun hideBannerAd() {
+        bannerAd?.let { banner ->
+            log("Hiding banner")
+            rootLayout.removeView(banner)
+            banner.destroy()
+        }
+        bannerAd = null
+        isBannerVisible = false
+    }
+
+    // ==========================================================================
+    // INTERSTITIAL ADS
+    // ==========================================================================
+
+    private fun preloadInterstitial() {
+        if (!isInitialized) {
+            log("Cannot preload interstitial - SDK not initialized", isError = true)
+            return
+        }
+        
+        if (isInterstitialReady) {
+            log("Interstitial already loaded")
+            return
+        }
+        
+        val activity = activityRef.get() ?: return
+        
+        log("Preloading interstitial...")
+        
+        interstitialAd = InMobiInterstitial(
+            activity,
+            InMobiConfig.Placements.INTERSTITIAL,
+            object : InterstitialAdEventListener() {
+                
+                override fun onAdLoadSucceeded(ad: InMobiInterstitial, info: AdMetaInfo) {
+                    log("✅ Interstitial loaded")
+                    isInterstitialReady = true
+                    sendEventToWeb(AdEvent(
+                        "adLoaded",
+                        InMobiConfig.Placements.INTERSTITIAL.toString()
+                    ))
+                }
+                
+                override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
+                    log("❌ Interstitial load failed: ${status.message}", isError = true)
+                    isInterstitialReady = false
+                    sendEventToWeb(AdEvent(
+                        "adFailed",
+                        InMobiConfig.Placements.INTERSTITIAL.toString(),
+                        error = status.message
+                    ))
+                    
+                    // Retry after 5 seconds
+                    scheduleRetry { preloadInterstitial() }
+                }
+                
+                override fun onAdDisplayed(ad: InMobiInterstitial, info: AdMetaInfo) {
+                    log("Interstitial displayed")
+                    recordImpression("interstitial")
+                    sendEventToWeb(AdEvent(
+                        "adImpression",
+                        InMobiConfig.Placements.INTERSTITIAL.toString()
+                    ))
+                }
+                
+                override fun onAdClicked(ad: InMobiInterstitial, params: MutableMap<Any, Any>?) {
+                    log("Interstitial clicked")
+                    sendEventToWeb(AdEvent(
+                        "adClicked",
+                        InMobiConfig.Placements.INTERSTITIAL.toString()
+                    ))
+                }
+                
+                override fun onAdDismissed(ad: InMobiInterstitial) {
+                    log("Interstitial dismissed")
+                    isInterstitialReady = false
+                    sendEventToWeb(AdEvent(
+                        "adClosed",
+                        InMobiConfig.Placements.INTERSTITIAL.toString()
+                    ))
+                    
+                    // Preload next interstitial
+                    preloadInterstitial()
+                }
+                
+                override fun onAdDisplayFailed(ad: InMobiInterstitial) {
+                    log("❌ Interstitial display failed", isError = true)
+                    isInterstitialReady = false
+                    sendEventToWeb(AdEvent(
+                        "adFailed",
+                        InMobiConfig.Placements.INTERSTITIAL.toString(),
+                        error = "Display failed"
+                    ))
+                }
+            }
+        )
+        
+        interstitialAd?.load()
+    }
+
+    private fun showInterstitialAd(): Boolean {
+        if (!isInterstitialReady) {
+            log("Interstitial not ready", isError = true)
+            sendEventToWeb(AdEvent(
+                "adFailed",
+                InMobiConfig.Placements.INTERSTITIAL.toString(),
+                error = "Not ready"
+            ))
+            preloadInterstitial()
+            return false
+        }
+        
+        if (interstitialAd?.isReady != true) {
+            log("Interstitial reports not ready", isError = true)
+            isInterstitialReady = false
+            preloadInterstitial()
+            return false
+        }
+        
+        log("Showing interstitial...")
+        interstitialAd?.show()
+        return true
+    }
+
+    // ==========================================================================
+    // REWARDED ADS
+    // ==========================================================================
+
+    private fun preloadRewarded() {
+        if (!isInitialized) {
+            log("Cannot preload rewarded - SDK not initialized", isError = true)
+            return
+        }
+        
+        if (isRewardedReady) {
+            log("Rewarded already loaded")
+            return
+        }
+        
+        val activity = activityRef.get() ?: return
+        
+        log("Preloading rewarded...")
+        
+        rewardedAd = InMobiInterstitial(
+            activity,
+            InMobiConfig.Placements.REWARDED,
+            object : InterstitialAdEventListener() {
+                
+                override fun onAdLoadSucceeded(ad: InMobiInterstitial, info: AdMetaInfo) {
+                    log("✅ Rewarded loaded")
+                    isRewardedReady = true
+                    sendEventToWeb(AdEvent(
+                        "adLoaded",
+                        InMobiConfig.Placements.REWARDED.toString()
+                    ))
+                }
+                
+                override fun onAdLoadFailed(ad: InMobiInterstitial, status: InMobiAdRequestStatus) {
+                    log("❌ Rewarded load failed: ${status.message}", isError = true)
+                    isRewardedReady = false
+                    sendEventToWeb(AdEvent(
+                        "adFailed",
+                        InMobiConfig.Placements.REWARDED.toString(),
+                        error = status.message
+                    ))
+                    
+                    // Retry after 5 seconds
+                    scheduleRetry { preloadRewarded() }
+                }
+                
+                override fun onAdDisplayed(ad: InMobiInterstitial, info: AdMetaInfo) {
+                    log("Rewarded displayed")
+                    recordImpression("rewarded")
+                    sendEventToWeb(AdEvent(
+                        "adImpression",
+                        InMobiConfig.Placements.REWARDED.toString()
+                    ))
+                }
+                
+                override fun onAdClicked(ad: InMobiInterstitial, params: MutableMap<Any, Any>?) {
+                    log("Rewarded clicked")
+                    sendEventToWeb(AdEvent(
+                        "adClicked",
+                        InMobiConfig.Placements.REWARDED.toString()
+                    ))
+                }
+                
+                override fun onAdDismissed(ad: InMobiInterstitial) {
+                    log("Rewarded dismissed (no reward)")
+                    isRewardedReady = false
+                    sendEventToWeb(AdEvent(
+                        "adClosed",
+                        InMobiConfig.Placements.REWARDED.toString()
+                    ))
+                    
+                    // Preload next rewarded
+                    preloadRewarded()
+                }
+                
+                override fun onAdDisplayFailed(ad: InMobiInterstitial) {
+                    log("❌ Rewarded display failed", isError = true)
+                    isRewardedReady = false
+                    sendEventToWeb(AdEvent(
+                        "adFailed",
+                        InMobiConfig.Placements.REWARDED.toString(),
+                        error = "Display failed"
+                    ))
+                }
+                
+                override fun onRewardsUnlocked(ad: InMobiInterstitial, rewards: MutableMap<Any, Any>?) {
+                    log("🎁 REWARD EARNED!")
+                    sendEventToWeb(AdEvent(
+                        "adRewarded",
+                        InMobiConfig.Placements.REWARDED.toString(),
+                        data = mapOf("rewards" to (rewards?.toString() ?: ""))
+                    ))
+                    
+                    // Preload next rewarded
+                    preloadRewarded()
+                }
+            }
+        )
+        
+        rewardedAd?.load()
+    }
+
+    private fun showRewardedAd(): Boolean {
+        if (!isRewardedReady) {
+            log("Rewarded not ready", isError = true)
+            sendEventToWeb(AdEvent(
+                "adFailed",
+                InMobiConfig.Placements.REWARDED.toString(),
+                error = "Not ready"
+            ))
+            preloadRewarded()
+            return false
+        }
+        
+        if (rewardedAd?.isReady != true) {
+            log("Rewarded reports not ready", isError = true)
+            isRewardedReady = false
+            preloadRewarded()
+            return false
+        }
+        
+        log("Showing rewarded...")
+        rewardedAd?.show()
+        return true
+    }
+
+    // ==========================================================================
+    // IMPRESSION TRACKING
+    // ==========================================================================
+
+    private fun recordImpression(adType: String) {
+        totalImpressions++
+        saveImpressionCount()
+        
+        val progress = (totalImpressions.toFloat() / targetImpressions * 100).toInt()
+        log("📊 Impression #$totalImpressions ($adType) - $progress% to 10K")
+        
+        // Log milestones
+        when {
+            totalImpressions % 1000 == 0 -> log("🎯 MILESTONE: $totalImpressions impressions!")
+            totalImpressions % 100 == 0 -> log("📈 Progress: $totalImpressions impressions")
+        }
+        
+        if (totalImpressions >= targetImpressions) {
+            log("🎉🎉🎉 TARGET REACHED: 10,000 impressions! 🎉🎉🎉")
+        }
+    }
+
+    private fun saveImpressionCount() {
+        val context = activityRef.get() ?: return
+        context.getSharedPreferences("inmobi_ads", Context.MODE_PRIVATE)
+            .edit()
+            .putInt("total_impressions", totalImpressions)
+            .putLong("last_impression_time", System.currentTimeMillis())
+            .apply()
+    }
+
+    private fun loadImpressionCount() {
+        val context = activityRef.get() ?: return
+        val prefs = context.getSharedPreferences("inmobi_ads", Context.MODE_PRIVATE)
+        totalImpressions = prefs.getInt("total_impressions", 0)
+        log("📊 Loaded impression count: $totalImpressions / $targetImpressions")
+    }
+
+    // ==========================================================================
+    // LIFECYCLE
+    // ==========================================================================
+
+    override fun onCreate(owner: LifecycleOwner) {
+        log("Lifecycle: onCreate")
+        loadImpressionCount()
+    }
+
+    override fun onResume(owner: LifecycleOwner) {
+        log("Lifecycle: onResume")
+        bannerAd?.resume()
+        
+        // Ensure ads are preloaded
+        if (!isInterstitialReady) preloadInterstitial()
+        if (!isRewardedReady) preloadRewarded()
+    }
+
+    override fun onPause(owner: LifecycleOwner) {
+        log("Lifecycle: onPause")
+        bannerAd?.pause()
+    }
+
+    override fun onDestroy(owner: LifecycleOwner) {
+        log("Lifecycle: onDestroy")
+        hideBannerAd()
+        interstitialAd = null
+        rewardedAd = null
+        isInterstitialReady = false
+        isRewardedReady = false
+    }
+
+    // ==========================================================================
+    // UTILITIES
+    // ==========================================================================
+
+    private fun dpToPx(context: Context, dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun runOnUiThread(action: () -> Unit) {
+        activityRef.get()?.runOnUiThread(action)
+    }
+
+    private fun scheduleRetry(delayMs: Long = 5000, action: () -> Unit) {
+        webViewRef.get()?.postDelayed({
+            runOnUiThread(action)
+        }, delayMs)
+    }
+
+    private fun log(message: String, isError: Boolean = false) {
+        val tag = InMobiConfig.LOG_TAG
+        if (isError) {
+            Log.e(tag, message)
+        } else {
+            Log.d(tag, message)
+        }
+    }
+}
+```
+
+-----
+
+## Part 4: Main Activity
+
+### 4.1 Create MainActivity.kt
+
+```kotlin
+// app/src/main/java/com/linguavibe/app/MainActivity.kt
+
+package com.linguavibe.app
+
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.view.View
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.FrameLayout
+import androidx.appcompat.app.AppCompatActivity
+import com.linguavibe.app.ads.InMobiAdBridge
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private lateinit var rootLayout: FrameLayout
+    private lateinit var adBridge: InMobiAdBridge
+
+    // Your LinguaVibe web app URL
+    private val webAppUrl = "https://linguagt.com"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // Initialize views
+        rootLayout = findViewById(R.id.root_layout)
+        webView = findViewById(R.id.webview)
+
+        // Setup WebView
+        setupWebView()
+
+        // Initialize InMobi Ad Bridge
+        adBridge = InMobiAdBridge(this, webView, rootLayout)
+        lifecycle.addObserver(adBridge)
+
+        // Load web app
+        webView.loadUrl(webAppUrl)
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        webView.settings.apply {
+            // Enable JavaScript (required for bridge)
+            javaScriptEnabled = true
+            
+            // Enable DOM storage for web app
+            domStorageEnabled = true
+            
+            // Allow media playback without gesture (for TTS)
+            mediaPlaybackRequiresUserGesture = false
+            
+            // Enable file access for audio
+            allowFileAccess = true
+            allowContentAccess = true
+            
+            // Performance settings
+            cacheMode = WebSettings.LOAD_DEFAULT
+            
+            // Enable mixed content for development
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            
+            // Viewport settings
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            
+            // Zoom settings
+            setSupportZoom(false)
+            builtInZoomControls = false
+            displayZoomControls = false
+        }
+
+        // Handle page loading
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                // Web app loaded, ads can now be triggered
+            }
+        }
+
+        // Handle JavaScript dialogs
+        webView.webChromeClient = WebChromeClient()
+
+        // Enable hardware acceleration
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+    }
+
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+}
+```
+
+### 4.2 Create activity_main.xml Layout
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/layout/activity_main.xml -->
+
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <!-- WebView fills the screen -->
+    <WebView
+        android:id="@+id/webview"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="50dp" />
+    
+    <!--
+    Note: We use marginBottom="50dp" to reserve space for the banner ad.
+    The banner is added dynamically by InMobiAdBridge.
+    
+    If you want the WebView to extend behind the banner,
+    remove the marginBottom and handle content padding in your web app.
+    -->
+
+</FrameLayout>
+```
+
+-----
+
+## Part 5: Styles and Themes
+
+### 5.1 Update themes.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/values/themes.xml -->
+
+<resources>
+    <style name="Theme.LinguaVibe" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+</resources>
+```
+
+### 5.2 Add colors.xml
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<!-- res/values/colors.xml -->
+
+<resources>
+    <color name="primary">#2196F3</color>
+    <color name="primary_dark">#1976D2</color>
+    <color name="accent">#4CAF50</color>
+</resources>
+```
+
+-----
+
+## Part 6: Project Structure
+
+Your final project structure should look like:
+
+```
+app/
+├── src/
+│   └── main/
+│       ├── java/com/linguavibe/app/
+│       │   ├── LinguaVibeApplication.kt
+│       │   ├── MainActivity.kt
+│       │   └── ads/
+│       │       └── InMobiAdBridge.kt
+│       ├── res/
+│       │   ├── layout/
+│       │   │   └── activity_main.xml
+│       │   ├── values/
+│       │   │   ├── colors.xml
+│       │   │   ├── strings.xml
+│       │   │   └── themes.xml
+│       │   └── mipmap-*/
+│       │       └── ic_launcher.png
+│       └── AndroidManifest.xml
+├── build.gradle
+└── proguard-rules.pro
+```
+
+-----
+
+## Part 7: Testing
+
+### 7.1 Enable Test Mode (Development Only)
+
+```kotlin
+// In InMobiAdBridge.kt, set:
+const val TEST_MODE = true
+```
+
+### 7.2 Test Checklist
+
+Run through these tests:
+
+- [ ] App launches without crash
+- [ ] SDK initializes (check Logcat for “✅ InMobi SDK initialized”)
+- [ ] Banner loads and displays at bottom
+- [ ] Banner refreshes every 45 seconds
+- [ ] Interstitial preloads on startup
+- [ ] Interstitial shows when triggered from web
+- [ ] Interstitial closes and preloads next
+- [ ] Rewarded preloads on startup
+- [ ] Rewarded shows when triggered
+- [ ] Reward callback fires after completion
+- [ ] Impression count persists across app restarts
+
+### 7.3 Logcat Filter
+
+Use this filter to see InMobi logs:
+
+```
+tag:InMobiAds
+```
+
+-----
+
+## Part 8: Go Live
+
+### 8.1 Switch to Production Mode
+
+```kotlin
+// In InMobiAdBridge.kt, set:
+const val TEST_MODE = false
+```
+
+### 8.2 Build Release APK
+
+```bash
+./gradlew assembleRelease
+```
+
+### 8.3 Monitor Progress
+
+Check InMobi publisher dashboard for:
+
+- Impression count
+- Fill rate
+- eCPM
+- Revenue
+
+-----
+
+## Part 9: Web App Integration
+
+Your web app (InMobiAdManager.ts) calls the bridge like this:
+
+```typescript
+// Load banner
+window.AndroidAdBridge.loadBanner('10000582111', 'bottom');
+
+// Show interstitial
+window.AndroidAdBridge.showInterstitial('10000582110');
+
+// Show rewarded
+window.AndroidAdBridge.showRewarded('10000582112');
+
+// Hide banner
+window.AndroidAdBridge.hideBanner('10000582111');
+
+// Check if ready
+const isReady = window.AndroidAdBridge.isAdReady('10000582112');
+
+// Get impression count
+const count = window.AndroidAdBridge.getImpressionCount();
+```
+
+Web app receives events via:
+
+```typescript
+window.onAdEvent = (jsonString: string) => {
+  const event = JSON.parse(jsonString);
+  // event.type: 'adLoaded', 'adImpression', 'adClicked', 'adClosed', 'adRewarded', 'adFailed'
+  // event.placementId: '10000582111', '10000582110', '10000582112'
+  // event.error: string (if type is 'adFailed')
+};
+```
+
+-----
+
+## Summary
+
+|Component   |File               |Purpose                            |
+|------------|-------------------|-----------------------------------|
+|SDK Config  |`InMobiAdBridge.kt`|Account ID, placement IDs, settings|
+|JS Bridge   |`InMobiAdBridge.kt`|`window.AndroidAdBridge` interface |
+|Banner      |`InMobiAdBridge.kt`|320x50, auto-refresh 45s           |
+|Interstitial|`InMobiAdBridge.kt`|Fullscreen, preloaded              |
+|Rewarded    |`InMobiAdBridge.kt`|Video with reward callback         |
+|Activity    |`MainActivity.kt`  |WebView + bridge setup             |
+|Layout      |`activity_main.xml`|WebView with banner space          |
+
+**Target:** 10,000 impressions  
+**Test Mode:** Set `TEST_MODE = false` for production
