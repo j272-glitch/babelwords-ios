@@ -1,4 +1,4 @@
-package com.lingualink.linguagt.ads
+package com.lingualink.ads
 
 import android.app.Activity
 import android.os.Handler
@@ -36,7 +36,7 @@ import java.util.*
  * Usage: Replace your production AdWaterfallBridge.kt with this file
  * Filter logs: adb logcat -s AD_DIAG:* AdWaterfall:*
  */
-class AdWaterfallBridge(
+class AdWaterfallBridgeDiagnostic(
     private val activity: Activity,
     private val webView: WebView
 ) {

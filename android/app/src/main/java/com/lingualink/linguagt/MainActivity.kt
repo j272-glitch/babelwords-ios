@@ -364,21 +364,14 @@ class MainActivity : BaseActivity() {
         
         // AdWaterfallBridge is PRIMARY - uses InMobi first, falls back to AdMob
         // Registered as "AndroidAdBridge" per InMobi integration requirements
-        adWaterfallBridge = AdWaterfallBridge(this, webView, null)
+        // DIAGNOSTIC VERSION: Simpler constructor with comprehensive logging
+        adWaterfallBridge = AdWaterfallBridge(this, webView)
         webView.addJavascriptInterface(adWaterfallBridge, "AndroidAdBridge")
-        lifecycle.addObserver(adWaterfallBridge)
-        TestRigorLogger.logMilestone("AdWaterfallBridge registered as window.AndroidAdBridge")
+        TestRigorLogger.logMilestone("AdWaterfallBridge (DIAGNOSTIC) registered as window.AndroidAdBridge")
         
-        // AdMob/UMP handles consent - propagates to waterfall bridge
+        // AdMob/UMP handles consent - AdBridge as fallback
         adBridge = AdBridge(this, webView)
         webView.addJavascriptInterface(adBridge, "adBridgeFallback")
-        
-        // Wire up consent propagation from UMP to waterfall bridge
-        adBridge.onConsentObtained = { gdprConsent ->
-            TestRigorLogger.logMilestone("Propagating consent to waterfall - GDPR: $gdprConsent")
-            adWaterfallBridge.initializeWithConsent(gdprConsent, false)
-        }
-        
         adBridge.initialize()
         TestRigorLogger.logMilestone("UMP consent flow started")
 

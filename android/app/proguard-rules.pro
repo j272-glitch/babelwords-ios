@@ -29,6 +29,13 @@
 
 -keep class com.lingualink.linguagt.ads.AdBridge { *; }
 
+# Keep AdWaterfallBridge JavaScript interface methods (DIAGNOSTIC VERSION)
+-keepclassmembers class com.lingualink.linguagt.ads.AdWaterfallBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+-keep class com.lingualink.linguagt.ads.AdWaterfallBridge { *; }
+
 # Keep InMobiAdBridge JavaScript interface methods
 -keepclassmembers class com.lingualink.linguagt.ads.InMobiAdBridge {
     @android.webkit.JavascriptInterface <methods>;
