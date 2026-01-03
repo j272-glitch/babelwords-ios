@@ -1,0 +1,78 @@
+Comprehensive Review: 55 Causes for Test Ads / No Real Impressions
+Category 1: SDK Configuration (1-10)
+#	Cause	Diagnosis	Solution
+1	MobileAds init not complete	Check initStatus callback	Wait for READY state before loading
+2	Adapter NOT_READY	Read adapterStatusMap in init callback	Update Play Services + SDK
+3	SDK versions mismatched	Run ./gradlew dependencies	Align to single GMA build version
+4	testDeviceIds still set	Log RequestConfiguration	Remove all test device hashes
+5	addTestDevice() in code	Grep source for addTestDevice	Remove the call
+6	COPPA flags forced on	Inspect RequestConfiguration	Reset to TAG_FOR_CHILD_DIRECTED_TREATMENT_UNSPECIFIED
+7	Mediation auto-init disabled	Scan Application.onCreate	Remove disable call
+8	Using AdManagerAdRequest	Review load arguments	Switch to AdRequest
+9	Debug geography set	Review UMP debug settings	Remove setDebugGeography()
+10	MaxAdContentRating too restrictive	Log RequestConfiguration	Set to MAX_AD_CONTENT_RATING_T or higher
+Category 2: AndroidManifest.xml (11-15)
+#	Cause	Diagnosis	Solution
+11	APPLICATION_ID missing	Inspect merged manifest	Add <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID">
+12	APPLICATION_ID is test value	Check manifest for 3940256099942544	Replace with production app ID
+13	Duplicate meta-data entries	Review manifest merger output	Remove duplicate entry
+14	AdActivity not declared	Inspect manifest	Add AdActivity declaration
+15	Network permissions missing	Verify manifest	Add INTERNET + ACCESS_NETWORK_STATE
+Category 3: Ad Unit ID Issues (16-23)
+#	Cause	Diagnosis	Solution
+16	Test IDs hardcoded in Kotlin	Grep for 3940 in code	Replace with production IDs
+17	Cached WebView assets stale	Clear app data	Redeploy fresh bundle
+18	ID mistyped/truncated	Log JS→native payload	Correct digit count
+19	Format mismatch (banner ID for interstitial)	Cross-check ID mapping	Align IDs per ad format
+20	Ad unit disabled in dashboard	Check AdMob inventory	Re-enable or recreate unit
+21	Ad unit not linked to app	Open AdMob app settings	Associate placements with app
+22	App ID doesn't match ad units	Compare IDs	Update config or recreate units
+23	Ad units too new (<1hr)	Check creation timestamp	Wait for propagation
+Category 4: Test Device Issues (24-27)
+#	Cause	Diagnosis	Solution
+24	Device marked as test in AdMob	Check AdMob Test Devices list	Remove device from list
+25	Code hashing device ID	Inspect RequestConfiguration builder	Remove setTestDeviceIds()
+26	Running on emulator	Check device fingerprint	Test on physical device
+27	Developer test toggle enabled	Check Play Services settings	Disable "Test ads" toggle
+Category 5: App Signing/Release Build (28-32)
+#	Cause	Diagnosis	Solution
+28	Debug variant installed	Check BuildConfig.DEBUG	Build and install release APK
+29	Debug keystore used	Run ./gradlew signingReport	Sign with production keystore
+30	android:testOnly=true	Inspect merged manifest	Remove testOnly flag
+31	Package name mismatch	Compare applicationId	Align with AdMob app registration
+32	Release placeholder not defined	Review build.gradle	Define admob_app_id in release config
+Category 6: Network/Connectivity (33-36)
+#	Cause	Diagnosis	Solution
+33	No internet connectivity	Ping test	Restore network connection
+34	Geo-restricted region	Check IP country	Test from supported region
+35	VPN or ad blocker active	Audit network stack	Disable interference
+36	Advertising ID unavailable	Check system ad settings	Reset advertising ID or request NPA
+Category 7: AdMob Account/Policy (37-42)
+#	Cause	Diagnosis	Solution
+37	Account under review	Open AdMob Policy Center	Wait for approval
+38	Billing/payment incomplete	Check Payments tab	Complete tax + billing info
+39	App approval pending	Check App status in AdMob	Submit for app review
+40	Policy violation flagged	Read Policy Center notices	Resolve compliance issue
+41	Excessive blocking controls	Audit Blocking Controls	Loosen category/advertiser filters
+42	Invalid traffic flag	Monitor IVT alerts	Improve traffic quality & appeal
+Category 8: Timing/Lifecycle (43-46)
+#	Cause	Diagnosis	Solution
+43	Consent flow unresolved	Log consent timeline	Load ads only after consent
+44	Activity not in resumed state	Trace lifecycle	Move ad load to onResume()
+45	AdView destroyed before impression	Watch logcat	Keep view alive until impression logged
+46	Reload spam (too many requests)	Record request cadence	Add cooldown timers between requests
+Category 9: WebView/JavaScript Bridge (47-50)
+#	Cause	Diagnosis	Solution
+47	Web debug simulation enabled	Inspect AD_CONFIG.debug	Set to false
+48	USE_ADMOB_TEST_ADS flag true	Review AdConfig	Set to false
+49	Fallback to sample IDs	Inspect bridge logs	Ensure placement ID passed correctly
+50	Cached JS bundle outdated	Clear WebView cache	Bump asset version query param
+Category 10: Consent/Privacy (51-53)
+#	Cause	Diagnosis	Solution
+51	Consent REQUIRED but not obtained	Query ConsentInformation	Show consent form before ads
+52	UMP debug ALWAYS_SHOW_TEST set	Inspect ConsentRequestParameters	Remove debug flag for release
+53	Missing privacy policy URL	Check AdMob app settings	Add compliant privacy policy link
+Category 11: Fill Rate/Auction (54-55)
+#	Cause	Diagnosis	Solution
+54	Manual eCPM floor too high	Review mediation floor settings	Lower thresholds
+55	Low demand for placement	Check mediation reports	Add more networks or increase traffic
