@@ -506,19 +506,23 @@ class AdWaterfallBridge(
     private fun showInterstitialWaterfall() {
         val activity = activityRef.get() ?: return
         
+        log("=== SHOW INTERSTITIAL FLOW ===")
+        log("InMobi ready: $isInMobiInterstitialReady, isReady(): ${inMobiInterstitial?.isReady()}")
+        log("AdMob ready: $isAdMobInterstitialReady")
+        
         if (isInMobiInterstitialReady && inMobiInterstitial?.isReady() == true) {
-            log("Showing InMobi interstitial")
+            log("→ Showing InMobi interstitial")
             inMobiInterstitial?.show()
             return
         }
         
         if (isAdMobInterstitialReady && adMobInterstitial != null) {
-            log("Showing AdMob interstitial (fallback)")
+            log("→ Showing AdMob interstitial (fallback)")
             adMobInterstitial?.show(activity)
             return
         }
         
-        log("No interstitial ready", isError = true)
+        log("✗ No interstitial ready to show!", isError = true)
         sendEventToWeb(AdEvent("adFailed", "interstitial", "none", error = "No ad ready"))
         
         preloadInMobiInterstitial()
@@ -641,14 +645,18 @@ class AdWaterfallBridge(
     private fun showRewardedWaterfall() {
         val activity = activityRef.get() ?: return
         
+        log("=== SHOW REWARDED FLOW ===")
+        log("InMobi ready: $isInMobiRewardedReady, isReady(): ${inMobiRewarded?.isReady()}")
+        log("AdMob ready: $isAdMobRewardedReady")
+        
         if (isInMobiRewardedReady && inMobiRewarded?.isReady() == true) {
-            log("Showing InMobi rewarded")
+            log("→ Showing InMobi rewarded")
             inMobiRewarded?.show()
             return
         }
         
         if (isAdMobRewardedReady && adMobRewarded != null) {
-            log("Showing AdMob rewarded (fallback)")
+            log("→ Showing AdMob rewarded (fallback)")
             adMobRewarded?.show(activity) { rewardItem ->
                 log("AdMob reward earned: ${rewardItem.amount} ${rewardItem.type}")
                 sendEventToWeb(AdEvent(
@@ -661,7 +669,7 @@ class AdWaterfallBridge(
             return
         }
         
-        log("No rewarded ready", isError = true)
+        log("✗ No rewarded ready to show!", isError = true)
         sendEventToWeb(AdEvent("adFailed", "rewarded", "none", error = "No ad ready"))
         
         preloadInMobiRewarded()
