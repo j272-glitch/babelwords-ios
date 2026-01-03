@@ -71,12 +71,26 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 
 ## Third-Party Integrations
 
-**Ad Integration (IMA SDK)**: Migrated from AdMob to Google Interactive Media Ads (IMA) SDK for video ad monetization:
-- IMAManager.kt handles SDK initialization, ad loading, and playback
-- AdBridge.kt provides JavaScript bridge for web app ad triggers
-- WebAppBridge.kt handles interstitial/rewarded ad requests from web app
-- Supports interstitial and rewarded video ads
-- Conversation-based ad triggers (after N translations)
+**Ad Integration (Dual Network - InMobi Primary, AdMob Fallback)**:
+
+*InMobi (PRIMARY)*:
+- Account ID: `9d81516c365f4acaa52f1fc627370cf9`
+- Placements: Banner (10000582111), Interstitial (10000582110), Rewarded (10000582112)
+- InMobiAdBridge.kt provides JavaScript interface as `window.adBridge`
+- Target: 10,000 impressions for InMobi activation
+- SDK: com.inmobi.monetization:inmobi-ads-kotlin:10.6.7
+
+*AdMob (FALLBACK)*:
+- App ID: `ca-app-pub-9991891515643313~7514450861`
+- AdBridge.kt provides JavaScript interface as `window.adBridgeFallback`
+- Handles UMP consent flow and propagates to InMobi
+- Supports Interstitial, Rewarded, Rewarded Interstitial
+
+*Consent Flow*:
+1. AdBridge requests UMP consent
+2. On consent resolution, callback propagates GDPR status to InMobi
+3. InMobi initializes with proper consent flags
+4. Both networks preload ads after initialization
 
 **Analytics**: User activity tracking with conversation counting and session management.
 
