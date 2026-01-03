@@ -173,6 +173,10 @@ class AdWaterfallBridge(
         log("  Impressions - InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Total: $totalImpressions")
         log("  Loads: $totalLoadRequests (OK: $successfulLoads, Fail: $failedLoads)")
         log("  Shows: $totalShowRequests (OK: $successfulShows, Fail: $failedShows)")
+        log("  Current IDs:")
+        log("    Banner: $currentAdMobBannerId")
+        log("    Interstitial: $currentAdMobInterstitialId")
+        log("    Rewarded: $currentAdMobRewardedId")
     }
 
     fun initialize() {
@@ -244,7 +248,16 @@ class AdWaterfallBridge(
 
     @JavascriptInterface
     fun loadBanner(position: String) {
-        log("JS -> loadBanner(position=$position)")
+        loadBannerWithId(position, "")
+    }
+    
+    @JavascriptInterface
+    fun loadBannerWithId(position: String, placementId: String) {
+        log("JS -> loadBanner(position=$position, placementId=$placementId)")
+        if (isAdMobId(placementId)) {
+            currentAdMobBannerId = placementId
+            log("  ✓ Using AdMob Banner ID from JS: $currentAdMobBannerId")
+        }
         runOnUiThread { 
             bannerPosition = position
             loadBannerWaterfall(position) 
@@ -259,8 +272,17 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun loadInterstitial() {
+        loadInterstitialWithId("")
+    }
+    
+    @JavascriptInterface
+    fun loadInterstitialWithId(placementId: String) {
         totalLoadRequests++
-        log("JS -> loadInterstitial() [request #$totalLoadRequests]")
+        log("JS -> loadInterstitial(placementId=$placementId) [request #$totalLoadRequests]")
+        if (isAdMobId(placementId)) {
+            currentAdMobInterstitialId = placementId
+            log("  ✓ Using AdMob Interstitial ID from JS: $currentAdMobInterstitialId")
+        }
         runOnUiThread { 
             preloadInMobiInterstitial()
             preloadAdMobInterstitial()
@@ -277,8 +299,17 @@ class AdWaterfallBridge(
     
     @JavascriptInterface
     fun loadRewarded() {
+        loadRewardedWithId("")
+    }
+    
+    @JavascriptInterface
+    fun loadRewardedWithId(placementId: String) {
         totalLoadRequests++
-        log("JS -> loadRewarded() [request #$totalLoadRequests]")
+        log("JS -> loadRewarded(placementId=$placementId) [request #$totalLoadRequests]")
+        if (isAdMobId(placementId)) {
+            currentAdMobRewardedId = placementId
+            log("  ✓ Using AdMob Rewarded ID from JS: $currentAdMobRewardedId")
+        }
         runOnUiThread { 
             preloadInMobiRewarded()
             preloadAdMobRewarded()
@@ -429,13 +460,14 @@ class AdWaterfallBridge(
         val layout = rootLayout ?: return
         
         hideAllBanners()
-        log("Trying AdMob banner...")
         
         val adUnitId = if (AdConfig.USE_ADMOB_TEST_ADS) {
             AdConfig.AdMob.Test.BANNER
         } else {
-            AdConfig.AdMob.BANNER
+            currentAdMobBannerId
         }
+        log("Trying AdMob banner...")
+        log("  Ad Unit ID: $adUnitId ${if (currentAdMobBannerId != AdConfig.AdMob.BANNER) "(from JS)" else "(default)"}")
         
         adMobBanner = AdView(activity).apply {
             setAdSize(AdSize.BANNER)
@@ -557,13 +589,14 @@ class AdWaterfallBridge(
         if (!isAdMobInitialized || isAdMobInterstitialReady) return
         
         val activity = activityRef.get() ?: return
-        log("Preloading AdMob interstitial...")
         
         val adUnitId = if (AdConfig.USE_ADMOB_TEST_ADS) {
             AdConfig.AdMob.Test.INTERSTITIAL
         } else {
-            AdConfig.AdMob.INTERSTITIAL
+            currentAdMobInterstitialId
         }
+        log("Preloading AdMob interstitial...")
+        log("  Ad Unit ID: $adUnitId ${if (currentAdMobInterstitialId != AdConfig.AdMob.INTERSTITIAL) "(from JS)" else "(default)"}")
         
         InterstitialAd.load(
             activity,
@@ -704,13 +737,14 @@ class AdWaterfallBridge(
         if (!isAdMobInitialized || isAdMobRewardedReady) return
         
         val activity = activityRef.get() ?: return
-        log("Preloading AdMob rewarded...")
         
         val adUnitId = if (AdConfig.USE_ADMOB_TEST_ADS) {
             AdConfig.AdMob.Test.REWARDED
         } else {
-            AdConfig.AdMob.REWARDED
+            currentAdMobRewardedId
         }
+        log("Preloading AdMob rewarded...")
+        log("  Ad Unit ID: $adUnitId ${if (currentAdMobRewardedId != AdConfig.AdMob.REWARDED) "(from JS)" else "(default)"}")
         
         RewardedAd.load(
             activity,
