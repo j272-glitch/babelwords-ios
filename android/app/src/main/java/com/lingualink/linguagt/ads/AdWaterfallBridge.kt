@@ -345,6 +345,18 @@ class AdWaterfallBridge(
     }
     
     @JavascriptInterface
+    fun getImpressionCount(): Int {
+        logDiag("JS → getImpressionCount() = $admobImpressions")
+        return admobImpressions
+    }
+    
+    @JavascriptInterface
+    fun getAdMobImpressions(): Int {
+        logDiag("JS → getAdMobImpressions() = $admobImpressions")
+        return admobImpressions
+    }
+    
+    @JavascriptInterface
     fun getDiagnosticReport(): String {
         logState("Diagnostic Report Requested")
         val report = JSONObject().apply {
