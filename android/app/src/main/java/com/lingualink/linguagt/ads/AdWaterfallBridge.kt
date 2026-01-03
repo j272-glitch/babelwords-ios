@@ -17,6 +17,7 @@ import com.inmobi.ads.InMobiInterstitial
 import com.inmobi.ads.listeners.BannerAdEventListener
 import com.inmobi.ads.listeners.InterstitialAdEventListener
 import com.inmobi.sdk.InMobiSdk
+import com.inmobi.sdk.SdkInitializationListener
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
@@ -138,14 +139,18 @@ class AdWaterfallBridge(
             logDiag("  Account ID: $INMOBI_ACCOUNT_ID")
             val consentObject = JSONObject()
             consentObject.put("gdpr", "0")
-            InMobiSdk.init(activity, INMOBI_ACCOUNT_ID, consentObject) { error ->
-                if (error == null) {
-                    logDiag("✓ InMobi SDK initialized successfully")
-                    logDiag("  SDK Version: ${InMobiSdk.getVersion()}")
-                } else {
-                    logDiag("✗ InMobi SDK initialization FAILED: ${error.message}", "E")
+            InMobiSdk.init(activity, INMOBI_ACCOUNT_ID, consentObject,
+                object : SdkInitializationListener {
+                    override fun onInitializationComplete(error: Error?) {
+                        if (error == null) {
+                            logDiag("✓ InMobi SDK initialized successfully")
+                            logDiag("  SDK Version: ${InMobiSdk.getVersion()}")
+                        } else {
+                            logDiag("✗ InMobi SDK initialization FAILED: ${error.message}", "E")
+                        }
+                    }
                 }
-            }
+            )
         } catch (e: Exception) {
             logDiag("✗ InMobi init exception: ${e.message}", "E")
         }
