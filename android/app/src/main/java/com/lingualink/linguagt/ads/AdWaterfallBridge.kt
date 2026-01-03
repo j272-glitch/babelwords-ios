@@ -96,6 +96,10 @@ class AdWaterfallBridge(
     private val rootLayout: FrameLayout?
 ) : DefaultLifecycleObserver {
 
+    companion object {
+        private const val TAG = "AdWaterfallBridge"
+    }
+
     private val activityRef = WeakReference(activity)
     private val webViewRef = WeakReference(webView)
     
@@ -431,7 +435,8 @@ class AdWaterfallBridge(
             webView.evaluateJavascript(js, null)
         }
         
-        log("-> Web: ${event.type} [${event.network}]")
+        // Verbose JS callback logging
+        log("→ Notifying JS: ${event.type} [${event.network}] ${event.placementId}")
     }
 
     private fun loadBannerWaterfall(position: String) {
@@ -504,8 +509,8 @@ class AdWaterfallBridge(
         } else {
             currentAdMobBannerId
         }
-        log("Trying AdMob banner...")
-        log("  Ad Unit ID: $adUnitId ${if (currentAdMobBannerId != AdConfig.AdMob.BANNER) "(from JS)" else "(default)"}")
+        log("→ loadBanner(placementId=$adUnitId, position=$position)")
+        log("  Source: ${if (currentAdMobBannerId != AdConfig.AdMob.BANNER) "JS override" else "default config"}")
         
         adMobBanner = AdView(activity).apply {
             setAdSize(AdSize.BANNER)
@@ -514,19 +519,22 @@ class AdWaterfallBridge(
             
             adListener = object : AdListener() {
                 override fun onAdLoaded() {
-                    log("AdMob banner loaded")
+                    successfulLoads++
+                    log("✓ ADMOB BANNER LOADED [total loads: $successfulLoads]")
                     currentBannerNetwork = AdNetwork.ADMOB
                     sendEventToWeb(AdEvent("adLoaded", "banner", "admob"))
                 }
                 
                 override fun onAdFailedToLoad(error: LoadAdError) {
-                    log("AdMob banner failed: ${error.message}", isError = true)
+                    failedLoads++
+                    log("✗ AdMob banner load FAILED: ${error.code} - ${error.message}", isError = true)
                     currentBannerNetwork = AdNetwork.NONE
                     sendEventToWeb(AdEvent("adFailed", "banner", "admob", error = error.message))
                 }
                 
                 override fun onAdImpression() {
-                    log("AdMob banner impression")
+                    successfulShows++
+                    log("✓ ADMOB BANNER SHOWN [total shows: $successfulShows]")
                     recordImpression(AdNetwork.ADMOB, "banner")
                     sendEventToWeb(AdEvent("adImpression", "banner", "admob"))
                 }
@@ -633,8 +641,8 @@ class AdWaterfallBridge(
         } else {
             currentAdMobInterstitialId
         }
-        log("Preloading AdMob interstitial...")
-        log("  Ad Unit ID: $adUnitId ${if (currentAdMobInterstitialId != AdConfig.AdMob.INTERSTITIAL) "(from JS)" else "(default)"}")
+        log("→ loadInterstitial(placementId=$adUnitId)")
+        log("  Source: ${if (currentAdMobInterstitialId != AdConfig.AdMob.INTERSTITIAL) "JS override" else "default config"}")
         
         InterstitialAd.load(
             activity,
@@ -643,20 +651,21 @@ class AdWaterfallBridge(
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     successfulLoads++
-                    log("✓ AdMob interstitial loaded [loads: $successfulLoads]")
+                    log("✓ ADMOB INTERSTITIAL LOADED [total loads: $successfulLoads]")
                     adMobInterstitial = ad
                     isAdMobInterstitialReady = true
+                    sendEventToWeb(AdEvent("adLoaded", "interstitial", "admob"))
                     
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdShowedFullScreenContent() {
                             successfulShows++
-                            log("✓ AdMob interstitial displayed [shows: $successfulShows]")
+                            log("✓ ADMOB INTERSTITIAL SHOWN [total shows: $successfulShows]")
                             recordImpression(AdNetwork.ADMOB, "interstitial")
                             sendEventToWeb(AdEvent("adImpression", "interstitial", "admob"))
                         }
                         
                         override fun onAdDismissedFullScreenContent() {
-                            log("AdMob interstitial dismissed")
+                            log("ADMOB INTERSTITIAL DISMISSED")
                             isAdMobInterstitialReady = false
                             adMobInterstitial = null
                             sendEventToWeb(AdEvent("adClosed", "interstitial", "admob"))
@@ -665,7 +674,7 @@ class AdWaterfallBridge(
                         
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
                             failedShows++
-                            log("✗ AdMob interstitial show failed [fails: $failedShows]: ${error.message}", isError = true)
+                            log("✗ AdMob interstitial show FAILED: ${error.code} - ${error.message}", isError = true)
                             isAdMobInterstitialReady = false
                             adMobInterstitial = null
                         }
@@ -674,7 +683,7 @@ class AdWaterfallBridge(
                 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     failedLoads++
-                    log("✗ AdMob interstitial load failed [fails: $failedLoads]: ${error.message}", isError = true)
+                    log("✗ AdMob interstitial load FAILED: ${error.code} - ${error.message}", isError = true)
                     isAdMobInterstitialReady = false
                     scheduleRetry { preloadAdMobInterstitial() }
                 }
@@ -783,8 +792,8 @@ class AdWaterfallBridge(
         } else {
             currentAdMobRewardedId
         }
-        log("Preloading AdMob rewarded...")
-        log("  Ad Unit ID: $adUnitId ${if (currentAdMobRewardedId != AdConfig.AdMob.REWARDED) "(from JS)" else "(default)"}")
+        log("→ loadRewarded(placementId=$adUnitId)")
+        log("  Source: ${if (currentAdMobRewardedId != AdConfig.AdMob.REWARDED) "JS override" else "default config"}")
         
         RewardedAd.load(
             activity,
@@ -793,20 +802,21 @@ class AdWaterfallBridge(
             object : RewardedAdLoadCallback() {
                 override fun onAdLoaded(ad: RewardedAd) {
                     successfulLoads++
-                    log("✓ AdMob rewarded loaded [loads: $successfulLoads]")
+                    log("✓ ADMOB REWARDED LOADED [total loads: $successfulLoads]")
                     adMobRewarded = ad
                     isAdMobRewardedReady = true
+                    sendEventToWeb(AdEvent("adLoaded", "rewarded", "admob"))
                     
                     ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                         override fun onAdShowedFullScreenContent() {
                             successfulShows++
-                            log("✓ AdMob rewarded displayed [shows: $successfulShows]")
+                            log("✓ ADMOB REWARDED SHOWN [total shows: $successfulShows]")
                             recordImpression(AdNetwork.ADMOB, "rewarded")
                             sendEventToWeb(AdEvent("adImpression", "rewarded", "admob"))
                         }
                         
                         override fun onAdDismissedFullScreenContent() {
-                            log("AdMob rewarded dismissed")
+                            log("ADMOB REWARDED DISMISSED")
                             isAdMobRewardedReady = false
                             adMobRewarded = null
                             sendEventToWeb(AdEvent("adClosed", "rewarded", "admob"))
@@ -815,7 +825,7 @@ class AdWaterfallBridge(
                         
                         override fun onAdFailedToShowFullScreenContent(error: AdError) {
                             failedShows++
-                            log("✗ AdMob rewarded show failed [fails: $failedShows]: ${error.message}", isError = true)
+                            log("✗ AdMob rewarded show FAILED: ${error.code} - ${error.message}", isError = true)
                             isAdMobRewardedReady = false
                             adMobRewarded = null
                         }
@@ -824,7 +834,7 @@ class AdWaterfallBridge(
                 
                 override fun onAdFailedToLoad(error: LoadAdError) {
                     failedLoads++
-                    log("✗ AdMob rewarded load failed [fails: $failedLoads]: ${error.message}", isError = true)
+                    log("✗ AdMob rewarded load FAILED: ${error.code} - ${error.message}", isError = true)
                     isAdMobRewardedReady = false
                     scheduleRetry { preloadAdMobRewarded() }
                 }
@@ -886,9 +896,17 @@ class AdWaterfallBridge(
         
         saveImpressionData()
         
-        val progress = (inMobiImpressions.toFloat() / targetImpressions * 100).toInt()
-        log("Impression #$totalImpressions ($adType via ${network.name})")
-        log("   InMobi: $inMobiImpressions | AdMob: $adMobImpressions | Progress: $progress%")
+        val networkName = network.name.uppercase()
+        val adTypeName = adType.uppercase()
+        val impressionCount = when (network) {
+            AdNetwork.INMOBI -> inMobiImpressions
+            AdNetwork.ADMOB -> adMobImpressions
+            AdNetwork.NONE -> 0
+        }
+        
+        // Verbose diagnostic logging with star markers
+        log("★★★ $networkName $adTypeName IMPRESSION #$impressionCount ★★★")
+        log("   Total: $totalImpressions | InMobi: $inMobiImpressions | AdMob: $adMobImpressions")
         log("   By Type - Banner: $bannerImpressions | Interstitial: $interstitialImpressions | Rewarded: $rewardedImpressions")
         TestRigorLogger.logAdEvent("Impression: $adType via ${network.name} - InMobi: $inMobiImpressions/$targetImpressions")
         
@@ -972,16 +990,19 @@ class AdWaterfallBridge(
     }
 
     private fun log(message: String, isError: Boolean = false) {
-        if (!AdConfig.DEBUG_MODE && !isError) return
+        logDiag(message, if (isError) "E" else "D")
+    }
+    
+    private fun logDiag(message: String, level: String = "D") {
+        if (!AdConfig.DEBUG_MODE && level == "D") return
         
         val timestamp = dateFormat.format(Date())
-        val tag = AdConfig.LOG_TAG
-        val fullMessage = "[$timestamp] $message"
+        val formatted = "[$timestamp] [AdWaterfallBridge] $message"
         
-        if (isError) {
-            Log.e(tag, fullMessage)
-        } else {
-            Log.d(tag, fullMessage)
+        when (level) {
+            "E" -> Log.e(TAG, formatted)
+            "W" -> Log.w(TAG, formatted)
+            else -> Log.d(TAG, formatted)
         }
     }
 }
