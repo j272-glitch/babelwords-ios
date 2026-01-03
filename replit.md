@@ -71,25 +71,29 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 
 ## Third-Party Integrations
 
-**Ad Integration (Dual Network - InMobi Primary, AdMob Fallback)**:
+**Ad Integration (Waterfall - InMobi Primary, AdMob Fallback)**:
+
+*AdWaterfallBridge.kt* - Unified waterfall ad system:
+- Registered as `window.adBridge` for web app compatibility
+- Tries InMobi first, falls back to AdMob automatically
+- Tracks impressions per network toward 10,000 InMobi target
+- Supports Banner, Interstitial, Rewarded ad types
 
 *InMobi (PRIMARY)*:
 - Account ID: `9d81516c365f4acaa52f1fc627370cf9`
 - Placements: Banner (10000582111), Interstitial (10000582110), Rewarded (10000582112)
-- InMobiAdBridge.kt provides JavaScript interface as `window.adBridge`
-- Target: 10,000 impressions for InMobi activation
+- Target: 10,000 impressions for account activation
 - SDK: com.inmobi.monetization:inmobi-ads-kotlin:10.6.7
 
 *AdMob (FALLBACK)*:
 - App ID: `ca-app-pub-9991891515643313~7514450861`
-- AdBridge.kt provides JavaScript interface as `window.adBridgeFallback`
-- Handles UMP consent flow and propagates to InMobi
-- Supports Interstitial, Rewarded, Rewarded Interstitial
+- Interstitial: /5076005693, Rewarded: /6313049833
+- AdBridge.kt handles UMP consent flow
 
 *Consent Flow*:
-1. AdBridge requests UMP consent
-2. On consent resolution, callback propagates GDPR status to InMobi
-3. InMobi initializes with proper consent flags
+1. AdBridge requests UMP consent via Google SDK
+2. On consent resolution, callback propagates GDPR status to AdWaterfallBridge
+3. AdWaterfallBridge initializes both InMobi and AdMob with consent flags
 4. Both networks preload ads after initialization
 
 **Analytics**: User activity tracking with conversation counting and session management.

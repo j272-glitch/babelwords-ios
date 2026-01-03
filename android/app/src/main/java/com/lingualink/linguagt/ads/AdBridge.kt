@@ -189,13 +189,14 @@ class AdBridge(
     }
     
     private fun initializeMobileAds() {
-        if (isInitialized) return
-        
         val gdprConsent = consentInformation?.consentStatus == ConsentInformation.ConsentStatus.OBTAINED ||
                 consentInformation?.consentStatus == ConsentInformation.ConsentStatus.NOT_REQUIRED
         
+        // Always invoke consent callback, even if already initialized
         onConsentObtained?.invoke(gdprConsent)
         TestRigorLogger.logAdEvent("Consent callback invoked - GDPR consent: $gdprConsent")
+        
+        if (isInitialized) return
         
         MobileAds.initialize(activity) { initStatus ->
             isInitialized = true
