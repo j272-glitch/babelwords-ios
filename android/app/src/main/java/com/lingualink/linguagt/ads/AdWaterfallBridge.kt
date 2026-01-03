@@ -38,7 +38,7 @@ object AdConfig {
     }
     
     object AdMob {
-        const val BANNER = "ca-app-pub-3940256099942544/6300978111"  // TODO: Replace with production banner ID when available
+        const val BANNER = "ca-app-pub-9991891515643313/6878126239"
         const val INTERSTITIAL = "ca-app-pub-9991891515643313/5076005693"
         const val REWARDED = "ca-app-pub-9991891515643313/6313049833"
         
