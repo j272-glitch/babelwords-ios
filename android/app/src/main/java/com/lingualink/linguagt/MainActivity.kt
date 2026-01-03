@@ -368,11 +368,18 @@ class MainActivity : BaseActivity() {
         inMobiAdBridge.initialize()
         TestRigorLogger.logMilestone("InMobi adBridge registered as PRIMARY - timing fix")
         
-        // AdMob is FALLBACK - registered as "adBridgeFallback"
+        // AdMob handles UMP consent and is FALLBACK - registered as "adBridgeFallback"
         adBridge = AdBridge(this, webView)
         webView.addJavascriptInterface(adBridge, "adBridgeFallback")
+        
+        // Wire up consent propagation from AdMob/UMP to InMobi
+        adBridge.onConsentObtained = { gdprConsent ->
+            TestRigorLogger.logMilestone("Propagating consent to InMobi - GDPR: $gdprConsent")
+            inMobiAdBridge.initializeWithConsent(gdprConsent, false)
+        }
+        
         adBridge.initialize()
-        TestRigorLogger.logMilestone("AdMob adBridgeFallback registered as FALLBACK")
+        TestRigorLogger.logMilestone("AdMob adBridgeFallback registered as FALLBACK with consent propagation")
 
         webView.addJavascriptInterface(webAppBridge, "AndroidBridge")
         webAppBridge.setWebView(webView)

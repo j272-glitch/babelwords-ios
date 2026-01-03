@@ -69,6 +69,8 @@ class AdBridge(
     private val mainHandler = Handler(Looper.getMainLooper())
     private var consentInformation: ConsentInformation? = null
     
+    var onConsentObtained: ((gdprConsent: Boolean) -> Unit)? = null
+    
     private val interstitialId: String
         get() = if (USE_TEST_ADS) TEST_INTERSTITIAL else INTERSTITIAL_AD_UNIT
     
@@ -188,6 +190,12 @@ class AdBridge(
     
     private fun initializeMobileAds() {
         if (isInitialized) return
+        
+        val gdprConsent = consentInformation?.consentStatus == ConsentInformation.ConsentStatus.OBTAINED ||
+                consentInformation?.consentStatus == ConsentInformation.ConsentStatus.NOT_REQUIRED
+        
+        onConsentObtained?.invoke(gdprConsent)
+        TestRigorLogger.logAdEvent("Consent callback invoked - GDPR consent: $gdprConsent")
         
         MobileAds.initialize(activity) { initStatus ->
             isInitialized = true

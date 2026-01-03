@@ -62,12 +62,26 @@ class InMobiAdBridge(
         private const val TAG = "InMobiAdBridge"
     }
 
+    private var pendingInitialization = false
+
     fun initialize() {
-        log("Initializing InMobi Ad Bridge...")
+        log("InMobi Ad Bridge waiting for consent before initialization...")
+        pendingInitialization = true
+    }
+
+    fun initializeWithConsent(gdprConsent: Boolean, ccpaDoNotSell: Boolean) {
+        InMobiConfig.Privacy.gdprConsent = gdprConsent
+        InMobiConfig.Privacy.ccpaDoNotSell = ccpaDoNotSell
+        log("Initializing InMobi with consent - GDPR: $gdprConsent, CCPA DoNotSell: $ccpaDoNotSell")
         initializeInMobiSdk()
     }
 
     private fun initializeInMobiSdk() {
+        if (isInitialized) {
+            log("InMobi already initialized")
+            return
+        }
+        
         val activity = activityRef.get() ?: run {
             log("Activity is null, cannot initialize SDK", isError = true)
             return
@@ -76,14 +90,19 @@ class InMobiAdBridge(
         val consentObject = JSONObject().apply {
             put("gdpr_consent_available", InMobiConfig.Privacy.gdprConsent)
             put("gdpr", if (InMobiConfig.Privacy.gdprConsent) "1" else "0")
+            if (InMobiConfig.Privacy.ccpaDoNotSell) {
+                put("us_privacy", "1YY-")
+            }
         }
         
         InMobiSdk.init(activity, InMobiConfig.ACCOUNT_ID, consentObject, object : SdkInitializationListener {
             override fun onInitializationComplete(error: Error?) {
                 if (error == null) {
                     isInitialized = true
+                    pendingInitialization = false
                     log("InMobi SDK initialized successfully")
                     log("Account: ${InMobiConfig.ACCOUNT_ID}")
+                    log("GDPR consent: ${InMobiConfig.Privacy.gdprConsent}")
                     
                     if (InMobiConfig.TEST_MODE) {
                         InMobiSdk.setLogLevel(InMobiSdk.LogLevel.DEBUG)
@@ -108,6 +127,10 @@ class InMobiAdBridge(
         InMobiConfig.Privacy.gdprConsent = gdprConsent
         InMobiConfig.Privacy.ccpaDoNotSell = ccpaDoNotSell
         log("Consent updated - GDPR: $gdprConsent, CCPA DoNotSell: $ccpaDoNotSell")
+        
+        if (pendingInitialization && !isInitialized) {
+            initializeInMobiSdk()
+        }
     }
 
     @JavascriptInterface
@@ -292,7 +315,11 @@ class InMobiAdBridge(
         }
         
         val activity = activityRef.get() ?: return
-        val container = rootLayout ?: return
+        val container = rootLayout ?: run {
+            log("Banner container is null - banners not supported in this configuration", isError = true)
+            sendEventToWeb("adFailed", "banner", "No banner container available")
+            return
+        }
         
         hideBanner()
         
