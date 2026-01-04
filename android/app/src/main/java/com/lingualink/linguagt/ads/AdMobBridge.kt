@@ -392,7 +392,7 @@ class AdMobBridge(
                                 interstitialAd = null
                                 log("Interstitial dismissed")
                                 notifyJs("adClosed", "admob", "interstitial")
-                                // REMOVED: No preload - ads only load on button press
+                                loadInterstitialAd() // Preload next
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
@@ -465,7 +465,7 @@ class AdMobBridge(
                                 rewardedAd = null
                                 log("Rewarded dismissed")
                                 notifyJs("adClosed", "admob", "rewarded")
-                                // REMOVED: No preload - ads only load on button press
+                                loadRewardedAd() // Preload next
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
