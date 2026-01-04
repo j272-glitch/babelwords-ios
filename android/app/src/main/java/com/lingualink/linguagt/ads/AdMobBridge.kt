@@ -136,12 +136,14 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun loadInterstitial(placementId: String) {
-        loadInterstitialWithAutoShow(placementId, false)
+        // DEFAULT: Auto-show when loaded (1-step, like banner)
+        loadInterstitialWithAutoShow(placementId, true)
     }
 
     @JavascriptInterface
-    fun loadInterstitialAndShow(placementId: String) {
-        loadInterstitialWithAutoShow(placementId, true)
+    fun loadInterstitialOnly(placementId: String) {
+        // 2-step: Load only, call showInterstitial() separately
+        loadInterstitialWithAutoShow(placementId, false)
     }
 
     private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
@@ -177,12 +179,14 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun loadRewarded(placementId: String) {
-        loadRewardedWithAutoShow(placementId, false)
+        // DEFAULT: Auto-show when loaded (1-step, like banner)
+        loadRewardedWithAutoShow(placementId, true)
     }
 
     @JavascriptInterface
-    fun loadRewardedAndShow(placementId: String) {
-        loadRewardedWithAutoShow(placementId, true)
+    fun loadRewardedOnly(placementId: String) {
+        // 2-step: Load only, call showRewarded() separately
+        loadRewardedWithAutoShow(placementId, false)
     }
 
     private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
