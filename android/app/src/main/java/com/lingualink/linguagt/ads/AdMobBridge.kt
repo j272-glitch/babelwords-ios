@@ -131,11 +131,25 @@ class AdMobBridge(
         }
     }
 
+    // Auto-show flag for 1-step interstitial (like banner)
+    private var autoShowInterstitial = false
+
     @JavascriptInterface
     fun loadInterstitial(placementId: String) {
+        loadInterstitialWithAutoShow(placementId, false)
+    }
+
+    @JavascriptInterface
+    fun loadInterstitialAndShow(placementId: String) {
+        loadInterstitialWithAutoShow(placementId, true)
+    }
+
+    private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
         log("═".repeat(50))
-        log("JS → loadInterstitial(placementId=$placementId)")
+        log("JS → loadInterstitial(placementId=$placementId, autoShow=$autoShow)")
         log("═".repeat(50))
+
+        autoShowInterstitial = autoShow
 
         if (isAdMobId(placementId)) {
             currentInterstitialId = placementId
@@ -158,11 +172,25 @@ class AdMobBridge(
         }
     }
 
+    // Auto-show flag for 1-step rewarded (like banner)
+    private var autoShowRewarded = false
+
     @JavascriptInterface
     fun loadRewarded(placementId: String) {
+        loadRewardedWithAutoShow(placementId, false)
+    }
+
+    @JavascriptInterface
+    fun loadRewardedAndShow(placementId: String) {
+        loadRewardedWithAutoShow(placementId, true)
+    }
+
+    private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
         log("═".repeat(50))
-        log("JS → loadRewarded(placementId=$placementId)")
+        log("JS → loadRewarded(placementId=$placementId, autoShow=$autoShow)")
         log("═".repeat(50))
+
+        autoShowRewarded = autoShow
 
         if (isAdMobId(placementId)) {
             currentRewardedId = placementId
@@ -338,10 +366,18 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "interstitial")
+
+                        // AUTO-SHOW: If loadInterstitialAndShow() was called, show immediately
+                        if (autoShowInterstitial) {
+                            log("  ► Auto-showing interstitial...")
+                            autoShowInterstitial = false // Reset flag
+                            showInterstitialAd()
+                        }
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         isInterstitialReady = false
+                        autoShowInterstitial = false // Reset flag on failure
                         log("✗ Interstitial load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
                         notifyJs("adFailed", "admob", "interstitial", error.message)
@@ -403,10 +439,18 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "rewarded")
+
+                        // AUTO-SHOW: If loadRewardedAndShow() was called, show immediately
+                        if (autoShowRewarded) {
+                            log("  ► Auto-showing rewarded...")
+                            autoShowRewarded = false // Reset flag
+                            showRewardedAd()
+                        }
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         isRewardedReady = false
+                        autoShowRewarded = false // Reset flag on failure
                         log("✗ Rewarded load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
                         notifyJs("adFailed", "admob", "rewarded", error.message)
