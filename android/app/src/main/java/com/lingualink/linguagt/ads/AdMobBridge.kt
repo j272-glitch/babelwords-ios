@@ -108,18 +108,11 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun loadBanner(placementId: String, position: String) {
+        // DISABLED: Banner ads disabled due to inappropriate content
         log("═".repeat(50))
-        log("JS → loadBanner(placementId=$placementId, position=$position)")
+        log("JS → loadBanner() - DISABLED (inappropriate content)")
         log("═".repeat(50))
-
-        if (isAdMobId(placementId)) {
-            currentBannerId = placementId
-            log("  ✓ Using Banner ID from JS: $currentBannerId")
-        }
-
-        activity.runOnUiThread {
-            loadBannerAd(position)
-        }
+        notifyJs("adFailed", "admob", "banner", "Banner ads disabled")
     }
 
     @JavascriptInterface
