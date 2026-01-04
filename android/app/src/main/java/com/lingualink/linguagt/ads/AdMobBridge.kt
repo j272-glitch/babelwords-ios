@@ -139,11 +139,11 @@ class AdMobBridge(
         loadInterstitialWithAutoShow(placementId, false)
     }
 
-    // ORIGINAL INTERFACE: Alias for web app compatibility
+    // ORIGINAL INTERFACE: Auto-show on button press (1-step)
     @JavascriptInterface
     fun preloadInterstitial() {
-        log("JS → preloadInterstitial() [original interface]")
-        loadInterstitialWithAutoShow(currentInterstitialId, false)
+        log("JS → preloadInterstitial() [original interface - auto-show]")
+        loadInterstitialWithAutoShow(currentInterstitialId, true)
     }
 
     private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
@@ -198,11 +198,11 @@ class AdMobBridge(
         loadRewardedWithAutoShow(placementId, false)
     }
 
-    // ORIGINAL INTERFACE: Alias for web app compatibility
+    // ORIGINAL INTERFACE: Auto-show on button press (1-step)
     @JavascriptInterface
     fun preloadRewarded() {
-        log("JS → preloadRewarded() [original interface]")
-        loadRewardedWithAutoShow(currentRewardedId, false)
+        log("JS → preloadRewarded() [original interface - auto-show]")
+        loadRewardedWithAutoShow(currentRewardedId, true)
     }
 
     private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
