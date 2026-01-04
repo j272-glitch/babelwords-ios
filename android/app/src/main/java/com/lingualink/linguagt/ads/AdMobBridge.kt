@@ -139,11 +139,23 @@ class AdMobBridge(
         loadInterstitialWithAutoShow(placementId, false)
     }
 
-    // ORIGINAL INTERFACE: Auto-show on button press (1-step)
+    // ORIGINAL INTERFACE: Auto-show on button press (1-step, like startup)
     @JavascriptInterface
     fun preloadInterstitial() {
-        log("JS → preloadInterstitial() [original interface - auto-show]")
-        loadInterstitialWithAutoShow(currentInterstitialId, true)
+        log("═".repeat(50))
+        log("JS → preloadInterstitial() [ORIGINAL - no params]")
+        log("═".repeat(50))
+        
+        autoShowInterstitial = true  // AUTO-SHOW after load (like startup)
+        activity.runOnUiThread {
+            if (isInterstitialReady && interstitialAd != null) {
+                log("  ✓ Interstitial already ready - showing immediately")
+                showInterstitialAd()
+            } else {
+                log("  ⏳ Loading interstitial (will auto-show when ready)")
+                loadInterstitialAd()
+            }
+        }
     }
 
     private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
@@ -198,11 +210,30 @@ class AdMobBridge(
         loadRewardedWithAutoShow(placementId, false)
     }
 
-    // ORIGINAL INTERFACE: Auto-show on button press (1-step)
+    // ORIGINAL INTERFACE: Auto-show on button press (1-step, like startup)
     @JavascriptInterface
     fun preloadRewarded() {
-        log("JS → preloadRewarded() [original interface - auto-show]")
-        loadRewardedWithAutoShow(currentRewardedId, true)
+        log("═".repeat(50))
+        log("JS → preloadRewarded() [ORIGINAL - no params]")
+        log("═".repeat(50))
+        
+        autoShowRewarded = true  // AUTO-SHOW after load (like startup)
+        activity.runOnUiThread {
+            if (isRewardedReady && rewardedAd != null) {
+                log("  ✓ Rewarded already ready - showing immediately")
+                showRewardedAd()
+            } else {
+                log("  ⏳ Loading rewarded (will auto-show when ready)")
+                loadRewardedAd()
+            }
+        }
+    }
+
+    // ORIGINAL INTERFACE: Alternative method name
+    @JavascriptInterface
+    fun preloadRewardedAd() {
+        log("JS → preloadRewardedAd() [ORIGINAL alias]")
+        preloadRewarded()
     }
 
     private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
@@ -265,6 +296,13 @@ class AdMobBridge(
     @JavascriptInterface
     fun isRewardedReady(): Boolean {
         log("JS → isRewardedReady() [original] = $isRewardedReady")
+        return isRewardedReady
+    }
+
+    // ORIGINAL INTERFACE: Alternative method name
+    @JavascriptInterface
+    fun isRewardedAdReady(): Boolean {
+        log("JS → isRewardedAdReady() [ORIGINAL] = $isRewardedReady")
         return isRewardedReady
     }
 

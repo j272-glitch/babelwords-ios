@@ -1,0 +1,70 @@
+Recommended Kotlin Update
+Add the ORIGINAL interface methods that duplicate startup behavior. Here's what to add:
+
+// ==================== ORIGINAL AdBridge Methods (No Params) ====================
+// These duplicate the startup autoload behavior when called from button press
+@JavascriptInterface
+fun preloadInterstitial() {
+    log("═".repeat(50))
+    log("JS → preloadInterstitial() [ORIGINAL - no params]")
+    log("═".repeat(50))
+    
+    autoShowInterstitial = true  // AUTO-SHOW after load (like startup)
+    activity.runOnUiThread {
+        if (isInterstitialReady && interstitialAd != null) {
+            log("  ✓ Interstitial already ready - showing immediately")
+            showInterstitialAd()
+        } else {
+            log("  ⏳ Loading interstitial (will auto-show when ready)")
+            loadInterstitialAd()
+        }
+    }
+}
+@JavascriptInterface
+fun showInterstitial(): String {
+    log("JS → showInterstitial() [ORIGINAL]")
+    activity.runOnUiThread {
+        showInterstitialAd()
+    }
+    return "showing"
+}
+@JavascriptInterface
+fun isInterstitialReady(): Boolean {
+    log("JS → isInterstitialReady() [ORIGINAL] = $isInterstitialReady")
+    return isInterstitialReady
+}
+@JavascriptInterface
+fun preloadRewardedAd() {
+    log("═".repeat(50))
+    log("JS → preloadRewardedAd() [ORIGINAL - no params]")
+    log("═".repeat(50))
+    
+    autoShowRewarded = true  // AUTO-SHOW after load (like startup)
+    activity.runOnUiThread {
+        if (isRewardedReady && rewardedAd != null) {
+            log("  ✓ Rewarded already ready - showing immediately")
+            showRewardedAd()
+        } else {
+            log("  ⏳ Loading rewarded (will auto-show when ready)")
+            loadRewardedAd()
+        }
+    }
+}
+@JavascriptInterface
+fun showRewardedAd(): String {
+    log("JS → showRewardedAd() [ORIGINAL]")
+    activity.runOnUiThread {
+        showRewardedAd()
+    }
+    return "showing"
+}
+@JavascriptInterface
+fun isRewardedAdReady(): Boolean {
+    log("JS → isRewardedAdReady() [ORIGINAL] = $isRewardedReady")
+    return isRewardedReady
+}
+Key Difference from Current APK
+Current APK	Recommended Update
+preloadInterstitial() just loads	preloadInterstitial() loads AND auto-shows
+preloadRewardedAd() just loads	preloadRewardedAd() loads AND auto-shows
+The recommended change: Set autoShowInterstitial = true and autoShowRewarded = true so ads automatically display after loading - matching the behavior that worked at startup.
