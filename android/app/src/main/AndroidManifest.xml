@@ -20,7 +20,7 @@
     <!-- IMA SDK: Required for advertising ID access -->
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
     
-    <!-- InMobi: Optional for better ad targeting -->
+    <!-- Optional: Improves ad targeting -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
     <!-- CRITICAL: Declare microphone as optional for devices without microphone -->
@@ -84,15 +84,12 @@
             android:foregroundServiceType="microphone"
             tools:targetApi="29" />
 
-        <!-- Native VAST ads - no AdMob/IMA SDK required -->
-        
-        <!-- InMobi Required Activity -->
+        <!-- AdMob AdActivity (REQUIRED for interstitial/rewarded ads) -->
         <activity
-            android:name="com.inmobi.rendering.InMobiAdActivity"
-            android:configChanges="keyboardHidden|orientation|keyboard|smallestScreenSize|screenSize|screenLayout"
+            android:name="com.google.android.gms.ads.AdActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:theme="@android:style/Theme.Translucent"
             android:hardwareAccelerated="true"
-            android:resizeableActivity="false"
-            android:theme="@android:style/Theme.NoTitleBar"
-            tools:replace="android:theme" />
+            android:exported="false" />
     </application>
 </manifest>

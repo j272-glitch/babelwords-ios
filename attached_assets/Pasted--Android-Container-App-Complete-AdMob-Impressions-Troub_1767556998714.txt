@@ -1,0 +1,853 @@
+# Android Container App: Complete AdMob Impressions Troubleshooting Guide
+
+## The Core Problem
+
+You’re seeing **100% match rate but zero impressions**. This means AdMob is successfully finding ads to serve, but they’re never actually rendering on screen. This guide addresses every layer where this can fail in a WebView-based hybrid app architecture.
+
+-----
+
+## 1. Google Play Services & Dependencies
+
+### Verify Correct SDK Versions
+
+```gradle
+// app/build.gradle
+dependencies {
+    // Use compatible versions - mismatched versions cause silent failures
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
+    
+    // If using mediation
+    implementation 'com.google.ads.mediation:inmobi:10.6.7.0'
+    implementation 'com.unity3d.ads:unity-ads:4.9.3'
+}
+```
+
+### Check Google Play Services Availability
+
+```kotlin
+// Call this before any ad operations
+fun checkPlayServices(context: Context): Boolean {
+    val googleApiAvailability = GoogleApiAvailability.getInstance()
+    val resultCode = googleApiAvailability.isGooglePlayServicesAvailable(context)
+    
+    if (resultCode != ConnectionResult.SUCCESS) {
+        Log.e("AdMob", "Google Play Services unavailable: $resultCode")
+        if (googleApiAvailability.isUserResolvableError(resultCode)) {
+            googleApiAvailability.getErrorDialog(context as Activity, resultCode, 9000)?.show()
+        }
+        return false
+    }
+    return true
+}
+```
+
+### Common Issue: Play Services Version Mismatch
+
+Many devices in India run outdated Play Services. Handle gracefully:
+
+```kotlin
+// In your Application class
+override fun onCreate() {
+    super.onCreate()
+    
+    // Initialize Mobile Ads SDK with callback
+    MobileAds.initialize(this) { initializationStatus ->
+        val statusMap = initializationStatus.adapterStatusMap
+        for ((adapter, status) in statusMap) {
+            Log.d("AdMob", "Adapter: $adapter = ${status.initializationState}")
+            if (status.initializationState != AdapterStatus.State.READY) {
+                Log.w("AdMob", "Adapter not ready: ${status.description}")
+            }
+        }
+    }
+}
+```
+
+-----
+
+## 2. AndroidManifest.xml Configuration
+
+### Required Permissions and Meta-data
+
+```xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Required permissions -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- Optional but improves ad targeting (especially for India market) -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+    <application
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true">
+        
+        <!-- CRITICAL: AdMob App ID - Must match exactly -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"/>
+        
+        <!-- Optimize ad loading for WebView apps -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true"/>
+        
+        <!-- Enable hardware acceleration for ad views (critical for video ads) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.NATIVE_AD_DEBUGGER"
+            android:value="false"/>
+
+        <!-- Required for video ads -->
+        <activity
+            android:name="com.google.android.gms.ads.AdActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:theme="@android:style/Theme.Translucent"
+            android:hardwareAccelerated="true"/>
+
+    </application>
+</manifest>
+```
+
+### Common Manifest Issues
+
+|Issue                               |Symptom                                   |Fix                       |
+|------------------------------------|------------------------------------------|--------------------------|
+|Missing `hardwareAccelerated="true"`|Video ads fail silently                   |Add to `<application>` tag|
+|Wrong App ID                        |`onAdFailedToLoad` error code 0           |Verify ID in AdMob console|
+|Missing AD_ID permission            |Lower fill rates on Android 13+           |Add permission            |
+|Missing AdActivity declaration      |Interstitials/rewarded crash or don’t show|Add the activity          |
+
+-----
+
+## 3. WebView Configuration for Hybrid Apps
+
+### Critical WebView Settings
+
+```kotlin
+class AdWebViewClient(private val context: Context) {
+    
+    fun configureWebView(webView: WebView) {
+        webView.settings.apply {
+            // Essential for ads
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            
+            // Media playback (critical for video ads)
+            mediaPlaybackRequiresUserGesture = false
+            
+            // Allow mixed content (many ad networks serve over HTTP)
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            
+            // Cache settings for faster ad loads
+            cacheMode = WebSettings.LOAD_DEFAULT
+            
+            // Allow file access for local ad assets
+            allowFileAccess = true
+            allowContentAccess = true
+            
+            // User agent - some ad networks check this
+            userAgentString = userAgentString + " LinguaVibeApp/1.0"
+        }
+        
+        // Hardware acceleration at view level
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        
+        // Enable debugging in development
+        if (BuildConfig.DEBUG) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+    }
+}
+```
+
+### WebView-Native Ad Bridge
+
+The key issue with WebView apps is that ads load in native code but must coordinate with your web content:
+
+```kotlin
+class AdBridge(private val activity: Activity, private val webView: WebView) {
+    
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    private var isAdReady = false
+    
+    // JavaScript interface for web app communication
+    @JavascriptInterface
+    fun loadInterstitial() {
+        activity.runOnUiThread {
+            loadInterstitialAd()
+        }
+    }
+    
+    @JavascriptInterface
+    fun showInterstitial(): Boolean {
+        var shown = false
+        activity.runOnUiThread {
+            interstitialAd?.let { ad ->
+                ad.show(activity)
+                shown = true
+            } ?: run {
+                Log.w("AdBridge", "Interstitial not ready - loading now")
+                loadInterstitialAd()
+            }
+        }
+        return shown
+    }
+    
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean = isAdReady
+    
+    private fun loadInterstitialAd() {
+        val adRequest = AdRequest.Builder().build()
+        
+        InterstitialAd.load(
+            activity,
+            "ca-app-pub-XXXX/YYYY", // Your ad unit ID
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    interstitialAd = ad
+                    isAdReady = true
+                    
+                    // Notify web app
+                    notifyWebApp("onInterstitialLoaded", "true")
+                    
+                    // Set up show callback
+                    ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                        override fun onAdShowedFullScreenContent() {
+                            Log.d("AdBridge", "Ad showed - IMPRESSION COUNTED")
+                            notifyWebApp("onInterstitialImpression", "true")
+                        }
+                        
+                        override fun onAdDismissedFullScreenContent() {
+                            isAdReady = false
+                            interstitialAd = null
+                            notifyWebApp("onInterstitialClosed", "true")
+                            // Preload next ad
+                            loadInterstitialAd()
+                        }
+                        
+                        override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                            Log.e("AdBridge", "Failed to show: ${error.message}")
+                            isAdReady = false
+                            interstitialAd = null
+                            notifyWebApp("onInterstitialShowFailed", error.message)
+                        }
+                    }
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e("AdBridge", "Failed to load: ${error.message}")
+                    isAdReady = false
+                    notifyWebApp("onInterstitialLoadFailed", error.message)
+                }
+            }
+        )
+    }
+    
+    private fun notifyWebApp(event: String, data: String) {
+        activity.runOnUiThread {
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('$event', {detail: '$data'}))",
+                null
+            )
+        }
+    }
+}
+```
+
+### Register the Bridge
+
+```kotlin
+// In your Activity
+override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    
+    val webView = findViewById<WebView>(R.id.webView)
+    val adBridge = AdBridge(this, webView)
+    
+    webView.addJavascriptInterface(adBridge, "NativeAdBridge")
+}
+```
+
+### Web App Integration (TypeScript/React side)
+
+```typescript
+// adBridge.ts
+declare global {
+  interface Window {
+    NativeAdBridge?: {
+      loadInterstitial: () => void;
+      showInterstitial: () => boolean;
+      isInterstitialReady: () => boolean;
+    };
+  }
+}
+
+export class AdManager {
+  private static instance: AdManager;
+  
+  static getInstance(): AdManager {
+    if (!AdManager.instance) {
+      AdManager.instance = new AdManager();
+    }
+    return AdManager.instance;
+  }
+  
+  constructor() {
+    // Listen for native ad events
+    window.addEventListener('onInterstitialLoaded', () => {
+      console.log('Interstitial ready');
+    });
+    
+    window.addEventListener('onInterstitialImpression', () => {
+      console.log('IMPRESSION RECORDED');
+      // Track in your analytics
+    });
+    
+    window.addEventListener('onInterstitialShowFailed', (e: CustomEvent) => {
+      console.error('Show failed:', e.detail);
+    });
+  }
+  
+  loadInterstitial(): void {
+    if (window.NativeAdBridge) {
+      window.NativeAdBridge.loadInterstitial();
+    }
+  }
+  
+  showInterstitial(): boolean {
+    if (window.NativeAdBridge?.isInterstitialReady()) {
+      return window.NativeAdBridge.showInterstitial();
+    }
+    return false;
+  }
+  
+  isReady(): boolean {
+    return window.NativeAdBridge?.isInterstitialReady() ?? false;
+  }
+}
+```
+
+-----
+
+## 4. Activity Lifecycle Management
+
+### The #1 Cause of “Match but No Impression”
+
+If your Activity is finishing or in the background when `show()` is called, the ad will not display:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    
+    private var interstitialAd: InterstitialAd? = null
+    private var isActivityActive = false
+    
+    override fun onResume() {
+        super.onResume()
+        isActivityActive = true
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        isActivityActive = false
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        interstitialAd = null
+    }
+    
+    fun showInterstitialSafely() {
+        // CRITICAL: Check activity state before showing
+        if (!isActivityActive) {
+            Log.w("Ads", "Activity not active - cannot show ad")
+            return
+        }
+        
+        if (isFinishing || isDestroyed) {
+            Log.w("Ads", "Activity finishing/destroyed - cannot show ad")
+            return
+        }
+        
+        interstitialAd?.show(this) ?: run {
+            Log.w("Ads", "Ad not loaded yet")
+        }
+    }
+}
+```
+
+### Window Focus Issues
+
+```kotlin
+override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus) {
+        // Good time to show ads
+        Log.d("Ads", "Window has focus - safe to show ads")
+    } else {
+        // Do not attempt to show ads
+        Log.d("Ads", "Window lost focus - delay ad display")
+    }
+}
+```
+
+-----
+
+## 5. Banner Ad Implementation
+
+### Common Banner Issues in WebView Apps
+
+```kotlin
+class BannerAdManager(
+    private val activity: Activity,
+    private val bannerContainer: FrameLayout
+) {
+    private var adView: AdView? = null
+    
+    fun loadBanner() {
+        // Remove any existing banner
+        adView?.destroy()
+        bannerContainer.removeAllViews()
+        
+        adView = AdView(activity).apply {
+            // CRITICAL: Set ad size before loading
+            setAdSize(AdSize.BANNER)
+            adUnitId = "ca-app-pub-XXXX/YYYY"
+            
+            // Must add to container BEFORE loading
+            bannerContainer.addView(this)
+            
+            adListener = object : AdListener() {
+                override fun onAdLoaded() {
+                    Log.d("Banner", "Loaded successfully")
+                    
+                    // CRITICAL: Verify the banner is actually visible
+                    post {
+                        if (visibility == View.VISIBLE && 
+                            width > 0 && height > 0 &&
+                            isShown) {
+                            Log.d("Banner", "Banner is visible on screen")
+                        } else {
+                            Log.e("Banner", "Banner loaded but NOT visible!")
+                            Log.e("Banner", "visibility=$visibility, w=$width, h=$height, shown=$isShown")
+                        }
+                    }
+                }
+                
+                override fun onAdImpression() {
+                    Log.d("Banner", "IMPRESSION RECORDED")
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e("Banner", "Failed: ${error.code} - ${error.message}")
+                }
+            }
+            
+            loadAd(AdRequest.Builder().build())
+        }
+    }
+    
+    fun verifyBannerVisibility() {
+        adView?.let { banner ->
+            val location = IntArray(2)
+            banner.getLocationOnScreen(location)
+            
+            val screenHeight = activity.resources.displayMetrics.heightPixels
+            val screenWidth = activity.resources.displayMetrics.widthPixels
+            
+            val isOnScreen = location[0] >= 0 && 
+                             location[1] >= 0 &&
+                             location[0] + banner.width <= screenWidth &&
+                             location[1] + banner.height <= screenHeight
+            
+            Log.d("Banner", "Position: (${location[0]}, ${location[1]})")
+            Log.d("Banner", "Size: ${banner.width} x ${banner.height}")
+            Log.d("Banner", "Is on screen: $isOnScreen")
+        }
+    }
+}
+```
+
+### Layout Considerations
+
+```xml
+<!-- activity_main.xml -->
+<FrameLayout
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    
+    <!-- WebView takes remaining space -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginBottom="50dp" />  <!-- Leave room for banner -->
+    
+    <!-- Banner container at bottom -->
+    <FrameLayout
+        android:id="@+id/bannerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:layout_gravity="bottom"
+        android:background="#FFFFFF"
+        android:visibility="visible" />
+        
+</FrameLayout>
+```
+
+**Critical Checks:**
+
+- Container has explicit height (not `wrap_content` before ad loads)
+- Container is not hidden behind WebView or other views
+- Container is within screen bounds
+- No `visibility="gone"` or `alpha="0"`
+
+-----
+
+## 6. Rewarded Ad Implementation
+
+```kotlin
+class RewardedAdManager(private val activity: Activity) {
+    
+    private var rewardedAd: RewardedAd? = null
+    private var isLoading = false
+    
+    fun loadRewardedAd() {
+        if (isLoading) return
+        isLoading = true
+        
+        val adRequest = AdRequest.Builder().build()
+        
+        RewardedAd.load(
+            activity,
+            "ca-app-pub-XXXX/YYYY",
+            adRequest,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    isLoading = false
+                    rewardedAd = ad
+                    setupFullScreenCallback(ad)
+                    Log.d("Rewarded", "Ad loaded successfully")
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    isLoading = false
+                    rewardedAd = null
+                    Log.e("Rewarded", "Failed to load: ${error.code} - ${error.message}")
+                    
+                    // Retry with exponential backoff
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        loadRewardedAd()
+                    }, 30000) // 30 second delay before retry
+                }
+            }
+        )
+    }
+    
+    private fun setupFullScreenCallback(ad: RewardedAd) {
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d("Rewarded", "IMPRESSION - Ad showed")
+            }
+            
+            override fun onAdDismissedFullScreenContent() {
+                rewardedAd = null
+                loadRewardedAd() // Preload next
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e("Rewarded", "Failed to show: ${error.code} - ${error.message}")
+                rewardedAd = null
+                loadRewardedAd()
+            }
+        }
+    }
+    
+    fun showRewardedAd(onRewarded: (RewardItem) -> Unit): Boolean {
+        val ad = rewardedAd
+        
+        if (ad == null) {
+            Log.w("Rewarded", "Ad not ready")
+            loadRewardedAd()
+            return false
+        }
+        
+        // Activity state check
+        if (activity.isFinishing || activity.isDestroyed) {
+            Log.w("Rewarded", "Activity not valid")
+            return false
+        }
+        
+        ad.show(activity) { rewardItem ->
+            Log.d("Rewarded", "User earned reward: ${rewardItem.amount} ${rewardItem.type}")
+            onRewarded(rewardItem)
+        }
+        
+        return true
+    }
+}
+```
+
+-----
+
+## 7. ProGuard / R8 Configuration
+
+### Keep Rules for AdMob
+
+```proguard
+# proguard-rules.pro
+
+# Keep AdMob classes
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.ads.** { *; }
+
+# Keep mediation adapters
+-keep class com.google.ads.mediation.** { *; }
+-keep class com.inmobi.** { *; }
+-keep class com.unity3d.ads.** { *; }
+
+# Keep JavaScript interface methods
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+
+# Prevent callback obfuscation
+-keepclassmembers class * implements com.google.android.gms.ads.AdListener {
+    public *;
+}
+
+-keepclassmembers class * extends com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback {
+    public *;
+}
+
+-keepclassmembers class * extends com.google.android.gms.ads.rewarded.RewardedAdLoadCallback {
+    public *;
+}
+
+# Keep FullScreenContentCallback
+-keepclassmembers class * extends com.google.android.gms.ads.FullScreenContentCallback {
+    public *;
+}
+```
+
+-----
+
+## 8. Network Configuration
+
+### Network Security Config
+
+```xml
+<!-- res/xml/network_security_config.xml -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Allow cleartext for ad networks that still use HTTP -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">googleads.g.doubleclick.net</domain>
+        <domain includeSubdomains="true">pagead2.googlesyndication.com</domain>
+        <domain includeSubdomains="true">tpc.googlesyndication.com</domain>
+        <domain includeSubdomains="true">www.googleadservices.com</domain>
+    </domain-config>
+</network-security-config>
+```
+
+Reference in manifest:
+
+```xml
+<application
+    android:networkSecurityConfig="@xml/network_security_config">
+```
+
+-----
+
+## 9. Testing & Debugging
+
+### Enable Test Ads First
+
+```kotlin
+// In Application.onCreate() - BEFORE MobileAds.initialize()
+if (BuildConfig.DEBUG) {
+    val testDeviceIds = listOf(
+        "YOUR_DEVICE_ID_HERE",  // Get from logcat
+        AdRequest.DEVICE_ID_EMULATOR
+    )
+    
+    val configuration = RequestConfiguration.Builder()
+        .setTestDeviceIds(testDeviceIds)
+        .build()
+    
+    MobileAds.setRequestConfiguration(configuration)
+}
+```
+
+### Get Test Device ID
+
+Look for this in logcat when running with test ads:
+
+```
+I/Ads: Use RequestConfiguration.Builder.setTestDeviceIds(Arrays.asList("33BE2250B43518CCDA7DE426D04EE231"))
+```
+
+### Debug Checklist Script
+
+```kotlin
+fun runAdDiagnostics(context: Context) {
+    val sb = StringBuilder()
+    sb.appendLine("=== AdMob Diagnostics ===")
+    
+    // 1. Check Google Play Services
+    val gps = GoogleApiAvailability.getInstance()
+    val gpsStatus = gps.isGooglePlayServicesAvailable(context)
+    sb.appendLine("Play Services: ${if (gpsStatus == 0) "OK" else "Error $gpsStatus"}")
+    
+    // 2. Check network
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork
+    val caps = cm.getNetworkCapabilities(network)
+    sb.appendLine("Network: ${caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ?: false}")
+    
+    // 3. Check App ID
+    try {
+        val ai = context.packageManager.getApplicationInfo(
+            context.packageName, 
+            PackageManager.GET_META_DATA
+        )
+        val appId = ai.metaData?.getString("com.google.android.gms.ads.APPLICATION_ID")
+        sb.appendLine("AdMob App ID: ${appId?.take(20)}...")
+    } catch (e: Exception) {
+        sb.appendLine("AdMob App ID: NOT FOUND")
+    }
+    
+    // 4. Check if running on emulator
+    sb.appendLine("Emulator: ${Build.FINGERPRINT.contains("generic")}")
+    
+    // 5. Screen info
+    val dm = context.resources.displayMetrics
+    sb.appendLine("Screen: ${dm.widthPixels}x${dm.heightPixels} @ ${dm.density}x")
+    
+    Log.i("AdDiagnostics", sb.toString())
+}
+```
+
+### Logcat Filters for Ad Debugging
+
+```bash
+# Watch all ad-related logs
+adb logcat -s Ads:* AdMob:* AdBridge:* Banner:* Rewarded:*
+
+# Watch for specific errors
+adb logcat | grep -E "(onAdFailedToLoad|onAdFailedToShow|AdError)"
+```
+
+-----
+
+## 10. India-Specific Optimizations
+
+### Geo-Based Ad Configuration
+
+```kotlin
+class GeoAwareAdManager(private val context: Context) {
+    
+    fun getOptimalAdRequest(): AdRequest {
+        val builder = AdRequest.Builder()
+        
+        // Add content targeting for better India fill rates
+        val extras = Bundle().apply {
+            // Request family-safe ads (higher fill in India)
+            putString("max_ad_content_rating", "G")
+        }
+        
+        builder.addNetworkExtrasBundle(AdMobAdapter::class.java, extras)
+        
+        return builder.build()
+    }
+    
+    fun getRecommendedAdFormats(): List<String> {
+        // Priority order for India market based on fill rates
+        return listOf(
+            "rewarded",      // Best fill + eCPM
+            "interstitial",  // Good fill
+            "native",        // Moderate fill
+            "banner"         // Lowest eCPM but consistent
+        )
+    }
+}
+```
+
+### Preload Strategy for Low-Bandwidth
+
+```kotlin
+class AdPreloader(private val context: Context) {
+    
+    private val adCache = mutableMapOf<String, Any>()
+    private val maxCacheAge = 30 * 60 * 1000L // 30 minutes
+    
+    fun preloadAdsOnWifi() {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+        
+        if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
+            // Preload multiple ad types when on WiFi
+            preloadInterstitial()
+            preloadRewarded()
+        } else {
+            // On mobile data, only preload rewarded (highest value)
+            preloadRewarded()
+        }
+    }
+}
+```
+
+-----
+
+## 11. Common Error Codes Reference
+
+|Code|Meaning                   |Fix                                            |
+|----|--------------------------|-----------------------------------------------|
+|0   |ERROR_CODE_INTERNAL_ERROR |Check App ID, reinitialize SDK                 |
+|1   |ERROR_CODE_INVALID_REQUEST|Verify ad unit ID format                       |
+|2   |ERROR_CODE_NETWORK_ERROR  |Check internet, retry with backoff             |
+|3   |ERROR_CODE_NO_FILL        |Expected in India - use mediation, lower floors|
+|4   |ERROR_CODE_APP_ID_MISSING |Add meta-data to manifest                      |
+
+-----
+
+## 12. Final Verification Checklist
+
+Before each release, verify:
+
+- [ ] App ID in manifest matches AdMob console exactly
+- [ ] All ad unit IDs are production (not test) for release builds
+- [ ] Test device IDs are removed/disabled for release
+- [ ] ProGuard rules are in place
+- [ ] `hardwareAccelerated="true"` in manifest
+- [ ] Network security config allows ad domains
+- [ ] Activity lifecycle properly managed
+- [ ] Banner containers have explicit dimensions
+- [ ] `show()` is called after `onAdLoaded` callback
+- [ ] App is linked to Play Store in AdMob console
+- [ ] app-ads.txt is deployed at linguagt.com/app-ads.txt
+- [ ] Payment/tax info complete in AdMob account
+
+-----
+
+## Quick Diagnostic for Zero Impressions
+
+Run through this in order:
+
+1. **Is the ad actually loading?** Check for `onAdLoaded` callback
+1. **Is `show()` being called?** Add logging before the call
+1. **Is Activity valid when `show()` is called?** Check `isFinishing`, `isDestroyed`
+1. **Is the ad view visible?** Use Layout Inspector
+1. **Are there any `onAdFailedToShow` errors?** Check logcat
+1. **Is this a timing issue?** Add delays, verify lifecycle
+
+If all checks pass and you still see 100% match / 0% impressions, the issue is likely in the WebView-native bridge communication. Add extensive logging to every callback and trace the flow.

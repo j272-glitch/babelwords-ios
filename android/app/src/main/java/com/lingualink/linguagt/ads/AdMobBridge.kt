@@ -432,6 +432,13 @@ class AdMobBridge(
             return
         }
 
+        // CRITICAL: Check activity lifecycle state before showing
+        if (act.isFinishing || act.isDestroyed) {
+            log("✗ Activity finishing/destroyed - cannot show ad!", "W")
+            notifyJs("adFailed", "admob", "interstitial", "Activity not active")
+            return
+        }
+
         if (isInterstitialReady && interstitialAd != null) {
             log("  ► Calling interstitial.show()")
             interstitialAd?.show(act)
@@ -451,6 +458,13 @@ class AdMobBridge(
         if (act == null) {
             log("✗ Activity reference lost!", "E")
             notifyJs("adFailed", "admob", "rewarded", "Activity lost")
+            return
+        }
+
+        // CRITICAL: Check activity lifecycle state before showing
+        if (act.isFinishing || act.isDestroyed) {
+            log("✗ Activity finishing/destroyed - cannot show ad!", "W")
+            notifyJs("adFailed", "admob", "rewarded", "Activity not active")
             return
         }
 
