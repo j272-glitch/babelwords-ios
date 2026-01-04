@@ -207,9 +207,8 @@ class AdBridge(
                 Log.d(TAG, "Adapter: $name, State: ${status.initializationState}, Latency: ${status.latency}ms")
             }
             
-            loadInterstitialAd()
-            loadRewardedAd()
-            loadRewardedInterstitialAd()
+            // REMOVED: No longer preload ads on startup
+            // Ads only load when user presses interstitial/rewarded buttons
             
             notifyWeb("adMobInitialized", "true")
         }
@@ -614,12 +613,8 @@ class AdBridge(
     
     @JavascriptInterface
     fun preloadAds() {
-        TestRigorLogger.logAdEvent("Preloading ads...")
-        mainHandler.post {
-            loadInterstitialAd()
-            loadRewardedAd()
-            loadRewardedInterstitialAd()
-        }
+        // DISABLED: Ads only load when user presses interstitial/rewarded buttons
+        TestRigorLogger.logAdEvent("preloadAds() called but disabled - ads load on button press only")
     }
     
     @JavascriptInterface
