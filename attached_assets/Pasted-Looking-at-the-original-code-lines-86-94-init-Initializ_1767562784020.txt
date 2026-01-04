@@ -1,0 +1,36 @@
+Looking at the original code (lines 86-94):
+
+init {
+    // Initialize Mobile Ads SDK
+    MobileAds.initialize(activity) {
+        Log.d(TAG, "AdMob SDK initialized")
+        loadInterstitialAd()      // ← Called unconditionally
+        loadRewardedAd()          // ← Called unconditionally  
+        loadRewardedInterstitialAd()
+    }
+}
+No force condition - ads loaded unconditionally in the native init block when the bridge was
+
+app startup?
+
+
+5 messages & 13 actions
+Yes - at app startup, the **native Kotlin `init` block** triggered the loads automatically when the AdBridge object was created: ```kotlin init { MobileAds.initialize(activity) { loadInterstitialAd() // ← Native private function called automatically loadRewardedAd() // ← Native private function called automatically } } ``` The JavaScript methods exposed to the web app for manual triggering are: - `preloadInterstitial()` (not `loadInterstitial(placementId)`) - `preloadRewardedAd()` (not `loadRewarded(placementId)`) The current web code is calling the **wrong method names**! Let me update to use the original bridge methods:
+Checkpoint made
+Update ad loading to support original bridge interface
+Worked for 5 minutes
+So, is the web app now configured to use the same method after ad button press which previously worked at app startup?
+
+Yes, the web app now uses the same underlying loading method:
+
+At Startup (worked)	On Button Press (now)
+Native init block called internal loadInterstitialAd()	Web calls preloadInterstitial() which triggers the same internal loadInterstitialAd()
+Ad loads in background	Ad loads in background
+Later, showInterstitial() works	After polling isInterstitialReady(), showInterstitial() is called
+The key difference:
+
+Startup: Native code triggered loading automatically
+Button press: Web app triggers loading via preloadInterstitial() (which calls the exact same internal function)
+Both paths end up calling the same native loadInterstitialAd() → same AdMob SDK load → same ad unit IDs → same result.
+
+Note: This will only work if the deployed APK has the original AdBridge interface (with preloadInterstitial(), showInterstitial(), isInterstitialReady() methods). The web app logs will show [ORIGINAL AdBridge] when this bridge is detected.

@@ -139,6 +139,13 @@ class AdMobBridge(
         loadInterstitialWithAutoShow(placementId, false)
     }
 
+    // ORIGINAL INTERFACE: Alias for web app compatibility
+    @JavascriptInterface
+    fun preloadInterstitial() {
+        log("JS → preloadInterstitial() [original interface]")
+        loadInterstitialWithAutoShow(currentInterstitialId, false)
+    }
+
     private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
         log("═".repeat(50))
         log("JS → loadInterstitial(placementId=$placementId, autoShow=$autoShow)")
@@ -167,6 +174,15 @@ class AdMobBridge(
         }
     }
 
+    // ORIGINAL INTERFACE: No-parameter version for web app compatibility
+    @JavascriptInterface
+    fun showInterstitial() {
+        log("JS → showInterstitial() [original interface - no param]")
+        activity.runOnUiThread {
+            showInterstitialAd()
+        }
+    }
+
     // Auto-show flag for 1-step rewarded (like banner)
     private var autoShowRewarded = false
 
@@ -180,6 +196,13 @@ class AdMobBridge(
     fun loadRewardedOnly(placementId: String) {
         // 2-step: Load only, call showRewarded() separately
         loadRewardedWithAutoShow(placementId, false)
+    }
+
+    // ORIGINAL INTERFACE: Alias for web app compatibility
+    @JavascriptInterface
+    fun preloadRewarded() {
+        log("JS → preloadRewarded() [original interface]")
+        loadRewardedWithAutoShow(currentRewardedId, false)
     }
 
     private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
@@ -210,15 +233,38 @@ class AdMobBridge(
         }
     }
 
+    // ORIGINAL INTERFACE: No-parameter version for web app compatibility
+    @JavascriptInterface
+    fun showRewarded() {
+        log("JS → showRewarded() [original interface - no param]")
+        activity.runOnUiThread {
+            showRewardedAd()
+        }
+    }
+
     @JavascriptInterface
     fun isInterstitialReady(placementId: String): Boolean {
         log("JS → isInterstitialReady() = $isInterstitialReady")
         return isInterstitialReady
     }
 
+    // ORIGINAL INTERFACE: No-parameter version for web app compatibility
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean {
+        log("JS → isInterstitialReady() [original] = $isInterstitialReady")
+        return isInterstitialReady
+    }
+
     @JavascriptInterface
     fun isRewardedReady(placementId: String): Boolean {
         log("JS → isRewardedReady() = $isRewardedReady")
+        return isRewardedReady
+    }
+
+    // ORIGINAL INTERFACE: No-parameter version for web app compatibility
+    @JavascriptInterface
+    fun isRewardedReady(): Boolean {
+        log("JS → isRewardedReady() [original] = $isRewardedReady")
         return isRewardedReady
     }
 
