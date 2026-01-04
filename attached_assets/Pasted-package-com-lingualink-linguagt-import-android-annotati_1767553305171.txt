@@ -1,0 +1,162 @@
+package com.lingualink.linguagt
+
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.webkit.WebChromeClient
+import android.webkit.PermissionRequest
+import android.webkit.ConsoleMessage
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+import com.lingualink.linguagt.ads.AdMobBridge
+
+/**
+ * MainActivity for LinguaVibe/LinguaLink
+ * 
+ * This example shows how to integrate AdMobBridge with WebView
+ */
+class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "MainActivity"
+        
+        // Your web app URL (use your Replit deployment URL)
+        private const val WEB_APP_URL = "https://your-app.replit.app"
+        
+        // For local development, use:
+        // private const val WEB_APP_URL = "http://10.0.2.2:5000"
+    }
+
+    private lateinit var webView: WebView
+    private lateinit var adBridge: AdMobBridge
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        Log.d(TAG, "═".repeat(50))
+        Log.d(TAG, "MainActivity onCreate - Initializing WebView and AdBridge")
+        Log.d(TAG, "═".repeat(50))
+
+        // Initialize WebView
+        webView = findViewById(R.id.webView)
+        setupWebView()
+
+        // ============================================
+        // IMPORTANT: Initialize AdMobBridge HERE
+        // ============================================
+        adBridge = AdMobBridge(this, webView)
+        
+        // Register the JavaScript interface with name "AndroidAdBridge"
+        // This is the name the web app uses to call native methods
+        webView.addJavascriptInterface(adBridge, "AndroidAdBridge")
+        
+        Log.d(TAG, "✅ AdMobBridge registered as 'AndroidAdBridge'")
+        // ============================================
+
+        // Load the web app
+        webView.loadUrl(WEB_APP_URL)
+        Log.d(TAG, "Loading web app: $WEB_APP_URL")
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        webView.settings.apply {
+            // Enable JavaScript (required for React app)
+            javaScriptEnabled = true
+            
+            // Enable DOM storage (required for localStorage)
+            domStorageEnabled = true
+            
+            // Enable media playback
+            mediaPlaybackRequiresUserGesture = false
+            
+            // Allow mixed content (if needed)
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            
+            // Enable zoom controls
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            
+            // Viewport settings
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            
+            // Cache settings
+            cacheMode = WebSettings.LOAD_DEFAULT
+            
+            // Allow file access (for audio recording)
+            allowFileAccess = true
+            allowContentAccess = true
+        }
+
+        // Handle navigation within WebView
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                Log.d(TAG, "Page loaded: $url")
+            }
+        }
+
+        // Handle Chrome features (console, permissions)
+        webView.webChromeClient = object : WebChromeClient() {
+            
+            // Log JavaScript console messages
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
+                consoleMessage?.let {
+                    Log.d("TESTRIGOR", "DEBUG: Console: ${it.message()}")
+                }
+                return true
+            }
+
+            // Handle permission requests (microphone for speech recognition)
+            override fun onPermissionRequest(request: PermissionRequest?) {
+                Log.d(TAG, "Permission request: ${request?.resources?.joinToString()}")
+                runOnUiThread {
+                    request?.grant(request.resources)
+                }
+            }
+        }
+
+        // Enable debugging in debug builds
+        WebView.setWebContentsDebuggingEnabled(true)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+        Log.d(TAG, "App resumed")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        webView.onPause()
+        Log.d(TAG, "App paused")
+    }
+
+    override fun onDestroy() {
+        Log.d(TAG, "Destroying MainActivity and AdMobBridge")
+        
+        // Clean up AdMobBridge
+        adBridge.destroy()
+        
+        // Clean up WebView
+        webView.destroy()
+        
+        super.onDestroy()
+    }
+
+    // Handle back button in WebView
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+}
