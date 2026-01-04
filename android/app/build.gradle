@@ -241,10 +241,7 @@ dependencies {
     // Google User Messaging Platform (UMP) for GDPR consent
     implementation 'com.google.android.ump:user-messaging-platform:2.1.0'
     
-    // InMobi SDK - PRIMARY ad network
-    implementation 'com.inmobi.monetization:inmobi-ads-kotlin:10.6.7'
-    
-    // InMobi Dependencies
+    // Picasso (for image loading)
     implementation 'com.squareup.picasso:picasso:2.71828'
 
     // ConstraintLayout

@@ -27,7 +27,7 @@ import android.media.audiofx.AutomaticGainControl
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.ads.MobileAds
 import com.lingualink.linguagt.ads.AdBridge
-import com.lingualink.linguagt.ads.AdWaterfallBridge
+import com.lingualink.linguagt.ads.AdMobBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,7 +66,7 @@ class MainActivity : BaseActivity() {
     private lateinit var permissionManager: SafePermissionManager
     private lateinit var webAppBridge: WebAppBridge
     private lateinit var adBridge: AdBridge
-    private lateinit var adWaterfallBridge: AdWaterfallBridge
+    private lateinit var adMobBridge: AdMobBridge
 
     // CRITICAL FIX: Store pending WebView permission requests
     private var pendingPermissionRequest: PermissionRequest? = null
@@ -362,12 +362,11 @@ class MainActivity : BaseActivity() {
         // This MUST happen BEFORE any URL can be loaded to avoid race condition
         // where page loads before bridge is available (window.adBridge === undefined)
         
-        // AdWaterfallBridge is PRIMARY - uses InMobi first, falls back to AdMob
-        // Registered as "AndroidAdBridge" per InMobi integration requirements
-        // DIAGNOSTIC VERSION: Simpler constructor with comprehensive logging
-        adWaterfallBridge = AdWaterfallBridge(this, webView)
-        webView.addJavascriptInterface(adWaterfallBridge, "AndroidAdBridge")
-        TestRigorLogger.logMilestone("AdWaterfallBridge (DIAGNOSTIC) registered as window.AndroidAdBridge")
+        // AdMobBridge - AdMob only (InMobi removed)
+        // Registered as "AndroidAdBridge" for web app compatibility
+        adMobBridge = AdMobBridge(this, webView)
+        webView.addJavascriptInterface(adMobBridge, "AndroidAdBridge")
+        TestRigorLogger.logMilestone("AdMobBridge registered as window.AndroidAdBridge")
         
         // AdMob/UMP handles consent - AdBridge as fallback
         adBridge = AdBridge(this, webView)

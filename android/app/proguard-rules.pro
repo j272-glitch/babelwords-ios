@@ -29,36 +29,16 @@
 
 -keep class com.lingualink.linguagt.ads.AdBridge { *; }
 
-# Keep AdWaterfallBridge JavaScript interface methods (DIAGNOSTIC VERSION)
--keepclassmembers class com.lingualink.linguagt.ads.AdWaterfallBridge {
+# Keep AdMobBridge JavaScript interface methods
+-keepclassmembers class com.lingualink.linguagt.ads.AdMobBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 
--keep class com.lingualink.linguagt.ads.AdWaterfallBridge { *; }
+-keep class com.lingualink.linguagt.ads.AdMobBridge { *; }
 
-# Keep InMobiAdBridge JavaScript interface methods
--keepclassmembers class com.lingualink.linguagt.ads.InMobiAdBridge {
-    @android.webkit.JavascriptInterface <methods>;
-}
-
--keep class com.lingualink.linguagt.ads.InMobiAdBridge { *; }
-
-# ========================================
-# InMobi SDK
-# ========================================
--keepattributes SourceFile,LineNumberTable
--keep class com.inmobi.** { *; }
--dontwarn com.inmobi.**
-
-# Picasso (InMobi dependency)
+# Picasso (for image loading)
 -keep class com.squareup.picasso.** { *; }
 -dontwarn com.squareup.picasso.**
-
-# Keep InMobi ad event callbacks
--keep class com.lingualink.linguagt.ads.InMobiAdBridge$AdJsBridge { *; }
--keepclassmembers class com.lingualink.linguagt.ads.InMobiAdBridge$AdJsBridge {
-    public *;
-}
 
 # Keep all JavaScript interface methods
 -keepattributes JavascriptInterface
