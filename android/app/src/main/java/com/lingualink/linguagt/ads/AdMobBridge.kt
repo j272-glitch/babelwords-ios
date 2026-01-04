@@ -54,6 +54,10 @@ class AdMobBridge(
     private var isBannerReady = false
     private var isInterstitialReady = false
     private var isRewardedReady = false
+    
+    // CONSENT TRACKING - Required for real ads (not test ads)
+    private var hasConsent = false
+    private var consentChecked = false
 
     // Impression counters
     private var totalImpressions = 0
@@ -98,6 +102,34 @@ class AdMobBridge(
             log("✗ AdMob init exception: ${e.message}", "E")
             notifyJs("sdkInitFailed", "admob", "sdk", e.message)
         }
+    }
+
+    /**
+     * Called by AdBridge when UMP consent is obtained.
+     * This enables real ad serving (instead of test ads).
+     */
+    fun onConsentObtained(gdprConsent: Boolean) {
+        log("═".repeat(50))
+        log("CONSENT OBTAINED: gdprConsent=$gdprConsent")
+        log("═".repeat(50))
+        hasConsent = gdprConsent
+        consentChecked = true
+        
+        // Now that consent is obtained, preload ads
+        if (gdprConsent) {
+            log("✓ Consent granted - preloading ads with REAL ad serving")
+            loadInterstitialAd()
+            loadRewardedAd()
+        } else {
+            log("⚠ Consent denied - ads may be limited")
+        }
+    }
+    
+    /**
+     * Check if consent has been obtained before loading ads.
+     */
+    fun isConsentReady(): Boolean {
+        return consentChecked && hasConsent
     }
 
     private fun isAdMobId(placementId: String): Boolean {

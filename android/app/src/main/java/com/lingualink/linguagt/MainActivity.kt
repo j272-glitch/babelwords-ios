@@ -371,6 +371,14 @@ class MainActivity : BaseActivity() {
         // AdMob/UMP handles consent - AdBridge as fallback
         adBridge = AdBridge(this, webView)
         webView.addJavascriptInterface(adBridge, "adBridgeFallback")
+        
+        // CRITICAL: Wire up consent callback to notify AdMobBridge
+        // This enables REAL ads (not test ads) after consent is obtained
+        adBridge.onConsentObtained = { gdprConsent ->
+            TestRigorLogger.logAdEvent("Consent obtained (gdpr=$gdprConsent) - notifying AdMobBridge")
+            adMobBridge.onConsentObtained(gdprConsent)
+        }
+        
         adBridge.initialize()
         TestRigorLogger.logMilestone("UMP consent flow started")
 
