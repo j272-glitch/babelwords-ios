@@ -28,6 +28,7 @@ import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.ads.MobileAds
 import com.lingualink.linguagt.ads.AdBridge
 import com.lingualink.linguagt.ads.AdMobBridge
+import com.lingualink.linguagt.ads.AdPreloadManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -195,6 +196,10 @@ class MainActivity : BaseActivity() {
             tracker?.getTesterMob()
 
             initializeTesterMobLib()
+            
+            // NATIVE AD PRELOAD: Initialize immediately for fastest ad availability
+            // This runs in PARALLEL with WebView loading, eliminating bridge latency
+            initializeNativeAdPreload()
 
             // ANR PREVENTION: Defer heavy WebView initialization and permission requests to next frame
             // This allows the UI thread to respond within 5 seconds
@@ -350,6 +355,104 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    /**
+     * NATIVE AD PRELOAD: Initialize ads IMMEDIATELY on activity creation.
+     * This runs in PARALLEL with WebView loading, eliminating 300-1500ms bridge latency.
+     */
+    private fun initializeNativeAdPreload() {
+        try {
+            TestRigorLogger.logMilestone("Initializing Native Ad Preload Manager")
+            
+            // Initialize the preload manager (triggers SDK init + ad preload)
+            AdPreloadManager.initialize(this)
+            
+            // Setup callbacks to notify WebView when ads are ready
+            AdPreloadManager.onInterstitialReady = {
+                TestRigorLogger.logAdEvent("Native preload: Interstitial ready")
+                notifyWebViewAdReady("interstitial")
+            }
+            
+            AdPreloadManager.onRewardedReady = {
+                TestRigorLogger.logAdEvent("Native preload: Rewarded ready")
+                notifyWebViewAdReady("rewarded")
+            }
+            
+            AdPreloadManager.onAdDismissed = {
+                TestRigorLogger.logAdEvent("Native preload: Ad dismissed")
+            }
+            
+            AdPreloadManager.onRewardEarned = { type, amount ->
+                TestRigorLogger.logAdEvent("Native preload: Reward earned - $type x $amount")
+                notifyWebViewRewardEarned(type, amount)
+            }
+            
+            TestRigorLogger.logMilestone("Native Ad Preload Manager initialized")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Native Ad Preload init failed", e)
+        }
+    }
+    
+    // Buffer for ad ready events (sent when WebView is ready)
+    private val pendingAdReadyEvents = mutableListOf<String>()
+    
+    /**
+     * Notify WebView that an ad is ready (for JS to update UI).
+     * If WebView is not ready yet, buffer the event.
+     */
+    private fun notifyWebViewAdReady(adType: String) {
+        try {
+            if (::webView.isInitialized && isWebViewFullyLoaded) {
+                val js = "javascript:if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
+                webView.post { webView.evaluateJavascript(js, null) }
+            } else {
+                // Buffer the event for when WebView is ready
+                synchronized(pendingAdReadyEvents) {
+                    if (!pendingAdReadyEvents.contains(adType)) {
+                        pendingAdReadyEvents.add(adType)
+                        TestRigorLogger.logAdEvent("Buffered ad ready event: $adType (WebView not ready)")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("notifyWebViewAdReady failed", e)
+        }
+    }
+    
+    /**
+     * Flush buffered ad ready events to WebView.
+     * Call this when WebView is fully loaded.
+     */
+    private fun flushPendingAdReadyEvents() {
+        try {
+            if (::webView.isInitialized && isWebViewFullyLoaded) {
+                synchronized(pendingAdReadyEvents) {
+                    pendingAdReadyEvents.forEach { adType ->
+                        val js = "javascript:if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
+                        webView.post { webView.evaluateJavascript(js, null) }
+                        TestRigorLogger.logAdEvent("Flushed buffered ad ready event: $adType")
+                    }
+                    pendingAdReadyEvents.clear()
+                }
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("flushPendingAdReadyEvents failed", e)
+        }
+    }
+    
+    /**
+     * Notify WebView that a reward was earned.
+     */
+    private fun notifyWebViewRewardEarned(type: String, amount: Int) {
+        try {
+            if (::webView.isInitialized && isWebViewFullyLoaded) {
+                val js = "javascript:if(window.onRewardEarned){window.onRewardEarned('$type',$amount);}"
+                webView.post { webView.evaluateJavascript(js, null) }
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("notifyWebViewRewardEarned failed", e)
+        }
+    }
+
     private fun setupWebViewForConversationMode() {
         try {
             webView = WebView(this)
@@ -372,11 +475,12 @@ class MainActivity : BaseActivity() {
         adBridge = AdBridge(this, webView)
         webView.addJavascriptInterface(adBridge, "adBridgeFallback")
         
-        // CRITICAL: Wire up consent callback to notify AdMobBridge
+        // CRITICAL: Wire up consent callback to notify AdMobBridge AND AdPreloadManager
         // This enables REAL ads (not test ads) after consent is obtained
         adBridge.onConsentObtained = { gdprConsent ->
-            TestRigorLogger.logAdEvent("Consent obtained (gdpr=$gdprConsent) - notifying AdMobBridge")
+            TestRigorLogger.logAdEvent("Consent obtained (gdpr=$gdprConsent) - notifying ad bridges")
             adMobBridge.onConsentObtained(gdprConsent)
+            AdPreloadManager.onConsentObtained(gdprConsent)
         }
         
         adBridge.initialize()
@@ -502,6 +606,9 @@ class MainActivity : BaseActivity() {
 
                 // Mark WebView as fully loaded
                 isWebViewFullyLoaded = true
+                
+                // Flush any buffered ad ready events now that WebView is ready
+                flushPendingAdReadyEvents()
 
                 // Notify web app that Android container is ready
                 view?.evaluateJavascript(
@@ -1568,6 +1675,13 @@ class MainActivity : BaseActivity() {
             }
         } catch (e: Exception) {
             TestRigorLogger.logError("AdBridge cleanup", e)
+        }
+        
+        // Clean up AdPreloadManager callbacks to prevent activity leaks
+        try {
+            AdPreloadManager.clearCallbacks()
+        } catch (e: Exception) {
+            TestRigorLogger.logError("AdPreloadManager cleanup", e)
         }
 
         // Solution #78: Clean up lifecycleHandler

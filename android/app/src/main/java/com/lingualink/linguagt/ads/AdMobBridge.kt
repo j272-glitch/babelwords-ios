@@ -14,6 +14,7 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.UserMessagingPlatform
+import com.lingualink.linguagt.utils.TestRigorLogger
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
@@ -661,8 +662,9 @@ class AdMobBridge(
 
     private fun showInterstitialAd() {
         log("→ Attempting to show interstitial...")
-        log("  Ready: $isInterstitialReady")
-        log("  Object: ${interstitialAd != null}")
+        log("  Ready (local): $isInterstitialReady")
+        log("  Object (local): ${interstitialAd != null}")
+        log("  Ready (preload): ${AdPreloadManager.isInterstitialReady()}")
 
         val act = activityRef.get()
         if (act == null) {
@@ -678,20 +680,35 @@ class AdMobBridge(
             return
         }
 
+        // PRIORITY 1: Try AdPreloadManager cached ad first (faster - no bridge latency)
+        val preloadedAd = AdPreloadManager.getCachedInterstitial()
+        if (preloadedAd != null) {
+            log("  ► Using PRELOADED interstitial (fast path)")
+            TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded interstitial")
+            preloadedAd.show(act)
+            AdPreloadManager.clearCachedInterstitial()
+            log("  ✓ Preloaded show() called successfully")
+            return
+        }
+
+        // PRIORITY 2: Fallback to local ad
         if (isInterstitialReady && interstitialAd != null) {
-            log("  ► Calling interstitial.show()")
+            log("  ► Calling local interstitial.show()")
             interstitialAd?.show(act)
-            log("  ✓ show() called successfully")
+            log("  ✓ Local show() called successfully")
         } else {
             log("✗ No interstitial ready to show!", "W")
+            // Trigger preload for next time
+            AdPreloadManager.preloadInterstitial(act)
             notifyJs("adFailed", "admob", "interstitial", "Not ready")
         }
     }
 
     private fun showRewardedAd() {
         log("→ Attempting to show rewarded...")
-        log("  Ready: $isRewardedReady")
-        log("  Object: ${rewardedAd != null}")
+        log("  Ready (local): $isRewardedReady")
+        log("  Object (local): ${rewardedAd != null}")
+        log("  Ready (preload): ${AdPreloadManager.isRewardedReady()}")
 
         val act = activityRef.get()
         if (act == null) {
@@ -707,8 +724,28 @@ class AdMobBridge(
             return
         }
 
+        // PRIORITY 1: Try AdPreloadManager cached ad first (faster - no bridge latency)
+        val preloadedAd = AdPreloadManager.getCachedRewarded()
+        if (preloadedAd != null) {
+            log("  ► Using PRELOADED rewarded (fast path)")
+            TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded rewarded")
+            preloadedAd.show(act) { reward ->
+                log("★★★ USER EARNED REWARD ★★★")
+                log("  Type: ${reward.type}")
+                log("  Amount: ${reward.amount}")
+                notifyJs("adRewarded", "admob", "rewarded", null, mapOf(
+                    "type" to reward.type,
+                    "amount" to reward.amount
+                ))
+            }
+            AdPreloadManager.clearCachedRewarded()
+            log("  ✓ Preloaded show() called successfully")
+            return
+        }
+
+        // PRIORITY 2: Fallback to local ad
         if (isRewardedReady && rewardedAd != null) {
-            log("  ► Calling rewarded.show()")
+            log("  ► Calling local rewarded.show()")
             rewardedAd?.show(act) { reward ->
                 log("★★★ USER EARNED REWARD ★★★")
                 log("  Type: ${reward.type}")
@@ -718,9 +755,11 @@ class AdMobBridge(
                     "amount" to reward.amount
                 ))
             }
-            log("  ✓ show() called successfully")
+            log("  ✓ Local show() called successfully")
         } else {
             log("✗ No rewarded ready to show!", "W")
+            // Trigger preload for next time
+            AdPreloadManager.preloadRewarded(act)
             notifyJs("adFailed", "admob", "rewarded", "Not ready")
         }
     }
