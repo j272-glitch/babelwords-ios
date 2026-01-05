@@ -14,7 +14,7 @@ import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.UserMessagingPlatform
-import com.lingualink.linguagt.utils.TestRigorLogger
+import com.lingualink.linguagt.TestRigorLogger
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
