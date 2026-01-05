@@ -83,6 +83,9 @@ object AdPreloadManager {
         log("NATIVE AD PRELOAD MANAGER INITIALIZING")
         log("═".repeat(50))
         
+        // DIAGNOSTIC LOGGING - Debug test ads vs production
+        logDiagnosticInfo(activity)
+        
         // Initialize consent info
         consentInfo = UserMessagingPlatform.getConsentInformation(activity)
         log("Consent status: ${consentInfo?.consentStatus}")
@@ -453,6 +456,40 @@ object AdPreloadManager {
     fun updateActivityRef(activity: Activity) {
         activityRef = WeakReference(activity)
         log("Activity reference updated")
+    }
+    
+    /**
+     * DIAGNOSTIC LOGGING - Debug why test ads vs production ads
+     * Logs all relevant configuration for troubleshooting.
+     */
+    private fun logDiagnosticInfo(context: Context) {
+        log("╔══════════════════════════════════════════════════════════╗")
+        log("║         AD DIAGNOSTIC INFO - CHECK FOR TEST ADS          ║")
+        log("╠══════════════════════════════════════════════════════════╣")
+        log("║ Package Name: ${context.packageName}")
+        log("║ Interstitial Ad Unit: $INTERSTITIAL_AD_UNIT_ID")
+        log("║ Rewarded Ad Unit: $REWARDED_AD_UNIT_ID")
+        log("║ BuildConfig.DEBUG: ${com.lingualink.linguagt.BuildConfig.DEBUG}")
+        log("║ Build Type: ${com.lingualink.linguagt.BuildConfig.BUILD_TYPE}")
+        log("║ Version: ${com.lingualink.linguagt.BuildConfig.VERSION_NAME} (${com.lingualink.linguagt.BuildConfig.VERSION_CODE})")
+        log("╠══════════════════════════════════════════════════════════╣")
+        log("║ CHECKLIST IF SEEING TEST ADS:")
+        log("║ 1. App published on Play Store? (test ads until published)")
+        log("║ 2. Ad units created >48 hours ago?")
+        log("║ 3. AdMob account approved?")
+        log("║ 4. App linked in AdMob console?")
+        log("║ 5. SHA-256 matches release keystore?")
+        log("║ 6. No test device registered in AdMob console?")
+        log("╚══════════════════════════════════════════════════════════╝")
+        
+        // Log consent info
+        val consent = consentInfo
+        if (consent != null) {
+            log("Consent Status: ${consent.consentStatus}")
+            log("Can Request Ads: ${consent.canRequestAds()}")
+        } else {
+            log("Consent Info: Not yet available")
+        }
     }
     
     private fun log(message: String, level: String = "D") {
