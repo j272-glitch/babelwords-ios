@@ -1,0 +1,69 @@
+Web App Changes Needed: NONE
+The web app is already correctly configured for native-first. It:
+
+✅ Registers window.onNativeAdReady callback
+✅ Registers window.onRewardEarned callback
+✅ Calls showInterstitial() / showRewarded() with no params
+✅ Does NOT call any load methods (expects native to preload)
+✅ Tracks ready state from callbacks
+Kotlin Changes Needed: ALL
+The Kotlin AdMobBridge.kt must be completely rewritten to:
+
+1. Add Parameter-less Methods
+@JavascriptInterface
+fun showInterstitial() {  // NO placementId param
+    activity.runOnUiThread { showInterstitialAd() }
+}
+@JavascriptInterface
+fun showRewarded() {  // NO placementId param
+    activity.runOnUiThread { showRewardedAd() }
+}
+@JavascriptInterface
+fun isInterstitialReady(): Boolean = interstitialAd != null
+@JavascriptInterface
+fun isRewardedReady(): Boolean = rewardedAd != null
+2. Add Auto-Preload on Bridge Creation
+init {
+    initializeAdMob()
+    // Auto-preload after SDK init
+    preloadInterstitial()
+    preloadRewarded()
+}
+3. Add Callback Injection to WebView
+private fun notifyAdReady(adType: String) {
+    activity.runOnUiThread {
+        webView.evaluateJavascript(
+            "if(window.onNativeAdReady) window.onNativeAdReady('$adType')", 
+            null
+        )
+    }
+}
+private fun notifyRewardEarned(type: String, amount: Int) {
+    activity.runOnUiThread {
+        webView.evaluateJavascript(
+            "if(window.onRewardEarned) window.onRewardEarned('$type', $amount)", 
+            null
+        )
+    }
+}
+4. Call Callbacks on Ad Load Success
+override fun onAdLoaded(ad: InterstitialAd) {
+    interstitialAd = ad
+    notifyAdReady("interstitial")  // ← NEW
+}
+override fun onUserEarnedReward(reward: RewardItem) {
+    notifyRewardEarned(reward.type, reward.amount)  // ← NEW
+}
+5. Auto-Reload After Ad Dismissed
+override fun onAdDismissedFullScreenContent() {
+    interstitialAd = null
+    preloadInterstitial()  // Immediately preload next
+}
+Summary Table
+Component	Current State	Required State
+Web showInterstitial()	No params ✅	No params ✅
+Kotlin showInterstitial()	Requires placementId ❌	No params needed
+Auto-preload on startup	Not implemented ❌	Required
+onNativeAdReady callback	Not implemented ❌	Required
+onRewardEarned callback	Not implemented ❌	Required
+Auto-reload after dismiss	Not implemented ❌	Required
