@@ -12,6 +12,8 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.UserMessagingPlatform
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
@@ -58,6 +60,7 @@ class AdMobBridge(
     // CONSENT TRACKING - Required for real ads (not test ads)
     private var hasConsent = false
     private var consentChecked = false
+    private var consentInfo: ConsentInformation? = null
 
     // Impression counters
     private var totalImpressions = 0
@@ -73,6 +76,11 @@ class AdMobBridge(
         log("ADMOB BRIDGE INITIALIZED")
         log("═".repeat(50))
         log("Activity: ${activity.javaClass.simpleName}")
+        
+        // Initialize consent info for checking consent before ad loads
+        consentInfo = UserMessagingPlatform.getConsentInformation(activity)
+        log("Consent info initialized, status: ${consentInfo?.consentStatus}")
+        
         initializeAdMob()
     }
 
@@ -136,6 +144,60 @@ class AdMobBridge(
         return placementId.startsWith("ca-app-pub-")
     }
 
+    /**
+     * Check consent before loading ads - same flow as startup.
+     * This ensures button-triggered ads get real ads (not test ads).
+     */
+    private fun checkConsentThenLoad(onConsentReady: () -> Unit) {
+        val consent = consentInfo ?: run {
+            log("⚠️ No consent info, loading anyway")
+            onConsentReady()
+            return
+        }
+        
+        when (consent.consentStatus) {
+            ConsentInformation.ConsentStatus.OBTAINED -> {
+                log("✅ Consent already obtained")
+                hasConsent = true
+                consentChecked = true
+                onConsentReady()
+            }
+            ConsentInformation.ConsentStatus.NOT_REQUIRED -> {
+                log("ℹ️ Consent not required (non-EEA)")
+                hasConsent = true
+                consentChecked = true
+                onConsentReady()
+            }
+            ConsentInformation.ConsentStatus.REQUIRED -> {
+                log("📋 Consent required - showing form")
+                UserMessagingPlatform.loadConsentForm(activity,
+                    { form ->
+                        form.show(activity) { error ->
+                            if (error == null) {
+                                log("✅ Consent form completed")
+                                hasConsent = true
+                                consentChecked = true
+                                onConsentReady()
+                            } else {
+                                log("❌ Consent form error: ${error.message}")
+                                // Still load (non-personalized ads)
+                                onConsentReady()
+                            }
+                        }
+                    },
+                    { error ->
+                        log("❌ Failed to load consent form: ${error.message}")
+                        onConsentReady()
+                    }
+                )
+            }
+            else -> {
+                log("ℹ️ Consent status: ${consent.consentStatus}")
+                onConsentReady()
+            }
+        }
+    }
+
     // ==================== JavaScript Interface Methods ====================
 
     @JavascriptInterface
@@ -161,38 +223,50 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun loadInterstitial(placementId: String) {
+        log("JS → loadInterstitial (checking consent first)")
         // DEFAULT: Auto-show when loaded (1-step, like banner)
-        loadInterstitialWithAutoShow(placementId, true)
+        activity.runOnUiThread {
+            checkConsentThenLoad {
+                loadInterstitialWithAutoShow(placementId, true)
+            }
+        }
     }
 
     @JavascriptInterface
     fun loadInterstitialOnly(placementId: String) {
+        log("JS → loadInterstitialOnly (checking consent first)")
         // 2-step: Load only, call showInterstitial() separately
-        loadInterstitialWithAutoShow(placementId, false)
+        activity.runOnUiThread {
+            checkConsentThenLoad {
+                loadInterstitialWithAutoShow(placementId, false)
+            }
+        }
     }
 
     // ORIGINAL INTERFACE: Auto-show on button press (1-step, like startup)
     @JavascriptInterface
     fun preloadInterstitial() {
         log("═".repeat(50))
-        log("JS → preloadInterstitial() [ORIGINAL - no params]")
+        log("JS → preloadInterstitial() [ORIGINAL - checking consent first]")
         log("═".repeat(50))
         
         autoShowInterstitial = true  // AUTO-SHOW after load (like startup)
         activity.runOnUiThread {
-            if (isInterstitialReady && interstitialAd != null) {
-                log("  ✓ Interstitial already ready - showing immediately")
-                showInterstitialAd()
-            } else {
-                log("  ⏳ Loading interstitial (will auto-show when ready)")
-                loadInterstitialAd()
+            checkConsentThenLoad {
+                if (isInterstitialReady && interstitialAd != null) {
+                    log("  ✓ Interstitial already ready - showing immediately")
+                    showInterstitialAd()
+                } else {
+                    log("  ⏳ Loading interstitial (will auto-show when ready)")
+                    loadInterstitialAd()
+                }
             }
         }
     }
 
     private fun loadInterstitialWithAutoShow(placementId: String, autoShow: Boolean) {
         log("═".repeat(50))
-        log("JS → loadInterstitial(placementId=$placementId, autoShow=$autoShow)")
+        log("loadInterstitialWithAutoShow(placementId=$placementId, autoShow=$autoShow)")
         log("═".repeat(50))
 
         autoShowInterstitial = autoShow
@@ -202,9 +276,7 @@ class AdMobBridge(
             log("  ✓ Using Interstitial ID from JS: $currentInterstitialId")
         }
 
-        activity.runOnUiThread {
-            loadInterstitialAd()
-        }
+        loadInterstitialAd()
     }
 
     @JavascriptInterface
@@ -232,31 +304,43 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun loadRewarded(placementId: String) {
+        log("JS → loadRewarded (checking consent first)")
         // DEFAULT: Auto-show when loaded (1-step, like banner)
-        loadRewardedWithAutoShow(placementId, true)
+        activity.runOnUiThread {
+            checkConsentThenLoad {
+                loadRewardedWithAutoShow(placementId, true)
+            }
+        }
     }
 
     @JavascriptInterface
     fun loadRewardedOnly(placementId: String) {
+        log("JS → loadRewardedOnly (checking consent first)")
         // 2-step: Load only, call showRewarded() separately
-        loadRewardedWithAutoShow(placementId, false)
+        activity.runOnUiThread {
+            checkConsentThenLoad {
+                loadRewardedWithAutoShow(placementId, false)
+            }
+        }
     }
 
     // ORIGINAL INTERFACE: Auto-show on button press (1-step, like startup)
     @JavascriptInterface
     fun preloadRewarded() {
         log("═".repeat(50))
-        log("JS → preloadRewarded() [ORIGINAL - no params]")
+        log("JS → preloadRewarded() [ORIGINAL - checking consent first]")
         log("═".repeat(50))
         
         autoShowRewarded = true  // AUTO-SHOW after load (like startup)
         activity.runOnUiThread {
-            if (isRewardedReady && rewardedAd != null) {
-                log("  ✓ Rewarded already ready - showing immediately")
-                showRewardedAd()
-            } else {
-                log("  ⏳ Loading rewarded (will auto-show when ready)")
-                loadRewardedAd()
+            checkConsentThenLoad {
+                if (isRewardedReady && rewardedAd != null) {
+                    log("  ✓ Rewarded already ready - showing immediately")
+                    showRewardedAd()
+                } else {
+                    log("  ⏳ Loading rewarded (will auto-show when ready)")
+                    loadRewardedAd()
+                }
             }
         }
     }
@@ -264,13 +348,13 @@ class AdMobBridge(
     // ORIGINAL INTERFACE: Alternative method name
     @JavascriptInterface
     fun preloadRewardedAd() {
-        log("JS → preloadRewardedAd() [ORIGINAL alias]")
+        log("JS → preloadRewardedAd() [ORIGINAL alias - checking consent first]")
         preloadRewarded()
     }
 
     private fun loadRewardedWithAutoShow(placementId: String, autoShow: Boolean) {
         log("═".repeat(50))
-        log("JS → loadRewarded(placementId=$placementId, autoShow=$autoShow)")
+        log("loadRewardedWithAutoShow(placementId=$placementId, autoShow=$autoShow)")
         log("═".repeat(50))
 
         autoShowRewarded = autoShow
@@ -280,9 +364,7 @@ class AdMobBridge(
             log("  ✓ Using Rewarded ID from JS: $currentRewardedId")
         }
 
-        activity.runOnUiThread {
-            loadRewardedAd()
-        }
+        loadRewardedAd()
     }
 
     @JavascriptInterface

@@ -1,0 +1,91 @@
+Updated Kotlin Code for AdMobBridge
+Add consent check to loadInterstitial() and loadRewarded():
+
+// Add imports
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
+// Add to AdMobBridge class
+private var consentInfo: ConsentInformation? = null
+private var hasConsent = false
+// Initialize consent info in init block
+init {
+    consentInfo = UserMessagingPlatform.getConsentInformation(activity)
+}
+// Updated loadInterstitial with consent flow
+@JavascriptInterface
+fun loadInterstitial(placementId: String) {
+    log("JS → loadInterstitial (checking consent first)")
+    
+    activity.runOnUiThread {
+        checkConsentThenLoad { 
+            loadInterstitialAd() 
+        }
+    }
+}
+// Updated loadRewarded with consent flow  
+@JavascriptInterface
+fun loadRewarded(placementId: String) {
+    log("JS → loadRewarded (checking consent first)")
+    
+    activity.runOnUiThread {
+        checkConsentThenLoad { 
+            loadRewardedAd() 
+        }
+    }
+}
+// Consent check flow (same as startup)
+private fun checkConsentThenLoad(onConsentReady: () -> Unit) {
+    val consent = consentInfo ?: run {
+        log("⚠️ No consent info, loading anyway")
+        onConsentReady()
+        return
+    }
+    
+    when (consent.consentStatus) {
+        ConsentInformation.ConsentStatus.OBTAINED -> {
+            log("✅ Consent already obtained")
+            hasConsent = true
+            onConsentReady()
+        }
+        ConsentInformation.ConsentStatus.REQUIRED -> {
+            log("📋 Consent required - showing form")
+            UserMessagingPlatform.loadConsentForm(activity,
+                { form ->
+                    form.show(activity) { error ->
+                        if (error == null) {
+                            log("✅ Consent form completed")
+                            hasConsent = true
+                            onConsentReady()
+                        } else {
+                            log("❌ Consent form error: ${error.message}")
+                            // Still load (non-personalized ads)
+                            onConsentReady()
+                        }
+                    }
+                },
+                { error ->
+                    log("❌ Failed to load consent form: ${error.message}")
+                    onConsentReady()
+                }
+            )
+        }
+        else -> {
+            log("ℹ️ Consent status: ${consent.consentStatus}")
+            onConsentReady()
+        }
+    }
+}
+New Flow
+Ad Button Press
+    │
+    ▼
+loadInterstitial() / loadRewarded()
+    │
+    ▼
+checkConsentThenLoad()
+    │
+    ├─── OBTAINED? ──► hasConsent=true ──► Load Ad ──► REAL ADS ✅
+    │
+    └─── REQUIRED? ──► Show Form ──► User Accepts ──► hasConsent=true ──► Load Ad ──► REAL ADS ✅
+This duplicates the startup consent flow for every button press ad load.
