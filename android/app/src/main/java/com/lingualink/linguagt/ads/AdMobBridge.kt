@@ -697,10 +697,10 @@ class AdMobBridge(
             interstitialAd?.show(act)
             log("  ✓ Local show() called successfully")
         } else {
-            log("✗ No interstitial ready to show!", "W")
-            // Trigger preload for next time
-            AdPreloadManager.preloadInterstitial(act)
-            notifyJs("adFailed", "admob", "interstitial", "Not ready")
+            // NO CACHED AD - Load with auto-show (same behavior as startup)
+            log("⏳ No interstitial cached - loading with auto-show (like startup)")
+            autoShowInterstitial = true
+            loadInterstitialAd()
         }
     }
 
@@ -757,10 +757,10 @@ class AdMobBridge(
             }
             log("  ✓ Local show() called successfully")
         } else {
-            log("✗ No rewarded ready to show!", "W")
-            // Trigger preload for next time
-            AdPreloadManager.preloadRewarded(act)
-            notifyJs("adFailed", "admob", "rewarded", "Not ready")
+            // NO CACHED AD - Load with auto-show (same behavior as startup)
+            log("⏳ No rewarded cached - loading with auto-show (like startup)")
+            autoShowRewarded = true
+            loadRewardedAd()
         }
     }
 
