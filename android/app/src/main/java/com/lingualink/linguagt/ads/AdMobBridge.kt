@@ -698,9 +698,12 @@ class AdMobBridge(
             log("  ✓ Local show() called successfully")
         } else {
             // NO CACHED AD - Load with auto-show (same behavior as startup)
+            // IMPORTANT: Check consent first to ensure real ads (not test ads)
             log("⏳ No interstitial cached - loading with auto-show (like startup)")
             autoShowInterstitial = true
-            loadInterstitialAd()
+            checkConsentThenLoad {
+                loadInterstitialAd()
+            }
         }
     }
 
@@ -758,9 +761,12 @@ class AdMobBridge(
             log("  ✓ Local show() called successfully")
         } else {
             // NO CACHED AD - Load with auto-show (same behavior as startup)
+            // IMPORTANT: Check consent first to ensure real ads (not test ads)
             log("⏳ No rewarded cached - loading with auto-show (like startup)")
             autoShowRewarded = true
-            loadRewardedAd()
+            checkConsentThenLoad {
+                loadRewardedAd()
+            }
         }
     }
 
