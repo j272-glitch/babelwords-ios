@@ -1,0 +1,29 @@
+Here are 20 reasons why test video ads may be playing instead of production ads:
+
+useTestAds flag is set to true — The configuration flag in MainActivity/AppDelegate is still set to use test ad unit IDs instead of production IDs.
+Debug build type detected — The #if DEBUG preprocessor directive (iOS) or BuildConfig.DEBUG (Android) is evaluating to true, triggering test ad logic.
+Wrong ad unit IDs in production constants — The production ad unit ID strings contain typos or are copy-pasted test IDs.
+AdMob account not approved — Your AdMob account is still pending approval, so only test ads are served.
+App not linked to AdMob app ID — The app in Google Play/App Store isn't properly linked to your AdMob account.
+Test device registered in AdMob console — Your physical device is registered as a test device in the AdMob dashboard.
+RequestConfiguration.Builder().setTestDeviceIds() called — Code explicitly adds the current device ID to the test device list.
+GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers set — iOS equivalent that registers test devices programmatically.
+Ad unit not associated with correct app — The production ad unit ID belongs to a different app in your AdMob account.
+App signature mismatch — The app's signing certificate (SHA-1/SHA-256) doesn't match what's registered in AdMob.
+Package name/Bundle ID mismatch — The app identifier doesn't match the one registered for the ad unit in AdMob.
+Ad unit type mismatch — Requesting an interstitial ad using a rewarded ad unit ID (or vice versa).
+AdMob mediation test mode enabled — If using mediation, the mediation test mode may be active.
+App-ads.txt not configured — Missing or misconfigured app-ads.txt file preventing authorized ad serving.
+Ad unit recently created — New ad units can take 24-48 hours to start serving production ads.
+Low ad inventory for your region — No real advertisers bidding for your app/region, so test ads fill instead.
+Policy violation on ad unit — The specific ad unit has been flagged and restricted to test ads only.
+App not published yet — Apps in development/internal testing tracks may only receive test ads.
+Environment variable override — A CI/CD environment variable or .env file is forcing test mode.
+Gradle/Xcode build variant misconfigured — Release build variant is accidentally using debug/test configurations or the wrong product flavor.
+
+Quick Diagnostic Checklist:
+kotlin// Android - Add this logging to verify
+Log.d("AdDebug", "useTestAds: $useTestAds")
+Log.d("AdDebug", "Ad Unit ID: $adUnitId")
+Log.d("AdDebug", "BuildConfig.DEBUG: ${BuildConfig.DEBUG}")
+Log.d("AdDebug", "Package: ${context.packageName}")
