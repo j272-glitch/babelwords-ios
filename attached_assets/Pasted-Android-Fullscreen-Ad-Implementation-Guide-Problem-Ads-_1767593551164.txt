@@ -1,0 +1,661 @@
+Android Fullscreen Ad Implementation Guide
+Problem: Ads Showing in 256px Container Instead of Fullscreen
+When pressing the ad button, a "Play" symbol appears in a compressed ~256px window instead of a fullscreen ad. This happens because the ad is being rendered inside a WebView container instead of using AdMob's native fullscreen Activity.
+
+Root Cause
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ THE PROBLEM                                                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  WebView is being used as the ad container:                                 │
+│                                                                              │
+│  ┌─────────────────────────────────────┐                                    │
+│  │           MainActivity              │                                    │
+│  │  ┌───────────────────────────────┐  │                                    │
+│  │  │          WebView              │  │                                    │
+│  │  │  ┌─────────────────────────┐  │  │                                    │
+│  │  │  │   Ad Container (256px)  │  │  │  ← AD IS HERE (WRONG)             │
+│  │  │  │      ▶ Play             │  │  │                                    │
+│  │  │  └─────────────────────────┘  │  │                                    │
+│  │  └───────────────────────────────┘  │                                    │
+│  └─────────────────────────────────────┘                                    │
+│                                                                              │
+│  SHOULD BE:                                                                  │
+│                                                                              │
+│  ┌─────────────────────────────────────┐                                    │
+│  │     Fullscreen Ad Activity          │  ← AD IS HERE (CORRECT)            │
+│  │                                     │                                    │
+│  │         [AD CONTENT]                │                                    │
+│  │                                     │                                    │
+│  │              ✕ Close                │                                    │
+│  └─────────────────────────────────────┘                                    │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Solution: Use Activity Context, Not WebView
+AdMob fullscreen ads (Interstitial, Rewarded) REQUIRE an Activity context. They cannot render inside a View, WebView, or Fragment.
+
+Complete AdMobBridge.kt Implementation
+package com.linguavibe.app
+import android.app.Activity
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+/**
+ * AdMobBridge - JavaScript Interface for WebView
+ * 
+ * CRITICAL: All show() calls MUST use Activity context, NOT WebView
+ * 
+ * @param activity - The host Activity (REQUIRED for fullscreen ads)
+ * @param webView - The WebView for JavaScript callbacks
+ */
+class AdMobBridge(
+    private val activity: Activity,
+    private val webView: WebView
+) {
+    companion object {
+        private const val TAG = "AdMobBridge"
+        
+        // Production Ad Unit IDs
+        const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/5076005693"
+        const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/6313049833"
+        const val BANNER_AD_UNIT_ID = "ca-app-pub-9991891515643313/6878126239"
+    }
+    
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    
+    private var isInterstitialLoading = false
+    private var isRewardedLoading = false
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // INTERSTITIAL AD
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Load Interstitial Ad
+     * 
+     * Called from JavaScript: AdBridge.loadInterstitial(placementId)
+     */
+    @JavascriptInterface
+    fun loadInterstitial(placementId: String) {
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        Log.d(TAG, "📺 loadInterstitial() called")
+        Log.d(TAG, "   Placement ID: $placementId")
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        
+        if (isInterstitialLoading) {
+            Log.w(TAG, "   ⚠️ Interstitial already loading, ignoring request")
+            return
+        }
+        
+        if (interstitialAd != null) {
+            Log.d(TAG, "   ✅ Interstitial already loaded, notifying JS")
+            notifyAdReady("interstitial")
+            return
+        }
+        
+        isInterstitialLoading = true
+        
+        // Use placementId passed from JavaScript, fallback to default
+        val adUnitId = if (placementId.startsWith("ca-app-pub-")) {
+            placementId
+        } else {
+            INTERSTITIAL_AD_UNIT_ID
+        }
+        
+        val adRequest = AdRequest.Builder().build()
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "   📡 Loading interstitial with AdRequest...")
+            
+            InterstitialAd.load(
+                activity,  // ✅ MUST be Activity, not applicationContext
+                adUnitId,
+                adRequest,
+                object : InterstitialAdLoadCallback() {
+                    override fun onAdLoaded(ad: InterstitialAd) {
+                        Log.d(TAG, "   ✅ Interstitial loaded successfully")
+                        interstitialAd = ad
+                        isInterstitialLoading = false
+                        
+                        // Set fullscreen callbacks
+                        setupInterstitialCallbacks(ad)
+                        
+                        // Notify JavaScript
+                        notifyAdReady("interstitial")
+                    }
+                    
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        Log.e(TAG, "   ❌ Interstitial failed to load: ${error.message}")
+                        Log.e(TAG, "   Error code: ${error.code}")
+                        Log.e(TAG, "   Error domain: ${error.domain}")
+                        interstitialAd = null
+                        isInterstitialLoading = false
+                        
+                        // Notify JavaScript of failure
+                        notifyAdEvent("adFailed", "interstitial", error.message)
+                    }
+                }
+            )
+        }
+    }
+    
+    /**
+     * Show Interstitial Ad
+     * 
+     * CRITICAL: MUST use Activity context for fullscreen display
+     * 
+     * Called from JavaScript: AdBridge.showInterstitial(placementId)
+     */
+    @JavascriptInterface
+    fun showInterstitial(placementId: String): String {
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        Log.d(TAG, "🚀 showInterstitial() called")
+        Log.d(TAG, "   Placement ID: $placementId")
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // SCREEN/CONTAINER VALIDATION
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Check 1: Activity must not be finishing
+        if (activity.isFinishing) {
+            Log.e(TAG, "   ❌ Activity is finishing - cannot show ad")
+            return "error:activity_finishing"
+        }
+        
+        // Check 2: Activity must not be destroyed (API 17+)
+        if (activity.isDestroyed) {
+            Log.e(TAG, "   ❌ Activity is destroyed - cannot show ad")
+            return "error:activity_destroyed"
+        }
+        
+        // Check 3: Activity must have window focus
+        if (!activity.hasWindowFocus()) {
+            Log.w(TAG, "   ⚠️ Activity does not have window focus")
+            // Continue anyway - AdMob will handle this
+        }
+        
+        // Check 4: Ad must be loaded
+        val ad = interstitialAd
+        if (ad == null) {
+            Log.e(TAG, "   ❌ Interstitial not loaded - loading now")
+            loadInterstitial(placementId)
+            return "error:not_loaded"
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // SHOW AD FULLSCREEN
+        // ═══════════════════════════════════════════════════════════════════
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "   🎬 Showing interstitial ad FULLSCREEN...")
+            Log.d(TAG, "   ✅ Using Activity context: ${activity.javaClass.simpleName}")
+            
+            // ════════════════════════════════════════════════════════════════
+            // ✅ CRITICAL: Pass Activity, NOT WebView
+            // ════════════════════════════════════════════════════════════════
+            ad.show(activity)
+            
+            // Clear reference (ad can only be shown once)
+            interstitialAd = null
+        }
+        
+        return "showing"
+    }
+    
+    /**
+     * Check if interstitial is ready
+     */
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean {
+        val ready = interstitialAd != null
+        Log.d(TAG, "isInterstitialReady(): $ready")
+        return ready
+    }
+    
+    /**
+     * Setup interstitial fullscreen callbacks
+     */
+    private fun setupInterstitialCallbacks(ad: InterstitialAd) {
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "📺 Interstitial dismissed (fullscreen closed)")
+                interstitialAd = null
+                notifyAdEvent("adClosed", "interstitial", null)
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e(TAG, "📺 Interstitial failed to show: ${error.message}")
+                interstitialAd = null
+                notifyAdEvent("adFailed", "interstitial", error.message)
+            }
+            
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "📺 Interstitial shown fullscreen")
+                notifyAdEvent("adImpression", "interstitial", null)
+            }
+            
+            override fun onAdClicked() {
+                Log.d(TAG, "📺 Interstitial clicked")
+                notifyAdEvent("adClicked", "interstitial", null)
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // REWARDED AD
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Load Rewarded Ad
+     * 
+     * Called from JavaScript: AdBridge.loadRewarded(placementId)
+     */
+    @JavascriptInterface
+    fun loadRewarded(placementId: String) {
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        Log.d(TAG, "🎬 loadRewarded() called")
+        Log.d(TAG, "   Placement ID: $placementId")
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        
+        if (isRewardedLoading) {
+            Log.w(TAG, "   ⚠️ Rewarded already loading, ignoring request")
+            return
+        }
+        
+        if (rewardedAd != null) {
+            Log.d(TAG, "   ✅ Rewarded already loaded, notifying JS")
+            notifyAdReady("rewarded")
+            return
+        }
+        
+        isRewardedLoading = true
+        
+        // Use placementId passed from JavaScript, fallback to default
+        val adUnitId = if (placementId.startsWith("ca-app-pub-")) {
+            placementId
+        } else {
+            REWARDED_AD_UNIT_ID
+        }
+        
+        val adRequest = AdRequest.Builder().build()
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "   📡 Loading rewarded with AdRequest...")
+            
+            RewardedAd.load(
+                activity,  // ✅ MUST be Activity, not applicationContext
+                adUnitId,
+                adRequest,
+                object : RewardedAdLoadCallback() {
+                    override fun onAdLoaded(ad: RewardedAd) {
+                        Log.d(TAG, "   ✅ Rewarded loaded successfully")
+                        rewardedAd = ad
+                        isRewardedLoading = false
+                        
+                        // Set fullscreen callbacks
+                        setupRewardedCallbacks(ad)
+                        
+                        // Notify JavaScript
+                        notifyAdReady("rewarded")
+                    }
+                    
+                    override fun onAdFailedToLoad(error: LoadAdError) {
+                        Log.e(TAG, "   ❌ Rewarded failed to load: ${error.message}")
+                        Log.e(TAG, "   Error code: ${error.code}")
+                        Log.e(TAG, "   Error domain: ${error.domain}")
+                        rewardedAd = null
+                        isRewardedLoading = false
+                        
+                        // Notify JavaScript of failure
+                        notifyAdEvent("adFailed", "rewarded", error.message)
+                    }
+                }
+            )
+        }
+    }
+    
+    /**
+     * Show Rewarded Ad
+     * 
+     * CRITICAL: MUST use Activity context for fullscreen display
+     * 
+     * Called from JavaScript: AdBridge.showRewarded(placementId)
+     */
+    @JavascriptInterface
+    fun showRewarded(placementId: String): String {
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        Log.d(TAG, "🚀 showRewarded() called")
+        Log.d(TAG, "   Placement ID: $placementId")
+        Log.d(TAG, "═══════════════════════════════════════════════════════════════")
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // SCREEN/CONTAINER VALIDATION
+        // ═══════════════════════════════════════════════════════════════════
+        
+        // Check 1: Activity must not be finishing
+        if (activity.isFinishing) {
+            Log.e(TAG, "   ❌ Activity is finishing - cannot show ad")
+            return "error:activity_finishing"
+        }
+        
+        // Check 2: Activity must not be destroyed (API 17+)
+        if (activity.isDestroyed) {
+            Log.e(TAG, "   ❌ Activity is destroyed - cannot show ad")
+            return "error:activity_destroyed"
+        }
+        
+        // Check 3: Activity must have window focus
+        if (!activity.hasWindowFocus()) {
+            Log.w(TAG, "   ⚠️ Activity does not have window focus")
+            // Continue anyway - AdMob will handle this
+        }
+        
+        // Check 4: Ad must be loaded
+        val ad = rewardedAd
+        if (ad == null) {
+            Log.e(TAG, "   ❌ Rewarded not loaded - loading now")
+            loadRewarded(placementId)
+            return "error:not_loaded"
+        }
+        
+        // ═══════════════════════════════════════════════════════════════════
+        // SHOW AD FULLSCREEN WITH REWARD CALLBACK
+        // ═══════════════════════════════════════════════════════════════════
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "   🎬 Showing rewarded ad FULLSCREEN...")
+            Log.d(TAG, "   ✅ Using Activity context: ${activity.javaClass.simpleName}")
+            
+            // ════════════════════════════════════════════════════════════════
+            // ✅ CRITICAL: Pass Activity, NOT WebView
+            // ════════════════════════════════════════════════════════════════
+            ad.show(activity) { rewardItem ->
+                // User earned the reward
+                val rewardType = rewardItem.type
+                val rewardAmount = rewardItem.amount
+                
+                Log.d(TAG, "   🎁 REWARD EARNED!")
+                Log.d(TAG, "   Type: $rewardType")
+                Log.d(TAG, "   Amount: $rewardAmount")
+                
+                // Notify JavaScript
+                notifyRewardEarned(rewardType, rewardAmount)
+            }
+            
+            // Clear reference (ad can only be shown once)
+            rewardedAd = null
+        }
+        
+        return "showing"
+    }
+    
+    /**
+     * Check if rewarded is ready
+     */
+    @JavascriptInterface
+    fun isRewardedReady(): Boolean {
+        val ready = rewardedAd != null
+        Log.d(TAG, "isRewardedReady(): $ready")
+        return ready
+    }
+    
+    /**
+     * Alias for isRewardedReady (JavaScript compatibility)
+     */
+    @JavascriptInterface
+    fun isRewardedAdReady(): Boolean {
+        return isRewardedReady()
+    }
+    
+    /**
+     * Setup rewarded fullscreen callbacks
+     */
+    private fun setupRewardedCallbacks(ad: RewardedAd) {
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "🎬 Rewarded dismissed (fullscreen closed)")
+                rewardedAd = null
+                notifyAdEvent("adClosed", "rewarded", null)
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e(TAG, "🎬 Rewarded failed to show: ${error.message}")
+                rewardedAd = null
+                notifyAdEvent("adFailed", "rewarded", error.message)
+            }
+            
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "🎬 Rewarded shown fullscreen")
+                notifyAdEvent("adImpression", "rewarded", null)
+            }
+            
+            override fun onAdClicked() {
+                Log.d(TAG, "🎬 Rewarded clicked")
+                notifyAdEvent("adClicked", "rewarded", null)
+            }
+        }
+    }
+    
+    // ═══════════════════════════════════════════════════════════════════════
+    // JAVASCRIPT NOTIFICATION HELPERS
+    // ═══════════════════════════════════════════════════════════════════════
+    
+    /**
+     * Notify JavaScript that an ad is ready
+     */
+    private fun notifyAdReady(adType: String) {
+        val js = "if(window.onNativeAdReady){window.onNativeAdReady('$adType')}"
+        evaluateJavascript(js)
+    }
+    
+    /**
+     * Notify JavaScript of a reward earned
+     */
+    private fun notifyRewardEarned(type: String, amount: Int) {
+        val js = "if(window.onRewardEarned){window.onRewardEarned('$type',$amount)}"
+        evaluateJavascript(js)
+    }
+    
+    /**
+     * Notify JavaScript of an ad event
+     */
+    private fun notifyAdEvent(eventType: String, adType: String, message: String?) {
+        val eventJson = """{"type":"$eventType","adType":"$adType","message":"${message ?: ""}"}"""
+        val js = "if(window.onAdEvent){window.onAdEvent('$eventJson')}"
+        evaluateJavascript(js)
+    }
+    
+    /**
+     * Execute JavaScript in WebView
+     */
+    private fun evaluateJavascript(js: String) {
+        activity.runOnUiThread {
+            webView.evaluateJavascript(js, null)
+        }
+    }
+}
+MainActivity.kt - Bridge Setup
+package com.linguavibe.app
+import android.os.Bundle
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.MobileAds
+class MainActivity : AppCompatActivity() {
+    
+    private lateinit var webView: WebView
+    private lateinit var adMobBridge: AdMobBridge
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Initialize AdMob SDK
+        MobileAds.initialize(this) { initializationStatus ->
+            Log.d("MainActivity", "AdMob SDK initialized: $initializationStatus")
+            
+            // Notify JavaScript that SDK is ready
+            webView.evaluateJavascript(
+                "if(window.onSdkInitialized){window.onSdkInitialized()}",
+                null
+            )
+        }
+        
+        // Setup WebView
+        webView = findViewById(R.id.webView)
+        setupWebView()
+        
+        // ══════════════════════════════════════════════════════════════════
+        // ✅ CRITICAL: Pass 'this' (Activity), not applicationContext
+        // ══════════════════════════════════════════════════════════════════
+        adMobBridge = AdMobBridge(this, webView)
+        
+        // Register JavaScript interface
+        webView.addJavascriptInterface(adMobBridge, "AdBridge")
+        
+        // Load the web app
+        webView.loadUrl("https://your-app-url.replit.app")
+    }
+    
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            allowFileAccess = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        }
+        
+        webView.webViewClient = WebViewClient()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        webView.onPause()
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        webView.destroy()
+    }
+}
+build.gradle (app level)
+dependencies {
+    // AdMob
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    
+    // Other dependencies...
+}
+AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.linguavibe.app">
+    
+    <!-- Required for ads -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.LinguaVibe"
+        android:usesCleartextTraffic="true">
+        
+        <!-- AdMob App ID (REQUIRED) -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9991891515643313~4547321514" />
+        
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboard|keyboardHidden"
+            android:hardwareAccelerated="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        
+    </application>
+</manifest>
+Key Points Summary
+❌ WRONG - Causes 256px Container
+// Using WebView as context
+InterstitialAd.load(webView.context, ...)
+interstitialAd?.show(webView.context as Activity)
+// Using applicationContext
+InterstitialAd.load(applicationContext, ...)
+rewardedAd?.show(applicationContext as Activity)  // CRASH
+// Not using Activity
+val context: Context = ...
+interstitialAd?.show(context as Activity)
+✅ CORRECT - Shows Fullscreen
+// Pass Activity directly in constructor
+class AdMobBridge(private val activity: Activity, ...) {
+    
+    // Load with Activity
+    InterstitialAd.load(activity, adUnitId, adRequest, callback)
+    
+    // Show with Activity
+    interstitialAd?.show(activity)
+    rewardedAd?.show(activity) { reward -> ... }
+}
+Flow Diagram
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CORRECT FULLSCREEN AD FLOW                                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  JavaScript                        Native (Kotlin)                          │
+│  ──────────                        ───────────────                          │
+│                                                                              │
+│  AdBridge.loadInterstitial(id) ──▶ loadInterstitial(placementId)           │
+│                                      │                                      │
+│                                      ├─▶ InterstitialAd.load(activity, ...) │
+│                                      │                                      │
+│  onNativeAdReady('interstitial') ◀──┤   Ad loaded!                         │
+│                                      │                                      │
+│  AdBridge.showInterstitial(id) ───▶ showInterstitial(placementId)          │
+│                                      │                                      │
+│                                      ├─▶ Validate activity state            │
+│                                      │   - !isFinishing                     │
+│                                      │   - !isDestroyed                     │
+│                                      │   - hasWindowFocus (warning only)    │
+│                                      │                                      │
+│                                      ├─▶ interstitialAd.show(activity)     │
+│                                      │         ▲                            │
+│                                      │         │                            │
+│                                      │   ┌─────┴─────┐                      │
+│                                      │   │  CRITICAL │                      │
+│                                      │   │  MUST BE  │                      │
+│                                      │   │ ACTIVITY  │                      │
+│                                      │   └───────────┘                      │
+│                                      │                                      │
+│  onAdEvent('adImpression') ◀────────┤   Fullscreen ad appears!             │
+│                                      │                                      │
+│  onAdEvent('adClosed') ◀────────────┤   User closes ad                     │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+Checklist
+ AdMobBridge constructor takes Activity (not Context)
+ InterstitialAd.load() uses activity parameter
+ RewardedAd.load() uses activity parameter
+ interstitialAd.show(activity) uses activity parameter
+ rewardedAd.show(activity) uses activity parameter
+ MainActivity passes this to AdMobBridge constructor
+ AndroidManifest.xml has android:hardwareAccelerated="true"
+ AdMob App ID is in manifest
+ Activity validates isFinishing and isDestroyed before showing
