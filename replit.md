@@ -71,30 +71,35 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 
 ## Third-Party Integrations
 
-**Ad Integration (Waterfall - InMobi Primary, AdMob Fallback)**:
+**Ad Integration (AdMob Only)**:
 
-*AdWaterfallBridge.kt* - Unified waterfall ad system:
-- Registered as `window.adBridge` for web app compatibility
-- Tries InMobi first, falls back to AdMob automatically
-- Tracks impressions per network toward 10,000 InMobi target
-- Supports Banner, Interstitial, Rewarded ad types
+*AdMobBridge.kt* - Primary ad interface:
+- Registered as `window.AndroidAdBridge` for web app compatibility
+- Supports Interstitial and Rewarded ad types only (Banner disabled due to inappropriate content)
+- Uses preloaded ads from AdPreloadManager for fast display
 
-*InMobi (PRIMARY)*:
-- Account ID: `9d81516c365f4acaa52f1fc627370cf9`
-- Placements: Banner (10000582111), Interstitial (10000582110), Rewarded (10000582112)
-- Target: 10,000 impressions for account activation
-- SDK: com.inmobi.monetization:inmobi-ads-kotlin:10.6.7
-
-*AdMob (FALLBACK)*:
+*AdMob Configuration*:
 - App ID: `ca-app-pub-9991891515643313~7514450861`
 - Interstitial: /5076005693, Rewarded: /6313049833
 - AdBridge.kt handles UMP consent flow
 
+*Native Ad Preload Strategy (AdPreloadManager.kt)*:
+- Singleton pattern loads ads immediately on MainActivity.onCreate() in parallel with WebView
+- Eliminates 300-1500ms WebView bridge latency for ad requests
+- Thread-safe AtomicBoolean flags track loading/ready states
+- Auto-reloads after ad dismissal using applicationContext (lifecycle-safe)
+- Event buffering: Ad ready notifications buffered until WebView fully loaded, then flushed
+- Callbacks cleared in onDestroy to prevent activity leaks
+
+*Ad Loading Priority*:
+1. Preloaded cached ads (fast path) - AdPreloadManager
+2. Local bridge-loaded ads (fallback) - AdMobBridge
+
 *Consent Flow*:
 1. AdBridge requests UMP consent via Google SDK
-2. On consent resolution, callback propagates GDPR status to AdWaterfallBridge
-3. AdWaterfallBridge initializes both InMobi and AdMob with consent flags
-4. Both networks preload ads after initialization
+2. On consent resolution, callback propagates GDPR status to AdMobBridge and AdPreloadManager
+3. AdPreloadManager preloads ads immediately with consent context
+4. AdMobBridge button-triggered loads inherit consent status
 
 **Analytics**: User activity tracking with conversation counting and session management.
 
