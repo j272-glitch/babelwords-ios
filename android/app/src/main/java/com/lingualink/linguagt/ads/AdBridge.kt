@@ -29,15 +29,10 @@ class AdBridge(
     companion object {
         private const val TAG = "AdBridge"
         
+        // PRODUCTION AD UNIT IDs ONLY - No test ads
         private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/5076005693"
         private const val REWARDED_AD_UNIT = "ca-app-pub-9991891515643313/6313049833"
         private const val REWARDED_INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/8883372855"
-        
-        private const val TEST_INTERSTITIAL = "ca-app-pub-3940256099942544/1033173712"
-        private const val TEST_REWARDED = "ca-app-pub-3940256099942544/5224354917"
-        private const val TEST_REWARDED_INTERSTITIAL = "ca-app-pub-3940256099942544/5354046379"
-        
-        private const val USE_TEST_ADS = false
         
         private const val MAX_RETRY_DELAY_MS = 60000L
         private const val INITIAL_RETRY_DELAY_MS = 1000L
@@ -71,14 +66,15 @@ class AdBridge(
     
     var onConsentObtained: ((gdprConsent: Boolean) -> Unit)? = null
     
+    // Direct production IDs - no test fallback
     private val interstitialId: String
-        get() = if (USE_TEST_ADS) TEST_INTERSTITIAL else INTERSTITIAL_AD_UNIT
+        get() = INTERSTITIAL_AD_UNIT
     
     private val rewardedId: String
-        get() = if (USE_TEST_ADS) TEST_REWARDED else REWARDED_AD_UNIT
+        get() = REWARDED_AD_UNIT
     
     private val rewardedInterstitialId: String
-        get() = if (USE_TEST_ADS) TEST_REWARDED_INTERSTITIAL else REWARDED_INTERSTITIAL_AD_UNIT
+        get() = REWARDED_INTERSTITIAL_AD_UNIT
     
     fun initialize() {
         if (isInitialized) {
