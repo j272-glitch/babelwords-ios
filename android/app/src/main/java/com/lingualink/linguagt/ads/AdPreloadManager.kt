@@ -2,6 +2,7 @@ package com.lingualink.linguagt.ads
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -303,8 +304,10 @@ object AdPreloadManager {
         
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
-                log("Interstitial dismissed - preloading next")
+                log("Interstitial dismissed - returning to app")
                 interstitialAd = null
+                // CRITICAL: Bring app back to foreground to prevent Play Store redirect
+                bringAppToForeground()
                 onAdDismissed?.invoke()
                 // Use applicationContext for reload to avoid dead Activity reference
                 preloadInterstitial(appContext)
@@ -333,8 +336,10 @@ object AdPreloadManager {
         
         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
             override fun onAdDismissedFullScreenContent() {
-                log("Rewarded dismissed - preloading next")
+                log("Rewarded dismissed - returning to app")
                 rewardedAd = null
+                // CRITICAL: Bring app back to foreground to prevent Play Store redirect
+                bringAppToForeground()
                 onAdDismissed?.invoke()
                 // Use applicationContext for reload to avoid dead Activity reference
                 preloadRewarded(appContext)
@@ -350,6 +355,26 @@ object AdPreloadManager {
                 log("★★★ REWARDED IMPRESSION ★★★")
                 TestRigorLogger.logAdEvent("AdPreloadManager: Rewarded impression")
             }
+        }
+    }
+    
+    /**
+     * CRITICAL: Brings the app back to foreground after ad dismissal.
+     * This prevents the Google Play Store redirect issue.
+     */
+    private fun bringAppToForeground() {
+        try {
+            val activity = activityRef?.get()
+            if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
+                val intent = Intent(activity, activity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                activity.startActivity(intent)
+                log("✓ App brought to foreground")
+            } else {
+                log("⚠️ Cannot bring app to foreground - no valid activity reference", "W")
+            }
+        } catch (e: Exception) {
+            log("✗ Failed to bring app to foreground: ${e.message}", "E")
         }
     }
     

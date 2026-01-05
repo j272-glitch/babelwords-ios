@@ -1,0 +1,375 @@
+Android AdMob Back Stack Fix Guide
+Problem
+When closing a fullscreen AdMob ad (interstitial or rewarded), the user is redirected to the Google Play Store instead of returning to the LinguaVibe app.
+
+Root Cause
+This issue occurs when Android's Activity back stack loses reference to your WebView Activity. Common causes:
+
+Activity is finishing before ad displays - Calling finish() on your Activity
+Incorrect launch mode - Activity not configured for proper back stack behavior
+Missing callback handling - Not bringing the app back to foreground after ad dismissal
+Task affinity issues - Ad Activity running in a different task
+Solution 1: Verify Activity Lifecycle
+Check Your WebView Activity
+Make sure you're NOT finishing your Activity when showing ads:
+
+// ❌ WRONG - Don't do this
+public void showInterstitialAd() {
+    if (interstitialAd != null) {
+        interstitialAd.show(this);
+        finish();  // This kills your Activity!
+    }
+}
+// ✅ CORRECT - Keep Activity alive
+public void showInterstitialAd() {
+    if (interstitialAd != null) {
+        interstitialAd.show(this);
+        // Don't call finish() - Activity stays in back stack
+    }
+}
+Solution 2: Configure AndroidManifest.xml
+WebView Activity Configuration
+<activity
+    android:name=".MainActivity"
+    android:exported="true"
+    android:launchMode="singleTask"
+    android:configChanges="orientation|screenSize|keyboardHidden"
+    android:hardwareAccelerated="true">
+    
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
+Key Attributes Explained
+Attribute	Value	Purpose
+launchMode	singleTask	Ensures single instance, back stack preserved
+configChanges	orientation|screenSize	Prevents Activity restart on rotation
+hardwareAccelerated	true	Required for WebView and video ads
+Solution 3: Implement FullScreenContentCallback
+Complete AdMob Callback Implementation
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.AdError;
+public class AdManager {
+    private InterstitialAd interstitialAd;
+    private RewardedAd rewardedAd;
+    private Activity activity;
+    private WebView webView;
+    public AdManager(Activity activity, WebView webView) {
+        this.activity = activity;
+        this.webView = webView;
+    }
+    // ==========================================
+    // INTERSTITIAL AD SETUP
+    // ==========================================
+    
+    public void loadInterstitial(String adUnitId) {
+        AdRequest adRequest = new AdRequest.Builder().build();
+        
+        InterstitialAd.load(activity, adUnitId, adRequest, 
+            new InterstitialAdLoadCallback() {
+                @Override
+                public void onAdLoaded(@NonNull InterstitialAd ad) {
+                    interstitialAd = ad;
+                    setupInterstitialCallbacks();
+                    Log.d("AdManager", "Interstitial loaded");
+                }
+                @Override
+                public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                    interstitialAd = null;
+                    Log.e("AdManager", "Interstitial failed: " + loadAdError.getMessage());
+                }
+            });
+    }
+    private void setupInterstitialCallbacks() {
+        if (interstitialAd == null) return;
+        
+        interstitialAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override
+            public void onAdClicked() {
+                // User clicked ad - will open browser/Play Store
+                Log.d("AdManager", "Ad clicked");
+            }
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                // ✅ CRITICAL: This is called when ad closes
+                Log.d("AdManager", "Ad dismissed - returning to app");
+                
+                // Clear the ad reference
+                interstitialAd = null;
+                
+                // Bring app back to foreground
+                bringAppToForeground();
+                
+                // Notify WebView
+                notifyWebView("window.onInterstitialClosed && window.onInterstitialClosed(true);");
+            }
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                Log.e("AdManager", "Ad failed to show: " + adError.getMessage());
+                interstitialAd = null;
+                notifyWebView("window.onInterstitialClosed && window.onInterstitialClosed(false);");
+            }
+            @Override
+            public void onAdImpression() {
+                Log.d("AdManager", "Ad impression recorded");
+            }
+            @Override
+            public void onAdShowedFullScreenContent() {
+                Log.d("AdManager", "Ad displayed");
+            }
+        });
+    }
+    public void showInterstitial() {
+        if (interstitialAd != null) {
+            interstitialAd.show(activity);
+        } else {
+            notifyWebView("window.onInterstitialClosed && window.onInterstitialClosed(false);");
+        }
+    }
+    // ==========================================
+    // REWARDED AD SETUP
+    // ==========================================
+    
+    public void loadRewarded(String adUnitId) {
+        AdRequest adRequest = new AdRequest.Builder().build();
+        
+        RewardedAd.load(activity, adUnitId, adRequest,
+            new RewardedAdLoadCallback() {
+                @Override
+                public void onAdLoaded(@NonNull RewardedAd ad) {
+                    rewardedAd = ad;
+                    setupRewardedCallbacks();
+                    Log.d("AdManager", "Rewarded ad loaded");
+                }
+                @Override
+                public void onAdFailedToLoad(@NonNull LoadAdError loadAdError) {
+                    rewardedAd = null;
+                    Log.e("AdManager", "Rewarded failed: " + loadAdError.getMessage());
+                }
+            });
+    }
+    private void setupRewardedCallbacks() {
+        if (rewardedAd == null) return;
+        
+        rewardedAd.setFullScreenContentCallback(new FullScreenContentCallback() {
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                Log.d("AdManager", "Rewarded ad dismissed");
+                rewardedAd = null;
+                
+                // Bring app back to foreground
+                bringAppToForeground();
+                
+                // Notify WebView that ad closed
+                notifyWebView("window.onRewardedClosed && window.onRewardedClosed();");
+            }
+            @Override
+            public void onAdFailedToShowFullScreenContent(@NonNull AdError adError) {
+                Log.e("AdManager", "Rewarded failed to show: " + adError.getMessage());
+                rewardedAd = null;
+                notifyWebView("window.onRewardedClosed && window.onRewardedClosed();");
+            }
+            @Override
+            public void onAdShowedFullScreenContent() {
+                Log.d("AdManager", "Rewarded ad displayed");
+            }
+        });
+    }
+    public void showRewarded() {
+        if (rewardedAd != null) {
+            rewardedAd.show(activity, rewardItem -> {
+                // User earned reward
+                int rewardAmount = rewardItem.getAmount();
+                String rewardType = rewardItem.getType();
+                Log.d("AdManager", "Reward earned: " + rewardAmount + " " + rewardType);
+                
+                // Grant 30 minutes of unlimited access
+                notifyWebView("window.onRewardEarned && window.onRewardEarned(30);");
+            });
+        } else {
+            notifyWebView("window.onRewardedClosed && window.onRewardedClosed();");
+        }
+    }
+    // ==========================================
+    // HELPER METHODS
+    // ==========================================
+    
+    /**
+     * ✅ CRITICAL: Brings the app back to foreground after ad dismissal
+     * This prevents the Google Play Store redirect issue
+     */
+    private void bringAppToForeground() {
+        try {
+            Intent intent = new Intent(activity, activity.getClass());
+            intent.setFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | 
+                           Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            activity.startActivity(intent);
+        } catch (Exception e) {
+            Log.e("AdManager", "Failed to bring app to foreground: " + e.getMessage());
+        }
+    }
+    /**
+     * Safely executes JavaScript in the WebView
+     */
+    private void notifyWebView(String javascript) {
+        if (webView != null) {
+            activity.runOnUiThread(() -> {
+                webView.evaluateJavascript(javascript, null);
+            });
+        }
+    }
+}
+Solution 4: JavaScript Bridge Implementation
+AdBridge.java (JavaScript Interface)
+import android.webkit.JavascriptInterface;
+public class AdBridge {
+    private AdManager adManager;
+    private Activity activity;
+    public AdBridge(Activity activity, WebView webView) {
+        this.activity = activity;
+        this.adManager = new AdManager(activity, webView);
+    }
+    @JavascriptInterface
+    public String showInterstitial(String adUnitId) {
+        activity.runOnUiThread(() -> {
+            adManager.loadInterstitial(adUnitId);
+            // Show after a short delay to allow loading
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                adManager.showInterstitial();
+            }, 500);
+        });
+        return "loading";
+    }
+    @JavascriptInterface
+    public String showRewarded(String adUnitId) {
+        activity.runOnUiThread(() -> {
+            adManager.loadRewarded(adUnitId);
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                adManager.showRewarded();
+            }, 500);
+        });
+        return "loading";
+    }
+    @JavascriptInterface
+    public boolean isReady() {
+        return true; // Or check if ads are actually loaded
+    }
+}
+Register Bridge in WebView Activity
+public class MainActivity extends AppCompatActivity {
+    private WebView webView;
+    private AdBridge adBridge;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        webView = findViewById(R.id.webview);
+        setupWebView();
+        
+        // Register JavaScript bridge
+        adBridge = new AdBridge(this, webView);
+        webView.addJavascriptInterface(adBridge, "AdBridge");
+        
+        // Load your app
+        webView.loadUrl("https://linguagt.com");
+    }
+    private void setupWebView() {
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setAllowFileAccess(true);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    }
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // Handle app being brought back to foreground
+        Log.d("MainActivity", "App returned to foreground");
+    }
+    @Override
+    public void onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack();
+        } else {
+            super.onBackPressed();
+        }
+    }
+}
+Solution 5: Handle Click-Through Returns
+When users click on an ad, they're taken to the Play Store or a browser. To ensure proper return:
+
+Add to AndroidManifest.xml
+<activity
+    android:name=".MainActivity"
+    android:launchMode="singleTask"
+    android:alwaysRetainTaskState="true">
+    
+    <!-- Deep link to return from browser/Play Store -->
+    <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="lingualink" />
+    </intent-filter>
+</activity>
+Key Attribute: alwaysRetainTaskState
+Setting android:alwaysRetainTaskState="true" prevents Android from clearing your Activity from the back stack, even if the user spends time in another app (like Play Store).
+
+Debugging Checklist
+1. Check Logcat During Ad Flow
+adb logcat | grep -E "(AdManager|AdMob|MainActivity)"
+Look for:
+
+"Ad dismissed - returning to app" - Confirms callback fired
+"App returned to foreground" - Confirms Activity resumed
+Any errors or exceptions
+2. Verify Back Stack
+adb shell dumpsys activity activities | grep -A 10 "lingualink"
+This shows your Activity's position in the stack.
+
+3. Test Flow
+Open app
+Show interstitial ad
+Wait for ad to fully display
+Tap X to close (don't click the ad)
+App should return to LinguaVibe
+If tapping X still goes to Play Store:
+
+The ad may have been clicked accidentally
+Check if onAdClicked() is being called in logs
+Common Mistakes to Avoid
+Mistake	Why It's Bad	Fix
+Calling finish() before/after ad	Kills your Activity	Remove finish() calls
+launchMode="standard"	Creates new Activity instances	Use singleTask
+Missing onAdDismissedFullScreenContent	No return handling	Implement callback
+Not calling bringAppToForeground()	App stays in background	Add foreground intent
+Wrong Activity passed to show()	Wrong context	Pass your WebView Activity
+Production Ad Unit IDs
+For reference, LinguaVibe uses these production AdMob IDs:
+
+public static final String INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/5076005693";
+public static final String REWARDED_AD_UNIT = "ca-app-pub-9991891515643313/6313049833";
+Testing
+Test with Test Ad Units First
+// Test ad units (use during development)
+public static final String TEST_INTERSTITIAL = "ca-app-pub-3940256099942544/1033173712";
+public static final String TEST_REWARDED = "ca-app-pub-3940256099942544/5224354917";
+Verify Fix Works
+Build and install app
+Show test interstitial
+Close ad with X button
+Confirm app returns (not Play Store)
+Show test rewarded
+Watch full video
+Confirm reward granted and app returns
+Summary
+The Play Store redirect issue is caused by Android losing your Activity from the back stack. To fix:
+
+Never call finish() when showing ads
+Use launchMode="singleTask" in manifest
+Implement onAdDismissedFullScreenContent() callback
+Call bringAppToForeground() when ad closes
+Add alwaysRetainTaskState="true" to prevent stack clearing
+With these changes, closing an ad will properly return users to your app.

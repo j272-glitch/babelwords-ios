@@ -53,7 +53,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
+            android:alwaysRetainTaskState="true"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|screenSize|keyboardHidden|keyboard|screenLayout|smallestScreenSize|locale|layoutDirection|fontScale|uiMode|density|touchscreen">
