@@ -128,8 +128,9 @@ object AdPreloadManager {
                 preloadAllAds(context)
             }
             ConsentInformation.ConsentStatus.REQUIRED -> {
-                log("📋 Consent REQUIRED - waiting for consent flow")
-                // Don't preload yet - wait for consent from AdBridge
+                log("📋 Consent REQUIRED - preloading with limited ads")
+                // Preload immediately with non-personalized ads, will refresh after consent
+                preloadAllAds(context)
             }
             ConsentInformation.ConsentStatus.UNKNOWN -> {
                 log("❓ Consent UNKNOWN - requesting consent info")
