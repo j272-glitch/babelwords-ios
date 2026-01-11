@@ -65,15 +65,21 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep linking -->
+            <!-- Android App Links (verified deep linking) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="linguagt.com" />
+                <data android:scheme="https" android:host="www.linguagt.com" />
+            </intent-filter>
+
+            <!-- Custom scheme fallback (no verification needed) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data 
-                    android:scheme="https"
-                    android:host="linguagt.com"
-                    android:pathPrefix="/translate" />
+                <data android:scheme="linguagt" android:host="open" />
             </intent-filter>
         </activity>
 
