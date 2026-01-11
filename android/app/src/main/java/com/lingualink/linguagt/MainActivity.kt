@@ -237,10 +237,9 @@ class MainActivity : BaseActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        intent?.let { 
-            setIntent(it)
-            handleDeepLink(it) 
-        }
+        setIntent(intent)
+        webView.requestFocus()
+        intent?.let { handleDeepLink(it) }
     }
 
     private fun handleDeepLink(intent: Intent?) {

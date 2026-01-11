@@ -2,6 +2,7 @@ package com.lingualink.linguagt.ads
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Build
@@ -378,6 +379,22 @@ class AdBridge(
         }
     }
     
+    /**
+     * Bring the app back to foreground after ad dismissal.
+     * Prevents user from being stuck on Play Store after clicking an ad.
+     */
+    private fun bringAppToForeground() {
+        if (activity.isFinishing || activity.isDestroyed) return
+        
+        val intent = Intent(activity, activity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        activity.startActivity(intent)
+        TestRigorLogger.logAdEvent("Bringing app to foreground after ad dismiss")
+    }
+    
     private enum class AdType {
         INTERSTITIAL, REWARDED, REWARDED_INTERSTITIAL
     }
@@ -423,6 +440,7 @@ class AdBridge(
                 interstitialAd?.fullScreenContentCallback = null
                 interstitialAd = null
                 notifyWeb("interstitialClosed", "")
+                bringAppToForeground()
                 loadInterstitialAd()
             }
             
@@ -456,6 +474,7 @@ class AdBridge(
                 rewardedAd?.fullScreenContentCallback = null
                 rewardedAd = null
                 notifyWeb("rewardedClosed", "")
+                bringAppToForeground()
                 loadRewardedAd()
             }
             
@@ -481,6 +500,7 @@ class AdBridge(
                 rewardedInterstitialAd?.fullScreenContentCallback = null
                 rewardedInterstitialAd = null
                 notifyWeb("rewardedInterstitialClosed", "")
+                bringAppToForeground()
                 loadRewardedInterstitialAd()
             }
             
