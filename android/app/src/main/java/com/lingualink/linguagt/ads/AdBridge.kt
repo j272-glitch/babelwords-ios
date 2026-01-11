@@ -67,6 +67,13 @@ class AdBridge(
     
     var onConsentObtained: ((gdprConsent: Boolean) -> Unit)? = null
     
+    // Foreground recovery system - handles Play Store redirect
+    private var pendingForegroundRunnable: Runnable? = null
+    private var adClickedTime: Long = 0
+    private companion object ForegroundRecovery {
+        private const val FOREGROUND_DELAY_MS = 1500L
+    }
+    
     // Direct production IDs - no test fallback
     private val interstitialId: String
         get() = INTERSTITIAL_AD_UNIT
@@ -379,6 +386,10 @@ class AdBridge(
         }
     }
     
+    // ========================================
+    // FOREGROUND RECOVERY SYSTEM
+    // ========================================
+    
     /**
      * Bring the app back to foreground after ad dismissal.
      * Prevents user from being stuck on Play Store after clicking an ad.
@@ -392,7 +403,40 @@ class AdBridge(
                     Intent.FLAG_ACTIVITY_NEW_TASK
         }
         activity.startActivity(intent)
-        TestRigorLogger.logAdEvent("Bringing app to foreground after ad dismiss")
+        TestRigorLogger.logAdEvent("Bringing app to foreground")
+    }
+    
+    /**
+     * Schedule foreground recovery when ad is clicked.
+     * This handles the case where user is redirected to Play Store and
+     * onAdDismissedFullScreenContent never fires until they return.
+     */
+    private fun scheduleForegroundRecovery() {
+        // Cancel any existing scheduled recovery
+        cancelForegroundRecovery()
+        
+        adClickedTime = System.currentTimeMillis()
+        TestRigorLogger.logAdEvent("Ad clicked - scheduling foreground recovery in ${FOREGROUND_DELAY_MS}ms")
+        
+        pendingForegroundRunnable = Runnable {
+            val timeSinceClick = System.currentTimeMillis() - adClickedTime
+            TestRigorLogger.logAdEvent("Foreground recovery triggered, time since click: ${timeSinceClick}ms")
+            bringAppToForeground()
+        }
+        
+        mainHandler.postDelayed(pendingForegroundRunnable!!, FOREGROUND_DELAY_MS)
+    }
+    
+    /**
+     * Cancel any pending foreground recovery.
+     * Called when user returns naturally or ad is dismissed.
+     */
+    private fun cancelForegroundRecovery() {
+        pendingForegroundRunnable?.let {
+            TestRigorLogger.logAdEvent("Cancelling pending foreground recovery")
+            mainHandler.removeCallbacks(it)
+            pendingForegroundRunnable = null
+        }
     }
     
     private enum class AdType {
@@ -440,6 +484,8 @@ class AdBridge(
                 interstitialAd?.fullScreenContentCallback = null
                 interstitialAd = null
                 notifyWeb("interstitialClosed", "")
+                // Cancel pending recovery since user returned naturally
+                cancelForegroundRecovery()
                 bringAppToForeground()
                 loadInterstitialAd()
             }
@@ -453,6 +499,7 @@ class AdBridge(
                 TestRigorLogger.logAdEvent("Interstitial show failed: ${error.message}")
                 interstitialAd?.fullScreenContentCallback = null
                 interstitialAd = null
+                cancelForegroundRecovery()
                 notifyWeb("interstitialShowFailed", error.message)
                 loadInterstitialAd()
             }
@@ -461,8 +508,10 @@ class AdBridge(
                 TestRigorLogger.logAdEvent("Interstitial impression")
             }
             
+            // CRITICAL: Detect when ad is clicked (about to redirect to Play Store)
             override fun onAdClicked() {
-                TestRigorLogger.logAdEvent("Interstitial clicked")
+                TestRigorLogger.logAdEvent("Interstitial clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
             }
         }
     }
@@ -474,6 +523,8 @@ class AdBridge(
                 rewardedAd?.fullScreenContentCallback = null
                 rewardedAd = null
                 notifyWeb("rewardedClosed", "")
+                // Cancel pending recovery since user returned naturally
+                cancelForegroundRecovery()
                 bringAppToForeground()
                 loadRewardedAd()
             }
@@ -487,8 +538,19 @@ class AdBridge(
                 TestRigorLogger.logAdEvent("Rewarded show failed: ${error.message}")
                 rewardedAd?.fullScreenContentCallback = null
                 rewardedAd = null
+                cancelForegroundRecovery()
                 notifyWeb("rewardedShowFailed", error.message)
                 loadRewardedAd()
+            }
+            
+            override fun onAdImpression() {
+                TestRigorLogger.logAdEvent("Rewarded impression")
+            }
+            
+            // CRITICAL: Detect when ad is clicked (about to redirect to Play Store)
+            override fun onAdClicked() {
+                TestRigorLogger.logAdEvent("Rewarded clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
             }
         }
     }
@@ -500,6 +562,8 @@ class AdBridge(
                 rewardedInterstitialAd?.fullScreenContentCallback = null
                 rewardedInterstitialAd = null
                 notifyWeb("rewardedInterstitialClosed", "")
+                // Cancel pending recovery since user returned naturally
+                cancelForegroundRecovery()
                 bringAppToForeground()
                 loadRewardedInterstitialAd()
             }
@@ -513,6 +577,7 @@ class AdBridge(
                 TestRigorLogger.logAdEvent("Rewarded interstitial show failed: ${error.message}")
                 rewardedInterstitialAd?.fullScreenContentCallback = null
                 rewardedInterstitialAd = null
+                cancelForegroundRecovery()
                 notifyWeb("rewardedInterstitialShowFailed", error.message)
                 loadRewardedInterstitialAd()
             }
@@ -521,8 +586,10 @@ class AdBridge(
                 TestRigorLogger.logAdEvent("Rewarded interstitial impression")
             }
             
+            // CRITICAL: Detect when ad is clicked (about to redirect to Play Store)
             override fun onAdClicked() {
-                TestRigorLogger.logAdEvent("Rewarded interstitial clicked")
+                TestRigorLogger.logAdEvent("Rewarded interstitial clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
             }
         }
     }

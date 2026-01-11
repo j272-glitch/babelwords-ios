@@ -1,0 +1,419 @@
+Problem
+After watching a rewarded ad, users are redirected to the Play Store instead of returning to the app. This happens with "app install" ads that promote other apps.
+
+Root Cause
+The bringAppToForeground() call in onAdDismissedFullScreenContent only fires AFTER the user returns to the app. If they're stuck in Play Store, they never return, and the callback never executes.
+
+THE FIX: Use onAdClicked + Delayed Foreground Intent
+The key insight: Use onAdClicked() to detect when a redirect is about to happen, then schedule a delayed intent to force the app back to foreground.
+
+Updated AdBridge.kt with Click Detection
+package com.lingualink.linguagt
+import android.app.Activity
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+class AdBridge(
+    private val activity: Activity,
+    private val webView: WebView
+) {
+    companion object {
+        private const val TAG = "AdBridge"
+        const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/5076005693"
+        const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/6313049833"
+        
+        // Delay before bringing app to foreground after ad click
+        private const val FOREGROUND_DELAY_MS = 1500L
+    }
+    
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    private var isLoadingInterstitial = false
+    private var isLoadingRewarded = false
+    private var rewardEarned = false
+    
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingForegroundRunnable: Runnable? = null
+    private var adClickedTime: Long = 0
+    
+    // ========================================
+    // FOREGROUND RECOVERY SYSTEM
+    // ========================================
+    
+    private fun bringAppToForeground() {
+        Log.d(TAG, "Bringing app to foreground")
+        val intent = Intent(activity, activity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        activity.startActivity(intent)
+    }
+    
+    private fun scheduleForegroundRecovery() {
+        // Cancel any existing scheduled recovery
+        cancelForegroundRecovery()
+        
+        adClickedTime = System.currentTimeMillis()
+        Log.d(TAG, "Ad clicked - scheduling foreground recovery in ${FOREGROUND_DELAY_MS}ms")
+        
+        pendingForegroundRunnable = Runnable {
+            val timeSinceClick = System.currentTimeMillis() - adClickedTime
+            Log.d(TAG, "Foreground recovery triggered, time since click: ${timeSinceClick}ms")
+            bringAppToForeground()
+        }
+        
+        handler.postDelayed(pendingForegroundRunnable!!, FOREGROUND_DELAY_MS)
+    }
+    
+    private fun cancelForegroundRecovery() {
+        pendingForegroundRunnable?.let {
+            Log.d(TAG, "Cancelling pending foreground recovery")
+            handler.removeCallbacks(it)
+            pendingForegroundRunnable = null
+        }
+    }
+    
+    // ========================================
+    // REWARDED AD METHODS
+    // ========================================
+    
+    fun loadRewarded() {
+        if (isLoadingRewarded || rewardedAd != null) {
+            Log.d(TAG, "Rewarded already loading or loaded")
+            return
+        }
+        
+        isLoadingRewarded = true
+        val adRequest = AdRequest.Builder().build()
+        
+        RewardedAd.load(
+            activity,
+            REWARDED_AD_UNIT_ID,
+            adRequest,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d(TAG, "Rewarded loaded successfully")
+                    rewardedAd = ad
+                    isLoadingRewarded = false
+                    setupRewardedCallbacks()
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e(TAG, "Rewarded failed to load: ${error.message}")
+                    rewardedAd = null
+                    isLoadingRewarded = false
+                }
+            }
+        )
+    }
+    
+    private fun setupRewardedCallbacks() {
+        rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "Rewarded showed")
+                rewardEarned = false
+            }
+            
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Rewarded dismissed, rewardEarned: $rewardEarned")
+                rewardedAd = null
+                
+                // Cancel any pending foreground recovery since user returned naturally
+                cancelForegroundRecovery()
+                
+                // Always bring app to foreground when ad is dismissed
+                bringAppToForeground()
+                
+                if (!rewardEarned) {
+                    emitCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
+                }
+                
+                loadRewarded()
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e(TAG, "Rewarded failed to show: ${error.message}")
+                rewardedAd = null
+                cancelForegroundRecovery()
+                
+                val escapedError = error.message.replace("'", "\\'")
+                emitCallback("if(window.onRewardedFailedToShow) window.onRewardedFailedToShow('$escapedError');")
+                
+                loadRewarded()
+            }
+            
+            // CRITICAL: Detect when ad is clicked (about to redirect to Play Store)
+            override fun onAdClicked() {
+                Log.d(TAG, "Rewarded ad clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
+            }
+            
+            override fun onAdImpression() {
+                Log.d(TAG, "Rewarded impression recorded")
+            }
+        }
+    }
+    
+    @JavascriptInterface
+    fun showRewarded(adUnitId: String): String {
+        Log.d(TAG, "showRewarded called")
+        
+        val ad = rewardedAd
+        if (ad == null) {
+            Log.w(TAG, "Rewarded not ready")
+            loadRewarded()
+            return "not_ready"
+        }
+        
+        activity.runOnUiThread {
+            ad.show(activity) { rewardItem ->
+                Log.d(TAG, "Reward earned: ${rewardItem.type}, ${rewardItem.amount}")
+                rewardEarned = true
+                
+                // Cancel foreground recovery - ad completed successfully
+                cancelForegroundRecovery()
+                
+                emitCallback("if(window.onRewardEarned) window.onRewardEarned('${rewardItem.type}', ${rewardItem.amount});")
+            }
+        }
+        
+        return "showing"
+    }
+    
+    // Same pattern for Interstitial...
+    // (Apply the same onAdClicked + scheduleForegroundRecovery pattern)
+    
+    private fun emitCallback(javascript: String) {
+        activity.runOnUiThread {
+            Log.d(TAG, "Emitting: $javascript")
+            webView.evaluateJavascript(javascript, null)
+        }
+    }
+    
+    fun preloadAds() {
+        loadRewarded()
+        loadInterstitial()
+    }
+    
+    fun destroy() {
+        cancelForegroundRecovery()
+        interstitialAd = null
+        rewardedAd = null
+    }
+}
+Key Changes Explained
+1. onAdClicked() Callback
+This fires when user taps the ad (before redirect happens):
+
+override fun onAdClicked() {
+    Log.d(TAG, "Rewarded ad clicked - scheduling foreground recovery")
+    scheduleForegroundRecovery()
+}
+2. Delayed Foreground Recovery
+Schedules bringing app to foreground 1.5 seconds after click:
+
+private fun scheduleForegroundRecovery() {
+    pendingForegroundRunnable = Runnable {
+        bringAppToForeground()
+    }
+    handler.postDelayed(pendingForegroundRunnable!!, 1500L)
+}
+3. Cancel on Normal Return
+If user returns normally, cancel the scheduled recovery:
+
+override fun onAdDismissedFullScreenContent() {
+    cancelForegroundRecovery()
+    bringAppToForeground()
+    // ...
+}
+Solution 1: Activity Configuration (Required)
+Update your MainActivity.kt to properly handle returning from Play Store:
+
+package com.lingualink.linguagt
+import android.content.Intent
+import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.MobileAds
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private lateinit var adBridge: AdBridge
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Initialize Mobile Ads SDK
+        MobileAds.initialize(this) { initializationStatus ->
+            android.util.Log.d("MainActivity", "AdMob SDK initialized")
+            adBridge.preloadAds()
+        }
+        
+        webView = findViewById(R.id.webView)
+        setupWebView()
+        
+        adBridge = AdBridge(this, webView)
+        webView.addJavascriptInterface(adBridge, "AndroidAdBridge")
+        
+        webView.loadUrl("https://linguagt.com")
+    }
+    
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        
+        webView.webViewClient = WebViewClient()
+    }
+    
+    // CRITICAL: Handle returning from Play Store or other apps
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        android.util.Log.d("MainActivity", "onNewIntent called - user returned to app")
+        
+        // Bring activity to front
+        setIntent(intent)
+        
+        // Ensure WebView is visible and focused
+        webView.requestFocus()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        android.util.Log.d("MainActivity", "onResume - ensuring app is in foreground")
+        
+        // Restore WebView state if needed
+        webView.onResume()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        webView.onPause()
+    }
+    
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        adBridge.destroy()
+    }
+}
+Solution 2: AndroidManifest.xml Configuration (Required)
+Ensure your manifest has these settings:
+
+<activity
+    android:name=".MainActivity"
+    android:exported="true"
+    android:launchMode="singleTask"
+    android:taskAffinity=""
+    android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+    android:hardwareAccelerated="true">
+    
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+    
+    <!-- Deep link handling to return from Play Store -->
+    <intent-filter android:autoVerify="true">
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="linguagt.com" />
+    </intent-filter>
+</activity>
+Key settings:
+
+launchMode="singleTask" - Ensures only one instance of the activity
+taskAffinity="" - Keeps Play Store in separate task
+Deep link intent-filter - Allows returning to app from web links
+Solution 3: Block App Install Ads (Recommended)
+In your AdMob Console:
+
+Go to AdMob Console → Blocking Controls
+Navigate to Ad review center or General categories
+Find and block "App Install" category
+Optionally block specific problematic advertisers
+This prevents the redirect issue entirely by not showing ads that open Play Store.
+
+Solution 4: Ad Callback with Return Intent
+Update your AdBridge.kt to bring app to foreground after ad closes:
+
+private fun bringAppToForeground() {
+    val intent = Intent(activity, activity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+    activity.startActivity(intent)
+}
+private fun setupRewardedCallbacks() {
+    rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+        override fun onAdDismissedFullScreenContent() {
+            Log.d(TAG, "Rewarded dismissed")
+            rewardedAd = null
+            
+            // CRITICAL: Bring app back to foreground
+            bringAppToForeground()
+            
+            // Emit callback
+            if (!rewardEarned) {
+                emitCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
+            }
+            
+            loadRewarded()
+        }
+        
+        // ... other callbacks
+    }
+}
+Also update setupInterstitialCallbacks() similarly.
+
+Testing Checklist
+ launchMode="singleTask" set in manifest
+ taskAffinity="" added to isolate Play Store task
+ onNewIntent() override implemented
+ bringAppToForeground() called in ad dismiss callbacks
+ App install ads blocked in AdMob console (optional but recommended)
+Why This Happens
+When AdMob shows an "app install" ad:
+
+User watches the ad video
+User clicks (or ad auto-clicks) to Play Store
+Play Store opens as new activity
+When user presses back, Android may not know to return to your app
+Without proper configuration, the back stack gets confused
+With singleTask + taskAffinity + bringAppToForeground():
+
+Your app always has a single instance
+Play Store runs in its own task
+After ad dismiss, your app explicitly brings itself to front
+User sees your app, not Play Store
+AdMob Console Settings
+To completely prevent this issue, consider blocking app install ads:
+
+Login to AdMob Console
+Go to Blocking controls → General categories
+Block these categories:
+Install Apps
+Games
+Social (Any categories that typically open Play Store)
+This reduces revenue slightly but eliminates the redirect issue.
