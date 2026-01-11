@@ -302,6 +302,9 @@ class AdMobBridge(
 
     // Auto-show flag for 1-step rewarded (like banner)
     private var autoShowRewarded = false
+    
+    // Track if reward was earned for local ads
+    private var localRewardEarned = false
 
     @JavascriptInterface
     fun loadRewarded(placementId: String) {
@@ -545,6 +548,8 @@ class AdMobBridge(
                                 interstitialAd = null
                                 log("Interstitial dismissed")
                                 notifyJs("adClosed", "admob", "interstitial")
+                                // CRITICAL: Emit specific callback for web app Promise resolution
+                                emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
                                 loadInterstitialAd() // Preload next
                             }
 
@@ -553,6 +558,9 @@ class AdMobBridge(
                                 interstitialAd = null
                                 log("✗ Interstitial show FAILED: ${error.code} - ${error.message}", "E")
                                 notifyJs("adFailed", "admob", "interstitial", error.message)
+                                // CRITICAL: Emit failure callback for web app retry logic
+                                val escapedError = error.message.replace("'", "\\'")
+                                emitDirectCallback("if(window.onInterstitialFailedToShow) window.onInterstitialFailedToShow('$escapedError');")
                             }
 
                             override fun onAdClicked() {
@@ -609,6 +617,7 @@ class AdMobBridge(
                             override fun onAdShowedFullScreenContent() {
                                 totalImpressions++
                                 rewardedImpressions++
+                                localRewardEarned = false // Reset on show
                                 log("★★★ REWARDED IMPRESSION #$rewardedImpressions ★★★")
                                 notifyJs("adImpression", "admob", "rewarded")
                             }
@@ -616,8 +625,12 @@ class AdMobBridge(
                             override fun onAdDismissedFullScreenContent() {
                                 isRewardedReady = false
                                 rewardedAd = null
-                                log("Rewarded dismissed")
+                                log("Rewarded dismissed, localRewardEarned: $localRewardEarned")
                                 notifyJs("adClosed", "admob", "rewarded")
+                                // CRITICAL: Only emit closed callback if reward wasn't earned
+                                if (!localRewardEarned) {
+                                    emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
+                                }
                                 loadRewardedAd() // Preload next
                             }
 
@@ -626,6 +639,9 @@ class AdMobBridge(
                                 rewardedAd = null
                                 log("✗ Rewarded show FAILED: ${error.code} - ${error.message}", "E")
                                 notifyJs("adFailed", "admob", "rewarded", error.message)
+                                // CRITICAL: Emit failure callback for web app retry logic
+                                val escapedError = error.message.replace("'", "\\'")
+                                emitDirectCallback("if(window.onRewardedFailedToShow) window.onRewardedFailedToShow('$escapedError');")
                             }
 
                             override fun onAdClicked() {
@@ -685,6 +701,30 @@ class AdMobBridge(
         if (preloadedAd != null) {
             log("  ► Using PRELOADED interstitial (fast path)")
             TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded interstitial")
+            
+            // Override callbacks to emit JavaScript
+            preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    log("Preloaded interstitial dismissed")
+                    notifyJs("adClosed", "admob", "interstitial")
+                    emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
+                }
+                
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    log("Preloaded interstitial failed to show: ${error.message}", "E")
+                    notifyJs("adFailed", "admob", "interstitial", error.message)
+                    val escapedError = error.message.replace("'", "\\'")
+                    emitDirectCallback("if(window.onInterstitialFailedToShow) window.onInterstitialFailedToShow('$escapedError');")
+                }
+                
+                override fun onAdShowedFullScreenContent() {
+                    totalImpressions++
+                    interstitialImpressions++
+                    log("★★★ PRELOADED INTERSTITIAL IMPRESSION #$interstitialImpressions ★★★")
+                    notifyJs("adImpression", "admob", "interstitial")
+                }
+            }
+            
             preloadedAd.show(act)
             AdPreloadManager.clearCachedInterstitial()
             log("  ✓ Preloaded show() called successfully")
@@ -732,14 +772,47 @@ class AdMobBridge(
         if (preloadedAd != null) {
             log("  ► Using PRELOADED rewarded (fast path)")
             TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded rewarded")
+            
+            // Track if reward was earned
+            var rewardEarned = false
+            
+            // Override callbacks to emit JavaScript
+            preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
+                override fun onAdDismissedFullScreenContent() {
+                    log("Preloaded rewarded dismissed, rewardEarned: $rewardEarned")
+                    notifyJs("adClosed", "admob", "rewarded")
+                    // If reward wasn't earned, emit closed callback
+                    if (!rewardEarned) {
+                        emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
+                    }
+                }
+                
+                override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    log("Preloaded rewarded failed to show: ${error.message}", "E")
+                    notifyJs("adFailed", "admob", "rewarded", error.message)
+                    val escapedError = error.message.replace("'", "\\'")
+                    emitDirectCallback("if(window.onRewardedFailedToShow) window.onRewardedFailedToShow('$escapedError');")
+                }
+                
+                override fun onAdShowedFullScreenContent() {
+                    totalImpressions++
+                    rewardedImpressions++
+                    log("★★★ PRELOADED REWARDED IMPRESSION #$rewardedImpressions ★★★")
+                    notifyJs("adImpression", "admob", "rewarded")
+                }
+            }
+            
             preloadedAd.show(act) { reward ->
                 log("★★★ USER EARNED REWARD ★★★")
                 log("  Type: ${reward.type}")
                 log("  Amount: ${reward.amount}")
+                rewardEarned = true
                 notifyJs("adRewarded", "admob", "rewarded", null, mapOf(
                     "type" to reward.type,
                     "amount" to reward.amount
                 ))
+                // CRITICAL: Emit specific callback for web app Promise resolution
+                emitDirectCallback("if(window.onRewardEarned) window.onRewardEarned('${reward.type}', ${reward.amount});")
             }
             AdPreloadManager.clearCachedRewarded()
             log("  ✓ Preloaded show() called successfully")
@@ -753,10 +826,13 @@ class AdMobBridge(
                 log("★★★ USER EARNED REWARD ★★★")
                 log("  Type: ${reward.type}")
                 log("  Amount: ${reward.amount}")
+                localRewardEarned = true
                 notifyJs("adRewarded", "admob", "rewarded", null, mapOf(
                     "type" to reward.type,
                     "amount" to reward.amount
                 ))
+                // CRITICAL: Emit specific callback for web app Promise resolution
+                emitDirectCallback("if(window.onRewardEarned) window.onRewardEarned('${reward.type}', ${reward.amount});")
             }
             log("  ✓ Local show() called successfully")
         } else {
@@ -803,6 +879,17 @@ class AdMobBridge(
         
         activity.runOnUiThread {
             webView.evaluateJavascript(script, null)
+        }
+    }
+
+    /**
+     * Emit a direct JavaScript callback to the WebView.
+     * Used for specific callback functions like onInterstitialClosed(), onRewardEarned(), etc.
+     */
+    private fun emitDirectCallback(javascript: String) {
+        log("→ Emitting direct callback: $javascript")
+        activity.runOnUiThread {
+            webView.evaluateJavascript(javascript, null)
         }
     }
 
