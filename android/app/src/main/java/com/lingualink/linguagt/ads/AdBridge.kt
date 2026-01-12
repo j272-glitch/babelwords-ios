@@ -37,6 +37,9 @@ class AdBridge(
         
         private const val MAX_RETRY_DELAY_MS = 60000L
         private const val INITIAL_RETRY_DELAY_MS = 1000L
+        
+        // Delay before bringing app to foreground after ad click
+        private const val FOREGROUND_DELAY_MS = 1500L
     }
     
     private var interstitialAd: InterstitialAd? = null
@@ -70,9 +73,6 @@ class AdBridge(
     // Foreground recovery system - handles Play Store redirect
     private var pendingForegroundRunnable: Runnable? = null
     private var adClickedTime: Long = 0
-    private companion object ForegroundRecovery {
-        private const val FOREGROUND_DELAY_MS = 1500L
-    }
     
     // Direct production IDs - no test fallback
     private val interstitialId: String
