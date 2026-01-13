@@ -613,16 +613,20 @@ class AdMobBridge(
                             override fun onAdDismissedFullScreenContent() {
                                 isInterstitialReady = false
                                 interstitialAd = null
+                                cancelForegroundRecovery()
                                 log("Interstitial dismissed")
                                 notifyJs("adClosed", "admob", "interstitial")
                                 // CRITICAL: Emit specific callback for web app Promise resolution
                                 emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
+                                // CRITICAL: Bring app back to foreground after ad dismissal
+                                bringAppToForeground()
                                 loadInterstitialAd() // Preload next
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                                 isInterstitialReady = false
                                 interstitialAd = null
+                                cancelForegroundRecovery()
                                 log("✗ Interstitial show FAILED: ${error.code} - ${error.message}", "E")
                                 notifyJs("adFailed", "admob", "interstitial", error.message)
                                 // CRITICAL: Emit failure callback for web app retry logic
@@ -631,7 +635,8 @@ class AdMobBridge(
                             }
 
                             override fun onAdClicked() {
-                                log("Interstitial clicked")
+                                log("Interstitial clicked - scheduling foreground recovery")
+                                scheduleForegroundRecovery()
                                 notifyJs("adClicked", "admob", "interstitial")
                             }
                         }
@@ -692,18 +697,22 @@ class AdMobBridge(
                             override fun onAdDismissedFullScreenContent() {
                                 isRewardedReady = false
                                 rewardedAd = null
+                                cancelForegroundRecovery()
                                 log("Rewarded dismissed, localRewardEarned: $localRewardEarned")
                                 notifyJs("adClosed", "admob", "rewarded")
                                 // CRITICAL: Only emit closed callback if reward wasn't earned
                                 if (!localRewardEarned) {
                                     emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                                 }
+                                // CRITICAL: Bring app back to foreground after ad dismissal
+                                bringAppToForeground()
                                 loadRewardedAd() // Preload next
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
                                 isRewardedReady = false
                                 rewardedAd = null
+                                cancelForegroundRecovery()
                                 log("✗ Rewarded show FAILED: ${error.code} - ${error.message}", "E")
                                 notifyJs("adFailed", "admob", "rewarded", error.message)
                                 // CRITICAL: Emit failure callback for web app retry logic
@@ -712,7 +721,8 @@ class AdMobBridge(
                             }
 
                             override fun onAdClicked() {
-                                log("Rewarded clicked")
+                                log("Rewarded clicked - scheduling foreground recovery")
+                                scheduleForegroundRecovery()
                                 notifyJs("adClicked", "admob", "rewarded")
                             }
                         }
