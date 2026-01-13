@@ -401,7 +401,7 @@ class MainActivity : BaseActivity() {
     private fun notifyWebViewAdReady(adType: String) {
         try {
             if (::webView.isInitialized && isWebViewFullyLoaded) {
-                val js = "javascript:if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
+                val js = "if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
                 webView.post { webView.evaluateJavascript(js, null) }
             } else {
                 // Buffer the event for when WebView is ready
@@ -426,7 +426,7 @@ class MainActivity : BaseActivity() {
             if (::webView.isInitialized && isWebViewFullyLoaded) {
                 synchronized(pendingAdReadyEvents) {
                     pendingAdReadyEvents.forEach { adType ->
-                        val js = "javascript:if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
+                        val js = "if(window.onNativeAdReady){window.onNativeAdReady('$adType');}"
                         webView.post { webView.evaluateJavascript(js, null) }
                         TestRigorLogger.logAdEvent("Flushed buffered ad ready event: $adType")
                     }
@@ -444,7 +444,7 @@ class MainActivity : BaseActivity() {
     private fun notifyWebViewRewardEarned(type: String, amount: Int) {
         try {
             if (::webView.isInitialized && isWebViewFullyLoaded) {
-                val js = "javascript:if(window.onRewardEarned){window.onRewardEarned('$type',$amount);}"
+                val js = "if(window.onRewardEarned){window.onRewardEarned('$type',$amount);}"
                 webView.post { webView.evaluateJavascript(js, null) }
             }
         } catch (e: Exception) {
