@@ -1,6 +1,9 @@
 package com.lingualink.linguagt.ads
 
 import android.app.Activity
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -41,6 +44,9 @@ class AdMobBridge(
         private const val DEFAULT_BANNER_ID = "ca-app-pub-9991891515643313/6878126239"
         private const val DEFAULT_INTERSTITIAL_ID = "ca-app-pub-9991891515643313/5076005693"
         private const val DEFAULT_REWARDED_ID = "ca-app-pub-9991891515643313/6313049833"
+        
+        // Foreground recovery delay after ad click
+        private const val FOREGROUND_DELAY_MS = 1500L
     }
 
     // Current placement IDs (set from JavaScript or use defaults)
@@ -71,6 +77,11 @@ class AdMobBridge(
 
     // Activity reference (weak to prevent leaks)
     private val activityRef = WeakReference(activity)
+    
+    // Foreground recovery system - handles Play Store redirect
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingForegroundRunnable: Runnable? = null
+    private var adClickedTime: Long = 0
 
     init {
         log("═".repeat(50))
@@ -92,6 +103,62 @@ class AdMobBridge(
             "E" -> Log.e(TAG, fullMessage)
             "W" -> Log.w(TAG, fullMessage)
             else -> Log.d(TAG, fullMessage)
+        }
+    }
+    
+    // ==================== Foreground Recovery ====================
+    
+    /**
+     * Bring the app back to foreground after ad interaction.
+     * This handles the Play Store redirect issue.
+     */
+    private fun bringAppToForeground() {
+        val act = activityRef.get()
+        if (act == null || act.isFinishing || act.isDestroyed) {
+            log("Cannot bring to foreground - activity invalid")
+            return
+        }
+        
+        log("Bringing app to foreground")
+        TestRigorLogger.logAdEvent("AdMobBridge: Bringing app to foreground")
+        
+        val intent = Intent(act, act::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        act.startActivity(intent)
+    }
+    
+    /**
+     * Schedule foreground recovery after ad click.
+     * Called when user clicks on an ad that may redirect to Play Store.
+     */
+    private fun scheduleForegroundRecovery() {
+        cancelForegroundRecovery()
+        
+        adClickedTime = System.currentTimeMillis()
+        log("Ad clicked - scheduling foreground recovery in ${FOREGROUND_DELAY_MS}ms")
+        TestRigorLogger.logAdEvent("AdMobBridge: Scheduling foreground recovery")
+        
+        pendingForegroundRunnable = Runnable {
+            val timeSinceClick = System.currentTimeMillis() - adClickedTime
+            log("Foreground recovery triggered after ${timeSinceClick}ms")
+            bringAppToForeground()
+        }
+        
+        mainHandler.postDelayed(pendingForegroundRunnable!!, FOREGROUND_DELAY_MS)
+    }
+    
+    /**
+     * Cancel any pending foreground recovery.
+     * Called when user returns naturally or ad is dismissed.
+     */
+    private fun cancelForegroundRecovery() {
+        pendingForegroundRunnable?.let {
+            log("Cancelling pending foreground recovery")
+            mainHandler.removeCallbacks(it)
+            pendingForegroundRunnable = null
         }
     }
 
@@ -702,16 +769,20 @@ class AdMobBridge(
             log("  ► Using PRELOADED interstitial (fast path)")
             TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded interstitial")
             
-            // Override callbacks to emit JavaScript
+            // Override callbacks to emit JavaScript AND handle foreground recovery
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     log("Preloaded interstitial dismissed")
+                    cancelForegroundRecovery()
                     notifyJs("adClosed", "admob", "interstitial")
                     emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
+                    // CRITICAL: Bring app back to foreground after ad dismissal
+                    bringAppToForeground()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
                     log("Preloaded interstitial failed to show: ${error.message}", "E")
+                    cancelForegroundRecovery()
                     notifyJs("adFailed", "admob", "interstitial", error.message)
                     val escapedError = error.message.replace("'", "\\'")
                     emitDirectCallback("if(window.onInterstitialFailedToShow) window.onInterstitialFailedToShow('$escapedError');")
@@ -722,6 +793,11 @@ class AdMobBridge(
                     interstitialImpressions++
                     log("★★★ PRELOADED INTERSTITIAL IMPRESSION #$interstitialImpressions ★★★")
                     notifyJs("adImpression", "admob", "interstitial")
+                }
+                
+                override fun onAdClicked() {
+                    log("Preloaded interstitial clicked - scheduling foreground recovery")
+                    scheduleForegroundRecovery()
                 }
             }
             
@@ -776,19 +852,23 @@ class AdMobBridge(
             // Track if reward was earned
             var rewardEarned = false
             
-            // Override callbacks to emit JavaScript
+            // Override callbacks to emit JavaScript AND handle foreground recovery
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     log("Preloaded rewarded dismissed, rewardEarned: $rewardEarned")
+                    cancelForegroundRecovery()
                     notifyJs("adClosed", "admob", "rewarded")
                     // If reward wasn't earned, emit closed callback
                     if (!rewardEarned) {
                         emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                     }
+                    // CRITICAL: Bring app back to foreground after ad dismissal
+                    bringAppToForeground()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
                     log("Preloaded rewarded failed to show: ${error.message}", "E")
+                    cancelForegroundRecovery()
                     notifyJs("adFailed", "admob", "rewarded", error.message)
                     val escapedError = error.message.replace("'", "\\'")
                     emitDirectCallback("if(window.onRewardedFailedToShow) window.onRewardedFailedToShow('$escapedError');")
@@ -799,6 +879,11 @@ class AdMobBridge(
                     rewardedImpressions++
                     log("★★★ PRELOADED REWARDED IMPRESSION #$rewardedImpressions ★★★")
                     notifyJs("adImpression", "admob", "rewarded")
+                }
+                
+                override fun onAdClicked() {
+                    log("Preloaded rewarded clicked - scheduling foreground recovery")
+                    scheduleForegroundRecovery()
                 }
             }
             
