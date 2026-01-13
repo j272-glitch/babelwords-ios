@@ -649,14 +649,14 @@ class AdBridge(
             rewardedAd?.let { ad ->
                 ad.show(activity) { rewardItem ->
                     val rewardAmount = rewardItem.amount
-                    val rewardType = rewardItem.type
+                    val rewardType = rewardItem.type.replace("'", "\\'")
                     TestRigorLogger.logAdEvent("User earned reward: $rewardAmount $rewardType")
                     
                     notifyWeb("rewardedEarned", rewardAmount.toString())
                     
                     mainHandler.post {
                         if (!activity.isFinishing && !activity.isDestroyed) {
-                            webView.evaluateJavascript("if(window.onRewardEarned) window.onRewardEarned($rewardAmount);", null)
+                            webView.evaluateJavascript("if(window.onRewardEarned) window.onRewardEarned('$rewardType', $rewardAmount);", null)
                         }
                     }
                 }
@@ -681,11 +681,12 @@ class AdBridge(
             rewardedInterstitialAd?.let { ad ->
                 ad.show(activity) { rewardItem ->
                     val rewardAmount = rewardItem.amount
-                    TestRigorLogger.logAdEvent("User earned reward from interstitial: $rewardAmount")
+                    val rewardType = rewardItem.type.replace("'", "\\'")
+                    TestRigorLogger.logAdEvent("User earned reward from interstitial: $rewardAmount $rewardType")
                     notifyWeb("rewardedInterstitialEarned", rewardAmount.toString())
                     mainHandler.post {
                         if (!activity.isFinishing && !activity.isDestroyed) {
-                            webView.evaluateJavascript("if(window.onRewardEarned) window.onRewardEarned($rewardAmount);", null)
+                            webView.evaluateJavascript("if(window.onRewardEarned) window.onRewardEarned('$rewardType', $rewardAmount);", null)
                         }
                     }
                 }
