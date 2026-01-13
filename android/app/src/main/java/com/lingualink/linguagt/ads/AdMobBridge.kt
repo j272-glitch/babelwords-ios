@@ -906,8 +906,7 @@ class AdMobBridge(
     }
     
     /**
-     * Emit reward callback through multiple mechanisms to ensure web app receives it.
-     * Tries: window.onRewardEarned, dispatchEvent, and postMessage.
+     * Emit reward callback to JavaScript - simple direct call per the guide.
      */
     private fun emitRewardCallback(rewardType: String, rewardAmount: Int) {
         log("═".repeat(50))
@@ -916,57 +915,15 @@ class AdMobBridge(
         log("═".repeat(50))
         
         val escapedType = rewardType.replace("'", "\\'")
+        val callback = "if(window.onRewardEarned) window.onRewardEarned('$escapedType', $rewardAmount);"
         
-        // Multi-mechanism callback script
-        val script = """
-            (function() {
-                console.log('[AdMobBridge] Reward callback received: type=$escapedType, amount=$rewardAmount');
-                var handled = false;
-                
-                // Method 1: Direct function call
-                if (typeof window.onRewardEarned === 'function') {
-                    console.log('[AdMobBridge] Calling window.onRewardEarned');
-                    try {
-                        window.onRewardEarned('$escapedType', $rewardAmount);
-                        handled = true;
-                    } catch(e) {
-                        console.error('[AdMobBridge] onRewardEarned error:', e);
-                    }
-                }
-                
-                // Method 2: Custom event dispatch
-                try {
-                    var event = new CustomEvent('adRewardEarned', {
-                        detail: { type: '$escapedType', amount: $rewardAmount }
-                    });
-                    window.dispatchEvent(event);
-                    console.log('[AdMobBridge] Dispatched adRewardEarned event');
-                } catch(e) {
-                    console.error('[AdMobBridge] Event dispatch error:', e);
-                }
-                
-                // Method 3: PostMessage
-                try {
-                    window.postMessage({
-                        source: 'AdMobBridge',
-                        type: 'rewardEarned',
-                        rewardType: '$escapedType',
-                        rewardAmount: $rewardAmount
-                    }, '*');
-                    console.log('[AdMobBridge] Posted message');
-                } catch(e) {
-                    console.error('[AdMobBridge] postMessage error:', e);
-                }
-                
-                return handled ? 'handled' : 'dispatched';
-            })();
-        """.trimIndent()
+        log("→ Callback: $callback")
         
         activity.runOnUiThread {
             try {
-                webView.evaluateJavascript(script) { result ->
+                webView.evaluateJavascript(callback) { result ->
                     log("  ✓ Reward callback result: $result")
-                    TestRigorLogger.logAdEvent("Reward callback result: $result")
+                    TestRigorLogger.logAdEvent("Reward callback executed, result: $result")
                 }
             } catch (e: Exception) {
                 log("  ✗ Reward callback failed: ${e.message}", "E")

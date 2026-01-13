@@ -1,0 +1,497 @@
+Android App Update Guide - Ad Callback System
+This guide covers all required changes to your Android app to properly integrate with the updated web app ad system.
+
+Summary of Required Changes
+Add callback emissions after ad events
+Implement foreground recovery after Play Store redirects
+Add debug functions for testing
+1. AdBridge.kt - Complete Updated Implementation
+Replace your existing AdBridge.kt with this updated version:
+
+package com.lingualink.linguagt
+import android.app.Activity
+import android.content.Intent
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+class AdBridge(
+    private val activity: Activity,
+    private val webView: WebView
+) {
+    companion object {
+        private const val TAG = "AdBridge"
+        
+        // Production Ad Unit IDs
+        const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/5076005693"
+        const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/6313049833"
+        
+        // Delay before bringing app to foreground after ad click
+        private const val FOREGROUND_DELAY_MS = 1500L
+    }
+    
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    private var isLoadingInterstitial = false
+    private var isLoadingRewarded = false
+    private var rewardEarned = false
+    
+    // Foreground recovery system
+    private val handler = Handler(Looper.getMainLooper())
+    private var pendingForegroundRunnable: Runnable? = null
+    
+    // ========================================
+    // FOREGROUND RECOVERY (Play Store fix)
+    // ========================================
+    
+    private fun bringAppToForeground() {
+        Log.d(TAG, "Bringing app to foreground")
+        val intent = Intent(activity, activity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        activity.startActivity(intent)
+    }
+    
+    private fun scheduleForegroundRecovery() {
+        cancelForegroundRecovery()
+        Log.d(TAG, "Ad clicked - scheduling foreground recovery in ${FOREGROUND_DELAY_MS}ms")
+        
+        pendingForegroundRunnable = Runnable {
+            Log.d(TAG, "Foreground recovery triggered")
+            bringAppToForeground()
+        }
+        
+        handler.postDelayed(pendingForegroundRunnable!!, FOREGROUND_DELAY_MS)
+    }
+    
+    private fun cancelForegroundRecovery() {
+        pendingForegroundRunnable?.let {
+            Log.d(TAG, "Cancelling pending foreground recovery")
+            handler.removeCallbacks(it)
+            pendingForegroundRunnable = null
+        }
+    }
+    
+    // ========================================
+    // JAVASCRIPT CALLBACK EMISSIONS
+    // ========================================
+    
+    private fun emitCallback(javascript: String) {
+        activity.runOnUiThread {
+            Log.d(TAG, "Emitting callback: $javascript")
+            webView.evaluateJavascript(javascript, null)
+        }
+    }
+    
+    // ========================================
+    // INTERSTITIAL AD
+    // ========================================
+    
+    fun loadInterstitial() {
+        if (isLoadingInterstitial || interstitialAd != null) {
+            Log.d(TAG, "Interstitial already loading or loaded")
+            return
+        }
+        
+        isLoadingInterstitial = true
+        val adRequest = AdRequest.Builder().build()
+        
+        InterstitialAd.load(
+            activity,
+            INTERSTITIAL_AD_UNIT_ID,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d(TAG, "Interstitial loaded successfully")
+                    interstitialAd = ad
+                    isLoadingInterstitial = false
+                    setupInterstitialCallbacks()
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e(TAG, "Interstitial failed to load: ${error.message}")
+                    interstitialAd = null
+                    isLoadingInterstitial = false
+                }
+            }
+        )
+    }
+    
+    private fun setupInterstitialCallbacks() {
+        interstitialAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "Interstitial showed")
+            }
+            
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Interstitial dismissed by user")
+                interstitialAd = null
+                
+                // Cancel foreground recovery since user returned naturally
+                cancelForegroundRecovery()
+                
+                // CRITICAL: Emit callback to JavaScript
+                emitCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
+                
+                // Bring app to foreground
+                bringAppToForeground()
+                
+                // Preload next ad
+                loadInterstitial()
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e(TAG, "Interstitial failed to show: ${error.message}")
+                interstitialAd = null
+                cancelForegroundRecovery()
+                
+                // CRITICAL: Emit failure callback
+                val escapedError = error.message.replace("'", "\\'")
+                emitCallback("if(window.onInterstitialFailedToShow) window.onInterstitialFailedToShow('$escapedError');")
+                
+                loadInterstitial()
+            }
+            
+            override fun onAdClicked() {
+                Log.d(TAG, "Interstitial clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
+            }
+            
+            override fun onAdImpression() {
+                Log.d(TAG, "Interstitial impression recorded")
+            }
+        }
+    }
+    
+    @JavascriptInterface
+    fun showInterstitial(adUnitId: String): String {
+        Log.d(TAG, "showInterstitial called with adUnitId: $adUnitId")
+        
+        val ad = interstitialAd
+        if (ad == null) {
+            Log.w(TAG, "Interstitial not ready - attempting to load")
+            loadInterstitial()
+            return "not_ready"
+        }
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "Showing interstitial on UI thread")
+            ad.show(activity)
+        }
+        
+        return "showing"
+    }
+    
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean {
+        return interstitialAd != null
+    }
+    
+    // ========================================
+    // REWARDED AD
+    // ========================================
+    
+    fun loadRewarded() {
+        if (isLoadingRewarded || rewardedAd != null) {
+            Log.d(TAG, "Rewarded already loading or loaded")
+            return
+        }
+        
+        isLoadingRewarded = true
+        val adRequest = AdRequest.Builder().build()
+        
+        RewardedAd.load(
+            activity,
+            REWARDED_AD_UNIT_ID,
+            adRequest,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d(TAG, "Rewarded loaded successfully")
+                    rewardedAd = ad
+                    isLoadingRewarded = false
+                    setupRewardedCallbacks()
+                }
+                
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.e(TAG, "Rewarded failed to load: ${error.message}")
+                    rewardedAd = null
+                    isLoadingRewarded = false
+                }
+            }
+        )
+    }
+    
+    private fun setupRewardedCallbacks() {
+        rewardedAd?.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "Rewarded showed")
+                rewardEarned = false // Reset reward flag
+            }
+            
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Rewarded dismissed, rewardEarned: $rewardEarned")
+                rewardedAd = null
+                
+                // Cancel foreground recovery
+                cancelForegroundRecovery()
+                
+                // If reward wasn't earned, emit closed callback
+                if (!rewardEarned) {
+                    emitCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
+                }
+                
+                // Bring app to foreground
+                bringAppToForeground()
+                
+                // Preload next ad
+                loadRewarded()
+            }
+            
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.e(TAG, "Rewarded failed to show: ${error.message}")
+                rewardedAd = null
+                cancelForegroundRecovery()
+                
+                // CRITICAL: Emit failure callback
+                val escapedError = error.message.replace("'", "\\'")
+                emitCallback("if(window.onRewardedFailedToShow) window.onRewardedFailedToShow('$escapedError');")
+                
+                loadRewarded()
+            }
+            
+            override fun onAdClicked() {
+                Log.d(TAG, "Rewarded clicked - scheduling foreground recovery")
+                scheduleForegroundRecovery()
+            }
+            
+            override fun onAdImpression() {
+                Log.d(TAG, "Rewarded impression recorded")
+            }
+        }
+    }
+    
+    @JavascriptInterface
+    fun showRewarded(adUnitId: String): String {
+        Log.d(TAG, "showRewarded called with adUnitId: $adUnitId")
+        
+        val ad = rewardedAd
+        if (ad == null) {
+            Log.w(TAG, "Rewarded not ready - attempting to load")
+            loadRewarded()
+            return "not_ready"
+        }
+        
+        activity.runOnUiThread {
+            Log.d(TAG, "Showing rewarded on UI thread")
+            ad.show(activity) { rewardItem ->
+                // User earned the reward
+                Log.d(TAG, "Reward earned: type=${rewardItem.type}, amount=${rewardItem.amount}")
+                rewardEarned = true
+                
+                // Cancel foreground recovery - ad completed successfully
+                cancelForegroundRecovery()
+                
+                // CRITICAL: Emit reward callback to JavaScript
+                emitCallback("if(window.onRewardEarned) window.onRewardEarned('${rewardItem.type}', ${rewardItem.amount});")
+            }
+        }
+        
+        return "showing"
+    }
+    
+    @JavascriptInterface
+    fun isRewardedReady(): Boolean {
+        return rewardedAd != null
+    }
+    
+    // ========================================
+    // UTILITY METHODS
+    // ========================================
+    
+    fun preloadAds() {
+        Log.d(TAG, "Preloading ads...")
+        loadInterstitial()
+        loadRewarded()
+    }
+    
+    fun destroy() {
+        cancelForegroundRecovery()
+        interstitialAd = null
+        rewardedAd = null
+    }
+}
+2. MainActivity.kt Updates
+package com.lingualink.linguagt
+import android.content.Intent
+import android.os.Bundle
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.gms.ads.MobileAds
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private lateinit var adBridge: AdBridge
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Initialize Mobile Ads SDK
+        MobileAds.initialize(this) { initializationStatus ->
+            android.util.Log.d("MainActivity", "AdMob SDK initialized")
+            adBridge.preloadAds()
+        }
+        
+        webView = findViewById(R.id.webView)
+        setupWebView()
+        
+        adBridge = AdBridge(this, webView)
+        webView.addJavascriptInterface(adBridge, "AndroidAdBridge")
+        
+        webView.loadUrl("https://linguagt.com")
+    }
+    
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        
+        webView.webViewClient = WebViewClient()
+    }
+    
+    // Handle returning from Play Store
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        android.util.Log.d("MainActivity", "onNewIntent - user returned to app")
+        setIntent(intent)
+        webView.requestFocus()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        webView.onPause()
+    }
+    
+    override fun onBackPressed() {
+        if (webView.canGoBack()) {
+            webView.goBack()
+        } else {
+            super.onBackPressed()
+        }
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        adBridge.destroy()
+    }
+}
+3. AndroidManifest.xml Configuration
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.lingualink.linguagt">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9991891515643313~XXXXXXXXXX"/>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=""
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:hardwareAccelerated="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+Key manifest changes:
+
+launchMode="singleTask" - Ensures single instance
+taskAffinity="" - Isolates Play Store in separate task
+4. build.gradle Dependencies
+dependencies {
+    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.webkit:webkit:1.8.0'
+}
+5. Testing the Integration
+Debug Commands (run from Android)
+// Test interstitial callback
+webView.evaluateJavascript("window.testAdCallback('interstitial');", null)
+// Test rewarded callback
+webView.evaluateJavascript("window.testAdCallback('rewarded');", null)
+// Check callback status
+webView.evaluateJavascript("window.checkAdCallbackStatus();", null)
+Expected Logcat Output
+When ads work correctly, you should see:
+
+D/AdBridge: showInterstitial called with adUnitId: ca-app-pub-...
+D/AdBridge: Showing interstitial on UI thread
+D/AdBridge: Interstitial showed
+D/AdBridge: Interstitial dismissed by user
+D/AdBridge: Emitting callback: if(window.onInterstitialClosed) window.onInterstitialClosed();
+For rewarded ads:
+
+D/AdBridge: showRewarded called with adUnitId: ca-app-pub-...
+D/AdBridge: Showing rewarded on UI thread
+D/AdBridge: Rewarded showed
+D/AdBridge: Reward earned: type=reward, amount=1
+D/AdBridge: Emitting callback: if(window.onRewardEarned) window.onRewardEarned('reward', 1);
+6. Troubleshooting
+Rewards Not Being Granted
+Check Logcat for "Emitting callback" logs
+Verify callback is using evaluateJavascript, not loadUrl
+Run window.checkAdCallbackStatus() to verify registration
+Play Store Redirect Loop
+Ensure launchMode="singleTask" is set
+Ensure taskAffinity="" is set
+Verify scheduleForegroundRecovery() is called in onAdClicked
+Verify bringAppToForeground() is called in onAdDismissedFullScreenContent
+Ads Not Loading
+Check internet connectivity
+Verify AdMob App ID in manifest
+Wait 24-48 hours for new ad units
+Check AdMob console for policy violations
+7. Callback Reference
+Event	JavaScript Call	Result
+Interstitial closed	window.onInterstitialClosed()	+5 translations
+Reward earned	window.onRewardEarned('reward', 1)	30 min unlimited
+Interstitial failed	window.onInterstitialFailedToShow('error')	Retry allowed
+Rewarded failed	window.onRewardedFailedToShow('error')	Retry allowed
+Rewarded skipped	window.onRewardedClosed()	No reward
+8. Checklist
+ Updated AdBridge.kt with new callback emissions
+ Updated MainActivity.kt with onNewIntent handler
+ Set launchMode="singleTask" in manifest
+ Set taskAffinity="" in manifest
+ Verified AdMob SDK version 22.6.0+
+ Tested interstitial callback with window.testAdCallback('interstitial')
+ Tested rewarded callback with window.testAdCallback('rewarded')
+ Verified Logcat shows "Emitting callback" messages
+ Tested Play Store redirect recovery
