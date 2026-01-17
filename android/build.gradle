@@ -189,8 +189,7 @@ subprojects {
                         // TestRigor compatibility
                         crunchPngs false
 
-                        // Don't use proguard for TestRigor
-                        useProguard false
+                        // ProGuard disabled via minifyEnabled = false
 
                         // Signing config (if you have one)
                         // signingConfig signingConfigs.release
@@ -400,8 +399,7 @@ afterEvaluate {
     tasks.findByPath(':app:preBuild')?.dependsOn('verifyTestRigorCompatibility')
 }
 
-// Gradle configuration cache settings
-gradle.configurationCache.problems = 'warn'
+// Gradle configuration cache settings (disabled for compatibility)
 
 // Print important notice on configuration
 println """
