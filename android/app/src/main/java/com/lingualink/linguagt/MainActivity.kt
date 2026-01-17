@@ -204,20 +204,57 @@ class MainActivity : BaseActivity() {
             // ANR PREVENTION: Defer heavy WebView initialization and permission requests to next frame
             // This allows the UI thread to respond within 5 seconds
             // Permissions must be requested after window is attached
+            
+            // FIX #17: Add timeout fallback in case window.decorView.post never executes
+            val setupTimeoutMs = 5000L
+            var setupCompleted = false
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!setupCompleted && !isFinishing) {
+                    TestRigorLogger.logWarning("Setup timeout - forcing WebView initialization")
+                    forceWebViewSetup()
+                }
+            }, setupTimeoutMs)
+            
             window.decorView.post {
+                // FIX #14/#15: Check lifecycle state before proceeding
+                if (isFinishing || isDestroyed) {
+                    TestRigorLogger.logWarning("Activity finishing - skipping WebView setup")
+                    return@post
+                }
+                
                 try {
-                    // Request permissions after window is attached
-                    requestPermissions()
+                    // FIX #10: Wrap permissions in try-catch
+                    try {
+                        requestPermissions()
+                    } catch (e: Exception) {
+                        TestRigorLogger.logError("Permission request failed", e)
+                    }
                     
-                    // setupWebViewForConversationMode() now handles AdBridge registration
-                    // BEFORE any URL loads to fix timing race condition
-                    setupWebViewForConversationMode()
-                    
-                    handleDeepLink(intent)
-                    TestRigorLogger.logMilestone("WebView setup completed (deferred)")
+                    // FIX #2: Use try-finally to ensure loadDefaultUrl is always called
+                    try {
+                        // setupWebViewForConversationMode() now handles AdBridge registration
+                        // BEFORE any URL loads to fix timing race condition
+                        setupWebViewForConversationMode()
+                    } finally {
+                        // FIX #19: Ensure URL loads after WebView is configured
+                        handleDeepLink(intent)
+                        TestRigorLogger.logMilestone("WebView setup completed (deferred)")
+                        setupCompleted = true
+                    }
                 } catch (e: Exception) {
                     TestRigorLogger.logError("WebView setup failed", e)
-                    createNativeTranslationInterface()
+                    setupCompleted = true
+                    // FIX #2: Still try to load URL even on failure
+                    try {
+                        if (::webView.isInitialized) {
+                            loadDefaultUrl()
+                        } else {
+                            createNativeTranslationInterface()
+                        }
+                    } catch (e2: Exception) {
+                        TestRigorLogger.logError("Fallback load failed", e2)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -651,6 +688,21 @@ class MainActivity : BaseActivity() {
                 }
                 super.onReceivedError(view, request, error)
             }
+
+            // FIX #11: Handle SSL errors to prevent blank screens
+            override fun onReceivedSslError(view: WebView?, handler: android.webkit.SslErrorHandler?, error: android.net.http.SslError?) {
+                TestRigorLogger.logError("SSL error: ${error?.primaryError}", null)
+                // In production, we should NOT proceed with SSL errors for security
+                // But log detailed info for debugging
+                when (error?.primaryError) {
+                    android.net.http.SslError.SSL_EXPIRED -> TestRigorLogger.logError("SSL: Certificate expired", null)
+                    android.net.http.SslError.SSL_IDMISMATCH -> TestRigorLogger.logError("SSL: Hostname mismatch", null)
+                    android.net.http.SslError.SSL_NOTYETVALID -> TestRigorLogger.logError("SSL: Certificate not yet valid", null)
+                    android.net.http.SslError.SSL_UNTRUSTED -> TestRigorLogger.logError("SSL: Certificate untrusted", null)
+                }
+                // Cancel the load (security best practice)
+                handler?.cancel()
+            }
         }
 
         // CRITICAL: WebChromeClient handles microphone permission
@@ -715,7 +767,20 @@ class MainActivity : BaseActivity() {
         }
 
         webView.contentDescription = "LinguaVibe Translation App WebView"
+        
+        // FIX #7: Ensure WebView has proper dimensions (match_parent)
+        webView.layoutParams = android.view.ViewGroup.LayoutParams(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        
+        // FIX #4: Ensure WebView is visible
+        webView.visibility = android.view.View.VISIBLE
+        
+        // FIX #5: Log setContentView for debugging
+        TestRigorLogger.logMilestone("Setting content view with WebView")
         setContentView(webView)
+        TestRigorLogger.logMilestone("setContentView completed successfully")
 
         // Solution #90: Track content view set for Appium compatibility
         isContentViewSet = true
@@ -1485,6 +1550,35 @@ class MainActivity : BaseActivity() {
                     TestRigorLogger.logWarning("Multi-window mode entered during permission flow")
                 }
             }
+        }
+    }
+
+    /**
+     * FIX #17: Force WebView setup if normal initialization times out
+     * This ensures the app never shows a blank screen
+     */
+    private fun forceWebViewSetup() {
+        try {
+            TestRigorLogger.logMilestone("Forcing WebView setup due to timeout")
+            
+            // FIX #14: Check lifecycle state
+            if (isFinishing || isDestroyed) {
+                TestRigorLogger.logWarning("Activity finishing - cannot force setup")
+                return
+            }
+            
+            if (!::webView.isInitialized) {
+                setupWebViewForConversationMode()
+            }
+            
+            // Force load the URL
+            loadDefaultUrl()
+            
+            TestRigorLogger.logMilestone("Forced WebView setup completed")
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Force WebView setup failed", e)
+            // Last resort - show native interface
+            createNativeTranslationInterface()
         }
     }
 

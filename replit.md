@@ -106,6 +106,13 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 3. AdPreloadManager preloads ads immediately with consent context
 4. AdMobBridge button-triggered loads inherit consent status
 5. Non-personalized ads (npa=1) requested when consent not obtained but checked
+6. **CRITICAL FIX**: UNKNOWN consent status now preloads immediately (doesn't wait for consent update)
+
+*Ad Loading Fixes (January 2026)*:
+- AdPreloadManager: UNKNOWN consent status now triggers immediate preload with non-personalized ads
+- AdMobBridge: showInterstitial/showRewarded now load with auto-show when no cached ad available
+- JS loading notifications: window.onInterstitialLoading() and window.onRewardedLoading() callbacks added
+- Stale ad handling: Stale ads now trigger reload with auto-show flag set
 
 *AdMob Best Practices Implemented*:
 - 15-second load timeouts with automatic retry

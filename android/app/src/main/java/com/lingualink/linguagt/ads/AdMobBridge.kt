@@ -1056,12 +1056,17 @@ class AdMobBridge(
             return
         }
         
-        // Fix #24: Check if ad is stale
+        // Fix #24: Check if ad is stale - reload with auto-show
         if (!isInterstitialFresh() && AdPreloadManager.getCachedInterstitial() == null) {
-            log("Ad is stale - reloading", "W")
+            log("Ad is stale - reloading with auto-show", "W")
             isInterstitialReady = false
             interstitialAd = null
-            loadInterstitialAd()
+            autoShowInterstitial = true  // FIX: Auto-show when loaded
+            // Notify JS that ad is loading
+            emitDirectCallback("window.onInterstitialLoading && window.onInterstitialLoading();")
+            checkConsentThenLoad {
+                loadInterstitialAd()
+            }
             return
         }
         
@@ -1121,8 +1126,11 @@ class AdMobBridge(
         } else {
             // NO CACHED AD - Load with auto-show (same behavior as startup)
             // IMPORTANT: Check consent first to ensure real ads (not test ads)
+            isShowingAd = false  // Reset flag since we're loading, not showing
             log("⏳ No interstitial cached - loading with auto-show (like startup)")
             autoShowInterstitial = true
+            // Notify JS that ad is loading
+            emitDirectCallback("window.onInterstitialLoading && window.onInterstitialLoading();")
             checkConsentThenLoad {
                 loadInterstitialAd()
             }
@@ -1168,12 +1176,17 @@ class AdMobBridge(
             return
         }
         
-        // Fix #24: Check if ad is stale
+        // Fix #24: Check if ad is stale - reload with auto-show
         if (!isRewardedFresh() && AdPreloadManager.getCachedRewarded() == null) {
-            log("Ad is stale - reloading", "W")
+            log("Ad is stale - reloading with auto-show", "W")
             isRewardedReady = false
             rewardedAd = null
-            loadRewardedAd()
+            autoShowRewarded = true  // FIX: Auto-show when loaded
+            // Notify JS that ad is loading
+            emitDirectCallback("window.onRewardedLoading && window.onRewardedLoading();")
+            checkConsentThenLoad {
+                loadRewardedAd()
+            }
             return
         }
         
@@ -1270,6 +1283,8 @@ class AdMobBridge(
             // IMPORTANT: Check consent first to ensure real ads (not test ads)
             log("⏳ No rewarded cached - loading with auto-show (like startup)")
             autoShowRewarded = true
+            // Notify JS that ad is loading
+            emitDirectCallback("window.onRewardedLoading && window.onRewardedLoading();")
             checkConsentThenLoad {
                 loadRewardedAd()
             }

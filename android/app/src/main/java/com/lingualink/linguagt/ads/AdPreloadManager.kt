@@ -230,7 +230,11 @@ object AdPreloadManager : LifecycleEventObserver {
                 preloadAllAds(context)
             }
             ConsentInformation.ConsentStatus.UNKNOWN -> {
-                log("❓ Consent UNKNOWN - requesting consent info")
+                log("❓ Consent UNKNOWN - preloading with non-personalized ads IMMEDIATELY")
+                // FIX: Preload immediately with non-personalized ads (don't wait for consent)
+                // This ensures ads are ready on BrowserStack/test devices where consent is often UNKNOWN
+                preloadAllAds(context)
+                // Also request consent info update for future loads
                 requestConsentInfo(context)
             }
             else -> {
