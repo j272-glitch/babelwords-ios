@@ -49,6 +49,12 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-9991891515643313~7514450861"/>
 
+        <!-- Privacy Sandbox Ad Services Config - resolve conflict between play-services-ads and measurement -->
+        <property
+            android:name="android.adservices.AD_SERVICES_CONFIG"
+            android:resource="@xml/gma_ad_services_config"
+            tools:replace="android:resource" />
+
         <!-- Main Activity with proper configuration changes -->
         <activity
             android:name=".MainActivity"
