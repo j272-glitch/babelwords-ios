@@ -389,7 +389,7 @@ tasks.register('buildForTestRigor') {
 
 // Ensure verification runs before build
 afterEvaluate {
-    tasks.findByPath(':app:preBuild')?.dependsOn('verifyTestRigorCompatibility')
+    tasks.findByPath(':app:preBuild')?.dependsOn(tasks.named('verifyTestRigorCompatibility'))
 }
 
 // Gradle configuration cache settings (disabled for compatibility)
