@@ -291,17 +291,40 @@ class MainActivity : BaseActivity() {
         }
     }
 
+    private var loadUrlRetryCount = 0
+    private val MAX_LOAD_RETRIES = 5
+    private val LOAD_RETRY_DELAY_MS = 500L
+
     private fun loadDefaultUrl() {
-        TestRigorLogger.logMilestone("WebView loadUrl starting")
+        TestRigorLogger.logMilestone("WebView loadUrl starting (attempt ${loadUrlRetryCount + 1})")
         val defaultUrl = pendingDeepLinkUrl ?: BASE_URL
+        
         if (::webView.isInitialized && isSafeToUpdateUI()) {
+            loadUrlRetryCount = 0 // Reset on success
             // ANR FIX #4: Use WebView.post() for all WebView operations
             webView.post {
                 webView.loadUrl(defaultUrl)
                 TestRigorLogger.logMilestone("WebView loadUrl completed: $defaultUrl")
             }
+        } else if (::webView.isInitialized) {
+            // WebView exists but UI not safe yet - retry with delay
+            if (loadUrlRetryCount < MAX_LOAD_RETRIES) {
+                loadUrlRetryCount++
+                TestRigorLogger.logWarning("UI not safe, scheduling retry ${loadUrlRetryCount}/$MAX_LOAD_RETRIES")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    loadDefaultUrl()
+                }, LOAD_RETRY_DELAY_MS)
+            } else {
+                // FALLBACK: Force load after max retries - better than blank screen
+                TestRigorLogger.logWarning("Max retries reached - force loading URL")
+                loadUrlRetryCount = 0
+                webView.post {
+                    webView.loadUrl(defaultUrl)
+                    TestRigorLogger.logMilestone("WebView force loadUrl: $defaultUrl")
+                }
+            }
         } else {
-            TestRigorLogger.logWarning("Cannot loadUrl - WebView not ready or UI unsafe")
+            TestRigorLogger.logError("WebView not initialized - cannot load URL", null)
         }
     }
 
