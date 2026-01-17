@@ -1,0 +1,128 @@
+Rewarded ads are loaded by calling the static load() method on the RewardedAd class and passing in a RewardedAdLoadCallback. This is usually done in the onCreate() method of an Activity. Notice that like other format load callbacks, RewardedAdLoadCallback leverages LoadAdError to provide higher fidelity error details.
+
+Java
+Kotlin
+
+RewardedAd.load(
+  this,
+  "AD_UNIT_ID",
+  AdRequest.Builder().build(),
+  object : RewardedAdLoadCallback() {
+    override fun onAdLoaded(ad: RewardedAd) {
+      Log.d(TAG, "Ad was loaded.")
+      rewardedAd = ad
+    }
+
+    override fun onAdFailedToLoad(adError: LoadAdError) {
+      Log.d(TAG, adError.message)
+      rewardedAd = null
+    }
+  },
+)
+Code Tutor
+expand_more
+Replace AD_UNIT_ID with your ad unit ID.
+
+
+Tip: You can use ad load calls to build up a cache of preloaded ads before you intend to show them, so that ads can be shown with zero latency when needed. Since ads expire after an hour, you should clear this cache and reload with new ads every hour.
+Set the FullScreenContentCallback
+The FullScreenContentCallback handles events related to displaying your RewardedAd. Before you show your RewardedAd, make sure to set the callback like so:
+
+Java
+Kotlin
+
+rewardedAd?.fullScreenContentCallback =
+  object : FullScreenContentCallback() {
+    override fun onAdDismissedFullScreenContent() {
+      // Called when fullscreen content is dismissed.
+      Log.d(TAG, "Ad was dismissed.")
+      // Don't forget to set the ad reference to null so you
+      // don't show the ad a second time.
+      rewardedAd = null
+    }
+
+    override fun onAdFailedToShowFullScreenContent(adError: AdError) {
+      // Called when fullscreen content failed to show.
+      Log.d(TAG, "Ad failed to show.")
+      // Don't forget to set the ad reference to null so you
+      // don't show the ad a second time.
+      rewardedAd = null
+    }
+
+    override fun onAdShowedFullScreenContent() {
+      // Called when fullscreen content is shown.
+      Log.d(TAG, "Ad showed fullscreen content.")
+    }
+
+    override fun onAdImpression() {
+      // Called when an impression is recorded for an ad.
+      Log.d(TAG, "Ad recorded an impression.")
+    }
+
+    override fun onAdClicked() {
+      // Called when an ad is clicked.
+      Log.d(TAG, "Ad was clicked.")
+    }
+  }
+
+Code Tutor
+expand_more
+Show the ad
+When you show a rewarded ad, you will use an OnUserEarnedRewardListener object to handle reward events.
+
+Java
+Kotlin
+
+rewardedAd?.show(
+  this,
+  OnUserEarnedRewardListener { rewardItem ->
+    Log.d(TAG, "User earned the reward.")
+    // Handle the reward.
+    val rewardAmount = rewardItem.amount
+    val rewardType = rewardItem.type
+  },
+)
+
+Code Tutor
+expand_more
+[Optional] Validate server-side verification (SSV) callbacks
+Apps that require extra data in server-side verification callbacks should use the custom data feature of rewarded ads. Any string value set on a rewarded ad object is passed to the custom_data query parameter of the SSV callback. If no custom data value is set, the custom_data query parameter value won't be present in the SSV callback.
+
+The following code sample demonstrates how to set custom data on a rewarded ad object before requesting an ad.
+
+Java
+Kotlin
+
+RewardedAd.load(
+  context,
+  AD_UNIT_ID,
+  AdRequest.Builder().build(),
+  object : RewardedAdLoadCallback() {
+    override fun onAdLoaded(ad: RewardedAd) {
+      rewardedAd = ad
+      val options =
+        ServerSideVerificationOptions.Builder().setCustomData("SAMPLE_CUSTOM_DATA_STRING").build()
+      rewardedAd?.setServerSideVerificationOptions(options)
+    }
+  },
+)
+Code Tutor
+expand_more
+Replace SAMPLE_CUSTOM_DATA_STRING with your custom data.
+
+If you want to set the custom reward string, you must do so before showing the ad.
+
+Key Point: The custom reward string is percent escaped and might require decoding when parsed from the SSV callback.
+FAQ
+Is there a timeout for the initialization call?
+After 10 seconds, Google Mobile Ads SDK invokes the OnInitializationCompleteListener even if a mediation network still hasn't completed initialization.
+What if some mediation networks aren't ready when I get the initialization callback?
+We recommend loading an ad inside the callback of the OnInitializationCompleteListener. Even if a mediation network is not ready, Google Mobile Ads SDK still asks that network for an ad. So if a mediation network finishes initializing after the timeout, it can still service future ad requests in that session.
+
+You can continue to poll the initialization status of all adapters throughout your app session by calling MobileAds.getInitializationStatus().
+
+How do I find out why a particular mediation network isn't ready?
+AdapterStatus.getDescription() describes why an adapter is not ready to service ad requests.
+
+Does the onUserEarnedReward() callback always get called before the onAdDismissedFullScreenContent() callback?
+For Google ads, all onUserEarnedReward() calls occur before onAdDismissedFullScreenContent(). For ads served through mediation, the third-party ad network SDK's implementation determines the callback order. For ad network SDKs that provide a single close callback with reward information, the mediation adapter invokes onUserEarnedReward() before onAdDismissedFullScreenContent().
