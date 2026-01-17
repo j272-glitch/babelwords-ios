@@ -1,0 +1,25 @@
+01-17 23:49:08.821 D/TESTRIGOR(28204): AD_EVENT: AdPreloadManager: Loading interstitial | Time: 176869374882101-17 23:49:08.826 I/DynamiteModule(28204): Considering local module com.google.android.gms.ads.dynamite:0 and remote module com.google.android.gms.ads.dynamite:25340570001-17 23:49:08.826 I/DynamiteModule(28204): Selected remote version of com.google.android.gms.ads.dynamite, version >= 25340570001-17 23:49:08.827 D/DynamitePackage(28204): Instantiated singleton DynamitePackage.01-17 23:49:08.827 D/DynamitePackage(28204): Instantiating com.google.android.gms.ads.ChimeraMobileAdsSettingManagerCreatorImpl01-17 23:49:08.827 D/DynamitePackage(28204): Instantiating com.google.android.gms.ads.ChimeraAdManagerCreatorImpl01-17 23:49:08.836 E/ualink.linguagt(28204): No package ID 6a found for resource ID 0x6a0b0013.01-17 23:49:08.838 I/FA      (28204): App measurement initialized, version: 14800801-17 23:49:08.838 I/FA      (28204): To enable debug logging run: adb shell setprop log.tag.FA VERBOSE01-17 23:49:08.839 I/FA      (28204): To enable faster debug mode event logging run:01-17 23:49:08.839 I/FA      (28204):   adb shell setprop debug.firebase.analytics.app com.lingualink.linguagt01-17 23:49:08.840 I/WebViewFactory(28204): Loading com.google.android.webview version 142.0.7444.171 (code 744417133)01-17 23:49:08.842 W/ziparchive(28204): Unable to open '/data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.dm': No such file or directory01-17 23:49:08.842 W/ziparchive(28204): Unable to open '/data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.dm': No such file or directory01-17 23:49:08.842 W/ualink.linguagt(28204): Entry not found01-17 23:49:08.842 D/nativeloader(28204): Configuring clns-13 for other apk /data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.apk. target_sdk_version=36, uses_libraries=ALL, library_path=/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/lib/arm64:/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/base.apk!/lib/arm64-v8a:/data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand01-17 23:49:08.842 D/nativeloader(28204): Extending system_exposed_libraries: libedgetpu_dba.google.so01-17 23:49:08.842 D/ApplicationLoaders(28204): Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar01-17 23:49:08.843 D/nativeloader(28204): Configuring clns-14 for other apk /data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/lib/arm64:/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/base.apk!/lib/arm64-v8a:/data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand01-17 23:49:08.858 I/cr_WVCFactoryProvider(28204): version=142.0.7444.171 (744417133) minSdkVersion=29 multiprocess=true packageId=2 splits=<none>01-17 23:49:08.860 D/nativeloader(28204): Load /data/app/~~BjKTHQdZB3nJp4YP6vFhmw==/com.google.android.trichromelibrary_744417133-OUnugokESYz-c4pK0sbfjA==/base.apk!/lib/arm64-v8a/libmonochrome_64.so using ns clns-14 from class loader (caller=/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/base.apk): ok01-17 23:49:08.862 D/nativeloader(28204): Load /system/lib64/libwebviewchromium_plat_support.so using ns clns-14 from class loader (caller=/data/app/~~vz2kwf8AHascyXHpbmOJEw==/com.google.android.webview-BocO_8_X6tGazwcf5ROcgQ==/base.apk): ok01-17 23:49:08.863 I/chromium(28204): [0117/234908.863537:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)01-17 23:49:08.863 I/chromium(28204): [0117/234908.863793:INFO:android_webview/browser/variations/variations_seed_loader.cc:67] Failed to open file for reading.: No such file or directory (2)01-17 23:49:08.899 D/TrafficStats(28204): tagSocket(133) with statsTag=0x8001, statsUid=-101-17 23:49:08.975 I/FA      (28204): Tag Manager is not found and thus will not be used
+PRO
+
+Switch Device
+
+Local testing
+
+
+Zoom
+
+Record Session
+
+DevTools
+
+Report a bug
+
+Settings
+
+Stop Session
+
+
+
+
+
+
