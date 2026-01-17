@@ -18,6 +18,10 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.UserMessagingPlatform
 import com.lingualink.linguagt.TestRigorLogger
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
@@ -35,8 +39,8 @@ import java.util.*
  */
 class AdMobBridge(
     private val activity: Activity,
-    private val webView: WebView
-) {
+    webView: WebView
+) : LifecycleEventObserver {
     companion object {
         private const val TAG = "AdMobBridge"
         
@@ -47,7 +51,16 @@ class AdMobBridge(
         
         // Foreground recovery delay after ad click
         private const val FOREGROUND_DELAY_MS = 1500L
+        
+        // Ad expiration time (45 minutes per AdMob docs)
+        private const val AD_EXPIRY_MS = 45 * 60 * 1000L
+        
+        // Load timeout (15 seconds)
+        private const val LOAD_TIMEOUT_MS = 15000L
     }
+    
+    // WeakReference to WebView to prevent memory leaks (Fix #4)
+    private var webViewRef: WeakReference<WebView> = WeakReference(webView)
 
     // Current placement IDs (set from JavaScript or use defaults)
     private var currentBannerId = DEFAULT_BANNER_ID
@@ -63,6 +76,22 @@ class AdMobBridge(
     private var isBannerReady = false
     private var isInterstitialReady = false
     private var isRewardedReady = false
+    
+    // Fix #41: Prevent concurrent ads
+    @Volatile
+    private var isShowingAd = false
+    
+    // Fix #51: Track app foreground state
+    @Volatile
+    private var isAppInForeground = true
+    
+    // Fix #24: Ad load timestamps for expiration checking
+    private var interstitialLoadTime: Long = 0
+    private var rewardedLoadTime: Long = 0
+    
+    // Fix #25: Timeout runnables for load operations
+    private var interstitialTimeoutRunnable: Runnable? = null
+    private var rewardedTimeoutRunnable: Runnable? = null
     
     // CONSENT TRACKING - Required for real ads (not test ads)
     private var hasConsent = false
@@ -89,11 +118,43 @@ class AdMobBridge(
         log("═".repeat(50))
         log("Activity: ${activity.javaClass.simpleName}")
         
+        // Fix #51: Register for app lifecycle events
+        ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+        
         // Initialize consent info for checking consent before ad loads
         consentInfo = UserMessagingPlatform.getConsentInformation(activity)
         log("Consent info initialized, status: ${consentInfo?.consentStatus}")
         
         initializeAdMob()
+    }
+    
+    // Fix #51: LifecycleEventObserver implementation
+    override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+        when (event) {
+            Lifecycle.Event.ON_START -> {
+                isAppInForeground = true
+                log("App entered foreground")
+                // Reload stale ads
+                if (!isInterstitialFresh()) loadInterstitialAd()
+                if (!isRewardedFresh()) loadRewardedAd()
+            }
+            Lifecycle.Event.ON_STOP -> {
+                isAppInForeground = false
+                log("App entered background")
+            }
+            else -> {}
+        }
+    }
+    
+    // Fix #24: Check if ads are fresh (not expired)
+    private fun isInterstitialFresh(): Boolean {
+        if (interstitialAd == null) return false
+        return System.currentTimeMillis() - interstitialLoadTime < AD_EXPIRY_MS
+    }
+    
+    private fun isRewardedFresh(): Boolean {
+        if (rewardedAd == null) return false
+        return System.currentTimeMillis() - rewardedLoadTime < AD_EXPIRY_MS
     }
 
     private fun log(message: String, level: String = "D") {
@@ -460,35 +521,45 @@ class AdMobBridge(
 
     @JavascriptInterface
     fun isInterstitialReady(placementId: String): Boolean {
-        log("JS → isInterstitialReady() = $isInterstitialReady")
-        return isInterstitialReady
+        // Fix #24: Include freshness check and preload manager check
+        val ready = (isInterstitialReady && isInterstitialFresh()) || AdPreloadManager.isInterstitialReady()
+        log("JS → isInterstitialReady() = $ready")
+        return ready
     }
 
     // ORIGINAL INTERFACE: No-parameter version for web app compatibility
     @JavascriptInterface
     fun isInterstitialReady(): Boolean {
-        log("JS → isInterstitialReady() [original] = $isInterstitialReady")
-        return isInterstitialReady
+        // Fix #24: Include freshness check and preload manager check
+        val ready = (isInterstitialReady && isInterstitialFresh()) || AdPreloadManager.isInterstitialReady()
+        log("JS → isInterstitialReady() [original] = $ready")
+        return ready
     }
 
     @JavascriptInterface
     fun isRewardedReady(placementId: String): Boolean {
-        log("JS → isRewardedReady() = $isRewardedReady")
-        return isRewardedReady
+        // Fix #24: Include freshness check and preload manager check
+        val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
+        log("JS → isRewardedReady() = $ready")
+        return ready
     }
 
     // ORIGINAL INTERFACE: No-parameter version for web app compatibility
     @JavascriptInterface
     fun isRewardedReady(): Boolean {
-        log("JS → isRewardedReady() [original] = $isRewardedReady")
-        return isRewardedReady
+        // Fix #24: Include freshness check and preload manager check
+        val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
+        log("JS → isRewardedReady() [original] = $ready")
+        return ready
     }
 
     // ORIGINAL INTERFACE: Alternative method name
     @JavascriptInterface
     fun isRewardedAdReady(): Boolean {
-        log("JS → isRewardedAdReady() [ORIGINAL] = $isRewardedReady")
-        return isRewardedReady
+        // Fix #24: Include freshness check and preload manager check
+        val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
+        log("JS → isRewardedAdReady() [ORIGINAL] = $ready")
+        return ready
     }
 
     @JavascriptInterface
@@ -585,6 +656,12 @@ class AdMobBridge(
     private fun loadInterstitialAd() {
         log("Loading AdMob Interstitial...")
         log("  Ad Unit ID: $currentInterstitialId")
+        
+        // Fix #24: Skip if fresh ad already exists
+        if (isInterstitialFresh()) {
+            log("Fresh interstitial already exists - skipping load")
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
@@ -592,14 +669,26 @@ class AdMobBridge(
             notifyJs("adFailed", "admob", "interstitial", "Activity reference lost")
             return
         }
+        
+        // Fix #25: Set load timeout
+        interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+        interstitialTimeoutRunnable = Runnable {
+            if (!isInterstitialReady && interstitialAd == null) {
+                log("Interstitial load timeout", "W")
+                emitDirectCallback("window.onInterstitialLoadFailed && window.onInterstitialLoadFailed('timeout', -2)")
+            }
+        }
+        mainHandler.postDelayed(interstitialTimeoutRunnable!!, LOAD_TIMEOUT_MS)
 
         try {
             val adRequest = AdRequest.Builder().build()
             InterstitialAd.load(act, currentInterstitialId, adRequest,
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
+                        interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         interstitialAd = ad
                         isInterstitialReady = true
+                        interstitialLoadTime = System.currentTimeMillis()
                         log("✓ INTERSTITIAL LOADED")
 
                         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -611,6 +700,7 @@ class AdMobBridge(
                             }
 
                             override fun onAdDismissedFullScreenContent() {
+                                isShowingAd = false
                                 isInterstitialReady = false
                                 interstitialAd = null
                                 cancelForegroundRecovery()
@@ -624,6 +714,7 @@ class AdMobBridge(
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                                isShowingAd = false
                                 isInterstitialReady = false
                                 interstitialAd = null
                                 cancelForegroundRecovery()
@@ -642,6 +733,8 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "interstitial")
+                        // Fix #3: Standardized ready callback
+                        emitDirectCallback("window.onInterstitialReady && window.onInterstitialReady()")
 
                         // AUTO-SHOW: If loadInterstitialAndShow() was called, show immediately
                         if (autoShowInterstitial) {
@@ -652,14 +745,20 @@ class AdMobBridge(
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
+                        interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         isInterstitialReady = false
                         autoShowInterstitial = false // Reset flag on failure
                         log("✗ Interstitial load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
                         notifyJs("adFailed", "admob", "interstitial", error.message)
+                        // Fix #3: Standardized load failed callback
+                        val escapedError = error.message.replace("'", "\\'")
+                        emitDirectCallback("window.onInterstitialLoadFailed && window.onInterstitialLoadFailed('$escapedError', ${error.code})")
                     }
                 })
         } catch (e: Exception) {
+            // Fix #25: Cancel timeout on exception
+            interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
             log("✗ Interstitial exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "interstitial", e.message ?: "Unknown error")
         }
@@ -668,6 +767,12 @@ class AdMobBridge(
     private fun loadRewardedAd() {
         log("Loading AdMob Rewarded...")
         log("  Ad Unit ID: $currentRewardedId")
+        
+        // Fix #24: Skip if fresh ad already exists
+        if (isRewardedFresh()) {
+            log("Fresh rewarded already exists - skipping load")
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
@@ -675,14 +780,26 @@ class AdMobBridge(
             notifyJs("adFailed", "admob", "rewarded", "Activity reference lost")
             return
         }
+        
+        // Fix #25: Set load timeout
+        rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+        rewardedTimeoutRunnable = Runnable {
+            if (!isRewardedReady && rewardedAd == null) {
+                log("Rewarded load timeout", "W")
+                emitDirectCallback("window.onRewardedLoadFailed && window.onRewardedLoadFailed('timeout', -2)")
+            }
+        }
+        mainHandler.postDelayed(rewardedTimeoutRunnable!!, LOAD_TIMEOUT_MS)
 
         try {
             val adRequest = AdRequest.Builder().build()
             RewardedAd.load(act, currentRewardedId, adRequest,
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
+                        rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         rewardedAd = ad
                         isRewardedReady = true
+                        rewardedLoadTime = System.currentTimeMillis()
                         log("✓ REWARDED LOADED")
 
                         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -695,6 +812,7 @@ class AdMobBridge(
                             }
 
                             override fun onAdDismissedFullScreenContent() {
+                                isShowingAd = false
                                 isRewardedReady = false
                                 rewardedAd = null
                                 cancelForegroundRecovery()
@@ -710,6 +828,7 @@ class AdMobBridge(
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                                isShowingAd = false
                                 isRewardedReady = false
                                 rewardedAd = null
                                 cancelForegroundRecovery()
@@ -728,6 +847,8 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "rewarded")
+                        // Fix #3: Standardized ready callback
+                        emitDirectCallback("window.onRewardedReady && window.onRewardedReady()")
 
                         // AUTO-SHOW: If loadRewardedAndShow() was called, show immediately
                         if (autoShowRewarded) {
@@ -738,14 +859,20 @@ class AdMobBridge(
                     }
 
                     override fun onAdFailedToLoad(error: LoadAdError) {
+                        rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         isRewardedReady = false
                         autoShowRewarded = false // Reset flag on failure
                         log("✗ Rewarded load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
                         notifyJs("adFailed", "admob", "rewarded", error.message)
+                        // Fix #3: Standardized load failed callback
+                        val escapedError = error.message.replace("'", "\\'")
+                        emitDirectCallback("window.onRewardedLoadFailed && window.onRewardedLoadFailed('$escapedError', ${error.code})")
                     }
                 })
         } catch (e: Exception) {
+            // Fix #25: Cancel timeout on exception
+            rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
             log("✗ Rewarded exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "rewarded", e.message ?: "Unknown error")
         }
@@ -758,6 +885,19 @@ class AdMobBridge(
         log("  Ready (local): $isInterstitialReady")
         log("  Object (local): ${interstitialAd != null}")
         log("  Ready (preload): ${AdPreloadManager.isInterstitialReady()}")
+        
+        // Fix #51: Check app foreground state
+        if (!isAppInForeground) {
+            log("App in background - cannot show ad", "W")
+            emitDirectCallback("window.onInterstitialFailedToShow && window.onInterstitialFailedToShow('app_in_background', -1)")
+            return
+        }
+        
+        // Fix #41: Prevent concurrent ads
+        if (isShowingAd) {
+            log("Already showing an ad", "W")
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
@@ -772,6 +912,23 @@ class AdMobBridge(
             notifyJs("adFailed", "admob", "interstitial", "Activity not active")
             return
         }
+        
+        // Fix #40: Window focus check
+        if (!act.hasWindowFocus()) {
+            log("No window focus - cannot show ad", "W")
+            return
+        }
+        
+        // Fix #24: Check if ad is stale
+        if (!isInterstitialFresh() && AdPreloadManager.getCachedInterstitial() == null) {
+            log("Ad is stale - reloading", "W")
+            isInterstitialReady = false
+            interstitialAd = null
+            loadInterstitialAd()
+            return
+        }
+        
+        isShowingAd = true
 
         // PRIORITY 1: Try AdPreloadManager cached ad first (faster - no bridge latency)
         val preloadedAd = AdPreloadManager.getCachedInterstitial()
@@ -782,6 +939,7 @@ class AdMobBridge(
             // Override callbacks to emit JavaScript AND handle foreground recovery
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
+                    isShowingAd = false
                     log("Preloaded interstitial dismissed")
                     cancelForegroundRecovery()
                     notifyJs("adClosed", "admob", "interstitial")
@@ -791,6 +949,7 @@ class AdMobBridge(
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    isShowingAd = false
                     log("Preloaded interstitial failed to show: ${error.message}", "E")
                     cancelForegroundRecovery()
                     notifyJs("adFailed", "admob", "interstitial", error.message)
@@ -838,6 +997,19 @@ class AdMobBridge(
         log("  Ready (local): $isRewardedReady")
         log("  Object (local): ${rewardedAd != null}")
         log("  Ready (preload): ${AdPreloadManager.isRewardedReady()}")
+        
+        // Fix #51: Check app foreground state
+        if (!isAppInForeground) {
+            log("App in background - cannot show ad", "W")
+            emitDirectCallback("window.onRewardedFailedToShow && window.onRewardedFailedToShow('app_in_background', -1)")
+            return
+        }
+        
+        // Fix #41: Prevent concurrent ads
+        if (isShowingAd) {
+            log("Already showing an ad", "W")
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
@@ -852,6 +1024,23 @@ class AdMobBridge(
             notifyJs("adFailed", "admob", "rewarded", "Activity not active")
             return
         }
+        
+        // Fix #40: Window focus check
+        if (!act.hasWindowFocus()) {
+            log("No window focus - cannot show ad", "W")
+            return
+        }
+        
+        // Fix #24: Check if ad is stale
+        if (!isRewardedFresh() && AdPreloadManager.getCachedRewarded() == null) {
+            log("Ad is stale - reloading", "W")
+            isRewardedReady = false
+            rewardedAd = null
+            loadRewardedAd()
+            return
+        }
+        
+        isShowingAd = true
 
         // PRIORITY 1: Try AdPreloadManager cached ad first (faster - no bridge latency)
         val preloadedAd = AdPreloadManager.getCachedRewarded()
@@ -865,6 +1054,7 @@ class AdMobBridge(
             // Override callbacks to emit JavaScript AND handle foreground recovery
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
+                    isShowingAd = false
                     log("Preloaded rewarded dismissed, rewardEarned: $rewardEarned")
                     cancelForegroundRecovery()
                     notifyJs("adClosed", "admob", "rewarded")
@@ -877,6 +1067,7 @@ class AdMobBridge(
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                    isShowingAd = false
                     log("Preloaded rewarded failed to show: ${error.message}", "E")
                     cancelForegroundRecovery()
                     notifyJs("adFailed", "admob", "rewarded", error.message)
@@ -937,6 +1128,7 @@ class AdMobBridge(
             }
             log("  ✓ Local show() called successfully")
         } else {
+            isShowingAd = false
             // NO CACHED AD - Load with auto-show (same behavior as startup)
             // IMPORTANT: Check consent first to ensure real ads (not test ads)
             log("⏳ No rewarded cached - loading with auto-show (like startup)")
@@ -978,9 +1170,7 @@ class AdMobBridge(
         
         log("→ Notifying JS: $eventType [$network] $adType")
         
-        activity.runOnUiThread {
-            webView.evaluateJavascript(script, null)
-        }
+        callJavaScript(script)
     }
 
     /**
@@ -989,13 +1179,39 @@ class AdMobBridge(
      */
     private fun emitDirectCallback(javascript: String) {
         log("→ Emitting direct callback: $javascript")
+        callJavaScript(javascript)
+    }
+    
+    /**
+     * Safe JavaScript call with WebView checks (Fix #11)
+     */
+    private fun callJavaScript(script: String) {
+        val webView = webViewRef.get()
+        
+        if (webView == null) {
+            log("WebView is null - cannot call: $script", "W")
+            return
+        }
+        
+        // Check if WebView is attached to window
+        if (!webView.isAttachedToWindow) {
+            log("WebView not attached - cannot call: $script", "W")
+            return
+        }
+        
+        if (activity.isFinishing || activity.isDestroyed) {
+            log("Activity finishing - cannot call: $script", "W")
+            return
+        }
+        
         activity.runOnUiThread {
             try {
-                webView.evaluateJavascript(javascript) { result ->
-                    log("  ✓ Callback result: $result")
+                // CRITICAL: Do NOT use "javascript:" prefix with evaluateJavascript()
+                webView.evaluateJavascript(script) { result ->
+                    log("  ✓ JS result: $result")
                 }
             } catch (e: Exception) {
-                log("  ✗ Callback failed: ${e.message}", "E")
+                log("  ✗ evaluateJavascript failed: ${e.message}", "E")
             }
         }
     }
@@ -1014,27 +1230,44 @@ class AdMobBridge(
         
         log("→ Callback: $callback")
         
-        activity.runOnUiThread {
-            try {
-                webView.evaluateJavascript(callback) { result ->
-                    log("  ✓ Reward callback result: $result")
-                    TestRigorLogger.logAdEvent("Reward callback executed, result: $result")
-                }
-            } catch (e: Exception) {
-                log("  ✗ Reward callback failed: ${e.message}", "E")
-                TestRigorLogger.logError("Reward callback failed", e)
-            }
-        }
+        callJavaScript(callback)
+        TestRigorLogger.logAdEvent("Reward callback emitted")
     }
 
     // ==================== Cleanup ====================
 
     fun destroy() {
         log("Destroying AdMobBridge...")
+        
+        // Unregister lifecycle observer
+        try {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+        } catch (e: Exception) {
+            log("Failed to remove lifecycle observer: ${e.message}", "E")
+        }
+        
+        // Cancel pending handlers
+        mainHandler.removeCallbacksAndMessages(null)
+        pendingForegroundRunnable = null
+        interstitialTimeoutRunnable = null
+        rewardedTimeoutRunnable = null
+        
+        // Clear ad references
         bannerAd?.destroy()
         bannerAd = null
         interstitialAd = null
         rewardedAd = null
+        
+        // Clear WebView reference
+        webViewRef.clear()
+        
         log("AdMobBridge destroyed")
+    }
+    
+    /**
+     * Set a new WebView reference (for activity recreation scenarios)
+     */
+    fun setWebView(webView: WebView) {
+        this.webViewRef = WeakReference(webView)
     }
 }
