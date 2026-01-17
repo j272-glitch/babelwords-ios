@@ -134,7 +134,8 @@ subprojects {
                     cruncherEnabled = false
 
                     // Additional flags for compatibility
-                    additionalParameters '--no-version-vectors', '--no-version-transitions', '--legacy'
+                    // Note: '--legacy' removed - not supported in AAPT2 8.5.x+
+                    additionalParameters '--no-version-vectors', '--no-version-transitions'
                 }
 
                 // Dex options for compatibility
