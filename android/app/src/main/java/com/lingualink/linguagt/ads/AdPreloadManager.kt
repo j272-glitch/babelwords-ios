@@ -180,18 +180,22 @@ object AdPreloadManager : LifecycleEventObserver {
         consentInfo = UserMessagingPlatform.getConsentInformation(activity)
         log("Consent status: ${consentInfo?.consentStatus}")
         
-        // Initialize AdMob SDK
-        MobileAds.initialize(activity) { initStatus ->
-            isSdkInitialized.set(true)
-            log("✓ AdMob SDK initialized")
-            
-            initStatus.adapterStatusMap.forEach { (adapter, status) ->
-                log("  Adapter: $adapter - ${status.initializationState}")
+        // Initialize AdMob SDK on background thread (per Google recommendation)
+        Thread {
+            MobileAds.initialize(activity) { initStatus ->
+                isSdkInitialized.set(true)
+                log("✓ AdMob SDK initialized")
+                
+                initStatus.adapterStatusMap.forEach { (adapter, status) ->
+                    log("  Adapter: $adapter - ${status.initializationState}")
+                }
+                
+                // Check consent then preload (runs on main thread via handler)
+                mainHandler.post {
+                    checkConsentAndPreload(activity)
+                }
             }
-            
-            // Check consent then preload
-            checkConsentAndPreload(activity)
-        }
+        }.start()
     }
     
     /**

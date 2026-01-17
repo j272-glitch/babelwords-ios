@@ -279,22 +279,26 @@ class AdBridge(
         
         if (isInitialized) return
         
-        MobileAds.initialize(activity) { initStatus ->
-            isInitialized = true
-            val adapters = initStatus.adapterStatusMap
-            TestRigorLogger.logAdEvent("AdMob initialized with ${adapters.size} adapters")
-            
-            adapters.forEach { (name, status) ->
-                Log.d(TAG, "Adapter: $name, State: ${status.initializationState}, Latency: ${status.latency}ms")
+        // Initialize on background thread (per Google recommendation)
+        Thread {
+            MobileAds.initialize(activity) { initStatus ->
+                isInitialized = true
+                val adapters = initStatus.adapterStatusMap
+                TestRigorLogger.logAdEvent("AdMob initialized with ${adapters.size} adapters")
+                
+                adapters.forEach { (name, status) ->
+                    Log.d(TAG, "Adapter: $name, State: ${status.initializationState}, Latency: ${status.latency}ms")
+                }
+                
+                // Preload ads on main thread
+                mainHandler.post {
+                    loadInterstitialAd()
+                    loadRewardedAd()
+                    loadRewardedInterstitialAd()
+                    notifyWeb("adMobInitialized", "true")
+                }
             }
-            
-            // Preload ads on startup
-            loadInterstitialAd()
-            loadRewardedAd()
-            loadRewardedInterstitialAd()
-            
-            notifyWeb("adMobInitialized", "true")
-        }
+        }.start()
     }
     
     private fun loadInterstitialAd() {

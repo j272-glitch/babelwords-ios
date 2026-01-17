@@ -307,21 +307,28 @@ class AdMobBridge(
     }
 
     private fun initializeAdMob() {
-        log("Initializing AdMob SDK...")
-        try {
-            MobileAds.initialize(activity) { initStatus ->
-                log("✓ AdMob SDK initialized")
-                initStatus.adapterStatusMap.forEach { (adapter, status) ->
-                    log("  Adapter: $adapter")
-                    log("    State: ${status.initializationState}")
-                    log("    Latency: ${status.latency}ms")
+        log("Initializing AdMob SDK on background thread...")
+        // Initialize on background thread (per Google recommendation)
+        Thread {
+            try {
+                MobileAds.initialize(activity) { initStatus ->
+                    log("✓ AdMob SDK initialized")
+                    initStatus.adapterStatusMap.forEach { (adapter, status) ->
+                        log("  Adapter: $adapter")
+                        log("    State: ${status.initializationState}")
+                        log("    Latency: ${status.latency}ms")
+                    }
+                    mainHandler.post {
+                        notifyJs("sdkInitialized", "admob", "sdk")
+                    }
                 }
-                notifyJs("sdkInitialized", "admob", "sdk")
+            } catch (e: Exception) {
+                log("✗ AdMob init exception: ${e.message}", "E")
+                mainHandler.post {
+                    notifyJs("sdkInitFailed", "admob", "sdk", e.message)
+                }
             }
-        } catch (e: Exception) {
-            log("✗ AdMob init exception: ${e.message}", "E")
-            notifyJs("sdkInitFailed", "admob", "sdk", e.message)
-        }
+        }.start()
     }
 
     /**
