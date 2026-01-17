@@ -1,7 +1,11 @@
 package com.lingualink.linguagt.ads
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -57,10 +61,22 @@ class AdMobBridge(
         
         // Load timeout (15 seconds)
         private const val LOAD_TIMEOUT_MS = 15000L
+        
+        // Retry configuration (exponential backoff)
+        private const val INITIAL_RETRY_DELAY_MS = 5000L
+        private const val MAX_RETRY_DELAY_MS = 60000L
     }
     
     // WeakReference to WebView to prevent memory leaks (Fix #4)
     private var webViewRef: WeakReference<WebView> = WeakReference(webView)
+    
+    // Retry delays (exponential backoff)
+    private var interstitialRetryDelay = INITIAL_RETRY_DELAY_MS
+    private var rewardedRetryDelay = INITIAL_RETRY_DELAY_MS
+    
+    // Pending retry runnables (to cancel on success or cleanup)
+    private var interstitialRetryRunnable: Runnable? = null
+    private var rewardedRetryRunnable: Runnable? = null
 
     // Current placement IDs (set from JavaScript or use defaults)
     private var currentBannerId = DEFAULT_BANNER_ID
@@ -155,6 +171,73 @@ class AdMobBridge(
     private fun isRewardedFresh(): Boolean {
         if (rewardedAd == null) return false
         return System.currentTimeMillis() - rewardedLoadTime < AD_EXPIRY_MS
+    }
+    
+    // Network availability check
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = cm.activeNetwork ?: return false
+                val capabilities = cm.getNetworkCapabilities(network) ?: return false
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            } else {
+                @Suppress("DEPRECATION")
+                cm.activeNetworkInfo?.isConnected ?: false
+            }
+        } catch (e: Exception) {
+            log("Network check failed: ${e.message}", "E")
+            false
+        }
+    }
+    
+    // Schedule retry with exponential backoff
+    private fun scheduleRetry(isInterstitial: Boolean) {
+        val delay = if (isInterstitial) interstitialRetryDelay else rewardedRetryDelay
+        
+        log("Scheduling retry in ${delay}ms")
+        
+        if (isInterstitial) {
+            // Cancel any existing retry
+            interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+            interstitialRetryRunnable = Runnable {
+                interstitialRetryDelay = minOf(interstitialRetryDelay * 2, MAX_RETRY_DELAY_MS)
+                loadInterstitialAd()
+            }
+            mainHandler.postDelayed(interstitialRetryRunnable!!, delay)
+        } else {
+            // Cancel any existing retry
+            rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+            rewardedRetryRunnable = Runnable {
+                rewardedRetryDelay = minOf(rewardedRetryDelay * 2, MAX_RETRY_DELAY_MS)
+                loadRewardedAd()
+            }
+            mainHandler.postDelayed(rewardedRetryRunnable!!, delay)
+        }
+    }
+    
+    // Cancel pending retries
+    private fun cancelPendingRetries() {
+        interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        interstitialRetryRunnable = null
+        rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        rewardedRetryRunnable = null
+    }
+    
+    // Build ad request with consent-appropriate settings
+    private fun buildAdRequest(): AdRequest {
+        val builder = AdRequest.Builder()
+        
+        // If consent not obtained, request non-personalized ads
+        if (!hasConsent && consentChecked) {
+            log("Building non-personalized ad request (consent not obtained)")
+            val extras = android.os.Bundle()
+            extras.putString("npa", "1")
+            builder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
+        }
+        
+        return builder.build()
     }
 
     private fun log(message: String, level: String = "D") {
@@ -662,11 +745,23 @@ class AdMobBridge(
             log("Fresh interstitial already exists - skipping load")
             return
         }
+        
+        // Network check with exponential backoff retry
+        if (!isNetworkAvailable()) {
+            log("No network - scheduling retry for interstitial")
+            scheduleRetry(isInterstitial = true)
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
             log("✗ Activity reference lost!", "E")
             notifyJs("adFailed", "admob", "interstitial", "Activity reference lost")
+            return
+        }
+        
+        if (act.isFinishing || act.isDestroyed) {
+            log("✗ Activity finishing/destroyed - skipping interstitial load", "W")
             return
         }
         
@@ -676,19 +771,25 @@ class AdMobBridge(
             if (!isInterstitialReady && interstitialAd == null) {
                 log("Interstitial load timeout", "W")
                 emitDirectCallback("window.onInterstitialLoadFailed && window.onInterstitialLoadFailed('timeout', -2)")
+                // Schedule retry on timeout
+                scheduleRetry(isInterstitial = true)
             }
         }
         mainHandler.postDelayed(interstitialTimeoutRunnable!!, LOAD_TIMEOUT_MS)
 
         try {
-            val adRequest = AdRequest.Builder().build()
+            val adRequest = buildAdRequest()
             InterstitialAd.load(act, currentInterstitialId, adRequest,
                 object : InterstitialAdLoadCallback() {
                     override fun onAdLoaded(ad: InterstitialAd) {
                         interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                        // Cancel pending retries on success
+                        interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+                        interstitialRetryRunnable = null
                         interstitialAd = ad
                         isInterstitialReady = true
                         interstitialLoadTime = System.currentTimeMillis()
+                        interstitialRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff on success
                         log("✓ INTERSTITIAL LOADED")
 
                         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -754,6 +855,8 @@ class AdMobBridge(
                         // Fix #3: Standardized load failed callback
                         val escapedError = error.message.replace("'", "\\'")
                         emitDirectCallback("window.onInterstitialLoadFailed && window.onInterstitialLoadFailed('$escapedError', ${error.code})")
+                        // Schedule retry with exponential backoff
+                        scheduleRetry(isInterstitial = true)
                     }
                 })
         } catch (e: Exception) {
@@ -761,6 +864,8 @@ class AdMobBridge(
             interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
             log("✗ Interstitial exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "interstitial", e.message ?: "Unknown error")
+            // Schedule retry with exponential backoff
+            scheduleRetry(isInterstitial = true)
         }
     }
 
@@ -773,11 +878,23 @@ class AdMobBridge(
             log("Fresh rewarded already exists - skipping load")
             return
         }
+        
+        // Network check with exponential backoff retry
+        if (!isNetworkAvailable()) {
+            log("No network - scheduling retry for rewarded")
+            scheduleRetry(isInterstitial = false)
+            return
+        }
 
         val act = activityRef.get()
         if (act == null) {
             log("✗ Activity reference lost!", "E")
             notifyJs("adFailed", "admob", "rewarded", "Activity reference lost")
+            return
+        }
+        
+        if (act.isFinishing || act.isDestroyed) {
+            log("✗ Activity finishing/destroyed - skipping rewarded load", "W")
             return
         }
         
@@ -787,19 +904,25 @@ class AdMobBridge(
             if (!isRewardedReady && rewardedAd == null) {
                 log("Rewarded load timeout", "W")
                 emitDirectCallback("window.onRewardedLoadFailed && window.onRewardedLoadFailed('timeout', -2)")
+                // Schedule retry on timeout
+                scheduleRetry(isInterstitial = false)
             }
         }
         mainHandler.postDelayed(rewardedTimeoutRunnable!!, LOAD_TIMEOUT_MS)
 
         try {
-            val adRequest = AdRequest.Builder().build()
+            val adRequest = buildAdRequest()
             RewardedAd.load(act, currentRewardedId, adRequest,
                 object : RewardedAdLoadCallback() {
                     override fun onAdLoaded(ad: RewardedAd) {
                         rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+                        // Cancel pending retries on success
+                        rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+                        rewardedRetryRunnable = null
                         rewardedAd = ad
                         isRewardedReady = true
                         rewardedLoadTime = System.currentTimeMillis()
+                        rewardedRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff on success
                         log("✓ REWARDED LOADED")
 
                         ad.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -868,6 +991,8 @@ class AdMobBridge(
                         // Fix #3: Standardized load failed callback
                         val escapedError = error.message.replace("'", "\\'")
                         emitDirectCallback("window.onRewardedLoadFailed && window.onRewardedLoadFailed('$escapedError', ${error.code})")
+                        // Schedule retry with exponential backoff
+                        scheduleRetry(isInterstitial = false)
                     }
                 })
         } catch (e: Exception) {
@@ -875,6 +1000,8 @@ class AdMobBridge(
             rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
             log("✗ Rewarded exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "rewarded", e.message ?: "Unknown error")
+            // Schedule retry with exponential backoff
+            scheduleRetry(isInterstitial = false)
         }
     }
 
@@ -1245,6 +1372,9 @@ class AdMobBridge(
         } catch (e: Exception) {
             log("Failed to remove lifecycle observer: ${e.message}", "E")
         }
+        
+        // Cancel pending retries
+        cancelPendingRetries()
         
         // Cancel pending handlers
         mainHandler.removeCallbacksAndMessages(null)

@@ -3,9 +3,16 @@ package com.lingualink.linguagt.ads
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.google.android.gms.ads.*
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
@@ -30,7 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 3. When button pressed → ad already cached & ready
  * 4. After ad shown → automatically preload next
  */
-object AdPreloadManager {
+object AdPreloadManager : LifecycleEventObserver {
     
     private const val TAG = "AdPreloadManager"
     
@@ -38,14 +45,38 @@ object AdPreloadManager {
     private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/5076005693"
     private const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/6313049833"
     
+    // Ad expiration time (45 minutes per AdMob docs)
+    private const val AD_EXPIRY_MS = 45 * 60 * 1000L
+    
+    // Retry configuration (exponential backoff)
+    private const val INITIAL_RETRY_DELAY_MS = 5000L
+    private const val MAX_RETRY_DELAY_MS = 60000L
+    
     // Cached ad instances
     private var interstitialAd: InterstitialAd? = null
     private var rewardedAd: RewardedAd? = null
+    
+    // Ad load timestamps for expiration tracking
+    private var interstitialLoadTime: Long = 0
+    private var rewardedLoadTime: Long = 0
+    
+    // Retry delays (exponential backoff)
+    private var interstitialRetryDelay = INITIAL_RETRY_DELAY_MS
+    private var rewardedRetryDelay = INITIAL_RETRY_DELAY_MS
     
     // Thread-safe loading flags (prevent duplicate requests)
     private val isInterstitialLoading = AtomicBoolean(false)
     private val isRewardedLoading = AtomicBoolean(false)
     private val isSdkInitialized = AtomicBoolean(false)
+    private val isLifecycleObserverRegistered = AtomicBoolean(false)
+    
+    // Pending retry runnables (to cancel on success or cleanup)
+    private var interstitialRetryRunnable: Runnable? = null
+    private var rewardedRetryRunnable: Runnable? = null
+    
+    // App foreground state
+    @Volatile
+    private var isAppInForeground = true
     
     // Consent tracking
     private var consentInfo: ConsentInformation? = null
@@ -64,8 +95,55 @@ object AdPreloadManager {
     // Main thread handler for retry scheduling
     private val mainHandler = Handler(Looper.getMainLooper())
     
-    // Retry delay on failure (30 seconds)
-    private const val RETRY_DELAY_MS = 30000L
+    // LifecycleEventObserver implementation
+    override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+        when (event) {
+            Lifecycle.Event.ON_START -> {
+                isAppInForeground = true
+                log("App entered foreground")
+                // Reload stale ads
+                activityRef?.get()?.let { activity ->
+                    if (!isInterstitialFresh()) preloadInterstitial(activity)
+                    if (!isRewardedFresh()) preloadRewarded(activity)
+                }
+            }
+            Lifecycle.Event.ON_STOP -> {
+                isAppInForeground = false
+                log("App entered background")
+            }
+            else -> {}
+        }
+    }
+    
+    // Check if ads are fresh (not expired)
+    private fun isInterstitialFresh(): Boolean {
+        if (interstitialAd == null) return false
+        return System.currentTimeMillis() - interstitialLoadTime < AD_EXPIRY_MS
+    }
+    
+    private fun isRewardedFresh(): Boolean {
+        if (rewardedAd == null) return false
+        return System.currentTimeMillis() - rewardedLoadTime < AD_EXPIRY_MS
+    }
+    
+    // Network availability check
+    private fun isNetworkAvailable(context: Context): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = cm.activeNetwork ?: return false
+                val capabilities = cm.getNetworkCapabilities(network) ?: return false
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            } else {
+                @Suppress("DEPRECATION")
+                cm.activeNetworkInfo?.isConnected ?: false
+            }
+        } catch (e: Exception) {
+            log("Network check failed: ${e.message}", "E")
+            false
+        }
+    }
     
     /**
      * Initialize the AdMob SDK and begin preloading ads.
@@ -73,6 +151,17 @@ object AdPreloadManager {
      */
     fun initialize(activity: Activity) {
         activityRef = WeakReference(activity)
+        
+        // Register for app lifecycle events (only once)
+        if (isLifecycleObserverRegistered.compareAndSet(false, true)) {
+            try {
+                ProcessLifecycleOwner.get().lifecycle.addObserver(this)
+                log("Lifecycle observer registered")
+            } catch (e: Exception) {
+                isLifecycleObserverRegistered.set(false)
+                log("Failed to add lifecycle observer: ${e.message}", "E")
+            }
+        }
         
         if (isSdkInitialized.get()) {
             log("SDK already initialized, checking consent and preloading")
@@ -200,9 +289,28 @@ object AdPreloadManager {
      * Preload interstitial ad with thread-safe loading.
      */
     fun preloadInterstitial(context: Context) {
-        // Already have cached ad?
-        if (interstitialAd != null) {
-            log("Interstitial already cached and ready")
+        // Already have fresh cached ad?
+        if (isInterstitialFresh()) {
+            log("Fresh interstitial already cached and ready")
+            return
+        }
+        
+        // Clear stale ad
+        if (interstitialAd != null && !isInterstitialFresh()) {
+            log("Clearing stale interstitial")
+            interstitialAd = null
+        }
+        
+        // Check network availability
+        if (!isNetworkAvailable(context)) {
+            log("No network - scheduling retry for interstitial")
+            scheduleRetry(context, isInterstitial = true)
+            return
+        }
+        
+        // Skip if app in background
+        if (!isAppInForeground) {
+            log("App in background - skipping interstitial load")
             return
         }
         
@@ -215,7 +323,8 @@ object AdPreloadManager {
         log("Loading interstitial ad: $INTERSTITIAL_AD_UNIT_ID")
         TestRigorLogger.logAdEvent("AdPreloadManager: Loading interstitial")
         
-        val adRequest = AdRequest.Builder().build()
+        // Build ad request with consent-appropriate settings
+        val adRequest = buildAdRequest()
         
         InterstitialAd.load(
             context,
@@ -225,7 +334,12 @@ object AdPreloadManager {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     log("✓ Interstitial LOADED and cached")
                     TestRigorLogger.logAdEvent("AdPreloadManager: Interstitial loaded")
+                    // Cancel any pending retries
+                    interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+                    interstitialRetryRunnable = null
                     interstitialAd = ad
+                    interstitialLoadTime = System.currentTimeMillis()
+                    interstitialRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff
                     isInterstitialLoading.set(false)
                     setupInterstitialCallbacks(ad, context)
                     onInterstitialReady?.invoke()
@@ -236,22 +350,97 @@ object AdPreloadManager {
                     TestRigorLogger.logAdEvent("AdPreloadManager: Interstitial failed - ${error.message}")
                     isInterstitialLoading.set(false)
                     
-                    // Retry after delay
-                    mainHandler.postDelayed({
-                        preloadInterstitial(context)
-                    }, RETRY_DELAY_MS)
+                    // Retry with exponential backoff
+                    scheduleRetry(context, isInterstitial = true)
                 }
             }
         )
     }
     
     /**
+     * Build ad request with consent-appropriate settings.
+     * Uses non-personalized ads if consent not obtained.
+     */
+    private fun buildAdRequest(): AdRequest {
+        val builder = AdRequest.Builder()
+        
+        // If consent not obtained, request non-personalized ads
+        if (!hasConsent.get() && consentChecked.get()) {
+            log("Building non-personalized ad request (consent not obtained)")
+            // Note: Google changed how NPA is handled - it's now automatic based on consent
+            // But we can still add extras for older integrations
+            val extras = android.os.Bundle()
+            extras.putString("npa", "1")
+            builder.addNetworkExtrasBundle(com.google.ads.mediation.admob.AdMobAdapter::class.java, extras)
+        }
+        
+        return builder.build()
+    }
+    
+    /**
+     * Schedule retry with exponential backoff.
+     */
+    private fun scheduleRetry(context: Context, isInterstitial: Boolean) {
+        val delay = if (isInterstitial) interstitialRetryDelay else rewardedRetryDelay
+        
+        log("Scheduling retry in ${delay}ms")
+        
+        if (isInterstitial) {
+            // Cancel any existing retry
+            interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+            interstitialRetryRunnable = Runnable {
+                // Increase delay for next failure (exponential backoff)
+                interstitialRetryDelay = minOf(interstitialRetryDelay * 2, MAX_RETRY_DELAY_MS)
+                preloadInterstitial(context)
+            }
+            mainHandler.postDelayed(interstitialRetryRunnable!!, delay)
+        } else {
+            // Cancel any existing retry
+            rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+            rewardedRetryRunnable = Runnable {
+                rewardedRetryDelay = minOf(rewardedRetryDelay * 2, MAX_RETRY_DELAY_MS)
+                preloadRewarded(context)
+            }
+            mainHandler.postDelayed(rewardedRetryRunnable!!, delay)
+        }
+    }
+    
+    /**
+     * Cancel pending retries (call when ad loads successfully or on cleanup).
+     */
+    private fun cancelPendingRetries() {
+        interstitialRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        interstitialRetryRunnable = null
+        rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+        rewardedRetryRunnable = null
+    }
+    
+    /**
      * Preload rewarded ad with thread-safe loading.
      */
     fun preloadRewarded(context: Context) {
-        // Already have cached ad?
-        if (rewardedAd != null) {
-            log("Rewarded already cached and ready")
+        // Already have fresh cached ad?
+        if (isRewardedFresh()) {
+            log("Fresh rewarded already cached and ready")
+            return
+        }
+        
+        // Clear stale ad
+        if (rewardedAd != null && !isRewardedFresh()) {
+            log("Clearing stale rewarded")
+            rewardedAd = null
+        }
+        
+        // Check network availability
+        if (!isNetworkAvailable(context)) {
+            log("No network - scheduling retry for rewarded")
+            scheduleRetry(context, isInterstitial = false)
+            return
+        }
+        
+        // Skip if app in background
+        if (!isAppInForeground) {
+            log("App in background - skipping rewarded load")
             return
         }
         
@@ -264,7 +453,8 @@ object AdPreloadManager {
         log("Loading rewarded ad: $REWARDED_AD_UNIT_ID")
         TestRigorLogger.logAdEvent("AdPreloadManager: Loading rewarded")
         
-        val adRequest = AdRequest.Builder().build()
+        // Build ad request with consent-appropriate settings
+        val adRequest = buildAdRequest()
         
         RewardedAd.load(
             context,
@@ -274,7 +464,12 @@ object AdPreloadManager {
                 override fun onAdLoaded(ad: RewardedAd) {
                     log("✓ Rewarded LOADED and cached")
                     TestRigorLogger.logAdEvent("AdPreloadManager: Rewarded loaded")
+                    // Cancel any pending retries
+                    rewardedRetryRunnable?.let { mainHandler.removeCallbacks(it) }
+                    rewardedRetryRunnable = null
                     rewardedAd = ad
+                    rewardedLoadTime = System.currentTimeMillis()
+                    rewardedRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff
                     isRewardedLoading.set(false)
                     setupRewardedCallbacks(ad, context)
                     onRewardedReady?.invoke()
@@ -285,10 +480,8 @@ object AdPreloadManager {
                     TestRigorLogger.logAdEvent("AdPreloadManager: Rewarded failed - ${error.message}")
                     isRewardedLoading.set(false)
                     
-                    // Retry after delay
-                    mainHandler.postDelayed({
-                        preloadRewarded(context)
-                    }, RETRY_DELAY_MS)
+                    // Retry with exponential backoff
+                    scheduleRetry(context, isInterstitial = false)
                 }
             }
         )
@@ -381,14 +574,14 @@ object AdPreloadManager {
     // ==================== Public API ====================
     
     /**
-     * Check if interstitial ad is ready to show.
+     * Check if interstitial ad is ready to show (includes freshness check).
      */
-    fun isInterstitialReady(): Boolean = interstitialAd != null
+    fun isInterstitialReady(): Boolean = isInterstitialFresh()
     
     /**
-     * Check if rewarded ad is ready to show.
+     * Check if rewarded ad is ready to show (includes freshness check).
      */
-    fun isRewardedReady(): Boolean = rewardedAd != null
+    fun isRewardedReady(): Boolean = isRewardedFresh()
     
     /**
      * Get cached interstitial ad (for AdMobBridge to use).
@@ -468,6 +661,21 @@ object AdPreloadManager {
      */
     fun clearCallbacks() {
         log("Clearing callbacks to prevent activity leaks")
+        
+        // Unregister lifecycle observer
+        if (isLifecycleObserverRegistered.compareAndSet(true, false)) {
+            try {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(this)
+                log("Lifecycle observer unregistered")
+            } catch (e: Exception) {
+                log("Failed to remove lifecycle observer: ${e.message}", "E")
+            }
+        }
+        
+        // Cancel pending retries
+        cancelPendingRetries()
+        mainHandler.removeCallbacksAndMessages(null)
+        
         onInterstitialReady = null
         onRewardedReady = null
         onAdDismissed = null

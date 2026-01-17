@@ -90,6 +90,11 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 - Auto-reloads after ad dismissal using applicationContext (lifecycle-safe)
 - Event buffering: Ad ready notifications buffered until WebView fully loaded, then flushed
 - Callbacks cleared in onDestroy to prevent activity leaks
+- Ad expiration tracking (45-minute AD_EXPIRY_MS) with freshness checks
+- Network availability checks before loading
+- Exponential backoff retry (5s initial, 60s max) on network failures
+- ProcessLifecycleOwner integration for app foreground/background state
+- Consent-aware ad request building (non-personalized ads when consent not obtained)
 
 *Ad Loading Priority*:
 1. Preloaded cached ads (fast path) - AdPreloadManager
@@ -100,6 +105,16 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 2. On consent resolution, callback propagates GDPR status to AdMobBridge and AdPreloadManager
 3. AdPreloadManager preloads ads immediately with consent context
 4. AdMobBridge button-triggered loads inherit consent status
+5. Non-personalized ads (npa=1) requested when consent not obtained but checked
+
+*AdMob Best Practices Implemented*:
+- 15-second load timeouts with automatic retry
+- Window focus checks before showing ads (isAppInForeground)
+- Concurrent ad show prevention (isShowingAd flag)
+- Activity lifecycle checks before load/show operations
+- Foreground recovery after ad clicks to prevent Play Store redirect
+- Proper JavaScript callbacks for Promise-based web integration
+- Retry runnable tracking and cancellation to prevent duplicate loads
 
 **Analytics**: User activity tracking with conversation counting and session management.
 
