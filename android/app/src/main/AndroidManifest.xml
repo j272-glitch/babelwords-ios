@@ -49,6 +49,22 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-9991891515643313~7514450861"/>
 
+        <!-- FIX: Disable Firebase auto-initialization to prevent blocking main thread on startup -->
+        <!-- Firebase will be manually initialized after WebView is ready -->
+        <meta-data
+            android:name="firebase_analytics_collection_deferred"
+            android:value="true"/>
+        
+        <!-- Disable Firebase Crashlytics auto-collection (if present) -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false"/>
+        
+        <!-- Disable Firebase Performance auto-collection (if present) -->
+        <meta-data
+            android:name="firebase_performance_collection_deferred"
+            android:value="true"/>
+
         <!-- Privacy Sandbox Ad Services Config - resolve conflict between play-services-ads and measurement -->
         <property
             android:name="android.adservices.AD_SERVICES_CONFIG"
