@@ -304,11 +304,11 @@ dependencies {
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
-    // Google Mobile Ads SDK (22.6.0 compatible with Kotlin 1.8.x/1.9.x)
-    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    // Google Mobile Ads SDK
+    implementation 'com.google.android.gms:play-services-ads:23.0.0'
 
-    // Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
-    implementation platform('com.google.firebase:firebase-bom:32.8.0')
+    // Firebase BoM (Bill of Materials) - manages compatible Firebase versions
+    implementation platform('com.google.firebase:firebase-bom:34.8.0')
     
     // Firebase Analytics (required for AdMob)
     implementation 'com.google.firebase:firebase-analytics'
