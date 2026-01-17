@@ -22,6 +22,9 @@ import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
 import com.lingualink.linguagt.TestRigorLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -181,7 +184,7 @@ object AdPreloadManager : LifecycleEventObserver {
         log("Consent status: ${consentInfo?.consentStatus}")
         
         // Initialize AdMob SDK on background thread (per Google recommendation)
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             MobileAds.initialize(activity) { initStatus ->
                 isSdkInitialized.set(true)
                 log("✓ AdMob SDK initialized")
@@ -195,7 +198,7 @@ object AdPreloadManager : LifecycleEventObserver {
                     checkConsentAndPreload(activity)
                 }
             }
-        }.start()
+        }
     }
     
     /**

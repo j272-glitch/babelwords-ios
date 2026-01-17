@@ -22,6 +22,9 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.UserMessagingPlatform
 import com.lingualink.linguagt.TestRigorLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -309,7 +312,7 @@ class AdMobBridge(
     private fun initializeAdMob() {
         log("Initializing AdMob SDK on background thread...")
         // Initialize on background thread (per Google recommendation)
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             try {
                 MobileAds.initialize(activity) { initStatus ->
                     log("✓ AdMob SDK initialized")
@@ -328,7 +331,7 @@ class AdMobBridge(
                     notifyJs("sdkInitFailed", "admob", "sdk", e.message)
                 }
             }
-        }.start()
+        }
     }
 
     /**

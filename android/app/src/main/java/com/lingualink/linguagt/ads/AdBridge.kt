@@ -26,6 +26,9 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.ump.*
 import com.lingualink.linguagt.TestRigorLogger
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 
 class AdBridge(
@@ -280,7 +283,7 @@ class AdBridge(
         if (isInitialized) return
         
         // Initialize on background thread (per Google recommendation)
-        Thread {
+        CoroutineScope(Dispatchers.IO).launch {
             MobileAds.initialize(activity) { initStatus ->
                 isInitialized = true
                 val adapters = initStatus.adapterStatusMap
@@ -298,7 +301,7 @@ class AdBridge(
                     notifyWeb("adMobInitialized", "true")
                 }
             }
-        }.start()
+        }
     }
     
     private fun loadInterstitialAd() {
