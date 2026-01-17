@@ -77,6 +77,9 @@
 # Keep AdMob mediation classes
 -keep class com.google.android.gms.ads.mediation.** { *; }
 
+# Keep mediation adapters (alternate package path)
+-keep class com.google.ads.mediation.** { *; }
+
 # Keep AdMob adapter classes (for mediation networks)
 -keep class com.google.android.gms.ads.adapter.** { *; }
 
