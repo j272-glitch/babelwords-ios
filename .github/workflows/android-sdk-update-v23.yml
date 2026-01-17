@@ -501,17 +501,23 @@ jobs:
           
           echo "✅ Signing configuration complete"
 
-      - name: Clean Previous Builds
+      - name: Clean Previous Builds and Refresh Dependencies
         run: |
-          echo "=== CLEANING PREVIOUS BUILDS ==="
+          echo "=== CLEANING PREVIOUS BUILDS AND REFRESHING DEPENDENCIES ==="
           cd android
           
           # Clean build directories
           rm -rf app/build/outputs/bundle 2>/dev/null || true
           rm -rf app/build/intermediates/bundle 2>/dev/null || true
           
-          ./gradlew clean --no-daemon --stacktrace || echo "Clean completed with warnings"
-          echo "✅ Build cleaned"
+          # Clean Gradle caches for play-services to force fresh download
+          echo "Cleaning cached play-services dependencies..."
+          find ~/.gradle/caches -name "*play-services-measurement*" -type d -exec rm -rf {} + 2>/dev/null || true
+          find ~/.gradle/caches -name "*play-services-ads*" -type d -exec rm -rf {} + 2>/dev/null || true
+          find ~/.gradle/caches/transforms-* -name "*play-services*" -type d -exec rm -rf {} + 2>/dev/null || true
+          
+          ./gradlew clean --no-daemon --stacktrace --refresh-dependencies || echo "Clean completed with warnings"
+          echo "✅ Build cleaned and dependencies refreshed"
 
       - name: Build Release AAB with Enhanced Diagnostics
         id: build_aab
@@ -545,6 +551,7 @@ jobs:
             --no-daemon \
             --no-build-cache \
             --no-parallel \
+            --refresh-dependencies \
             $GRADLE_FLAGS \
             -Pandroid.injected.version.code=$VERSION_CODE \
             -Pandroid.injected.version.name=$VERSION_NAME \
