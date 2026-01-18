@@ -759,7 +759,7 @@ object AdPreloadManager : LifecycleEventObserver {
             
             // Schedule verification and retry if needed
             mainHandler.postDelayed({
-                if (!isAppInForeground.get()) {
+                if (!isAppInForeground) {
                     log("App still not in foreground - retrying")
                     attemptForegroundRecovery()
                 } else {
@@ -775,14 +775,19 @@ object AdPreloadManager : LifecycleEventObserver {
     }
     
     private fun bringAppToForegroundViaAppContext() {
+        val ctx = appContextRef?.get() ?: run {
+            log("✗ App context is null - cannot bring to foreground", "E")
+            return
+        }
+        
         try {
             val intent = Intent().apply {
-                setClassName(appContext.packageName, "com.lingualink.linguagt.MainActivity")
+                setClassName(ctx.packageName, "com.lingualink.linguagt.MainActivity")
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
-            appContext.startActivity(intent)
+            ctx.startActivity(intent)
             log("✓ App brought to foreground via app context")
         } catch (e: Exception) {
             log("✗ App context foreground recovery also failed: ${e.message}", "E")
