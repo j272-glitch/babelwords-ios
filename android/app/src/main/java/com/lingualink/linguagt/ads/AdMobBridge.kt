@@ -96,6 +96,12 @@ class AdMobBridge(
     private var isInterstitialReady = false
     private var isRewardedReady = false
     
+    // Fix #112: Loading guards to prevent duplicate load calls
+    @Volatile
+    private var isInterstitialLoading = false
+    @Volatile
+    private var isRewardedLoading = false
+    
     // Fix #41: Prevent concurrent ads
     @Volatile
     private var isShowingAd = false
@@ -414,6 +420,9 @@ class AdMobBridge(
     /**
      * Called by AdBridge when UMP consent is obtained.
      * This enables real ad serving (instead of test ads).
+     * 
+     * Fix #112: Do NOT load ads here - AdPreloadManager handles initial loading.
+     * This prevents duplicate load calls.
      */
     fun onConsentObtained(gdprConsent: Boolean) {
         log("═".repeat(50))
@@ -422,11 +431,10 @@ class AdMobBridge(
         hasConsent = gdprConsent
         consentChecked = true
         
-        // Now that consent is obtained, preload ads
+        // Fix #112: AdPreloadManager handles initial ad loading - don't duplicate here
+        // We only update consent state; AdPreloadManager.onConsentObtained() will load ads
         if (gdprConsent) {
-            log("✓ Consent granted - preloading ads with REAL ad serving")
-            loadInterstitialAd()
-            loadRewardedAd()
+            log("✓ Consent granted - AdPreloadManager will handle preloading")
         } else {
             log("⚠ Consent denied - ads may be limited")
         }
@@ -866,6 +874,12 @@ class AdMobBridge(
         log("Loading AdMob Interstitial...")
         log("  Ad Unit ID: $currentInterstitialId")
         
+        // Fix #112: Prevent duplicate loads
+        if (isInterstitialLoading) {
+            log("Interstitial already loading - skipping duplicate load request")
+            return
+        }
+        
         // FIX #3: Skip if AdPreloadManager already has fresh ad (single source of truth)
         // Defensive check: verify cached ad is not null to prevent stale-ready state
         if (AdPreloadManager.isInterstitialReady() && AdPreloadManager.getCachedInterstitial() != null) {
@@ -909,11 +923,15 @@ class AdMobBridge(
             return
         }
         
+        // Fix #112: Set loading flag
+        isInterstitialLoading = true
+        
         // Fix #25: Set load timeout
         interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
         interstitialTimeoutRunnable = Runnable {
             if (!isInterstitialReady && interstitialAd == null) {
                 log("Interstitial load timeout", "W")
+                isInterstitialLoading = false  // Fix #112: Reset on timeout
                 emitDirectCallback("window.onInterstitialLoadFailed && window.onInterstitialLoadFailed('timeout', -2)")
                 // Schedule retry on timeout
                 scheduleRetry(isInterstitial = true)
@@ -932,6 +950,7 @@ class AdMobBridge(
                         interstitialRetryRunnable = null
                         interstitialAd = ad
                         isInterstitialReady = true
+                        isInterstitialLoading = false  // Fix #112: Reset on success
                         interstitialLoadTime = System.currentTimeMillis()
                         interstitialRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff on success
                         log("✓ INTERSTITIAL LOADED")
@@ -993,6 +1012,7 @@ class AdMobBridge(
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         isInterstitialReady = false
+                        isInterstitialLoading = false  // Fix #112: Reset on failure
                         autoShowInterstitial = false // Reset flag on failure
                         log("✗ Interstitial load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
@@ -1007,6 +1027,7 @@ class AdMobBridge(
         } catch (e: Exception) {
             // Fix #25: Cancel timeout on exception
             interstitialTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+            isInterstitialLoading = false  // Fix #112: Reset on exception
             log("✗ Interstitial exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "interstitial", e.message ?: "Unknown error")
             // Schedule retry with exponential backoff
@@ -1017,6 +1038,12 @@ class AdMobBridge(
     private fun loadRewardedAd() {
         log("Loading AdMob Rewarded...")
         log("  Ad Unit ID: $currentRewardedId")
+        
+        // Fix #112: Prevent duplicate loads
+        if (isRewardedLoading) {
+            log("Rewarded already loading - skipping duplicate load request")
+            return
+        }
         
         // FIX #3: Skip if AdPreloadManager already has fresh ad (single source of truth)
         // Defensive check: verify cached ad is not null to prevent stale-ready state
@@ -1061,11 +1088,15 @@ class AdMobBridge(
             return
         }
         
+        // Fix #112: Set loading flag
+        isRewardedLoading = true
+        
         // Fix #25: Set load timeout
         rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
         rewardedTimeoutRunnable = Runnable {
             if (!isRewardedReady && rewardedAd == null) {
                 log("Rewarded load timeout", "W")
+                isRewardedLoading = false  // Fix #112: Reset on timeout
                 emitDirectCallback("window.onRewardedLoadFailed && window.onRewardedLoadFailed('timeout', -2)")
                 // Schedule retry on timeout
                 scheduleRetry(isInterstitial = false)
@@ -1084,6 +1115,7 @@ class AdMobBridge(
                         rewardedRetryRunnable = null
                         rewardedAd = ad
                         isRewardedReady = true
+                        isRewardedLoading = false  // Fix #112: Reset on success
                         rewardedLoadTime = System.currentTimeMillis()
                         rewardedRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff on success
                         log("✓ REWARDED LOADED")
@@ -1148,6 +1180,7 @@ class AdMobBridge(
                     override fun onAdFailedToLoad(error: LoadAdError) {
                         rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
                         isRewardedReady = false
+                        isRewardedLoading = false  // Fix #112: Reset on failure
                         autoShowRewarded = false // Reset flag on failure
                         log("✗ Rewarded load FAILED: ${error.code} - ${error.message}", "E")
                         log("  Domain: ${error.domain}")
@@ -1162,6 +1195,7 @@ class AdMobBridge(
         } catch (e: Exception) {
             // Fix #25: Cancel timeout on exception
             rewardedTimeoutRunnable?.let { mainHandler.removeCallbacks(it) }
+            isRewardedLoading = false  // Fix #112: Reset on exception
             log("✗ Rewarded exception: ${e.message}", "E")
             notifyJs("adFailed", "admob", "rewarded", e.message ?: "Unknown error")
             // Schedule retry with exponential backoff
