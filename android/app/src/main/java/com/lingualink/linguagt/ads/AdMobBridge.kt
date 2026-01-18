@@ -255,26 +255,102 @@ class AdMobBridge(
     
     // ==================== Foreground Recovery ====================
     
+    // Retry configuration for robust foreground recovery
+    private var recoveryAttempts = 0
+    private val MAX_RECOVERY_ATTEMPTS = 5
+    private val RECOVERY_RETRY_DELAY_MS = 500L
+    
     /**
      * Bring the app back to foreground after ad interaction.
      * This handles the Play Store redirect issue.
+     * Uses robust flags that work even if task was killed.
      */
     private fun bringAppToForeground() {
         val act = activityRef.get()
-        if (act == null || act.isFinishing || act.isDestroyed) {
-            log("Cannot bring to foreground - activity invalid")
+        
+        // Method 1: Try with activity context (preferred)
+        if (act != null && !act.isFinishing && !act.isDestroyed) {
+            log("Bringing app to foreground via activity context")
+            TestRigorLogger.logAdEvent("AdMobBridge: Bringing app to foreground (activity)")
+            
+            val intent = Intent(act, act::class.java).apply {
+                // CRITICAL: Use all flags for robust recovery
+                // NEW_TASK: Creates new task if current was destroyed
+                // CLEAR_TOP: Clears activities above target
+                // SINGLE_TOP: Reuses existing instance
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            try {
+                act.startActivity(intent)
+            } catch (e: Exception) {
+                log("Activity context startActivity failed: ${e.message}", "E")
+                bringAppToForegroundViaApplicationContext()
+            }
+        } else {
+            // Method 2: Fallback to application context
+            log("Activity invalid - using application context fallback")
+            bringAppToForegroundViaApplicationContext()
+        }
+    }
+    
+    /**
+     * Fallback: Bring app to foreground using application context.
+     * Used when activity reference is dead (GC'd or destroyed).
+     */
+    private fun bringAppToForegroundViaApplicationContext() {
+        try {
+            val appContext = activity.applicationContext
+            log("Bringing app to foreground via application context")
+            TestRigorLogger.logAdEvent("AdMobBridge: Bringing app to foreground (app context)")
+            
+            // Use explicit class reference to MainActivity
+            val intent = Intent().apply {
+                setClassName(appContext.packageName, "com.lingualink.linguagt.MainActivity")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            appContext.startActivity(intent)
+        } catch (e: Exception) {
+            log("Application context startActivity failed: ${e.message}", "E")
+            TestRigorLogger.logError("Foreground recovery failed completely", e)
+        }
+    }
+    
+    /**
+     * Robust foreground recovery with retry logic.
+     * Will attempt recovery multiple times with delay to handle
+     * cases where Play Store takes time to release focus.
+     */
+    private fun bringAppToForegroundWithRetry() {
+        recoveryAttempts = 0
+        attemptRecovery()
+    }
+    
+    private fun attemptRecovery() {
+        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+            log("Max recovery attempts ($MAX_RECOVERY_ATTEMPTS) reached", "W")
+            TestRigorLogger.logWarning("Foreground recovery: max attempts reached")
             return
         }
         
-        log("Bringing app to foreground")
-        TestRigorLogger.logAdEvent("AdMobBridge: Bringing app to foreground")
+        recoveryAttempts++
+        log("Recovery attempt $recoveryAttempts/$MAX_RECOVERY_ATTEMPTS")
         
-        val intent = Intent(act, act::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        act.startActivity(intent)
+        bringAppToForeground()
+        
+        // Schedule verification
+        mainHandler.postDelayed({
+            if (!isAppInForeground) {
+                log("App still not in foreground - retrying")
+                attemptRecovery()
+            } else {
+                log("Recovery successful on attempt $recoveryAttempts")
+                TestRigorLogger.logMilestone("Foreground recovery successful (attempt $recoveryAttempts)")
+            }
+        }, RECOVERY_RETRY_DELAY_MS)
     }
     
     /**
@@ -291,7 +367,7 @@ class AdMobBridge(
         pendingForegroundRunnable = Runnable {
             val timeSinceClick = System.currentTimeMillis() - adClickedTime
             log("Foreground recovery triggered after ${timeSinceClick}ms")
-            bringAppToForeground()
+            bringAppToForegroundWithRetry() // Use retry version
         }
         
         mainHandler.postDelayed(pendingForegroundRunnable!!, FOREGROUND_DELAY_MS)
@@ -307,6 +383,7 @@ class AdMobBridge(
             mainHandler.removeCallbacks(it)
             pendingForegroundRunnable = null
         }
+        recoveryAttempts = MAX_RECOVERY_ATTEMPTS // Stop any pending retries
     }
 
     private fun initializeAdMob() {
@@ -877,7 +954,8 @@ class AdMobBridge(
                                 // CRITICAL: Emit specific callback for web app Promise resolution
                                 emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
                                 // CRITICAL: Bring app back to foreground after ad dismissal
-                                bringAppToForeground()
+                                // Use retry version for robust recovery from Play Store
+                                bringAppToForegroundWithRetry()
                                 loadInterstitialAd() // Preload next
                             }
 
@@ -1031,7 +1109,8 @@ class AdMobBridge(
                                     emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                                 }
                                 // CRITICAL: Bring app back to foreground after ad dismissal
-                                bringAppToForeground()
+                                // Use retry version for robust recovery from Play Store
+                                bringAppToForegroundWithRetry()
                                 loadRewardedAd() // Preload next
                             }
 
@@ -1163,7 +1242,8 @@ class AdMobBridge(
                     notifyJs("adClosed", "admob", "interstitial")
                     emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
                     // CRITICAL: Bring app back to foreground after ad dismissal
-                    bringAppToForeground()
+                    // Use retry version for robust recovery from Play Store
+                    bringAppToForegroundWithRetry()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
@@ -1290,7 +1370,8 @@ class AdMobBridge(
                         emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                     }
                     // CRITICAL: Bring app back to foreground after ad dismissal
-                    bringAppToForeground()
+                    // Use retry version for robust recovery from Play Store
+                    bringAppToForegroundWithRetry()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
