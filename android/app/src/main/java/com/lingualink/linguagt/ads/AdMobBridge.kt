@@ -637,6 +637,21 @@ class AdMobBridge(
         log("JS → isInterstitialReady() [original] = $ready")
         return ready
     }
+    
+    // ALIAS: Web app may call isInterstitialLoaded instead of isInterstitialReady
+    @JavascriptInterface
+    fun isInterstitialLoaded(): Boolean {
+        val ready = (isInterstitialReady && isInterstitialFresh()) || AdPreloadManager.isInterstitialReady()
+        log("JS → isInterstitialLoaded() [alias] = $ready")
+        return ready
+    }
+    
+    @JavascriptInterface
+    fun isInterstitialLoaded(placementId: String): Boolean {
+        val ready = (isInterstitialReady && isInterstitialFresh()) || AdPreloadManager.isInterstitialReady()
+        log("JS → isInterstitialLoaded($placementId) [alias] = $ready")
+        return ready
+    }
 
     @JavascriptInterface
     fun isRewardedReady(placementId: String): Boolean {
@@ -661,6 +676,21 @@ class AdMobBridge(
         // Fix #24: Include freshness check and preload manager check
         val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
         log("JS → isRewardedAdReady() [ORIGINAL] = $ready")
+        return ready
+    }
+    
+    // ALIAS: Web app may call isRewardedLoaded instead of isRewardedReady
+    @JavascriptInterface
+    fun isRewardedLoaded(): Boolean {
+        val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
+        log("JS → isRewardedLoaded() [alias] = $ready")
+        return ready
+    }
+    
+    @JavascriptInterface
+    fun isRewardedLoaded(placementId: String): Boolean {
+        val ready = (isRewardedReady && isRewardedFresh()) || AdPreloadManager.isRewardedReady()
+        log("JS → isRewardedLoaded($placementId) [alias] = $ready")
         return ready
     }
 
