@@ -212,9 +212,11 @@ class MainActivity : BaseActivity() {
 
             initializeTesterMobLib()
             
-            // NATIVE AD PRELOAD: Initialize immediately for fastest ad availability
-            // This runs in PARALLEL with WebView loading, eliminating bridge latency
-            initializeNativeAdPreload()
+            // CRITICAL FIX: Do NOT initialize ads here - it blocks the main thread
+            // and can cause white screen / ANR on startup (especially on BrowserStack)
+            // Ad initialization is now deferred to onPageFinished with 1-second delay
+            // See: docs/ANDROID_ADMOB_110_FIXES_GUIDE.md - "App Startup Failure Fix"
+            // initializeNativeAdPreload() -- MOVED TO onPageFinished
 
             // ANR PREVENTION: Defer heavy WebView initialization and permission requests to next frame
             // This allows the UI thread to respond within 5 seconds
@@ -782,6 +784,16 @@ class MainActivity : BaseActivity() {
                 
                 // Flush any buffered ad ready events now that WebView is ready
                 flushPendingAdReadyEvents()
+                
+                // CRITICAL FIX: Initialize ads AFTER WebView renders to prevent startup failures
+                // This 1-second delay ensures WebView is fully rendered before AdMob SDK init
+                // See: docs/ANDROID_ADMOB_110_FIXES_GUIDE.md - "App Startup Failure Fix"
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!isFinishing && !isDestroyed) {
+                        initializeNativeAdPreload()
+                        TestRigorLogger.logMilestone("Ad initialization completed (deferred after WebView load)")
+                    }
+                }, 1000) // 1 second delay after page load
 
                 // Notify web app that Android container is ready
                 view?.evaluateJavascript(
