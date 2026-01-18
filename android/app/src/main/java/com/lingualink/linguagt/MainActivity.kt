@@ -292,6 +292,12 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Guard: If webView not initialized yet, skip processing
+        // This happens during foreground recovery before onCreate finishes
+        // The app is already being brought to front - no further action needed
+        if (!::webView.isInitialized) {
+            return
+        }
         webView.requestFocus()
         intent?.let { handleDeepLink(it) }
     }
