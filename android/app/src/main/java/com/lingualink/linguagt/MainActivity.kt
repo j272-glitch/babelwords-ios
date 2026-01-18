@@ -299,6 +299,17 @@ class MainActivity : BaseActivity() {
             return
         }
         webView.requestFocus()
+        
+        // CRITICAL: Check if this is a foreground recovery intent (no action, no data)
+        // These are sent by AdMobBridge.bringAppToForeground() after ad closes
+        // We should NOT reload the page - just bring app to front and keep current state
+        val action = intent?.action
+        val data = intent?.data
+        if (action == null && data == null) {
+            TestRigorLogger.logDebug("Foreground recovery intent - preserving current page state")
+            return
+        }
+        
         intent?.let { handleDeepLink(it) }
     }
 
