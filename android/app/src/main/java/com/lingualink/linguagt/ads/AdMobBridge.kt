@@ -361,6 +361,15 @@ class AdMobBridge(
     fun isConsentReady(): Boolean {
         return consentChecked && hasConsent
     }
+    
+    /**
+     * FIX #40: Called when window focus changes.
+     * Updates internal foreground state for ad display decisions.
+     */
+    fun onAppForegroundChange(hasFocus: Boolean) {
+        log("App foreground change: $hasFocus")
+        isAppInForeground = hasFocus
+    }
 
     private fun isAdMobId(placementId: String): Boolean {
         return placementId.startsWith("ca-app-pub-")

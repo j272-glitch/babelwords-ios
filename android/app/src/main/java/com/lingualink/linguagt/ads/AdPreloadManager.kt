@@ -654,6 +654,21 @@ object AdPreloadManager : LifecycleEventObserver {
     }
     
     /**
+     * FIX #89: Clear all cached ads (for low memory situations).
+     * Releases both interstitial and rewarded ads and cancels pending loads.
+     */
+    fun clearAllCachedAds() {
+        log("Clearing all cached ads (low memory)")
+        interstitialAd = null
+        rewardedAd = null
+        interstitialLoadTime = 0
+        rewardedLoadTime = 0
+        isInterstitialLoading.set(false)
+        isRewardedLoading.set(false)
+        cancelPendingRetries()
+    }
+    
+    /**
      * Get ad status for debugging.
      */
     fun getAdStatus(): Map<String, Any> = mapOf(

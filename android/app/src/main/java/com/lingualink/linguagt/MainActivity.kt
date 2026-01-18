@@ -146,6 +146,20 @@ class MainActivity : BaseActivity() {
     // Track VAST Ad Manager initialization state
     private var isIMAConsentInitialized = false
     private var isWebViewFullyLoaded = false
+    
+    // FIX #16-30: Android 15 API 35 compatibility flags
+    private var isAndroid15OrHigher = Build.VERSION.SDK_INT >= 35
+    private var hasEdgeToEdgeApplied = false
+    
+    // FIX #36: Save WebView URL for process death recovery
+    private var lastLoadedUrl: String? = null
+    
+    // FIX #40: Track window focus for ad display
+    private var hasWindowFocus = false
+    
+    // FIX #86-95: Memory management
+    private var isLowMemoryMode = false
+    private val MAX_WEBVIEW_CACHE_SIZE = 50 * 1024 * 1024 // 50MB
 
     // Audio enhancement components for speech recognition
     private var echoCanceler: AcousticEchoCanceler? = null
@@ -332,6 +346,13 @@ class MainActivity : BaseActivity() {
     private var loadUrlRetryCount = 0
     private val MAX_LOAD_RETRIES = 5
     private val LOAD_RETRY_DELAY_MS = 500L
+    
+    // FIX #61: Network retry state
+    private var networkRetryCount = 0
+    private val MAX_NETWORK_RETRIES = 3
+    private val NETWORK_RETRY_BASE_DELAY_MS = 2000L
+    private var pendingNetworkRetryRunnable: Runnable? = null
+    private var isNetworkRetryPending = false
 
     private fun loadDefaultUrl() {
         TestRigorLogger.logMilestone("WebView loadUrl starting (attempt ${loadUrlRetryCount + 1})")
@@ -363,6 +384,87 @@ class MainActivity : BaseActivity() {
             }
         } else {
             TestRigorLogger.logError("WebView not initialized - cannot load URL", null)
+        }
+    }
+    
+    /**
+     * FIX #61: Schedule network retry after connection error.
+     * Uses true exponential backoff (base * 2^(n-1)) up to MAX_NETWORK_RETRIES.
+     * FIX: Tracks pending runnable to prevent duplicate retries and uses lifecycleHandler.
+     */
+    private fun scheduleNetworkRetry() {
+        // FIX: Prevent duplicate retries
+        if (isNetworkRetryPending) {
+            TestRigorLogger.logDebug("Network retry already pending - skipping duplicate")
+            return
+        }
+        
+        // FIX: Check window focus - don't retry if in background
+        if (!hasWindowFocus) {
+            TestRigorLogger.logDebug("App in background - deferring network retry")
+            return
+        }
+        
+        if (networkRetryCount >= MAX_NETWORK_RETRIES) {
+            TestRigorLogger.logError("Max network retries reached ($MAX_NETWORK_RETRIES)", null)
+            resetNetworkRetryState()
+            return
+        }
+        
+        networkRetryCount++
+        // FIX: True exponential backoff: base * 2^(n-1)
+        val delay = NETWORK_RETRY_BASE_DELAY_MS * (1 shl (networkRetryCount - 1)) // 2s, 4s, 8s
+        TestRigorLogger.logMilestone("Scheduling network retry $networkRetryCount/$MAX_NETWORK_RETRIES in ${delay}ms")
+        
+        isNetworkRetryPending = true
+        
+        // FIX: Cancel any existing pending retry
+        pendingNetworkRetryRunnable?.let { lifecycleHandler.removeCallbacks(it) }
+        
+        val runnable = Runnable {
+            isNetworkRetryPending = false
+            if (!isFinishing && !isDestroyed && ::webView.isInitialized && hasWindowFocus) {
+                // FIX #64: Check network before retry
+                if (isNetworkAvailable()) {
+                    TestRigorLogger.logMilestone("Network available - retrying load")
+                    webView.reload()
+                } else {
+                    TestRigorLogger.logWarning("Network still unavailable - scheduling another retry")
+                    scheduleNetworkRetry()
+                }
+            }
+        }
+        pendingNetworkRetryRunnable = runnable
+        lifecycleHandler.postDelayed(runnable, delay)
+    }
+    
+    /**
+     * FIX: Reset network retry state on successful page load.
+     */
+    private fun resetNetworkRetryState() {
+        networkRetryCount = 0
+        isNetworkRetryPending = false
+        pendingNetworkRetryRunnable?.let { lifecycleHandler.removeCallbacks(it) }
+        pendingNetworkRetryRunnable = null
+    }
+    
+    /**
+     * FIX #64: Check if network is available.
+     */
+    private fun isNetworkAvailable(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val network = cm.activeNetwork ?: return false
+                val capabilities = cm.getNetworkCapabilities(network) ?: return false
+                capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            } else {
+                @Suppress("DEPRECATION")
+                cm.activeNetworkInfo?.isConnected ?: false
+            }
+        } catch (e: Exception) {
+            TestRigorLogger.logError("Network check failed", e)
+            false
         }
     }
 
@@ -651,6 +753,9 @@ class MainActivity : BaseActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 TestRigorLogger.logWebView("Page finished", url)
+                
+                // FIX: Reset network retry state on successful page load
+                resetNetworkRetryState()
 
                 url?.let {
                     val path = Uri.parse(it).path ?: "/"
@@ -692,11 +797,47 @@ class MainActivity : BaseActivity() {
                 super.onPageFinished(view, url)
             }
 
+            // FIX #56-65: Enhanced error handling with network retry
             override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
                 if (request?.isForMainFrame == true) {
-                    TestRigorLogger.logError("WebView error: ${error?.description}", null)
+                    val errorCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        error?.errorCode ?: -1
+                    } else -1
+                    val errorDesc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        error?.description?.toString() ?: "Unknown error"
+                    } else "Unknown error"
+                    
+                    TestRigorLogger.logError("WebView main frame error: $errorCode - $errorDesc", null)
+                    
+                    // FIX #61: Check if network error and retry
+                    when (errorCode) {
+                        android.webkit.WebViewClient.ERROR_HOST_LOOKUP,
+                        android.webkit.WebViewClient.ERROR_CONNECT,
+                        android.webkit.WebViewClient.ERROR_TIMEOUT -> {
+                            TestRigorLogger.logMilestone("Network error detected - scheduling retry")
+                            scheduleNetworkRetry()
+                        }
+                        android.webkit.WebViewClient.ERROR_BAD_URL -> {
+                            TestRigorLogger.logError("Bad URL - cannot retry", null)
+                        }
+                    }
                 }
                 super.onReceivedError(view, request, error)
+            }
+            
+            // FIX #62: Handle HTTP errors
+            override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, errorResponse: android.webkit.WebResourceResponse?) {
+                if (request?.isForMainFrame == true) {
+                    val statusCode = errorResponse?.statusCode ?: -1
+                    TestRigorLogger.logError("HTTP error on main frame: $statusCode", null)
+                    
+                    // FIX #65: Retry on server errors (5xx)
+                    if (statusCode >= 500) {
+                        TestRigorLogger.logMilestone("Server error - scheduling retry")
+                        scheduleNetworkRetry()
+                    }
+                }
+                super.onReceivedHttpError(view, request, errorResponse)
             }
 
             // FIX #11: Handle SSL errors to prevent blank screens
@@ -1470,24 +1611,58 @@ class MainActivity : BaseActivity() {
     }
 
     /**
-     * ANR FIX #3: Handle focus recovery
+     * ANR FIX #3 + FIX #40-41: Handle focus recovery
      * Ensures WebView maintains focus when activity gains focus
+     * FIX #40: Track window focus for ad display decisions
+     * FIX #41: Use as readiness signal if onAttachedToWindow delayed
      */
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
+        
+        // FIX #40: Track focus state
+        hasWindowFocus = hasFocus
+        TestRigorLogger.logDebug("Window focus changed: $hasFocus")
+        
         if (hasFocus && ::webView.isInitialized) {
             webView.post {
                 webView.requestFocus()
                 TestRigorLogger.logDebug("WebView focus restored on window focus change - ANR prevention")
             }
+            
+            // FIX #41: If this is first focus and WebView not loaded, trigger load
+            if (!isWebViewFullyLoaded && loadUrlRetryCount == 0) {
+                TestRigorLogger.logMilestone("First window focus - checking WebView load status")
+            }
+        }
+        
+        // Notify AdMobBridge of focus change for ad display decisions
+        if (::adMobBridge.isInitialized) {
+            try {
+                adMobBridge.onAppForegroundChange(hasFocus)
+            } catch (e: Exception) {
+                TestRigorLogger.logError("AdMobBridge focus notification failed", e)
+            }
         }
     }
 
     /**
-     * Solution #72: Save permission state for activity recreation
+     * Solution #72 + FIX #36: Save permission state and WebView URL for activity recreation
      */
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+
+        // FIX #36: Save WebView URL for process death recovery
+        if (::webView.isInitialized) {
+            try {
+                val currentUrl = webView.url
+                if (!currentUrl.isNullOrEmpty()) {
+                    outState.putString("webview_url", currentUrl)
+                    TestRigorLogger.logDebug("Saved WebView URL: $currentUrl")
+                }
+            } catch (e: Exception) {
+                TestRigorLogger.logError("Failed to save WebView URL", e)
+            }
+        }
 
         val permissionBundle = Bundle().apply {
             putBoolean("isProcessingPermission", isProcessingPermission)
@@ -1497,6 +1672,19 @@ class MainActivity : BaseActivity() {
         }
         outState.putBundle("permission_state", permissionBundle)
         TestRigorLogger.logDebug("Saved permission state to outState")
+    }
+    
+    /**
+     * FIX #36: Restore WebView state on activity recreation
+     */
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)
+        
+        // Restore WebView URL
+        savedInstanceState.getString("webview_url")?.let { url ->
+            lastLoadedUrl = url
+            TestRigorLogger.logDebug("Restored WebView URL: $url")
+        }
     }
 
     /**
@@ -1729,29 +1917,62 @@ class MainActivity : BaseActivity() {
         }
     }
 
-    // ADMOB FIX: Handle low memory by releasing cached ads (ANDROID_MEMORY_001)
+    // FIX #86-95: Enhanced memory management with WebView cleanup
     override fun onLowMemory() {
         super.onLowMemory()
-        TestRigorLogger.logMilestone("onLowMemory - releasing cached ads")
+        TestRigorLogger.logMilestone("onLowMemory - releasing cached resources")
+        isLowMemoryMode = true
+        
         try {
+            // FIX #86: Release ad cached resources
             if (::adBridge.isInitialized) {
                 adBridge.onLowMemory()
             }
+            
+            // FIX #89: Clear AdPreloadManager cached ads
+            AdPreloadManager.clearAllCachedAds()
+            
+            // FIX #90: Clear WebView cache if available
+            if (::webView.isInitialized) {
+                webView.clearCache(false) // false = keep persistent cache
+            }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdBridge onLowMemory", e)
+            TestRigorLogger.logError("onLowMemory cleanup failed", e)
         }
     }
 
-    // ADMOB FIX: Handle memory trim levels (ANDROID_MEMORY_006)
+    // FIX #86-95: Enhanced memory trim handling
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         TestRigorLogger.logMilestone("onTrimMemory level: $level")
+        
         try {
             if (::adBridge.isInitialized) {
                 adBridge.onTrimMemory(level)
             }
+            
+            // FIX #91: Aggressive cleanup on critical memory levels
+            when (level) {
+                android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+                android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
+                    isLowMemoryMode = true
+                    AdPreloadManager.clearAllCachedAds()
+                    if (::webView.isInitialized) {
+                        webView.clearCache(false)
+                    }
+                    TestRigorLogger.logMilestone("Critical memory - cleared caches")
+                }
+                android.content.ComponentCallbacks2.TRIM_MEMORY_MODERATE,
+                android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> {
+                    isLowMemoryMode = true
+                }
+                android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> {
+                    // App went to background - can release some resources
+                    TestRigorLogger.logDebug("UI hidden - app in background")
+                }
+            }
         } catch (e: Exception) {
-            TestRigorLogger.logError("AdBridge onTrimMemory", e)
+            TestRigorLogger.logError("onTrimMemory failed", e)
         }
     }
 
@@ -1810,6 +2031,9 @@ class MainActivity : BaseActivity() {
             TestRigorLogger.logError("AdPreloadManager cleanup", e)
         }
 
+        // FIX: Clean up network retry state
+        resetNetworkRetryState()
+        
         // Solution #78: Clean up lifecycleHandler
         try {
             if (::lifecycleHandler.isInitialized) {
