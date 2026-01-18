@@ -971,12 +971,11 @@ class AdMobBridge(
                                 interstitialAd = null
                                 cancelForegroundRecovery()
                                 log("Interstitial dismissed")
+                                // CRITICAL: Bring app back to foreground BEFORE callbacks
+                                bringAppToForegroundWithRetry()
                                 notifyJs("adClosed", "admob", "interstitial")
                                 // CRITICAL: Emit specific callback for web app Promise resolution
                                 emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
-                                // CRITICAL: Bring app back to foreground after ad dismissal
-                                // Use retry version for robust recovery from Play Store
-                                bringAppToForegroundWithRetry()
                                 loadInterstitialAd() // Preload next
                             }
 
@@ -1141,14 +1140,13 @@ class AdMobBridge(
                                 rewardedAd = null
                                 cancelForegroundRecovery()
                                 log("Rewarded dismissed, localRewardEarned: $localRewardEarned")
+                                // CRITICAL: Bring app back to foreground BEFORE callbacks
+                                bringAppToForegroundWithRetry()
                                 notifyJs("adClosed", "admob", "rewarded")
                                 // CRITICAL: Only emit closed callback if reward wasn't earned
                                 if (!localRewardEarned) {
                                     emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                                 }
-                                // CRITICAL: Bring app back to foreground after ad dismissal
-                                // Use retry version for robust recovery from Play Store
-                                bringAppToForegroundWithRetry()
                                 loadRewardedAd() // Preload next
                             }
 
@@ -1281,11 +1279,10 @@ class AdMobBridge(
                     isShowingAd = false
                     log("Preloaded interstitial dismissed")
                     cancelForegroundRecovery()
+                    // CRITICAL: Bring app back to foreground BEFORE callbacks
+                    bringAppToForegroundWithRetry()
                     notifyJs("adClosed", "admob", "interstitial")
                     emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
-                    // CRITICAL: Bring app back to foreground after ad dismissal
-                    // Use retry version for robust recovery from Play Store
-                    bringAppToForegroundWithRetry()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
@@ -1406,14 +1403,13 @@ class AdMobBridge(
                     isShowingAd = false
                     log("Preloaded rewarded dismissed, rewardEarned: $rewardEarned")
                     cancelForegroundRecovery()
+                    // CRITICAL: Bring app back to foreground BEFORE callbacks
+                    bringAppToForegroundWithRetry()
                     notifyJs("adClosed", "admob", "rewarded")
                     // If reward wasn't earned, emit closed callback
                     if (!rewardEarned) {
                         emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                     }
-                    // CRITICAL: Bring app back to foreground after ad dismissal
-                    // Use retry version for robust recovery from Play Store
-                    bringAppToForegroundWithRetry()
                 }
                 
                 override fun onAdFailedToShowFullScreenContent(error: AdError) {
