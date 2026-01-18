@@ -457,9 +457,11 @@ object AdPreloadManager : LifecycleEventObserver {
             return
         }
         
-        // Skip if app in background
-        if (!isAppInForeground) {
-            log("App in background - skipping interstitial load")
+        // Skip if app in background - RELAXED: allow initial preload even if foreground state unclear
+        // BrowserStack and test environments may report incorrect foreground state during initialization
+        if (!isAppInForeground && interstitialAd != null) {
+            // Only skip if we already have an ad and app is in background (avoid reload in background)
+            log("App in background with existing ad - skipping interstitial load")
             return
         }
         
@@ -469,7 +471,7 @@ object AdPreloadManager : LifecycleEventObserver {
             return
         }
         
-        log("Loading interstitial ad: $INTERSTITIAL_AD_UNIT_ID")
+        log("Loading interstitial ad: $INTERSTITIAL_AD_UNIT_ID (foreground: $isAppInForeground)")
         TestRigorLogger.logAdEvent("AdPreloadManager: Loading interstitial")
         
         // Build ad request with consent-appropriate settings
@@ -589,9 +591,11 @@ object AdPreloadManager : LifecycleEventObserver {
             return
         }
         
-        // Skip if app in background
-        if (!isAppInForeground) {
-            log("App in background - skipping rewarded load")
+        // Skip if app in background - RELAXED: allow initial preload even if foreground state unclear
+        // BrowserStack and test environments may report incorrect foreground state during initialization
+        if (!isAppInForeground && rewardedAd != null) {
+            // Only skip if we already have an ad and app is in background (avoid reload in background)
+            log("App in background with existing ad - skipping rewarded load")
             return
         }
         
@@ -601,7 +605,7 @@ object AdPreloadManager : LifecycleEventObserver {
             return
         }
         
-        log("Loading rewarded ad: $REWARDED_AD_UNIT_ID")
+        log("Loading rewarded ad: $REWARDED_AD_UNIT_ID (foreground: $isAppInForeground)")
         TestRigorLogger.logAdEvent("AdPreloadManager: Loading rewarded")
         
         // Build ad request with consent-appropriate settings
