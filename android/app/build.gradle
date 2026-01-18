@@ -1,7 +1,7 @@
 // app/build.gradle - TestRigor compatible configuration with Conversation Mode support
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.google.gms.google-services'
+// DISABLED FOR TESTING: apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace 'com.lingualink.linguagt'
@@ -307,11 +307,11 @@ dependencies {
     // Google Mobile Ads SDK (22.6.0 compatible with Kotlin 1.8.x/1.9.x)
     implementation 'com.google.android.gms:play-services-ads:22.6.0'
 
-    // Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
-    implementation platform('com.google.firebase:firebase-bom:32.8.0')
+    // DISABLED FOR TESTING - Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
+    // implementation platform('com.google.firebase:firebase-bom:32.8.0')
     
-    // Firebase Analytics (required for AdMob)
-    implementation 'com.google.firebase:firebase-analytics'
+    // DISABLED FOR TESTING - Firebase Analytics (required for AdMob)
+    // implementation 'com.google.firebase:firebase-analytics'
 
     // Testing
     testImplementation 'junit:junit:4.13.2'
