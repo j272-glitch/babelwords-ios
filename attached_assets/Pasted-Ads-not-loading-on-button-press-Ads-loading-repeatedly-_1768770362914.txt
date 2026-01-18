@@ -1,0 +1,55 @@
+Ads not loading on button press.
+
+Ads loading repeatedly.
+
+I found the issue! When using loadInterstitialAndShow, Android handles both loading AND showing. But the JavaScript code still reacts to onNativeAdReady callback and tries to show the ad again.
+
+Let me add a flag to track when we're using the combined method:
+
+Now update the callback to skip auto-show when using combined methods:
+
+Now set the flag when using loadAndShow, and clear it on close:
+
+Intermittent, erratic ad behaviour. Why are ads not consistently loading after ad button press? Why isn't app consistently returning returning to foreground when app closes?
+
+Both issues are Android native code problems that cannot be fixed from JavaScript. The JavaScript side correctly calls the bridge and waits for callbacks, but Android must respond properly.
+
+Root Causes:
+1. Ads not loading consistently
+Problem: Android isn't calling window.onNativeAdReady('interstitial') when ads load.
+
+Fix needed in Android AdPreloadManager:
+
+override fun onAdLoaded(ad: InterstitialAd) {
+    interstitialAd = ad
+    // ⚠️ MUST call this - JavaScript is waiting for it
+    webView.evaluateJavascript(
+        "window.onNativeAdReady && window.onNativeAdReady('interstitial')", 
+        null
+    )
+}
+2. App not returning to foreground
+Problem: Android isn't calling bringAppToFront() when ads close.
+
+Fix needed in Android AdPreloadManager:
+
+override fun onAdDismissedFullScreenContent() {
+    // ⚠️ STEP 1: Bring app to front FIRST
+    val intent = Intent(activity, MainActivity::class.java).apply {
+        flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or 
+                Intent.FLAG_ACTIVITY_SINGLE_TOP
+    }
+    activity.startActivity(intent)
+    
+    // ⚠️ STEP 2: Then notify JavaScript
+    webView.evaluateJavascript(
+        "window.onInterstitialClosed && window.onInterstitialClosed()", 
+        null
+    )
+}
+Summary: Android Must Call These Callbacks
+When	Android Must Call
+Ad loaded	window.onNativeAdReady('interstitial') or window.onNativeAdReady('rewarded')
+Ad closed	bringAppToFront() THEN window.onInterstitialClosed() or window.onRewardedClosed()
+Reward earned	window.onRewardEarned(type, amount)
+Without these callbacks from Android, JavaScript just waits until timeout.

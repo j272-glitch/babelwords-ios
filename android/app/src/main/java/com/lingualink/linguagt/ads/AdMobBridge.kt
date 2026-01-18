@@ -888,6 +888,8 @@ class AdMobBridge(
             isInterstitialReady = true
             notifyJs("adLoaded", "admob", "interstitial")
             emitDirectCallback("window.onInterstitialLoaded && window.onInterstitialLoaded();")
+            // Also call onNativeAdReady for web app compatibility
+            emitDirectCallback("window.onNativeAdReady && window.onNativeAdReady('interstitial');")
             if (autoShowInterstitial) {
                 mainHandler.post {
                     log("  ► Auto-showing from AdPreloadManager...")
@@ -998,8 +1000,10 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "interstitial")
-                        // Fix #3: Standardized ready callback
+                        // Fix #3: Standardized ready callback (both naming conventions)
                         emitDirectCallback("window.onInterstitialReady && window.onInterstitialReady()")
+                        // Also call onNativeAdReady for web app compatibility
+                        emitDirectCallback("window.onNativeAdReady && window.onNativeAdReady('interstitial')")
 
                         // AUTO-SHOW: If loadInterstitialAndShow() was called, show immediately
                         if (autoShowInterstitial) {
@@ -1053,6 +1057,8 @@ class AdMobBridge(
             isRewardedReady = true
             notifyJs("adLoaded", "admob", "rewarded")
             emitDirectCallback("window.onRewardedLoaded && window.onRewardedLoaded();")
+            // Also call onNativeAdReady for web app compatibility
+            emitDirectCallback("window.onNativeAdReady && window.onNativeAdReady('rewarded');")
             if (autoShowRewarded) {
                 mainHandler.post {
                     log("  ► Auto-showing from AdPreloadManager...")
@@ -1166,8 +1172,10 @@ class AdMobBridge(
                         }
 
                         notifyJs("adLoaded", "admob", "rewarded")
-                        // Fix #3: Standardized ready callback
+                        // Fix #3: Standardized ready callback (both naming conventions)
                         emitDirectCallback("window.onRewardedReady && window.onRewardedReady()")
+                        // Also call onNativeAdReady for web app compatibility
+                        emitDirectCallback("window.onNativeAdReady && window.onNativeAdReady('rewarded')")
 
                         // AUTO-SHOW: If loadRewardedAndShow() was called, show immediately
                         if (autoShowRewarded) {
