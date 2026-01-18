@@ -292,8 +292,20 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        webView.requestFocus()
-        intent?.let { handleDeepLink(it) }
+        // FIX: Check if webView is initialized before accessing (foreground recovery may arrive early)
+        if (::webView.isInitialized) {
+            webView.requestFocus()
+            intent?.let { handleDeepLink(it) }
+        } else {
+            TestRigorLogger.logWarning("onNewIntent called before webView initialized - deferring")
+            // Defer handling until webView is ready
+            window.decorView.post {
+                if (::webView.isInitialized && !isFinishing && !isDestroyed) {
+                    webView.requestFocus()
+                    intent?.let { handleDeepLink(it) }
+                }
+            }
+        }
     }
 
     private fun handleDeepLink(intent: Intent?) {
