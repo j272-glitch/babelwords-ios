@@ -618,8 +618,10 @@ class AdMobBridge(
     // Auto-show flag for 1-step rewarded (like banner)
     private var autoShowRewarded = false
     
-    // Track if reward was earned for local ads
+    // Track if reward was earned for local ads and store reward data for re-emit
     private var localRewardEarned = false
+    private var localRewardType = ""
+    private var localRewardAmount = 0
 
     @JavascriptInterface
     fun loadRewarded(placementId: String) {
@@ -1143,8 +1145,11 @@ class AdMobBridge(
                                 // CRITICAL: Bring app back to foreground BEFORE callbacks
                                 bringAppToForegroundWithRetry()
                                 notifyJs("adClosed", "admob", "rewarded")
-                                // CRITICAL: Only emit closed callback if reward wasn't earned
-                                if (!localRewardEarned) {
+                                // If reward was earned, re-emit callback now that app is in foreground
+                                if (localRewardEarned) {
+                                    log("Re-emitting local reward callback after foreground recovery")
+                                    emitRewardCallback(localRewardType, localRewardAmount)
+                                } else {
                                     emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                                 }
                                 loadRewardedAd() // Preload next
@@ -1394,8 +1399,10 @@ class AdMobBridge(
             log("  ► Using PRELOADED rewarded (fast path)")
             TestRigorLogger.logAdEvent("AdMobBridge: Showing preloaded rewarded")
             
-            // Track if reward was earned
+            // Track if reward was earned and store reward data for re-emit after foreground
             var rewardEarned = false
+            var earnedRewardType = ""
+            var earnedRewardAmount = 0
             
             // Override callbacks to emit JavaScript AND handle foreground recovery
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
@@ -1406,8 +1413,12 @@ class AdMobBridge(
                     // CRITICAL: Bring app back to foreground BEFORE callbacks
                     bringAppToForegroundWithRetry()
                     notifyJs("adClosed", "admob", "rewarded")
-                    // If reward wasn't earned, emit closed callback
-                    if (!rewardEarned) {
+                    // If reward was earned, re-emit callback now that app is in foreground
+                    // This ensures the web app receives it reliably
+                    if (rewardEarned) {
+                        log("Re-emitting reward callback after foreground recovery")
+                        emitRewardCallback(earnedRewardType, earnedRewardAmount)
+                    } else {
                         emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                     }
                 }
@@ -1439,6 +1450,8 @@ class AdMobBridge(
                 log("  Type: ${reward.type}")
                 log("  Amount: ${reward.amount}")
                 rewardEarned = true
+                earnedRewardType = reward.type
+                earnedRewardAmount = reward.amount
                 
                 // Send through main event channel
                 notifyJs("adRewarded", "admob", "rewarded", null, mapOf(
@@ -1446,7 +1459,8 @@ class AdMobBridge(
                     "amount" to reward.amount
                 ))
                 
-                // CRITICAL: Emit reward callback through multiple mechanisms
+                // Emit reward callback now (may or may not reach web app while ad is visible)
+                // Will be re-emitted in onAdDismissedFullScreenContent after foreground recovery
                 emitRewardCallback(reward.type, reward.amount)
             }
             AdPreloadManager.clearCachedRewarded()
@@ -1462,6 +1476,8 @@ class AdMobBridge(
                 log("  Type: ${reward.type}")
                 log("  Amount: ${reward.amount}")
                 localRewardEarned = true
+                localRewardType = reward.type
+                localRewardAmount = reward.amount
                 
                 // Send through main event channel
                 notifyJs("adRewarded", "admob", "rewarded", null, mapOf(
@@ -1469,7 +1485,8 @@ class AdMobBridge(
                     "amount" to reward.amount
                 ))
                 
-                // CRITICAL: Emit reward callback through multiple mechanisms
+                // Emit reward callback now (may or may not reach web app while ad is visible)
+                // Will be re-emitted in onAdDismissedFullScreenContent after foreground recovery
                 emitRewardCallback(reward.type, reward.amount)
             }
             log("  ✓ Local show() called successfully")
