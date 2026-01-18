@@ -292,28 +292,14 @@ class MainActivity : BaseActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         setIntent(intent)
-        // Guard: If webView not initialized yet, skip processing
-        // This happens during foreground recovery before onCreate finishes
-        // The app is already being brought to front - no further action needed
-        if (!::webView.isInitialized) {
-            return
-        }
+        if (!::webView.isInitialized) return
         webView.requestFocus()
         
-        // CRITICAL: Check if this is a foreground recovery intent from AdMobBridge
-        // These have an explicit marker to skip page reload while still processing
-        val isForegroundRecovery = intent?.getBooleanExtra(
-            com.lingualink.linguagt.ads.AdMobBridge.FOREGROUND_RECOVERY_EXTRA, false
-        ) ?: false
-        
-        if (isForegroundRecovery) {
-            TestRigorLogger.logDebug("Foreground recovery intent - preserving current page state")
-            // Don't return early - let the activity lifecycle proceed normally
-            // Just skip the deep link handling that would reload the page
-            return
+        // Only process actual deep links (ACTION_VIEW with URL data)
+        // All other intents (including foreground recovery) just bring app to front
+        if (intent?.action == Intent.ACTION_VIEW && intent.data != null) {
+            handleDeepLink(intent)
         }
-        
-        intent?.let { handleDeepLink(it) }
     }
 
     private fun handleDeepLink(intent: Intent?) {
