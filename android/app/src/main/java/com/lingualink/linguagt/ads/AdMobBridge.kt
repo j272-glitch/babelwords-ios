@@ -971,6 +971,7 @@ class AdMobBridge(
                                 isShowingAd = false
                                 isInterstitialReady = false
                                 interstitialAd = null
+                                autoShowInterstitial = false // CRITICAL: Reset to prevent auto-show of preloaded ad
                                 cancelForegroundRecovery()
                                 log("Interstitial dismissed")
                                 // CRITICAL: Bring app back to foreground BEFORE callbacks
@@ -978,7 +979,7 @@ class AdMobBridge(
                                 notifyJs("adClosed", "admob", "interstitial")
                                 // CRITICAL: Emit specific callback for web app Promise resolution
                                 emitDirectCallback("if(window.onInterstitialClosed) window.onInterstitialClosed();")
-                                loadInterstitialAd() // Preload next
+                                loadInterstitialAd() // Preload next (autoShowInterstitial is now false)
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
@@ -1140,6 +1141,7 @@ class AdMobBridge(
                                 isShowingAd = false
                                 isRewardedReady = false
                                 rewardedAd = null
+                                autoShowRewarded = false // CRITICAL: Reset to prevent auto-show of preloaded ad
                                 cancelForegroundRecovery()
                                 log("Rewarded dismissed, localRewardEarned: $localRewardEarned")
                                 // CRITICAL: Bring app back to foreground BEFORE callbacks
@@ -1152,7 +1154,7 @@ class AdMobBridge(
                                 } else {
                                     emitDirectCallback("if(window.onRewardedClosed) window.onRewardedClosed();")
                                 }
-                                loadRewardedAd() // Preload next
+                                loadRewardedAd() // Preload next (autoShowRewarded is now false)
                             }
 
                             override fun onAdFailedToShowFullScreenContent(error: AdError) {
@@ -1282,6 +1284,7 @@ class AdMobBridge(
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     isShowingAd = false
+                    autoShowInterstitial = false // CRITICAL: Reset to prevent auto-show of next preloaded ad
                     log("Preloaded interstitial dismissed")
                     cancelForegroundRecovery()
                     // CRITICAL: Bring app back to foreground BEFORE callbacks
@@ -1408,6 +1411,7 @@ class AdMobBridge(
             preloadedAd.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
                     isShowingAd = false
+                    autoShowRewarded = false // CRITICAL: Reset to prevent auto-show of next preloaded ad
                     log("Preloaded rewarded dismissed, rewardEarned: $rewardEarned")
                     cancelForegroundRecovery()
                     // CRITICAL: Bring app back to foreground BEFORE callbacks
