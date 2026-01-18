@@ -708,23 +708,84 @@ object AdPreloadManager : LifecycleEventObserver {
         }
     }
     
+    // Retry configuration for robust foreground recovery
+    private var recoveryAttempts = 0
+    private val MAX_RECOVERY_ATTEMPTS = 5
+    private val RECOVERY_RETRY_DELAY_MS = 500L
+    
     /**
      * CRITICAL: Brings the app back to foreground after ad dismissal.
      * This prevents the Google Play Store redirect issue.
+     * 
+     * Uses robust retry logic with NEW_TASK + CLEAR_TOP + SINGLE_TOP flags
+     * which work even if the task was killed by the system.
+     * REORDER_TO_FRONT alone fails when task is destroyed.
      */
     private fun bringAppToForeground() {
+        recoveryAttempts = 0
+        attemptForegroundRecovery()
+    }
+    
+    private fun attemptForegroundRecovery() {
+        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+            log("⚠️ Max recovery attempts ($MAX_RECOVERY_ATTEMPTS) reached", "W")
+            return
+        }
+        
+        recoveryAttempts++
+        log("Foreground recovery attempt $recoveryAttempts/$MAX_RECOVERY_ATTEMPTS")
+        
         try {
             val activity = activityRef?.get()
+            
+            // Method 1: Try with activity context (preferred)
             if (activity != null && !activity.isFinishing && !activity.isDestroyed) {
-                val intent = Intent(activity, activity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                val intent = Intent(activity, activity::class.java).apply {
+                    // CRITICAL: Use all flags for robust recovery
+                    // NEW_TASK: Creates new task if current was destroyed
+                    // CLEAR_TOP: Clears activities above target
+                    // SINGLE_TOP: Reuses existing instance
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
                 activity.startActivity(intent)
-                log("✓ App brought to foreground")
+                log("✓ App brought to foreground via activity")
             } else {
-                log("⚠️ Cannot bring app to foreground - no valid activity reference", "W")
+                // Method 2: Fallback to application context
+                log("Activity invalid - using application context fallback")
+                bringAppToForegroundViaAppContext()
             }
+            
+            // Schedule verification and retry if needed
+            mainHandler.postDelayed({
+                if (!isAppInForeground.get()) {
+                    log("App still not in foreground - retrying")
+                    attemptForegroundRecovery()
+                } else {
+                    log("✓ Foreground recovery successful on attempt $recoveryAttempts")
+                }
+            }, RECOVERY_RETRY_DELAY_MS)
+            
         } catch (e: Exception) {
-            log("✗ Failed to bring app to foreground: ${e.message}", "E")
+            log("✗ Foreground recovery failed: ${e.message}", "E")
+            // Try application context fallback
+            bringAppToForegroundViaAppContext()
+        }
+    }
+    
+    private fun bringAppToForegroundViaAppContext() {
+        try {
+            val intent = Intent().apply {
+                setClassName(appContext.packageName, "com.lingualink.linguagt.MainActivity")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            appContext.startActivity(intent)
+            log("✓ App brought to foreground via app context")
+        } catch (e: Exception) {
+            log("✗ App context foreground recovery also failed: ${e.message}", "E")
         }
     }
     
