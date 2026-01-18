@@ -68,6 +68,10 @@ class AdMobBridge(
         // Retry configuration (exponential backoff)
         private const val INITIAL_RETRY_DELAY_MS = 5000L
         private const val MAX_RETRY_DELAY_MS = 60000L
+        
+        // Intent extra to mark foreground recovery intents
+        // MainActivity checks this to skip page reload while still processing the intent
+        const val FOREGROUND_RECOVERY_EXTRA = "com.lingualink.FOREGROUND_RECOVERY"
     }
     
     // WeakReference to WebView to prevent memory leaks (Fix #4)
@@ -287,6 +291,8 @@ class AdMobBridge(
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // CRITICAL: Mark as foreground recovery so MainActivity doesn't reload the page
+                putExtra(FOREGROUND_RECOVERY_EXTRA, true)
             }
             try {
                 act.startActivity(intent)
@@ -317,6 +323,8 @@ class AdMobBridge(
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or 
                         Intent.FLAG_ACTIVITY_CLEAR_TOP or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
+                // CRITICAL: Mark as foreground recovery so MainActivity doesn't reload the page
+                putExtra(FOREGROUND_RECOVERY_EXTRA, true)
             }
             appContext.startActivity(intent)
         } catch (e: Exception) {
