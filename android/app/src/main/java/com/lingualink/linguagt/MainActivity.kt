@@ -26,7 +26,7 @@ import android.media.audiofx.NoiseSuppressor
 import android.media.audiofx.AutomaticGainControl
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.android.gms.ads.MobileAds
-import com.google.firebase.analytics.FirebaseAnalytics
+// DISABLED FOR TESTING: import com.google.firebase.analytics.FirebaseAnalytics
 import com.lingualink.linguagt.ads.AdBridge
 import com.lingualink.linguagt.ads.AdMobBridge
 import com.lingualink.linguagt.ads.AdPreloadManager
@@ -772,14 +772,13 @@ class MainActivity : BaseActivity() {
                 // Mark WebView as fully loaded
                 isWebViewFullyLoaded = true
                 
-                // FIX: Enable Firebase Analytics collection now that app is fully loaded
-                // This was deferred in manifest to prevent blocking main thread on startup
-                try {
-                    FirebaseAnalytics.getInstance(this@MainActivity).setAnalyticsCollectionEnabled(true)
-                    TestRigorLogger.logMilestone("Firebase Analytics enabled after page load")
-                } catch (e: Exception) {
-                    TestRigorLogger.logError("Failed to enable Firebase Analytics: ${e.message}", e)
-                }
+                // DISABLED FOR TESTING - Firebase Analytics
+                // try {
+                //     FirebaseAnalytics.getInstance(this@MainActivity).setAnalyticsCollectionEnabled(true)
+                //     TestRigorLogger.logMilestone("Firebase Analytics enabled after page load")
+                // } catch (e: Exception) {
+                //     TestRigorLogger.logError("Failed to enable Firebase Analytics: ${e.message}", e)
+                // }
                 
                 // Flush any buffered ad ready events now that WebView is ready
                 flushPendingAdReadyEvents()
