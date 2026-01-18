@@ -759,9 +759,27 @@ class AdMobBridge(
         log("Loading AdMob Interstitial...")
         log("  Ad Unit ID: $currentInterstitialId")
         
-        // Fix #24: Skip if fresh ad already exists
+        // FIX #3: Skip if AdPreloadManager already has fresh ad (single source of truth)
+        // Defensive check: verify cached ad is not null to prevent stale-ready state
+        if (AdPreloadManager.isInterstitialReady() && AdPreloadManager.getCachedInterstitial() != null) {
+            log("AdPreloadManager has fresh interstitial - skipping local load")
+            // Notify as ready and auto-show if flagged
+            isInterstitialReady = true
+            notifyJs("adLoaded", "admob", "interstitial")
+            emitDirectCallback("window.onInterstitialLoaded && window.onInterstitialLoaded();")
+            if (autoShowInterstitial) {
+                mainHandler.post {
+                    log("  ► Auto-showing from AdPreloadManager...")
+                    autoShowInterstitial = false
+                    showInterstitialAd()
+                }
+            }
+            return
+        }
+        
+        // Fix #24: Skip if fresh ad already exists locally
         if (isInterstitialFresh()) {
-            log("Fresh interstitial already exists - skipping load")
+            log("Fresh local interstitial already exists - skipping load")
             return
         }
         
@@ -892,9 +910,27 @@ class AdMobBridge(
         log("Loading AdMob Rewarded...")
         log("  Ad Unit ID: $currentRewardedId")
         
-        // Fix #24: Skip if fresh ad already exists
+        // FIX #3: Skip if AdPreloadManager already has fresh ad (single source of truth)
+        // Defensive check: verify cached ad is not null to prevent stale-ready state
+        if (AdPreloadManager.isRewardedReady() && AdPreloadManager.getCachedRewarded() != null) {
+            log("AdPreloadManager has fresh rewarded - skipping local load")
+            // Notify as ready and auto-show if flagged
+            isRewardedReady = true
+            notifyJs("adLoaded", "admob", "rewarded")
+            emitDirectCallback("window.onRewardedLoaded && window.onRewardedLoaded();")
+            if (autoShowRewarded) {
+                mainHandler.post {
+                    log("  ► Auto-showing from AdPreloadManager...")
+                    autoShowRewarded = false
+                    showRewardedAd()
+                }
+            }
+            return
+        }
+        
+        // Fix #24: Skip if fresh ad already exists locally
         if (isRewardedFresh()) {
-            log("Fresh rewarded already exists - skipping load")
+            log("Fresh local rewarded already exists - skipping load")
             return
         }
         

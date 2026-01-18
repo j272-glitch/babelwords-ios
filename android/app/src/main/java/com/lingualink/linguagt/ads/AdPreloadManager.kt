@@ -4,7 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -51,6 +53,9 @@ object AdPreloadManager : LifecycleEventObserver {
     // Ad expiration time (45 minutes per AdMob docs)
     private const val AD_EXPIRY_MS = 45 * 60 * 1000L
     
+    // FIX #1: Refresh-before-expiry time (40 minutes - 5 min before expiry)
+    private const val AD_REFRESH_BEFORE_EXPIRY_MS = 40 * 60 * 1000L
+    
     // Retry configuration (exponential backoff)
     private const val INITIAL_RETRY_DELAY_MS = 5000L
     private const val MAX_RETRY_DELAY_MS = 60000L
@@ -76,6 +81,15 @@ object AdPreloadManager : LifecycleEventObserver {
     // Pending retry runnables (to cancel on success or cleanup)
     private var interstitialRetryRunnable: Runnable? = null
     private var rewardedRetryRunnable: Runnable? = null
+    
+    // FIX #2: Refresh-before-expiry runnables
+    private var interstitialRefreshRunnable: Runnable? = null
+    private var rewardedRefreshRunnable: Runnable? = null
+    
+    // FIX #1: Network callback for auto-reload when network returns
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private var isNetworkCallbackRegistered = false
+    private var appContextRef: WeakReference<Context>? = null
     
     // App foreground state
     @Volatile
@@ -149,11 +163,132 @@ object AdPreloadManager : LifecycleEventObserver {
     }
     
     /**
+     * FIX #1: Register network callback for auto-reload when network returns.
+     * This ensures ads are preloaded immediately when connectivity is restored.
+     */
+    private fun registerNetworkCallback(context: Context) {
+        if (isNetworkCallbackRegistered) {
+            log("Network callback already registered")
+            return
+        }
+        
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                networkCallback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        log("★ Network became available - triggering ad preload")
+                        mainHandler.post {
+                            appContextRef?.get()?.let { ctx ->
+                                if (isAppInForeground) {
+                                    // Preload ads if not fresh
+                                    if (!isInterstitialFresh()) {
+                                        log("  → Preloading interstitial (network returned)")
+                                        preloadInterstitial(ctx)
+                                    }
+                                    if (!isRewardedFresh()) {
+                                        log("  → Preloading rewarded (network returned)")
+                                        preloadRewarded(ctx)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    override fun onLost(network: Network) {
+                        log("Network lost")
+                    }
+                }
+                
+                val request = NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                    
+                cm.registerNetworkCallback(request, networkCallback!!)
+                isNetworkCallbackRegistered = true
+                log("✓ Network callback registered (API 24+)")
+            } else {
+                log("Network callback not available on API < 24")
+            }
+        } catch (e: Exception) {
+            log("Failed to register network callback: ${e.message}", "E")
+        }
+    }
+    
+    /**
+     * FIX #1: Unregister network callback.
+     */
+    private fun unregisterNetworkCallback(context: Context) {
+        if (!isNetworkCallbackRegistered || networkCallback == null) return
+        
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                cm.unregisterNetworkCallback(networkCallback!!)
+                isNetworkCallbackRegistered = false
+                networkCallback = null
+                log("✓ Network callback unregistered")
+            }
+        } catch (e: Exception) {
+            log("Failed to unregister network callback: ${e.message}", "E")
+        }
+    }
+    
+    /**
+     * FIX #2: Schedule refresh before expiry to keep cached ads fresh.
+     * Called after a successful ad load to schedule a refresh at 40 minutes.
+     */
+    private fun scheduleRefreshBeforeExpiry(context: Context, isInterstitial: Boolean) {
+        val delay = AD_REFRESH_BEFORE_EXPIRY_MS
+        log("Scheduling ${if (isInterstitial) "interstitial" else "rewarded"} refresh in ${delay / 60000} minutes")
+        
+        val appContext = context.applicationContext
+        
+        if (isInterstitial) {
+            // Cancel any existing refresh
+            interstitialRefreshRunnable?.let { mainHandler.removeCallbacks(it) }
+            interstitialRefreshRunnable = Runnable {
+                if (isAppInForeground && !isInterstitialLoading.get()) {
+                    log("⏰ Refresh-before-expiry triggered for interstitial")
+                    // Clear the old ad and preload fresh one
+                    interstitialAd = null
+                    preloadInterstitial(appContext)
+                }
+            }
+            mainHandler.postDelayed(interstitialRefreshRunnable!!, delay)
+        } else {
+            // Cancel any existing refresh
+            rewardedRefreshRunnable?.let { mainHandler.removeCallbacks(it) }
+            rewardedRefreshRunnable = Runnable {
+                if (isAppInForeground && !isRewardedLoading.get()) {
+                    log("⏰ Refresh-before-expiry triggered for rewarded")
+                    // Clear the old ad and preload fresh one
+                    rewardedAd = null
+                    preloadRewarded(appContext)
+                }
+            }
+            mainHandler.postDelayed(rewardedRefreshRunnable!!, delay)
+        }
+    }
+    
+    /**
+     * Cancel scheduled refresh-before-expiry runnables.
+     */
+    private fun cancelScheduledRefreshes() {
+        interstitialRefreshRunnable?.let { mainHandler.removeCallbacks(it) }
+        interstitialRefreshRunnable = null
+        rewardedRefreshRunnable?.let { mainHandler.removeCallbacks(it) }
+        rewardedRefreshRunnable = null
+    }
+    
+    /**
      * Initialize the AdMob SDK and begin preloading ads.
      * Call this IMMEDIATELY in MainActivity.onCreate() for fastest ad availability.
      */
     fun initialize(activity: Activity) {
         activityRef = WeakReference(activity)
+        appContextRef = WeakReference(activity.applicationContext)
         
         // Register for app lifecycle events (only once)
         if (isLifecycleObserverRegistered.compareAndSet(false, true)) {
@@ -165,6 +300,9 @@ object AdPreloadManager : LifecycleEventObserver {
                 log("Failed to add lifecycle observer: ${e.message}", "E")
             }
         }
+        
+        // FIX #1: Register network callback for auto-reload when network returns
+        registerNetworkCallback(activity.applicationContext)
         
         if (isSdkInitialized.get()) {
             log("SDK already initialized, checking consent and preloading")
@@ -353,6 +491,8 @@ object AdPreloadManager : LifecycleEventObserver {
                     interstitialRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff
                     isInterstitialLoading.set(false)
                     setupInterstitialCallbacks(ad, context)
+                    // FIX #2: Schedule refresh before expiry
+                    scheduleRefreshBeforeExpiry(context, isInterstitial = true)
                     onInterstitialReady?.invoke()
                 }
                 
@@ -483,6 +623,8 @@ object AdPreloadManager : LifecycleEventObserver {
                     rewardedRetryDelay = INITIAL_RETRY_DELAY_MS // Reset backoff
                     isRewardedLoading.set(false)
                     setupRewardedCallbacks(ad, context)
+                    // FIX #2: Schedule refresh before expiry
+                    scheduleRefreshBeforeExpiry(context, isInterstitial = false)
                     onRewardedReady?.invoke()
                 }
                 
@@ -698,8 +840,17 @@ object AdPreloadManager : LifecycleEventObserver {
             }
         }
         
+        // FIX #1: Unregister network callback
+        appContextRef?.get()?.let { ctx ->
+            unregisterNetworkCallback(ctx)
+        }
+        
         // Cancel pending retries
         cancelPendingRetries()
+        
+        // FIX #2: Cancel scheduled refreshes
+        cancelScheduledRefreshes()
+        
         mainHandler.removeCallbacksAndMessages(null)
         
         onInterstitialReady = null
@@ -708,6 +859,8 @@ object AdPreloadManager : LifecycleEventObserver {
         onRewardEarned = null
         activityRef?.clear()
         activityRef = null
+        appContextRef?.clear()
+        appContextRef = null
     }
     
     /**
