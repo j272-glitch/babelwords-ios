@@ -307,6 +307,9 @@ dependencies {
     // Google Mobile Ads SDK (22.6.0 compatible with Kotlin 1.8.x/1.9.x)
     implementation 'com.google.android.gms:play-services-ads:22.6.0'
 
+    // Google Play Billing for in-app subscriptions
+    implementation 'com.android.billingclient:billing-ktx:6.1.0'
+
     // DISABLED FOR TESTING - Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
     // implementation platform('com.google.firebase:firebase-bom:32.8.0')
     

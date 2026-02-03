@@ -23,6 +23,9 @@
     <!-- Optional: Improves ad targeting -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
+    <!-- Google Play Billing for premium subscriptions -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
     <!-- CRITICAL: Declare microphone as optional for devices without microphone -->
     <uses-feature
         android:name="android.hardware.microphone"
