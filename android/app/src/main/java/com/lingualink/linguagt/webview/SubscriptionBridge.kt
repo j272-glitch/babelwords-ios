@@ -1,8 +1,8 @@
-package com.lingualink.linguagt.billing
+package com.lingualink.linguagt.webview
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.lingualink.linguagt.TestRigorLogger
+import com.lingualink.linguagt.billing.SubscriptionManager
 import org.json.JSONObject
 
 class SubscriptionBridge(
@@ -12,17 +12,14 @@ class SubscriptionBridge(
 
     companion object {
         const val BRIDGE_NAME = "AndroidSubscriptionBridge"
-        private const val TAG = "SubscriptionBridge"
     }
 
     init {
         subscriptionManager.callback = this
-        TestRigorLogger.logAdEvent("SubscriptionBridge: Initialized")
     }
 
     @JavascriptInterface
     fun subscribe(productId: String) {
-        TestRigorLogger.logAdEvent("SubscriptionBridge: subscribe($productId) called from JS")
         webView.post {
             subscriptionManager.subscribe(productId)
         }
@@ -30,7 +27,6 @@ class SubscriptionBridge(
 
     @JavascriptInterface
     fun restorePurchases() {
-        TestRigorLogger.logAdEvent("SubscriptionBridge: restorePurchases() called from JS")
         webView.post {
             subscriptionManager.restorePurchases()
         }
@@ -38,20 +34,15 @@ class SubscriptionBridge(
 
     @JavascriptInterface
     fun checkSubscription(): Boolean {
-        val isPremium = subscriptionManager.checkSubscription()
-        TestRigorLogger.logAdEvent("SubscriptionBridge: checkSubscription() = $isPremium")
-        return isPremium
+        return subscriptionManager.checkSubscription()
     }
 
     @JavascriptInterface
     fun getSubscriptionStatus(): String {
-        val status = subscriptionManager.getSubscriptionStatus()
-        TestRigorLogger.logAdEvent("SubscriptionBridge: getSubscriptionStatus() = $status")
-        return status
+        return subscriptionManager.getSubscriptionStatus()
     }
 
     override fun onSubscriptionPurchased(purchaseToken: String, productId: String) {
-        TestRigorLogger.logAdEvent("SubscriptionBridge: Subscription purchased - $productId")
         val json = JSONObject().apply {
             put("event", "subscription_purchased")
             put("purchaseToken", purchaseToken)
@@ -62,7 +53,6 @@ class SubscriptionBridge(
     }
 
     override fun onSubscriptionRestored(purchaseToken: String, productId: String) {
-        TestRigorLogger.logAdEvent("SubscriptionBridge: Subscription restored - $productId")
         val json = JSONObject().apply {
             put("event", "subscription_restored")
             put("purchaseToken", purchaseToken)
@@ -73,7 +63,6 @@ class SubscriptionBridge(
     }
 
     override fun onSubscriptionError(errorCode: Int, message: String) {
-        TestRigorLogger.logError("SubscriptionBridge: Error $errorCode - $message")
         val json = JSONObject().apply {
             put("event", "subscription_error")
             put("errorCode", errorCode)
@@ -83,7 +72,6 @@ class SubscriptionBridge(
     }
 
     override fun onPremiumStatusChanged(isPremium: Boolean) {
-        TestRigorLogger.logAdEvent("SubscriptionBridge: Premium status changed to $isPremium")
         val json = JSONObject().apply {
             put("event", "premium_status_changed")
             put("isPremium", isPremium)

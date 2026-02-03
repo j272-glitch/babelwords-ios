@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.util.Log
 import com.android.billingclient.api.*
-import com.lingualink.linguagt.TestRigorLogger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,8 +38,6 @@ class SubscriptionManager(
     var callback: SubscriptionCallback? = null
 
     fun initialize() {
-        TestRigorLogger.logAdEvent("SubscriptionManager: Initializing billing client")
-        
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
             .enablePendingPurchases()
@@ -50,25 +47,20 @@ class SubscriptionManager(
             override fun onBillingSetupFinished(billingResult: BillingResult) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     Log.d(TAG, "Billing client connected")
-                    TestRigorLogger.logAdEvent("SubscriptionManager: Billing client connected")
                     queryExistingPurchases()
                 } else {
                     Log.e(TAG, "Billing setup failed: ${billingResult.debugMessage}")
-                    TestRigorLogger.logError("Billing setup failed: ${billingResult.debugMessage}")
                 }
             }
 
             override fun onBillingServiceDisconnected() {
                 Log.w(TAG, "Billing service disconnected")
-                TestRigorLogger.logWarning("Billing service disconnected")
             }
         })
     }
 
     fun subscribe(productId: String = PREMIUM_MONTHLY_SKU) {
         val billingClient = billingClient ?: return
-
-        TestRigorLogger.logAdEvent("SubscriptionManager: Starting subscribe flow for $productId")
 
         scope.launch {
             try {
@@ -100,27 +92,22 @@ class SubscriptionManager(
                                 .setProductDetailsParamsList(productDetailsParamsList)
                                 .build()
 
-                            TestRigorLogger.logAdEvent("SubscriptionManager: Launching billing flow")
                             billingClient.launchBillingFlow(activity, billingFlowParams)
                         } else {
-                            TestRigorLogger.logError("No offer token available")
                             callback?.onSubscriptionError(-1, "No offer token available")
                         }
                     } else {
-                        TestRigorLogger.logError("Product query failed: ${billingResult.debugMessage}")
                         callback?.onSubscriptionError(billingResult.responseCode, billingResult.debugMessage ?: "Unknown error")
                     }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Subscribe error", e)
-                TestRigorLogger.logError("Subscribe error", e)
                 callback?.onSubscriptionError(-1, e.message ?: "Unknown error")
             }
         }
     }
 
     fun restorePurchases() {
-        TestRigorLogger.logAdEvent("SubscriptionManager: Restoring purchases")
         queryExistingPurchases()
     }
 
@@ -141,7 +128,6 @@ class SubscriptionManager(
                     if (activePurchase != null) {
                         _isPremium.value = true
                         _subscriptionStatus.value = "active"
-                        TestRigorLogger.logAdEvent("SubscriptionManager: Active subscription found")
                         callback?.onPremiumStatusChanged(true)
                         callback?.onSubscriptionRestored(
                             activePurchase.purchaseToken,
@@ -154,7 +140,6 @@ class SubscriptionManager(
                     } else {
                         _isPremium.value = false
                         _subscriptionStatus.value = "free"
-                        TestRigorLogger.logAdEvent("SubscriptionManager: No active subscription")
                         callback?.onPremiumStatusChanged(false)
                     }
                 }
@@ -172,7 +157,6 @@ class SubscriptionManager(
         billingClient.acknowledgePurchase(acknowledgePurchaseParams) { billingResult ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 Log.d(TAG, "Purchase acknowledged")
-                TestRigorLogger.logAdEvent("SubscriptionManager: Purchase acknowledged")
             }
         }
     }
@@ -184,7 +168,6 @@ class SubscriptionManager(
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         _isPremium.value = true
                         _subscriptionStatus.value = "active"
-                        TestRigorLogger.logAdEvent("SubscriptionManager: Purchase completed - ${purchase.products.firstOrNull()}")
                         callback?.onPremiumStatusChanged(true)
                         callback?.onSubscriptionPurchased(
                             purchase.purchaseToken,
@@ -199,10 +182,8 @@ class SubscriptionManager(
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 Log.d(TAG, "User canceled purchase")
-                TestRigorLogger.logAdEvent("SubscriptionManager: User canceled purchase")
             }
             else -> {
-                TestRigorLogger.logError("Purchase error: ${billingResult.debugMessage}")
                 callback?.onSubscriptionError(billingResult.responseCode, billingResult.debugMessage ?: "")
             }
         }
@@ -213,7 +194,6 @@ class SubscriptionManager(
     fun getSubscriptionStatus(): String = _subscriptionStatus.value
 
     fun destroy() {
-        TestRigorLogger.logAdEvent("SubscriptionManager: Destroying billing client")
         scope.cancel()
         billingClient?.endConnection()
     }

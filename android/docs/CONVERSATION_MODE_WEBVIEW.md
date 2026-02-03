@@ -4,7 +4,22 @@ This document provides detailed instructions for handling real-time conversation
 
 ## Overview
 
-Conversation mode uses WebSockets for real-time communication between devices. This requires special WebView configuration to maintain stable connections.
+**LinguaVibe conversation mode uses HTTP Polling for maximum reliability across all platforms, including iOS Safari and Android WebView.**
+
+**Communication Architecture:**
+- **Receiving messages**: HTTP Long Polling to `/api/conversation/poll`
+- **Sending messages**: HTTP POST to `/api/conversation/send`
+- **Session management**: HTTP endpoints for create/join
+
+This approach was chosen over WebSocket/SSE for better compatibility with mobile browsers and WebViews.
+
+## Benefits of HTTP Polling Architecture
+
+1. **No connection state to manage** - Each request is independent
+2. **Works through all proxies** - Standard HTTP traffic
+3. **Automatic browser reconnection** - No custom retry logic needed
+4. **iOS Safari compatible** - No WebSocket/SSE issues
+5. **Battery efficient** - No persistent connection drain
 
 ## Critical WebView Configuration
 
@@ -15,12 +30,15 @@ webView.settings.apply {
     javaScriptEnabled = true
     domStorageEnabled = true
     databaseEnabled = true
+    
+    // Enable caching for performance
+    cacheMode = WebSettings.LOAD_DEFAULT
 }
 ```
 
 ### 2. Audio Permissions
 
-The WebView must grant audio capture permissions:
+The WebView must grant audio capture permissions for voice recording:
 
 ```kotlin
 webView.webChromeClient = object : WebChromeClient() {
@@ -44,7 +62,7 @@ webView.webChromeClient = object : WebChromeClient() {
 }
 ```
 
-### 3. Mixed Content for WebSocket
+### 3. Mixed Content (for development)
 
 ```kotlin
 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -52,126 +70,96 @@ if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
 }
 ```
 
-## WebSocket Keep-Alive
-
-The web app sends heartbeat pings, but you should also implement native keep-alive:
-
-```kotlin
-private val keepAliveHandler = Handler(Looper.getMainLooper())
-private val keepAliveInterval = 15000L // 15 seconds
-
-private val keepAliveRunnable = object : Runnable {
-    override fun run() {
-        if (isConversationActive) {
-            webView.evaluateJavascript("""
-                if (window.conversationWebSocket?.readyState === 1) {
-                    window.conversationWebSocket.send(JSON.stringify({
-                        type: 'ping',
-                        timestamp: Date.now()
-                    }));
-                }
-            """.trimIndent(), null)
-            
-            keepAliveHandler.postDelayed(this, keepAliveInterval)
-        }
-    }
-}
-
-fun startKeepAlive() {
-    keepAliveHandler.post(keepAliveRunnable)
-}
-
-fun stopKeepAlive() {
-    keepAliveHandler.removeCallbacks(keepAliveRunnable)
-}
-```
-
 ## Network State Monitoring
 
-Monitor network changes to handle reconnection:
+Monitor network changes to notify the web app when connectivity changes:
 
 ```kotlin
-private fun registerNetworkCallback() {
-    val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-    
-    val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            runOnUiThread {
-                // Notify web app to reconnect
-                webView.evaluateJavascript("""
-                    window.dispatchEvent(new CustomEvent('network_restored'));
-                """.trimIndent(), null)
+class ConversationNetworkMonitor(
+    private val context: Context,
+    private val webView: WebView
+) {
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    fun start() {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                mainHandler.post {
+                    // Web app will automatically resume polling on next interval
+                    webView.evaluateJavascript("""
+                        console.log('[Android] Network available');
+                        window.dispatchEvent(new CustomEvent('network_restored'));
+                    """.trimIndent(), null)
+                }
+            }
+            
+            override fun onLost(network: Network) {
+                mainHandler.post {
+                    // Web app handles offline state gracefully
+                    webView.evaluateJavascript("""
+                        console.log('[Android] Network lost');
+                        window.dispatchEvent(new CustomEvent('network_lost'));
+                    """.trimIndent(), null)
+                }
             }
         }
         
-        override fun onLost(network: Network) {
-            runOnUiThread {
-                // Notify web app of disconnection
-                webView.evaluateJavascript("""
-                    window.dispatchEvent(new CustomEvent('network_lost'));
-                """.trimIndent(), null)
-            }
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        
+        cm.registerNetworkCallback(request, networkCallback!!)
+    }
+
+    fun stop() {
+        networkCallback?.let {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            cm.unregisterNetworkCallback(it)
         }
     }
-    
-    val request = NetworkRequest.Builder()
-        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        .build()
-    
-    cm.registerNetworkCallback(request, callback)
 }
 ```
 
 ## Handling App Lifecycle
 
-When app goes to background, notify the web app:
+The HTTP polling automatically stops/resumes based on page visibility. For explicit control:
 
 ```kotlin
 override fun onPause() {
     super.onPause()
     
-    if (isConversationActive) {
-        webView.evaluateJavascript("""
-            window.dispatchEvent(new CustomEvent('app_background'));
-            // Pause non-essential operations
-            if (window.pausePreloading) window.pausePreloading();
-        """.trimIndent(), null)
-    }
+    // Notify web app of background state
+    webView.evaluateJavascript("""
+        window.dispatchEvent(new CustomEvent('app_background'));
+        // Polling automatically pauses on visibility change
+    """.trimIndent(), null)
 }
 
 override fun onResume() {
     super.onResume()
     
-    if (isConversationActive) {
-        webView.evaluateJavascript("""
-            window.dispatchEvent(new CustomEvent('app_foreground'));
-            // Resume operations and check connection
-            if (window.checkConnectionHealth) window.checkConnectionHealth();
-        """.trimIndent(), null)
-    }
+    // Notify web app of foreground state
+    webView.evaluateJavascript("""
+        window.dispatchEvent(new CustomEvent('app_foreground'));
+        // Polling automatically resumes on visibility change
+    """.trimIndent(), null)
 }
 ```
 
-## Recording State Protection
+## HTTP Polling Behavior
 
-During recording, protect the WebSocket connection:
+The web app's `TranslationStreamService` handles all polling automatically:
 
-```kotlin
-// Notify native layer when recording starts/stops
-webView.addJavascriptInterface(object {
-    @JavascriptInterface
-    fun onRecordingStarted() {
-        isRecording = true
-        // Extend keep-alive interval, prevent cleanup
-    }
-    
-    @JavascriptInterface
-    fun onRecordingStopped() {
-        isRecording = false
-        // Resume normal operation
-    }
-}, "AndroidRecordingBridge")
-```
+| Event | Behavior |
+|-------|----------|
+| Tab visible | Polling starts/resumes |
+| Tab hidden | Polling continues (for background operation) |
+| Network offline | Polling pauses, auto-resumes when online |
+| Network restored | Polling immediately resumes |
+| Server error | Exponential backoff retry |
 
 ## Session Management
 
@@ -204,9 +192,30 @@ webView.addJavascriptInterface(object {
 }, "AndroidSessionBridge")
 ```
 
+## Recording State Protection
+
+During voice recording, the web app extends timeouts automatically. You can also add native-side awareness:
+
+```kotlin
+// Notify native layer when recording starts/stops
+webView.addJavascriptInterface(object {
+    @JavascriptInterface
+    fun onRecordingStarted() {
+        isRecording = true
+        // Optionally acquire wake lock
+    }
+    
+    @JavascriptInterface
+    fun onRecordingStopped() {
+        isRecording = false
+        // Release wake lock if acquired
+    }
+}, "AndroidRecordingBridge")
+```
+
 ## Error Recovery
 
-Implement automatic recovery for common errors:
+The HTTP polling has built-in retry logic. For WebView-level errors:
 
 ```kotlin
 webView.webViewClient = object : WebViewClient() {
@@ -218,14 +227,13 @@ webView.webViewClient = object : WebViewClient() {
         request: WebResourceRequest,
         error: WebResourceError
     ) {
-        if (request.isForMainFrame && isConversationActive) {
+        if (request.isForMainFrame) {
             if (retryCount < maxRetries) {
                 retryCount++
                 Handler(Looper.getMainLooper()).postDelayed({
                     view.reload()
                 }, 3000L * retryCount)
             } else {
-                // Show error UI or fallback
                 showConnectionError()
             }
         }
@@ -237,9 +245,9 @@ webView.webViewClient = object : WebViewClient() {
 }
 ```
 
-## Wake Lock for Background Operation
+## Wake Lock for Background Recording
 
-Keep device awake during active conversation:
+Keep device awake during active recording:
 
 ```kotlin
 private var wakeLock: PowerManager.WakeLock? = null
@@ -248,9 +256,9 @@ fun acquireWakeLock() {
     val pm = getSystemService(POWER_SERVICE) as PowerManager
     wakeLock = pm.newWakeLock(
         PowerManager.PARTIAL_WAKE_LOCK,
-        "LinguaVibe::ConversationWakeLock"
+        "LinguaVibe::RecordingWakeLock"
     )
-    wakeLock?.acquire(30 * 60 * 1000L) // 30 minutes max
+    wakeLock?.acquire(5 * 60 * 1000L) // 5 minutes max for recording
 }
 
 fun releaseWakeLock() {
@@ -271,7 +279,7 @@ fun requestAudioFocus() {
     audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
     
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -293,13 +301,13 @@ fun abandonAudioFocus() {
 
 ## Best Practices
 
-1. **Never block the main thread** - Use coroutines or handlers
-2. **Always use Handler.post()** for WebView JavaScript calls
-3. **Monitor WebSocket state** - Check readyState before sending
-4. **Implement graceful degradation** - Show offline UI when disconnected
+1. **Never block the main thread** - Use coroutines or handlers for WebView operations
+2. **Always use Handler.post()** for WebView JavaScript calls from background threads
+3. **Trust the web app's polling** - Don't add duplicate native-side polling
+4. **Monitor network state** - Notify web app of connectivity changes
 5. **Test on real devices** - Emulators don't simulate network issues well
 6. **Handle orientation changes** - Use ViewModel or retain fragments
-7. **Clear WebView cache periodically** - Prevents storage issues
+7. **Grant audio permissions** - Required for voice recording
 
 ## Debugging
 
@@ -312,3 +320,15 @@ if (BuildConfig.DEBUG) {
 ```
 
 Then use Chrome DevTools at `chrome://inspect` to debug the WebView.
+
+## API Endpoints Used
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/conversation/create` | POST | Create new session |
+| `/api/conversation/join` | POST | Join existing session |
+| `/api/conversation/poll` | GET | Long poll for messages |
+| `/api/conversation/send` | POST | Send translation/audio |
+| `/api/conversation/leave` | POST | Leave session |
+
+All endpoints use standard HTTP with JSON bodies. No special headers or protocols required.

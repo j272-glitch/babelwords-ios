@@ -4,6 +4,8 @@
 
 This guide covers integrating Google Play Billing for premium subscriptions and configuring WebView for conversation mode in your Android app.
 
+**Important:** Conversation mode uses HTTP Polling (not WebSocket or SSE) for maximum cross-platform reliability.
+
 ## Prerequisites
 
 - Android Studio Arctic Fox or later
@@ -71,8 +73,32 @@ class MainActivity : AppCompatActivity() {
         val subscriptionBridge = SubscriptionBridge(subscriptionManager, webView)
         webView.addJavascriptInterface(subscriptionBridge, SubscriptionBridge.BRIDGE_NAME)
         
+        // Configure WebView settings
+        configureWebView()
+        
         // Load web app
         webView.loadUrl("https://your-app-url.replit.app")
+    }
+    
+    private fun configureWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            cacheMode = WebSettings.LOAD_DEFAULT
+        }
+        
+        // Grant microphone permissions
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                if (request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                    request.grant(request.resources)
+                } else {
+                    request.deny()
+                }
+            }
+        }
     }
     
     override fun onDestroy() {
@@ -131,14 +157,22 @@ window.addEventListener('subscription_event', (event) => {
 });
 ```
 
-## Conversation Mode WebView Configuration
+## Conversation Mode (HTTP Polling)
 
-### Setup WebView for Real-Time Communication
+**The conversation mode uses HTTP Polling** - not WebSocket or SSE. This provides maximum reliability across all platforms.
+
+### How It Works
+
+1. **Sending messages**: Web app makes HTTP POST requests
+2. **Receiving messages**: Web app polls server at regular intervals
+3. **No connection state**: Each request is independent
+
+### WebView Configuration for Conversation Mode
 
 ```kotlin
 class ConversationActivity : AppCompatActivity() {
     private lateinit var webView: WebView
-    private lateinit var conversationManager: ConversationWebViewManager
+    private lateinit var networkMonitor: ConversationNetworkMonitor
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -146,79 +180,94 @@ class ConversationActivity : AppCompatActivity() {
         
         webView = findViewById(R.id.webView)
         
-        // Initialize conversation manager
-        conversationManager = ConversationWebViewManager(this, webView)
-        conversationManager.configureForConversation()
+        // Configure WebView for conversation
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            databaseEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+            cacheMode = WebSettings.LOAD_DEFAULT
+        }
         
-        // Register lifecycle observer
-        lifecycle.addObserver(conversationManager)
+        // Grant microphone permission for voice recording
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onPermissionRequest(request: PermissionRequest) {
+                if (request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                    request.grant(request.resources)
+                }
+            }
+        }
+        
+        // Monitor network changes
+        networkMonitor = ConversationNetworkMonitor(this, webView)
+        networkMonitor.start()
         
         // Load conversation page
-        webView.loadUrl("https://your-app-url.replit.app/conversation")
+        webView.loadUrl("https://your-app-url.replit.app/sse-conversation")
     }
     
-    fun onConversationStarted() {
-        conversationManager.startConversation()
-    }
-    
-    fun onConversationEnded() {
-        conversationManager.stopConversation()
+    override fun onDestroy() {
+        super.onDestroy()
+        networkMonitor.stop()
     }
 }
 ```
 
-### Key WebView Settings for Conversation Mode
+### Network Monitoring
 
 ```kotlin
-webView.settings.apply {
-    // Required for WebSocket communication
-    javaScriptEnabled = true
-    domStorageEnabled = true
-    
-    // Required for audio recording
-    mediaPlaybackRequiresUserGesture = false
-    
-    // Handle mixed content (HTTPS + WS)
-    mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-    
-    // Improve performance
-    cacheMode = WebSettings.LOAD_DEFAULT
-}
-```
+class ConversationNetworkMonitor(
+    private val context: Context,
+    private val webView: WebView
+) {
+    private var callback: ConnectivityManager.NetworkCallback? = null
+    private val handler = Handler(Looper.getMainLooper())
 
-### Handle Microphone Permissions
-
-```kotlin
-class ConversationWebChromeClient : WebChromeClient() {
-    override fun onPermissionRequest(request: PermissionRequest) {
-        mainHandler.post {
-            if (request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
-                request.grant(request.resources)
-            } else {
-                request.deny()
+    fun start() {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
+        callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                handler.post {
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('network_restored'));", 
+                        null
+                    )
+                }
             }
+            
+            override fun onLost(network: Network) {
+                handler.post {
+                    webView.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('network_lost'));", 
+                        null
+                    )
+                }
+            }
+        }
+        
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        cm.registerNetworkCallback(request, callback!!)
+    }
+
+    fun stop() {
+        callback?.let {
+            (context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+                .unregisterNetworkCallback(it)
         }
     }
 }
 ```
-
-## WebSocket Stability Features
-
-The conversation mode includes:
-
-1. **Keep-Alive Pings**: Sends heartbeat every 15 seconds
-2. **Connection Health Checks**: Monitors WebSocket state every 5 seconds
-3. **Network Change Detection**: Automatically handles network transitions
-4. **Background/Foreground Handling**: Notifies web app of app state changes
-5. **Auto-Reconnect**: Attempts reconnection on network restore
 
 ## ANR Prevention
 
 To prevent Application Not Responding errors:
 
 ```kotlin
-// Always use Handler for WebView operations
-mainHandler.post {
+// Always use Handler for WebView operations from background threads
+handler.post {
     webView.evaluateJavascript(script, null)
 }
 
@@ -227,7 +276,7 @@ scope.launch {
     // Billing operations here
 }
 
-// Don't block main thread
+// Don't block main thread with network calls
 GlobalScope.launch(Dispatchers.IO) {
     // Network/database operations
 }
@@ -250,11 +299,11 @@ GlobalScope.launch(Dispatchers.IO) {
 
 ## Troubleshooting
 
-### WebSocket Disconnects
+### HTTP Polling Issues
 
-- Check network permissions
+- Check network permissions in manifest
 - Verify WebView JavaScript is enabled
-- Check for battery optimization killing background connections
+- Check for CORS issues (use same-origin or proper headers)
 
 ### Subscription Not Updating
 
@@ -265,7 +314,7 @@ GlobalScope.launch(Dispatchers.IO) {
 ### Audio Recording Issues
 
 - Request RECORD_AUDIO permission at runtime
-- Grant WebView audio capture permission
+- Grant WebView audio capture permission in onPermissionRequest
 - Check `mediaPlaybackRequiresUserGesture = false`
 
 ## File Structure
@@ -279,5 +328,6 @@ android-integration/
 │       ├── SubscriptionBridge.kt       # JS bridge for subscriptions
 │       └── ConversationWebViewManager.kt # WebView conversation handler
 └── docs/
-    └── ANDROID_INTEGRATION_GUIDE.md    # This guide
+    ├── ANDROID_INTEGRATION_GUIDE.md    # This guide
+    └── CONVERSATION_MODE_WEBVIEW.md    # Detailed WebView configuration
 ```
