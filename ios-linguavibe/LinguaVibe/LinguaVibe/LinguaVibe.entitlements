@@ -8,11 +8,5 @@
         <string>applinks:linguagt.com</string>
         <string>applinks:www.linguagt.com</string>
     </array>
-    
-    <!-- In-App Purchase -->
-    <key>com.apple.developer.in-app-payments</key>
-    <array>
-        <string>merchant.com.lingualink.linguavibe</string>
-    </array>
 </dict>
 </plist>
