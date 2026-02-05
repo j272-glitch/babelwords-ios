@@ -37,7 +37,6 @@ android {
         // Build config fields
         buildConfigField "boolean", "DEBUG_MODE", "true"
         buildConfigField "String", "BASE_URL", "\"https://gtlingua.com\""
-        buildConfigField "String", "WEBSOCKET_URL", "\"wss://gtlingua.com/ws\""
         buildConfigField "String", "ACCESS_TOKEN", "\"${localProperties.getProperty('LINGUALINK_ACCESS_TOKEN', '')}\""
 
         // Resource configs - include all 36 Deepgram languages
