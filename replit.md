@@ -1,6 +1,6 @@
 # Overview
 
-LinguaVibe (formerly LinguaGT/LinguaLink) is an Android-based real-time speech translation application. The project wraps a web application (hosted at linguagt.com/gtlingua.com) in a native Android WebView container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
+LinguaVibe (formerly LinguaGT/LinguaLink) is an Android-based real-time speech translation application. The project wraps a web application (hosted at gtlingua.com/gtlingua.com) in a native Android WebView container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
 
 The application is built using:
 - **Native Android (Kotlin)** - WebView wrapper with permission handling
@@ -41,7 +41,7 @@ Preferred communication style: Simple, everyday language.
 **WebView Container**: The MainActivity wraps the web application in a WebView with:
 - JavaScript enabled and modern web APIs
 - Microphone permission handling for speech recognition
-- Deep link support for linguagt.com domain
+- Deep link support for gtlingua.com domain
 - SSL error handling and custom Chrome client
 
 **Permission Management**: Runtime permission requests for:
@@ -50,7 +50,7 @@ Preferred communication style: Simple, everyday language.
 - MODIFY_AUDIO_SETTINGS (audio processing)
 - WAKE_LOCK (background operation)
 
-**Deep Linking**: Configured with Android App Links for linguagt.com domain using assetlinks.json verification. Supports both HTTPS and custom scheme (linguagt://) deep links.
+**Deep Linking**: Configured with Android App Links for gtlingua.com domain using assetlinks.json verification. Supports both HTTPS and custom scheme (linguagt://) deep links.
 
 **Crash Prevention (91 Solutions)**: Comprehensive crash prevention system organized into 9 categories:
 
@@ -147,7 +147,7 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 
 ## Cloud Services
 - **GitHub Actions**: Ubuntu 24.04 runners for CI/CD
-- **Web Hosting**: linguagt.com and gtlingua.com domains
+- **Web Hosting**: gtlingua.com and gtlingua.com domains
 - **Deep Link Verification**: Google Digital Asset Links API
 
 ## Optional Integrations

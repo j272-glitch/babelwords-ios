@@ -50,7 +50,7 @@ class MainActivity : BaseActivity() {
     companion object {
         @JvmStatic
         var tracker: UserActivityTracker? = null
-        private const val BASE_URL = "https://linguagt.com"
+        private const val BASE_URL = "https://gtlingua.com"
 
         // TESTRIGOR: Configurable debounce - longer in debug builds
         private val MIC_DEBOUNCE_MS = if (BuildConfig.DEBUG) 1000L else 500L
@@ -327,7 +327,7 @@ class MainActivity : BaseActivity() {
         val path = uri.path ?: ""
         val query = uri.query ?: ""
 
-        if (host == "linguagt.com" || host == "www.linguagt.com") {
+        if (host == "gtlingua.com" || host == "www.gtlingua.com") {
             val urlToLoad = if (query.isNotEmpty()) {
                 "$BASE_URL$path?$query"
             } else {
@@ -740,7 +740,7 @@ class MainActivity : BaseActivity() {
                 val uri = request?.url
                 if (uri != null) {
                     val host = uri.host
-                    if (host == "linguagt.com" || host == "www.linguagt.com") {
+                    if (host == "gtlingua.com" || host == "www.gtlingua.com") {
                         return false
                     }
                 }

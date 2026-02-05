@@ -12,7 +12,7 @@
 
     <!-- Domain-specific configurations -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">linguagt.com</domain>
+        <domain includeSubdomains="true">gtlingua.com</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator -->
         <domain includeSubdomains="true">127.0.0.1</domain>

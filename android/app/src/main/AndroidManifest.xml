@@ -98,8 +98,8 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="linguagt.com" />
-                <data android:scheme="https" android:host="www.linguagt.com" />
+                <data android:scheme="https" android:host="gtlingua.com" />
+                <data android:scheme="https" android:host="www.gtlingua.com" />
             </intent-filter>
 
             <!-- Custom scheme fallback (no verification needed) -->

@@ -29,8 +29,8 @@ android {
 
         // Build config fields
         buildConfigField "boolean", "DEBUG_MODE", "true"
-        buildConfigField "String", "BASE_URL", "\"https://linguagt.com\""
-        buildConfigField "String", "WEBSOCKET_URL", "\"wss://linguagt.com/ws\""
+        buildConfigField "String", "BASE_URL", "\"https://gtlingua.com\""
+        buildConfigField "String", "WEBSOCKET_URL", "\"wss://gtlingua.com/ws\""
 
         // Resource configs - include all 36 Deepgram languages
         resConfigs "en", "es", "fr", "de", "zh", "ja", "ko", "hi", "pt", "ru",
