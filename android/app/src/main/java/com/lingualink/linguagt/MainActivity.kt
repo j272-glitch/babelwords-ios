@@ -58,6 +58,20 @@ class MainActivity : BaseActivity() {
         // TESTRIGOR: Test mode flag (can be set by instrumentation)
         @JvmStatic
         var isTestMode = false
+
+        /**
+         * Build URL with access token for production authentication.
+         * Token is read from BuildConfig.ACCESS_TOKEN (set via local.properties).
+         */
+        fun buildUrlWithToken(baseUrl: String): String {
+            val token = BuildConfig.ACCESS_TOKEN
+            return if (token.isNotEmpty()) {
+                val separator = if (baseUrl.contains("?")) "&" else "?"
+                "$baseUrl${separator}access_token=$token"
+            } else {
+                baseUrl
+            }
+        }
     }
 
     private val appId = "app_id"
@@ -328,11 +342,13 @@ class MainActivity : BaseActivity() {
         val query = uri.query ?: ""
 
         if (host == "gtlingua.com" || host == "www.gtlingua.com") {
-            val urlToLoad = if (query.isNotEmpty()) {
+            val baseDeepLinkUrl = if (query.isNotEmpty()) {
                 "$BASE_URL$path?$query"
             } else {
                 "$BASE_URL$path"
             }
+            // Add access token for production authentication
+            val urlToLoad = buildUrlWithToken(baseDeepLinkUrl)
 
             TestRigorLogger.logWebView("Loading deep link", urlToLoad)
 
@@ -342,7 +358,7 @@ class MainActivity : BaseActivity() {
                     webView.loadUrl(urlToLoad)
                 }
             } else {
-                pendingDeepLinkUrl = urlToLoad
+                pendingDeepLinkUrl = baseDeepLinkUrl // Store without token, token added in loadDefaultUrl
             }
 
             tracker?.trackActivity("DeepLink:$path")
@@ -364,7 +380,9 @@ class MainActivity : BaseActivity() {
 
     private fun loadDefaultUrl() {
         TestRigorLogger.logMilestone("WebView loadUrl starting (attempt ${loadUrlRetryCount + 1})")
-        val defaultUrl = pendingDeepLinkUrl ?: BASE_URL
+        val baseUrl = pendingDeepLinkUrl ?: BASE_URL
+        // Add access token for production authentication
+        val defaultUrl = buildUrlWithToken(baseUrl)
         
         if (::webView.isInitialized && isSafeToUpdateUI()) {
             loadUrlRetryCount = 0 // Reset on success
