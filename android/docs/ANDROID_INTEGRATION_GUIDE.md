@@ -47,7 +47,7 @@ Add to your `AndroidManifest.xml`:
 
 1. Go to Google Play Console → Your App → Monetization → Subscriptions
 2. Create a subscription with ID: `premium_monthly`
-3. Set base plan: $4.99/month with 3-day free trial
+3. Set base plan: $3.99/month with 3-day free trial
 4. Activate the subscription
 
 ## Integration
