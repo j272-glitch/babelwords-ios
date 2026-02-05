@@ -1,0 +1,209 @@
+# Android App Access Token Integration Guide
+
+This guide explains how to configure your Android WebView app to work with the production access control system.
+
+## Overview
+
+The production version of LinguaLink requires an access token to prevent unauthorized access while keeping the preview URL open for development. Your Android app needs to include this token when loading the WebView.
+
+## Setup Steps
+
+### 1. Store the Access Token
+
+Add the access token to your `local.properties` or `gradle.properties` file (do NOT commit to version control):
+
+```properties
+# local.properties (not committed to git)
+LINGUALINK_ACCESS_TOKEN=lMK1uam8ML7UdiFksoxYjbS9PyP5e4MD
+```
+
+### 2. Read Token in build.gradle
+
+In your `app/build.gradle`:
+
+```groovy
+android {
+    defaultConfig {
+        // Read from local.properties
+        def localProperties = new Properties()
+        def localPropertiesFile = rootProject.file('local.properties')
+        if (localPropertiesFile.exists()) {
+            localProperties.load(new FileInputStream(localPropertiesFile))
+        }
+        
+        buildConfigField "String", "ACCESS_TOKEN", "\"${localProperties.getProperty('LINGUALINK_ACCESS_TOKEN', '')}\""
+    }
+}
+```
+
+### 3. Configure WebView to Send Token
+
+#### Option A: URL Query Parameter (First Load Only)
+
+The simplest approach - add the token to the initial URL. The server will create a session and subsequent requests won't need the token.
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        webView = findViewById(R.id.webView)
+        
+        // Configure WebView
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        
+        // Load URL with access token
+        val baseUrl = "https://your-app.replit.app"
+        val accessToken = BuildConfig.ACCESS_TOKEN
+        
+        if (accessToken.isNotEmpty()) {
+            webView.loadUrl("$baseUrl?access_token=$accessToken")
+        } else {
+            // Development mode - no token needed
+            webView.loadUrl(baseUrl)
+        }
+    }
+}
+```
+
+#### Option B: Custom Headers (All Requests)
+
+For more security, send the token in headers. This requires a custom WebViewClient:
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+    private val accessToken = BuildConfig.ACCESS_TOKEN
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        webView = findViewById(R.id.webView)
+        
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        
+        // Set custom WebViewClient to add headers
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                // Only add header for your domain
+                if (request?.url?.host?.contains("replit.app") == true) {
+                    try {
+                        val url = URL(request.url.toString())
+                        val connection = url.openConnection() as HttpURLConnection
+                        connection.setRequestProperty("x-access-token", accessToken)
+                        connection.setRequestProperty("User-Agent", request.requestHeaders["User-Agent"])
+                        
+                        return WebResourceResponse(
+                            connection.contentType,
+                            connection.contentEncoding ?: "UTF-8",
+                            connection.inputStream
+                        )
+                    } catch (e: Exception) {
+                        // Fall back to default behavior
+                    }
+                }
+                return super.shouldInterceptRequest(view, request)
+            }
+        }
+        
+        // Load URL (token sent in header, not URL)
+        webView.loadUrl("https://your-app.replit.app")
+    }
+}
+```
+
+### 4. Handle Session Expiry
+
+If the session expires, the server returns a 401 error. Handle this in your WebViewClient:
+
+```kotlin
+webView.webViewClient = object : WebViewClient() {
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        if (errorResponse?.statusCode == 401) {
+            // Session expired - reload with token
+            val baseUrl = "https://your-app.replit.app"
+            view?.loadUrl("$baseUrl?access_token=$accessToken")
+        }
+        super.onReceivedHttpError(view, request, errorResponse)
+    }
+}
+```
+
+## API Requests from Native Code
+
+If your app makes direct API calls (outside WebView), include the token in headers:
+
+```kotlin
+val client = OkHttpClient()
+
+val request = Request.Builder()
+    .url("https://your-app.replit.app/api/some-endpoint")
+    .addHeader("x-access-token", BuildConfig.ACCESS_TOKEN)
+    .build()
+
+client.newCall(request).execute()
+```
+
+## JavaScript Bridge Integration
+
+If using the `AndroidAdBridge` or other JavaScript interfaces, the token is already handled by the WebView session. No additional configuration needed for JS-to-native communication.
+
+## Security Best Practices
+
+1. **Never hardcode the token** - Use build configuration or secure storage
+2. **Use HTTPS only** - The token should only be sent over secure connections
+3. **Rotate tokens periodically** - Update the token if it may have been compromised
+4. **Use ProGuard/R8** - Obfuscate your code to make token extraction harder
+
+```proguard
+# proguard-rules.pro
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
+```
+
+## Testing
+
+### Development Mode
+- The preview URL (development) does not require a token
+- Test freely without access control
+
+### Production Mode
+- Set `PRODUCTION_ACCESS_TOKEN` environment variable on the server
+- Ensure your app includes the matching token
+- Test the full authentication flow before release
+
+## Troubleshooting
+
+### 401 Access Denied
+- Verify the token matches `PRODUCTION_ACCESS_TOKEN` on the server
+- Check that the token is being sent (use Chrome DevTools to inspect requests)
+- Ensure you're using the production URL, not preview
+
+### Token Not Being Sent
+- Verify `BuildConfig.ACCESS_TOKEN` is not empty
+- Check that local.properties is configured correctly
+- Rebuild the project after changing local.properties
+
+### Session Issues
+- Clear WebView cookies/data and reload with token
+- Check that cookies are enabled in WebView settings
