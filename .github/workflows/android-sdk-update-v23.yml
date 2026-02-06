@@ -803,31 +803,11 @@ jobs:
           tag_name: v${{ env.VERSION_NAME }}
           name: LinguaGT v${{ env.VERSION_NAME }} - Build ${{ github.run_number }}
           body: |
-            ## LinguaGT Android App v${{ env.VERSION_NAME }}
+            ## LinguaVibe v${{ env.VERSION_NAME }}
             
-            ### 🚀 Build Information
-            - **Build Number**: ${{ github.run_number }}
-            - **Version Code**: ${{ env.VERSION_CODE }}
-            - **Commit**: ${{ github.sha }}
-            - **Build Date**: ${{ github.event.head_commit.timestamp }}
-            
-            ### 📱 App Configuration
-            - **Android Gradle Plugin**: 8.7.2
-            - **Gradle Version**: 8.10
-            - **Compile SDK**: 35
-            - **Target SDK**: 35
-            
-            ### 📦 Artifact
-            - **AAB (Android App Bundle)**: Ready for Play Store upload
-            
-            ### ✨ Features
-            - Voice-to-voice translation (36+ languages)
-            - Google AdMob monetization
-            - GDPR/UMP compliance
-            - AD_ID permission included
-            
-            ---
-            *Automated release from GitHub Actions*
+            - **Build**: #${{ github.run_number }} | Code ${{ env.VERSION_CODE }}
+            - **AAB**: Ready for Play Store upload
+            - Voice translation (36+ languages), AdMob ads, GDPR compliant
           files: |
             ${{ steps.build_outputs.outputs.release_aab }}
           draft: false
