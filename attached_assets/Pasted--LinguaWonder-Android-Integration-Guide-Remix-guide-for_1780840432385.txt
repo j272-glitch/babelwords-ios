@@ -1,0 +1,1039 @@
+# LinguaWonder Android Integration Guide
+
+Remix guide for converting the LinguaVibe Android app into LinguaWonder.  
+All Kotlin classes below expose exactly the JavaScript interfaces the web app expects.
+
+---
+
+## 1. File Map
+
+```
+app/
+├── build.gradle.kts                    ← add dependencies (section 2)
+├── src/main/
+│   ├── AndroidManifest.xml            ← permissions + AdMob app ID (section 3)
+│   ├── res/values/
+│   │   ├── strings.xml                ← AdMob IDs (section 3)
+│   │   └── admob_ids.xml              ← ad unit IDs
+│   └── java/com/linguawonder/app/
+│       ├── MainActivity.kt            ← WebView host (section 4)
+│       ├── WebViewConfig.kt           ← WebView setup helper (section 5)
+│       ├── bridge/
+│       │   ├── AdBridge.kt            ← window.AdBridge (section 6)  ← CRITICAL
+│       │   └── SubscriptionBridge.kt  ← window.AndroidSubscriptionBridge (section 7)
+│       ├── ads/
+│       │   └── AdMobManager.kt        ← interstitial + rewarded loader (section 8)
+│       └── billing/
+│           └── BillingManager.kt      ← Google Play Billing v7 (section 9)
+```
+
+---
+
+## 2. build.gradle.kts (app-level)
+
+```kotlin
+android {
+    compileSdk = 34
+    defaultConfig {
+        applicationId = "com.linguawonder.app"
+        minSdk = 24
+        targetSdk = 34
+    }
+}
+
+dependencies {
+    // WebView (already present in LinguaVibe — keep as-is)
+    implementation("androidx.webkit:webkit:1.11.0")
+
+    // AdMob
+    implementation("com.google.android.gms:play-services-ads:23.2.0")
+
+    // Google Play Billing
+    implementation("com.android.billingclient:billing-ktx:7.0.0")
+
+    // Coroutines (needed by BillingManager)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // Lifecycle (needed for coroutine scope in MainActivity)
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
+}
+```
+
+---
+
+## 3. AndroidManifest.xml
+
+```xml
+<manifest>
+    <!-- Required permissions -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    <application>
+
+        <!-- AdMob App ID — replace with your real ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="@string/admob_app_id"/>
+
+        <activity android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+    </application>
+</manifest>
+```
+
+### res/values/strings.xml — add these entries
+
+```xml
+<resources>
+    <!-- Replace ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX with real AdMob App ID -->
+    <string name="admob_app_id">ca-app-pub-XXXXXXXXXXXXXXXX~XXXXXXXXXX</string>
+
+    <!-- Replace with real ad unit IDs -->
+    <string name="admob_interstitial_id">ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX</string>
+    <string name="admob_rewarded_id">ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX</string>
+
+    <!-- Use test IDs during development -->
+    <!-- interstitial test: ca-app-pub-3940256099942544/1033173712 -->
+    <!-- rewarded test:     ca-app-pub-3940256099942544/5224354917 -->
+</resources>
+```
+
+---
+
+## 4. MainActivity.kt
+
+```kotlin
+package com.linguawonder.app
+
+import android.os.Bundle
+import android.webkit.WebView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.ads.MobileAds
+import com.linguawonder.app.ads.AdMobManager
+import com.linguawonder.app.bridge.AdBridge
+import com.linguawonder.app.bridge.SubscriptionBridge
+import kotlinx.coroutines.launch
+
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private lateinit var adMobManager: AdMobManager
+    private lateinit var adBridge: AdBridge
+    private lateinit var subscriptionBridge: SubscriptionBridge
+
+    // Production URL — change to your deployed Replit/custom domain
+    private val WEB_APP_URL = "https://your-app.replit.app"
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        webView = findViewById(R.id.webView)
+
+        // 1. Init AdMob SDK
+        lifecycleScope.launch {
+            MobileAds.initialize(this@MainActivity)
+            adMobManager = AdMobManager(this@MainActivity) { event, data ->
+                // Forward native ad events to JavaScript via window.onAdBridgeEvent
+                runOnUiThread {
+                    val escaped = data?.replace("\"", "\\\"") ?: ""
+                    webView.evaluateJavascript(
+                        "window.onAdBridgeEvent && window.onAdBridgeEvent('$event', '$escaped');",
+                        null
+                    )
+                }
+            }
+        }
+
+        // 2. Create bridges BEFORE configuring WebView (they are added as JS interfaces)
+        adBridge = AdBridge(this, { callback ->
+            // Lazy getter so AdBridge can reach AdMobManager after it's ready
+            adMobManager
+        })
+        subscriptionBridge = SubscriptionBridge(this, webView)
+
+        // 3. Configure WebView
+        WebViewConfig.configure(webView, this, adBridge, subscriptionBridge)
+
+        // 4. Load the web app
+        webView.loadUrl(WEB_APP_URL)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        webView.onResume()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        webView.onPause()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        webView.destroy()
+        subscriptionBridge.destroy()
+    }
+
+    // Let WebView handle back navigation
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        if (webView.canGoBack()) webView.goBack()
+        else super.onBackPressed()
+    }
+}
+```
+
+---
+
+## 5. WebViewConfig.kt
+
+```kotlin
+package com.linguawonder.app
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.webkit.*
+import com.linguawonder.app.bridge.AdBridge
+import com.linguawonder.app.bridge.SubscriptionBridge
+
+object WebViewConfig {
+
+    @SuppressLint("SetJavaScriptEnabled")
+    fun configure(
+        webView: WebView,
+        activity: Activity,
+        adBridge: AdBridge,
+        subscriptionBridge: SubscriptionBridge,
+    ) {
+        webView.settings.apply {
+            javaScriptEnabled          = true
+            domStorageEnabled          = true     // localStorage — required by the web app
+            databaseEnabled            = true
+            allowFileAccess            = false
+            allowContentAccess         = false
+            mixedContentMode           = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mediaPlaybackRequiresUserGesture = false  // allows audio autoplay for sfx/music
+            cacheMode                  = WebSettings.LOAD_DEFAULT
+            setSupportZoom(false)
+        }
+
+        // Inject the AdBridge under the name "AdBridge"
+        // → web app sees: window.AdBridge  (the NativeAdBridge TypeScript interface)
+        webView.addJavascriptInterface(adBridge, "AdBridge")
+
+        // Inject the billing bridge under "AndroidSubscriptionBridge"
+        // → web app sees: window.AndroidSubscriptionBridge
+        webView.addJavascriptInterface(subscriptionBridge, "AndroidSubscriptionBridge")
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView, url: String) {
+                super.onPageFinished(view, url)
+                // Signal that we are inside an Android WebView (used by detectPlatform())
+                view.evaluateJavascript("window.__androidWebChromeClient = true;", null)
+            }
+
+            override fun onReceivedError(
+                view: WebView, request: WebResourceRequest, error: WebResourceError
+            ) {
+                // Only handle main-frame errors
+                if (request.isForMainFrame) {
+                    view.loadUrl("about:blank")
+                    view.loadUrl(view.url ?: "about:blank")   // retry once
+                }
+            }
+        }
+
+        webView.webChromeClient = object : WebChromeClient() {
+            // Allow audio unlock without user gesture on API ≥ 21
+            override fun onPermissionRequest(request: PermissionRequest) {
+                request.grant(request.resources)
+            }
+        }
+    }
+}
+```
+
+---
+
+## 6. bridge/AdBridge.kt  ← CRITICAL — must match adbridge.js v5 contract
+
+```kotlin
+package com.linguawonder.app.bridge
+
+import android.app.Activity
+import android.webkit.JavascriptInterface
+import com.linguawonder.app.ads.AdMobManager
+import org.json.JSONObject
+
+/**
+ * Exposed to JavaScript as window.AdBridge
+ *
+ * Every @JavascriptInterface method is called from a background thread —
+ * never touch the UI directly here; post to the main thread via Activity.runOnUiThread().
+ *
+ * Matches the NativeAdBridge TypeScript interface in android.d.ts exactly.
+ * Callbacks fire via window.onAdBridgeEvent (handled in MainActivity).
+ */
+class AdBridge(
+    private val activity: Activity,
+    private val adMobManagerProvider: (() -> AdMobManager?),
+) {
+
+    // ── initialize() ───────────────────────────────────────────────────────────
+    // Called by adbridge.js after it detects window.AdBridge.
+    // MobileAds.initialize() is already called in MainActivity; this is a
+    // confirmation hook — tell JS that AdMob is ready.
+    @JavascriptInterface
+    fun initialize() {
+        val mgr = adMobManagerProvider() ?: return
+        activity.runOnUiThread {
+            mgr.preloadInterstitial()
+            mgr.preloadRewarded()
+        }
+        // Fire callback so adbridge.js sets adState.initialized = true
+        fireEvent("adMobInitialized", "true")
+    }
+
+    // ── loadInterstitial() ────────────────────────────────────────────────────
+    // Called by adbridge.js _triggerNativeLoad() when ad is not yet ready.
+    // Starts a fresh load; fires "interstitialLoaded" when complete.
+    @JavascriptInterface
+    fun loadInterstitial() {
+        val mgr = adMobManagerProvider() ?: return
+        activity.runOnUiThread { mgr.preloadInterstitial() }
+    }
+
+    // ── showInterstitial() ────────────────────────────────────────────────────
+    // Called by adbridge.js _doNativeShow() after it confirms readiness.
+    @JavascriptInterface
+    fun showInterstitial() {
+        val mgr = adMobManagerProvider() ?: run {
+            fireEvent("interstitialFailed", "manager_not_ready")
+            return
+        }
+        activity.runOnUiThread { mgr.showInterstitial(activity) }
+    }
+
+    // ── isInterstitialReady() ─────────────────────────────────────────────────
+    // Polled by adbridge.js every 300 ms until it returns true.
+    @JavascriptInterface
+    fun isInterstitialReady(): Boolean =
+        adMobManagerProvider()?.isInterstitialReady() ?: false
+
+    // ── showRewarded() ────────────────────────────────────────────────────────
+    @JavascriptInterface
+    fun showRewarded() {
+        val mgr = adMobManagerProvider() ?: run {
+            fireEvent("rewardedFailed", "manager_not_ready")
+            return
+        }
+        activity.runOnUiThread { mgr.showRewarded(activity) }
+    }
+
+    // ── isRewardedReady() ─────────────────────────────────────────────────────
+    @JavascriptInterface
+    fun isRewardedReady(): Boolean =
+        adMobManagerProvider()?.isRewardedReady() ?: false
+
+    // ── isInitialized() ───────────────────────────────────────────────────────
+    @JavascriptInterface
+    fun isInitialized(): Boolean =
+        adMobManagerProvider()?.isInitialized() ?: false
+
+    // ── getDiagnostics() ──────────────────────────────────────────────────────
+    // Returns a JSON string consumed by adBridge.getStatus() in JS.
+    @JavascriptInterface
+    fun getDiagnostics(): String {
+        val mgr = adMobManagerProvider()
+        return JSONObject().apply {
+            put("adMobInitialized", mgr?.isInitialized() ?: false)
+            put("interstitialReady", mgr?.isInterstitialReady() ?: false)
+            put("rewardedReady",     mgr?.isRewardedReady() ?: false)
+            put("timestamp",         System.currentTimeMillis())
+        }.toString()
+    }
+
+    // ── testShowInterstitial() ────────────────────────────────────────────────
+    // Testing only — bypasses JS-side frequency caps.
+    @JavascriptInterface
+    fun testShowInterstitial() {
+        val mgr = adMobManagerProvider() ?: return
+        activity.runOnUiThread { mgr.showInterstitial(activity) }
+    }
+
+    // ── logEvent() ────────────────────────────────────────────────────────────
+    @JavascriptInterface
+    fun logEvent(eventName: String) {
+        android.util.Log.d("AdBridge", "JS logEvent: $eventName")
+    }
+
+    // ── Internal helper ───────────────────────────────────────────────────────
+    internal fun fireEvent(eventType: String, data: String = "") {
+        android.util.Log.d("AdBridge", "fireEvent: $eventType data=$data")
+        // Activity.runOnUiThread is safe to call from any thread
+        activity.runOnUiThread {
+            (activity as? MainActivity)?.evalJs(
+                "window.onAdBridgeEvent && window.onAdBridgeEvent('$eventType', '$data');"
+            )
+        }
+    }
+}
+
+// Helper extension — add to MainActivity:
+// fun evalJs(script: String) = webView.evaluateJavascript(script, null)
+```
+
+---
+
+## 7. ads/AdMobManager.kt
+
+```kotlin
+package com.linguawonder.app.ads
+
+import android.app.Activity
+import android.content.Context
+import android.util.Log
+import com.google.android.gms.ads.*
+import com.google.android.gms.ads.interstitial.InterstitialAd
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
+import com.google.android.gms.ads.rewarded.RewardedAd
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
+import com.linguawonder.app.R
+
+/**
+ * Loads and shows AdMob interstitial and rewarded ads.
+ * Fires events back to the web app via the eventCallback.
+ *
+ * eventCallback(eventType: String, data: String?) is called on the main thread.
+ *
+ * Event contract (must match adbridge.js window.onAdBridgeEvent switch):
+ *   interstitialLoaded   → ad ready to show
+ *   interstitialShown    → impression registered
+ *   interstitialClosed   → dismissed
+ *   interstitialFailed   → load or show error (data = error message)
+ *   rewardedLoaded       → rewarded ad ready
+ *   rewardedShown        → rewarded impression
+ *   rewardEarned         → user earned reward (data = amount as string, e.g. "30")
+ *   rewardedClosed       → rewarded dismissed
+ *   rewardedFailed       → rewarded error
+ */
+class AdMobManager(
+    private val context: Context,
+    private val eventCallback: (eventType: String, data: String?) -> Unit,
+) {
+    private val TAG = "AdMobManager"
+
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+    private var initialized = false
+    private var loadingInterstitial = false
+    private var loadingRewarded = false
+
+    private val interstitialAdUnitId by lazy {
+        context.getString(R.string.admob_interstitial_id)
+    }
+    private val rewardedAdUnitId by lazy {
+        context.getString(R.string.admob_rewarded_id)
+    }
+
+    init {
+        initialized = true   // MobileAds.initialize() called in MainActivity before this
+        preloadInterstitial()
+        preloadRewarded()
+    }
+
+    // ── Readiness ─────────────────────────────────────────────────────────────
+
+    fun isInitialized() = initialized
+    fun isInterstitialReady() = interstitialAd != null
+    fun isRewardedReady() = rewardedAd != null
+
+    // ── Interstitial ──────────────────────────────────────────────────────────
+
+    fun preloadInterstitial() {
+        if (interstitialAd != null || loadingInterstitial) return
+        loadingInterstitial = true
+        Log.d(TAG, "Loading interstitial…")
+
+        val request = AdRequest.Builder().build()
+        InterstitialAd.load(context, interstitialAdUnitId, request,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d(TAG, "✅ Interstitial loaded")
+                    interstitialAd = ad
+                    loadingInterstitial = false
+                    setupInterstitialCallbacks(ad)
+                    eventCallback("interstitialLoaded", null)
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.w(TAG, "Interstitial load failed: ${error.message}")
+                    interstitialAd = null
+                    loadingInterstitial = false
+                    eventCallback("interstitialFailed", error.message)
+                }
+            }
+        )
+    }
+
+    private fun setupInterstitialCallbacks(ad: InterstitialAd) {
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "✅ Interstitial shown")
+                interstitialAd = null   // consumed
+                eventCallback("interstitialShown", null)
+            }
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Interstitial dismissed")
+                eventCallback("interstitialClosed", null)
+                preloadInterstitial()   // preload next one immediately
+            }
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.w(TAG, "Interstitial show failed: ${error.message}")
+                interstitialAd = null
+                eventCallback("interstitialFailed", error.message)
+                preloadInterstitial()
+            }
+        }
+    }
+
+    fun showInterstitial(activity: Activity) {
+        val ad = interstitialAd
+        if (ad == null) {
+            Log.w(TAG, "showInterstitial called but ad not ready — loading now")
+            eventCallback("interstitialFailed", "not_loaded")
+            preloadInterstitial()
+            return
+        }
+        ad.show(activity)
+    }
+
+    // ── Rewarded ──────────────────────────────────────────────────────────────
+
+    fun preloadRewarded() {
+        if (rewardedAd != null || loadingRewarded) return
+        loadingRewarded = true
+        Log.d(TAG, "Loading rewarded ad…")
+
+        val request = AdRequest.Builder().build()
+        RewardedAd.load(context, rewardedAdUnitId, request,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d(TAG, "✅ Rewarded loaded")
+                    rewardedAd = ad
+                    loadingRewarded = false
+                    setupRewardedCallbacks(ad)
+                    eventCallback("rewardedLoaded", null)
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    Log.w(TAG, "Rewarded load failed: ${error.message}")
+                    rewardedAd = null
+                    loadingRewarded = false
+                    eventCallback("rewardedFailed", error.message)
+                }
+            }
+        )
+    }
+
+    private fun setupRewardedCallbacks(ad: RewardedAd) {
+        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+            override fun onAdShowedFullScreenContent() {
+                Log.d(TAG, "✅ Rewarded shown")
+                rewardedAd = null   // consumed
+                eventCallback("rewardedShown", null)
+            }
+            override fun onAdDismissedFullScreenContent() {
+                Log.d(TAG, "Rewarded dismissed")
+                eventCallback("rewardedClosed", null)
+                preloadRewarded()   // preload next immediately
+            }
+            override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                Log.w(TAG, "Rewarded show failed: ${error.message}")
+                rewardedAd = null
+                eventCallback("rewardedFailed", error.message)
+                preloadRewarded()
+            }
+        }
+    }
+
+    fun showRewarded(activity: Activity) {
+        val ad = rewardedAd
+        if (ad == null) {
+            Log.w(TAG, "showRewarded called but ad not ready")
+            eventCallback("rewardedFailed", "not_loaded")
+            preloadRewarded()
+            return
+        }
+        ad.show(activity) { rewardItem ->
+            // User completed the ad — always send 30 as amount (matches JS expectation)
+            val amount = rewardItem.amount.takeIf { it > 0 } ?: 30
+            Log.d(TAG, "💰 Reward earned: $amount")
+            eventCallback("rewardEarned", amount.toString())
+        }
+    }
+}
+```
+
+---
+
+## 8. bridge/SubscriptionBridge.kt
+
+```kotlin
+package com.linguawonder.app.bridge
+
+import android.app.Activity
+import android.util.Log
+import android.webkit.JavascriptInterface
+import android.webkit.WebView
+import com.linguawonder.app.billing.BillingManager
+import org.json.JSONObject
+
+/**
+ * Exposed to JavaScript as window.AndroidSubscriptionBridge
+ *
+ * Matches the contract in nativeBridge.ts:
+ *   window.AndroidSubscriptionBridge.purchaseProduct(productId, type)
+ *   window.AndroidSubscriptionBridge.subscribe(productId)
+ *   window.AndroidSubscriptionBridge.restorePurchases()
+ *
+ * Results are dispatched as CustomEvents on window:
+ *   new CustomEvent('subscription_event', { detail: { event, productId, purchaseToken, ... } })
+ */
+class SubscriptionBridge(
+    private val activity: Activity,
+    private val webView: WebView,
+) {
+    private val TAG = "SubscriptionBridge"
+    private val billingManager = BillingManager(activity) { event -> dispatchSubscriptionEvent(event) }
+
+    // ── purchaseProduct(productId, type) ─────────────────────────────────────
+    // type = "inapp" for consumables, "subs" for subscriptions
+    @JavascriptInterface
+    fun purchaseProduct(productId: String, type: String) {
+        Log.d(TAG, "purchaseProduct: $productId type=$type")
+        activity.runOnUiThread {
+            billingManager.launchPurchase(activity, productId, type)
+        }
+    }
+
+    // ── subscribe(productId) ──────────────────────────────────────────────────
+    // Convenience alias for subscription products
+    @JavascriptInterface
+    fun subscribe(productId: String) {
+        purchaseProduct(productId, "subs")
+    }
+
+    // ── restorePurchases() ────────────────────────────────────────────────────
+    @JavascriptInterface
+    fun restorePurchases() {
+        Log.d(TAG, "restorePurchases")
+        activity.runOnUiThread { billingManager.restorePurchases() }
+    }
+
+    // ── dispatchSubscriptionEvent ─────────────────────────────────────────────
+    // Fires a CustomEvent on window that nativeBridge.ts listens for
+    private fun dispatchSubscriptionEvent(detail: JSONObject) {
+        val json = detail.toString().replace("'", "\\'")
+        activity.runOnUiThread {
+            webView.evaluateJavascript(
+                """
+                (function(){
+                  var e = new CustomEvent('subscription_event', { detail: $json });
+                  window.dispatchEvent(e);
+                })();
+                """.trimIndent(),
+                null
+            )
+        }
+    }
+
+    fun destroy() = billingManager.destroy()
+}
+```
+
+---
+
+## 9. billing/BillingManager.kt
+
+```kotlin
+package com.linguawonder.app.billing
+
+import android.app.Activity
+import android.content.Context
+import android.util.Log
+import com.android.billingclient.api.*
+import kotlinx.coroutines.*
+import org.json.JSONObject
+
+/**
+ * Wraps Google Play Billing Library v7.
+ *
+ * Product IDs (must be registered in Google Play Console):
+ *   Consumables : boost_hints_small, boost_hints_medium, boost_hints_large
+ *                 boost_foggust_small, boost_foggust_bundle
+ *   Subscriptions: sub_scholar_monthly, sub_premium_monthly
+ *
+ * eventDispatcher(detail: JSONObject) must fire a 'subscription_event' CustomEvent
+ * in JavaScript — handled by SubscriptionBridge.dispatchSubscriptionEvent().
+ *
+ * subscription_event detail shapes (matches nativeBridge.ts):
+ *   { event: "product_purchased",   productId, purchaseToken, transactionId }
+ *   { event: "subscription_purchased", productId, purchaseToken }
+ *   { event: "product_restored",    productId }
+ *   { event: "purchase_error",      productId, message }
+ */
+class BillingManager(
+    private val context: Context,
+    private val eventDispatcher: (JSONObject) -> Unit,
+) {
+    private val TAG = "BillingManager"
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private val billingClient: BillingClient = BillingClient.newBuilder(context)
+        .setListener { billingResult, purchases ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK && purchases != null) {
+                for (purchase in purchases) handlePurchase(purchase)
+            } else {
+                Log.w(TAG, "Purchase update error: ${billingResult.debugMessage}")
+            }
+        }
+        .enablePendingPurchases(
+            PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
+        )
+        .build()
+
+    init { connect() }
+
+    // ── Connection ────────────────────────────────────────────────────────────
+
+    private fun connect() {
+        billingClient.startConnection(object : BillingClientStateListener {
+            override fun onBillingSetupFinished(result: BillingResult) {
+                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.d(TAG, "✅ Billing connected")
+                } else {
+                    Log.w(TAG, "Billing setup failed: ${result.debugMessage}")
+                }
+            }
+            override fun onBillingServiceDisconnected() {
+                Log.w(TAG, "Billing disconnected — retrying in 5s")
+                scope.launch { delay(5_000); connect() }
+            }
+        })
+    }
+
+    // ── Launch purchase ───────────────────────────────────────────────────────
+
+    fun launchPurchase(activity: Activity, productId: String, type: String) {
+        if (!billingClient.isReady) {
+            dispatchError(productId, "billing_not_ready")
+            return
+        }
+        val productType = if (type == "subs") BillingClient.ProductType.SUBS
+                          else BillingClient.ProductType.INAPP
+
+        scope.launch {
+            val params = QueryProductDetailsParams.newBuilder()
+                .setProductList(listOf(
+                    QueryProductDetailsParams.Product.newBuilder()
+                        .setProductId(productId)
+                        .setProductType(productType)
+                        .build()
+                ))
+                .build()
+
+            val result = billingClient.queryProductDetails(params)
+            if (result.billingResult.responseCode != BillingClient.BillingResponseCode.OK ||
+                result.productDetailsList.isNullOrEmpty()) {
+                Log.w(TAG, "Product not found: $productId")
+                dispatchError(productId, "product_not_found")
+                return@launch
+            }
+
+            val productDetails = result.productDetailsList!!.first()
+            val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+
+            val billingFlowParams = BillingFlowParams.newBuilder()
+                .setProductDetailsParamsList(listOf(
+                    BillingFlowParams.ProductDetailsParams.newBuilder()
+                        .setProductDetails(productDetails)
+                        .apply { if (offerToken != null) setOfferToken(offerToken) }
+                        .build()
+                ))
+                .build()
+
+            withContext(Dispatchers.Main) {
+                billingClient.launchBillingFlow(activity, billingFlowParams)
+            }
+        }
+    }
+
+    // ── Handle completed purchase ─────────────────────────────────────────────
+
+    private fun handlePurchase(purchase: Purchase) {
+        if (purchase.purchaseState != Purchase.PurchaseState.PURCHASED) return
+
+        val productId = purchase.products.firstOrNull() ?: return
+        val isSubscription = productId.startsWith("sub_")
+
+        // Acknowledge the purchase (required within 3 days or Google refunds it)
+        if (!purchase.isAcknowledged) {
+            scope.launch {
+                val ackResult = billingClient.acknowledgePurchase(
+                    AcknowledgePurchaseParams.newBuilder()
+                        .setPurchaseToken(purchase.purchaseToken)
+                        .build()
+                )
+                if (ackResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    Log.d(TAG, "✅ Purchase acknowledged: $productId")
+                } else {
+                    Log.w(TAG, "Acknowledge failed: ${ackResult.debugMessage}")
+                }
+            }
+        }
+
+        // Notify the server to validate + credit the purchase
+        scope.launch { validateWithServer(productId, purchase.purchaseToken) }
+
+        // Dispatch event to JavaScript
+        val eventName = if (isSubscription) "subscription_purchased" else "product_purchased"
+        eventDispatcher(JSONObject().apply {
+            put("event",         eventName)
+            put("productId",     productId)
+            put("purchaseToken", purchase.purchaseToken)
+            put("transactionId", purchase.orderId ?: "")
+        })
+    }
+
+    // ── Server validation ─────────────────────────────────────────────────────
+
+    private suspend fun validateWithServer(productId: String, purchaseToken: String) {
+        try {
+            // POST to your LinguaWonder backend endpoint
+            val url = java.net.URL("https://your-app.replit.app/api/iap/google")
+            val body = """{"productId":"$productId","purchaseToken":"$purchaseToken"}"""
+            val conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            conn.outputStream.use { it.write(body.toByteArray()) }
+            val code = conn.responseCode
+            Log.d(TAG, "Server validation: $productId → HTTP $code")
+            conn.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "Server validation failed: ${e.message}")
+        }
+    }
+
+    // ── Restore ───────────────────────────────────────────────────────────────
+
+    fun restorePurchases() {
+        if (!billingClient.isReady) return
+        scope.launch {
+            val inappResult = billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder()
+                    .setProductType(BillingClient.ProductType.INAPP)
+                    .build()
+            )
+            val subsResult = billingClient.queryPurchasesAsync(
+                QueryPurchasesParams.newBuilder()
+                    .setProductType(BillingClient.ProductType.SUBS)
+                    .build()
+            )
+            val all = (inappResult.purchasesList + subsResult.purchasesList)
+            for (purchase in all) {
+                if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                    val productId = purchase.products.firstOrNull() ?: continue
+                    eventDispatcher(JSONObject().apply {
+                        put("event",     "product_restored")
+                        put("productId", productId)
+                    })
+                }
+            }
+        }
+    }
+
+    // ── Error helper ──────────────────────────────────────────────────────────
+
+    private fun dispatchError(productId: String, message: String) {
+        eventDispatcher(JSONObject().apply {
+            put("event",     "purchase_error")
+            put("productId", productId)
+            put("message",   message)
+        })
+    }
+
+    fun destroy() {
+        scope.cancel()
+        billingClient.endConnection()
+    }
+}
+```
+
+---
+
+## 10. evalJs helper — add to MainActivity.kt
+
+```kotlin
+// Add this function inside MainActivity class
+fun evalJs(script: String) {
+    runOnUiThread {
+        webView.evaluateJavascript(script, null)
+    }
+}
+```
+
+---
+
+## 11. res/values/admob_ids.xml
+
+Create this file — keeps ad unit IDs separate from strings.xml:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        DEVELOPMENT — use AdMob test IDs:
+        Interstitial: ca-app-pub-3940256099942544/1033173712
+        Rewarded:     ca-app-pub-3940256099942544/5224354917
+
+        PRODUCTION — replace with real IDs from AdMob console
+    -->
+    <string name="admob_interstitial_id">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="admob_rewarded_id">ca-app-pub-3940256099942544/5224354917</string>
+</resources>
+```
+
+---
+
+## 12. Google Play Console — Product IDs to register
+
+Under **Monetize → Products** in the Play Console, create these items matching `nativeBridge.ts`:
+
+| Product ID | Type | Price |
+|---|---|---|
+| `boost_hints_small` | One-time (consumable) | $0.99 |
+| `boost_hints_medium` | One-time (consumable) | $2.99 |
+| `boost_hints_large` | One-time (consumable) | $6.99 |
+| `boost_foggust_small` | One-time (consumable) | $0.99 |
+| `boost_foggust_bundle` | One-time (consumable) | $2.99 |
+| `sub_scholar_monthly` | Subscription (monthly) | $3.99 |
+| `sub_premium_monthly` | Subscription (monthly) | $4.99 |
+
+Consumable products must be consumed via `BillingClient.consumeAsync()` before they can be purchased again. Add this inside `handlePurchase()` for non-subscription products:
+
+```kotlin
+if (!isSubscription) {
+    scope.launch {
+        billingClient.consumeAsync(
+            ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+        ) { result, token ->
+            Log.d(TAG, "Consume result: ${result.responseCode} token=$token")
+        }
+    }
+}
+```
+
+---
+
+## 13. Event flow diagram
+
+```
+User taps "Next Level"
+        │
+        ▼
+adController.ts: shouldShowInterstitial() → true
+        │
+        ▼
+adController.ts: bridge.showInterstitial("level_complete")
+        │
+        ▼
+adbridge.js: ad already loaded?
+   ├─ YES → _doNativeShow() → window.AdBridge.showInterstitial() [JavascriptInterface]
+   └─ NO  → window.AdBridge.loadInterstitial() + poll isInterstitialReady() every 300ms
+                    │
+                    ▼
+             AdBridge.kt.loadInterstitial()
+                    │
+                    ▼
+             AdMobManager.preloadInterstitial()
+                    │
+                    ▼
+             InterstitialAd.load() callback: onAdLoaded
+                    │
+                    ▼
+             AdMobManager fires eventCallback("interstitialLoaded", null)
+                    │
+                    ▼
+             MainActivity.evalJs("window.onAdBridgeEvent('interstitialLoaded', '')")
+                    │
+                    ▼
+             adbridge.js: case 'interstitialLoaded' → _onInterstitialReady()
+                    │
+                    ▼
+             window.AdBridge.showInterstitial() [JavascriptInterface]
+                    │
+                    ▼
+             AdMobManager.showInterstitial(activity) → ad.show()
+                    │
+                    ▼
+             onAdShowedFullScreenContent → eventCallback("interstitialShown", null)
+                    │
+                    ▼
+             adbridge.js: interstitialShown → outerResolve(true)
+                    │
+                    ▼
+             adController.ts: bumps session/daily counters, returns true
+```
+
+---
+
+## 14. Rename checklist (LinguaVibe → LinguaWonder)
+
+| Location | Find | Replace |
+|---|---|---|
+| `build.gradle.kts` | `com.linguavibe.app` | `com.linguawonder.app` |
+| All Kotlin files | `package com.linguavibe` | `package com.linguawonder` |
+| `strings.xml` | App name string | `LinguaWonder` |
+| `AndroidManifest.xml` | applicationId | `com.linguawonder.app` |
+| AdMob console | App name | LinguaWonder |
+| Play Console | App name | LinguaWonder |
+| `BillingManager.kt` serverUrl | `your-app.replit.app` | your real deployed URL |
+| `MainActivity.kt` `WEB_APP_URL` | `your-app.replit.app` | your real deployed URL |
+
+---
+
+## 15. Common pitfalls
+
+**1. `window.AdBridge` is injected BEFORE the page loads**  
+`addJavascriptInterface` must be called before `webView.loadUrl()`. It's already ordered correctly in `WebViewConfig.configure()` → `MainActivity.onCreate()`.
+
+**2. `@JavascriptInterface` methods run on a background thread**  
+Never call `webView.evaluateJavascript()` or any UI operation directly inside a `@JavascriptInterface` method. Always wrap in `activity.runOnUiThread { }`.
+
+**3. `isInterstitialReady()` is polled every 300ms from JS**  
+This is intentional — it's the fallback for when `interstitialLoaded` event is missed. The polling stops as soon as the method returns `true`.
+
+**4. Consumables must be consumed before re-purchase**  
+Add the `consumeAsync()` call from section 12 inside `handlePurchase()` for all `boost_*` products.
+
+**5. `domStorageEnabled = true` is required**  
+The web app uses `localStorage` for ad daily caps, A/B test assignments, session data, and audio unlock state. Without this the app will appear to work but silently fail on every reload.
+
+**6. Always acknowledge purchases within 3 days**  
+Google auto-refunds unacknowledged purchases after 3 days. The `acknowledgePurchase()` call in `handlePurchase()` handles this — do not remove it.
+
+**7. Test ad IDs vs. production**  
+The `admob_ids.xml` file ships with test IDs. Replace them in a `release` build flavor or via environment-specific resource files before submitting to the Play Store.
