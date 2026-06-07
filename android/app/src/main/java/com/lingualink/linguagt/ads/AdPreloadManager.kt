@@ -1,4 +1,4 @@
-package com.lingualink.linguagt.ads
+package com.linguawonder.app.ads
 
 import android.app.Activity
 import android.content.Context
@@ -23,7 +23,7 @@ import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
 import com.google.android.ump.ConsentInformation
 import com.google.android.ump.ConsentRequestParameters
 import com.google.android.ump.UserMessagingPlatform
-import com.lingualink.linguagt.TestRigorLogger
+import com.linguawonder.app.TestRigorLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

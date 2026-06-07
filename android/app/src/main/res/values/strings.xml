@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App Info -->
-    <string name="app_name">LinguaVibe</string>
+    <string name="app_name">LinguaWonder</string>
+
+    <!-- AdMob App ID — replace with your real LinguaWonder AdMob App ID -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
 
     <!-- Loading Messages -->
     <string name="loading_translation_app">Loading Translation App…</string>
 
     <!-- Permission Dialogs -->
-    <string name="permission_audio_rationale">Allow LinguaVibe to record audio</string>
+    <string name="permission_audio_rationale">Allow LinguaWonder to record audio</string>
     <string name="initializing_conversation_mode">Initializing Conversation Mode</string>
 
     <!-- Error Messages -->

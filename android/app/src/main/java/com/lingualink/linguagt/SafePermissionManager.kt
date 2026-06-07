@@ -1,4 +1,4 @@
-package com.lingualink.linguagt
+package com.linguawonder.app
 
 import android.Manifest
 import android.app.Activity

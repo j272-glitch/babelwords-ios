@@ -4,13 +4,13 @@ apply plugin: 'kotlin-android'
 // DISABLED FOR TESTING: apply plugin: 'com.google.gms.google-services'
 
 android {
-    namespace 'com.lingualink.linguagt'
+    namespace 'com.linguawonder.app'
 
     compileSdk rootProject.ext.compile_sdk
     buildToolsVersion rootProject.ext.build_tools_version
 
     defaultConfig {
-        applicationId "com.lingualink.linguagt"
+        applicationId "com.linguawonder.app"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
         versionCode 24
@@ -311,11 +311,11 @@ dependencies {
     // Security (for secure WebSocket connections)
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
 
-    // Google Mobile Ads SDK (22.6.0 compatible with Kotlin 1.8.x/1.9.x)
-    implementation 'com.google.android.gms:play-services-ads:22.6.0'
+    // Google Mobile Ads SDK
+    implementation 'com.google.android.gms:play-services-ads:23.2.0'
 
-    // Google Play Billing for in-app subscriptions
-    implementation 'com.android.billingclient:billing-ktx:6.1.0'
+    // Google Play Billing for in-app subscriptions (v7 required for BillingManager)
+    implementation 'com.android.billingclient:billing-ktx:7.0.0'
 
     // DISABLED FOR TESTING - Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
     // implementation platform('com.google.firebase:firebase-bom:32.8.0')

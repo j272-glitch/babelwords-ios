@@ -1,4 +1,4 @@
-package com.lingualink.linguagt.billing
+package com.linguawonder.app.billing
 
 import android.app.Activity
 import android.content.Context
@@ -40,7 +40,9 @@ class SubscriptionManager(
     fun initialize() {
         billingClient = BillingClient.newBuilder(context)
             .setListener(this)
-            .enablePendingPurchases()
+            .enablePendingPurchases(
+                PendingPurchasesParams.newBuilder().enableOneTimeProducts().build()
+            )
             .build()
 
         billingClient?.startConnection(object : BillingClientStateListener {

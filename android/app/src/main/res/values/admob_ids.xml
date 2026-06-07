@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        DEVELOPMENT — use AdMob test IDs:
+        Interstitial: ca-app-pub-3940256099942544/1033173712
+        Rewarded:     ca-app-pub-3940256099942544/5224354917
+
+        PRODUCTION — replace with real IDs from AdMob console
+    -->
+    <string name="admob_interstitial_id">ca-app-pub-3940256099942544/1033173712</string>
+    <string name="admob_rewarded_id">ca-app-pub-3940256099942544/5224354917</string>
+</resources>

@@ -1,8 +1,8 @@
-package com.lingualink.linguagt.webview
+package com.linguawonder.app.webview
 
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.lingualink.linguagt.billing.SubscriptionManager
+import com.linguawonder.app.billing.SubscriptionManager
 import org.json.JSONObject
 
 class SubscriptionBridge(

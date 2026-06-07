@@ -1,4 +1,4 @@
-package com.lingualink.linguagt
+package com.linguawonder.app
 
 import retrofit2.Call
 import retrofit2.Retrofit

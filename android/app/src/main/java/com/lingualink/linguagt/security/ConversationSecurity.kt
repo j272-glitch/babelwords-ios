@@ -1,4 +1,4 @@
-package com.lingualink.linguagt.security
+package com.linguawonder.app.security
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
