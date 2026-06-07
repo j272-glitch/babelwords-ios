@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
         configureWebView()
         
         // Load web app
-        webView.loadUrl("https://your-app-url.replit.app")
+        webView.loadUrl("https://linguagt.com")
     }
     
     private fun configureWebView() {
@@ -203,7 +203,7 @@ class ConversationActivity : AppCompatActivity() {
         networkMonitor.start()
         
         // Load conversation page
-        webView.loadUrl("https://your-app-url.replit.app/sse-conversation")
+        webView.loadUrl("https://linguagt.com/sse-conversation")
     }
     
     override fun onDestroy() {

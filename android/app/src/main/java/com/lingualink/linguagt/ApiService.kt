@@ -56,7 +56,7 @@ interface ApiService {
     ): SubscriptionStatus
 
     companion object {
-        private const val BASE_URL = "https://gtlingua.com/"
+        private const val BASE_URL = "https://linguagt.com/"
         private const val TIMEOUT_SECONDS = 30L
 
         fun create(): ApiService {

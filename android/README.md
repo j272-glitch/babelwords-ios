@@ -144,7 +144,7 @@ class YourActivity : BaseActivity() {
 The app uses a WebView to display your LinguaLink web application. Update the `webAppUrl` in `MainActivity.kt` to point to your actual deployment URL:
 
 ```kotlin
-val webAppUrl = "https://your-actual-replit-app.replit.app"
+val webAppUrl = "https://linguagt.com"
 webView.loadUrl(webAppUrl)
 ```
 

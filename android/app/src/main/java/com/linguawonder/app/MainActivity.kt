@@ -17,7 +17,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adBridge: AdBridge
     private lateinit var subscriptionBridge: SubscriptionBridge
 
-    private val WEB_APP_URL = "https://your-app.replit.app"
+    private val WEB_APP_URL = "https://linguagt.com"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
