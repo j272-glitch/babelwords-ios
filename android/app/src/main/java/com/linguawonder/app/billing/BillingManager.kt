@@ -157,7 +157,7 @@ class BillingManager(
 
     private suspend fun validateWithServer(productId: String, purchaseToken: String) {
         try {
-            val url = java.net.URL("https://linguagt.com/api/iap/google")
+            val url = java.net.URL("https://linguagt.com/api/iap/google/verify")
             val body = """{"productId":"$productId","purchaseToken":"$purchaseToken"}"""
             val conn = url.openConnection() as java.net.HttpURLConnection
             conn.requestMethod = "POST"
