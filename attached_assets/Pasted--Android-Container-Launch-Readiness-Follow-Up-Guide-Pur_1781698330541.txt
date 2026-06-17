@@ -1,0 +1,262 @@
+# Android Container — Launch Readiness Follow‑Up Guide
+
+> **Purpose.** This is a follow‑up verification guide for the BabelWords Android app,
+> which ships as a **native WebView container** wrapping this web app. Use it to confirm
+> that **every element works inside the Android container — especially all paid features —
+> before publishing to the Google Play Store.** The final section directs a **full architect
+> review** to sign off on publishing readiness.
+>
+> Work top to bottom. Treat every ☐ box as a gate: do not publish until each one is checked
+> or has an explicit, written waiver. Items marked **�blocker** must be resolved.
+
+---
+
+## 0. How the container is wired (read first)
+
+The Android app does **not** reimplement gameplay. It loads the same web app inside a
+`WebView` and bridges to native code for the things a browser can't do: billing, ads,
+microphone, and lifecycle.
+
+| Concern | Web side | Native side (Android) |
+|---|---|---|
+| Platform detection | `client/src/lib/nativeBridge.ts` → `detectPlatform()` (looks for `window.AndroidSubscriptionBridge`) | `SubscriptionBridge.kt` injects `AndroidSubscriptionBridge` via `@JavascriptInterface` |
+| In‑app purchases | `client/src/lib/nativeBridge.ts`, `client/src/pages/store.tsx` | `SubscriptionBridge.kt`, `SubscriptionManager.kt` (Play Billing) |
+| Purchase verification | `POST /api/iap/google/verify` in `server/routes.ts` | — |
+| Ads | `public/adbridge.js`, `client/src/lib/adController.ts` | `AdBridge.kt` / `AdMobManager.kt` (see `docs/AdMobBridge.kt`) |
+| Voice / mic / audio | `client/src/lib/audioContext.ts`, `/ws/stt`, `/api/tts`, `/api/guardian-tts` | `ConversationWebViewManager.kt` (mic permission + autoplay) |
+| Lifecycle / network | `subscription_event` + custom window events | `ConversationWebViewManager.kt` |
+
+**Bridge direction:**
+- **Web → Native:** the web app calls methods on the injected object, e.g.
+  `window.AndroidSubscriptionBridge.purchaseProduct(productId, type)`.
+- **Native → Web:** the native layer dispatches a DOM event the web app listens for:
+  `window.dispatchEvent(new CustomEvent('subscription_event', { detail: {...} }))`.
+
+Reference docs already in this repo: `docs/android-integration-guide.md`,
+`docs/ANDROID_WEBVIEW_CALLBACKS_GUIDE.md`, `docs/ADMOB_ANDROID_INTEGRATION.md`,
+`docs/ANDROID_CONVERSATION_MODE_GUIDE.md`.
+
+---
+
+## 1. Core WebView shell
+
+☐ App launches and loads the production web URL (not localhost) without a white screen.
+☐ JavaScript is enabled (`settings.javaScriptEnabled = true`).
+☐ DOM storage is enabled (`settings.domStorageEnabled = true`) — required for localStorage
+   (guest progress, settings, ad caps are stored client‑side).
+☐ Cookies persist across launches (session auth relies on the `express-session` cookie).
+   Confirm `CookieManager` accepts cookies and third‑party cookies if the API origin differs.
+☐ Mixed‑content is **not** blocked for the app's own HTTPS API/WebSocket calls.
+☐ Hardware **Back** button behaves sensibly (in‑app navigation, not instant app exit on the board).
+☐ External links (Play subscriptions page, support) open in the system browser, not inside the WebView.
+☐ Pull‑to‑refresh / over‑scroll does not break the fixed game layout.
+☐ Safe‑area / notch insets respected on tall phones (the game root is `position: fixed`).
+
+---
+
+## 2. Authentication & session
+
+☐ Email sign‑in / register works inside the WebView (Passport.js + bcrypt).
+☐ Session survives app background → foreground and full app restart.
+☐ **Guest mode** works (levels 1–10) and the "create account" soft prompts appear.
+☐ Logout clears the session and returns to the home screen.
+
+---
+
+## 3. 💳 Paid features — Google Play Billing (highest priority)
+
+### 3.1 Product catalog (must match Play Console exactly)
+
+The catalog lives in `client/src/lib/nativeBridge.ts` (`IAP_PRODUCTS`). The **Android product IDs**
+below must exist and be **Active** in the Play Console with matching type:
+
+| Android product ID | Type | Grants | Display price |
+|---|---|---|---|
+| `boost_hints_small` | in‑app (consumable) | 3 hints | $0.99 |
+| `boost_hints_medium` | in‑app (consumable) | 8 hints | $2.99 |
+| `boost_hints_large` | in‑app (consumable) | 20 hints | $6.99 |
+| `boost_foggust_small` | in‑app (consumable) | 2 fog gusts | $0.99 |
+| `boost_foggust_bundle` | in‑app (consumable) | 6 fog gusts | $2.99 |
+| `sub_scholar_monthly` | subscription | Scholar Pass (learning mode + XP boost) | $3.99/mo |
+| `sub_premium_monthly` | subscription | Premium Pass (cosmetics + monthly hints + all perks) | $4.99/mo |
+
+☐ All 7 product IDs exist in Play Console, are **Active**, and the type (in‑app vs subscription) matches the table.
+☐ Consumables are configured as **consumable** so they can be repurchased.
+☐ Prices/currencies reviewed for target markets.
+
+### 3.2 Bridge contract (client ⇄ native)
+
+**Web → Native** (called from `nativePurchase()` / `nativeRestore()`):
+- `AndroidSubscriptionBridge.purchaseProduct(androidProductId, type)` — `type` is `'inapp'` or `'subs'`.
+- `AndroidSubscriptionBridge.subscribe(androidProductId)` — legacy subscription path.
+- `AndroidSubscriptionBridge.restorePurchases()`.
+
+**Native → Web** (dispatched as `subscription_event`, `detail.event` is one of):
+- `product_purchased` / `subscription_purchased` → `detail` must include `productId`, and for verification `purchaseToken` (and optionally `transactionId`).
+- `product_restored` / `subscription_restored`.
+- `purchase_error` / `subscription_error` → include `message` (and `productId` if known).
+
+☐ Native sends the **exact** `event` strings above (typos here silently break the purchase resolve).
+☐ `purchaseToken` is included on success — the server needs it to verify (see 3.3).
+☐ User‑cancel results in a clean error/cancel event (no spinner hang). The web side has a 5‑min safety timeout in `nativeBridge.ts`, but native should respond immediately.
+
+### 3.3 Server verification & crediting
+
+After a successful native purchase the client should hand the token to the server, which verifies and credits the account.
+
+- Endpoint: `POST /api/iap/google/verify` (`server/routes.ts`).
+- Body: `{ purchaseToken, productId, packageName }` (default package `com.linguawonder.app`).
+- Verification: when `GOOGLE_PLAY_KEY` is set, the server uses the `googleapis`
+  `androidpublisher` v3 API — `purchases.subscriptions.get` for subs, `purchases.products.get`
+  for consumables — then credits `hintBalance` for hint packs.
+- Related endpoints: `GET /api/iap/balance`, `POST /api/iap/restore`,
+  `POST /api/iap/test-purchase` (dev only — see 3.6).
+
+> ### 🚨🚧 BLOCKER — server‑side Google verification cannot run today
+> `server/routes.ts` calls `const { google } = await import('googleapis')`, **but the
+> `googleapis` package is not installed** in this project (it does not resolve at runtime).
+> Consequences:
+> - If `GOOGLE_PLAY_KEY` **is set**, the dynamic import will **throw** when a real Android
+>   purchase is verified — purchases will not be securely credited.
+> - If `GOOGLE_PLAY_KEY` is **not set**, the server **skips verification and credits hints
+>   on trust** — acceptable for internal testing only, **not** for production (anyone can
+>   forge a purchase call).
+>
+> **Before publishing you must:**
+> ☐ Install `googleapis` (via the package manager — do **not** hand‑edit `package.json`).
+> ☐ Set the `GOOGLE_PLAY_KEY` secret to the Play service‑account JSON (use the secrets flow; never commit it).
+> ☐ Grant that service account the "View financial data / Manage orders" permission in Play Console.
+> ☐ Re‑run a real sandbox purchase and confirm `/api/iap/google/verify` returns success and `hintBalance` increases.
+
+☐ `GOOGLE_PLAY_KEY` configured in **production** secrets (not just dev).
+☐ `hintBalance` increases by the correct amount per product after verify.
+☐ Verification **rejects** an invalid/forged `purchaseToken`.
+☐ Double‑submitting the same token does not double‑credit (idempotency / token reuse handling).
+
+### 3.4 Store UI flow (`client/src/pages/store.tsx`)
+
+☐ All 3 store tabs render in the container: **Boosters**, **Cosmetics**, **Premium**.
+☐ Prices, names, and the platform label show **"Google Play"** (`platformLabel()` returns it on Android).
+☐ Purchase confirmation dialog appears before the native sheet.
+☐ Success updates the in‑app balance/inventory immediately (hint count, fog gusts, cosmetics).
+☐ The Google Play billing disclaimer text is shown for subscriptions (`billingDisclaimer()`).
+☐ "Manage subscription" links to `https://play.google.com/store/account/subscriptions`.
+
+### 3.5 Per‑product test matrix (run each on a real device w/ a Play license tester)
+
+For **each** of the 7 products:
+☐ Tap → native Google sheet opens → complete purchase → entitlement granted in‑app.
+☐ Consumables: balance increases and the item is re‑purchasable afterward.
+☐ Subscriptions: perks activate (Scholar XP boost / Premium cosmetics + monthly hints).
+☐ Cancel mid‑purchase → no entitlement, clean UI, can retry.
+☐ Kill the app right after pay, relaunch → entitlement still granted (resolved via verify/restore).
+
+### 3.6 Restore & edge cases
+
+☐ **Restore purchases** re‑grants active subscriptions on a fresh install / new device.
+☐ Subscription **renewal** keeps perks active; **expiry/cancel** removes them.
+☐ Refund / revoke removes the entitlement on next verify.
+☐ Offline at purchase time → graceful error, retried when back online.
+☐ `POST /api/iap/test-purchase` is **disabled or guarded** in production builds (it must not let users self‑grant).
+
+---
+
+## 4. Ads (interstitial + rewarded)
+
+Bridge: `public/adbridge.js` binds to `window.AdBridge` (or legacy `AndroidAds`).
+Policy/cadence: `client/src/lib/adController.ts`.
+
+☐ AdBridge initializes inside the container (log: "Running in Android app with AdBridge.kt interface").
+☐ **Interstitials** respect the cadence: onboarding grace (none until early gates passed),
+   ≥90s cooldown, per‑session and daily caps. They never interrupt an active puzzle mid‑solve.
+☐ **Rewarded** ads grant the reward only on completion (`rewardEarned`), with ~30s cooldown and a session cap.
+☐ "No ad loaded" fails gracefully (game continues; no soft‑lock, no double reward).
+☐ AdMob app ID / unit IDs are **production** IDs, not test IDs (see `docs/ADMOB_SETUP_CHECKLIST.md`).
+☐ UMP / consent flow shown where required (`docs/ADMOB_UMP_SETUP.md`).
+☐ Premium/subscription owners get the agreed ad‑free behavior (verify against monetization rules).
+
+---
+
+## 5. Voice & audio (native permissions)
+
+☐ Microphone permission is requested and granted in‑container
+   (`WebChromeClient.onPermissionRequest` → `RESOURCE_AUDIO_CAPTURE`).
+☐ Streaming STT works: `/ws/stt` WebSocket connects and proxies to Deepgram; live transcription appears.
+☐ TTS playback works: `/api/tts` and `/api/guardian-tts` (ElevenLabs) audio plays
+   (autoplay allowed via `mediaPlaybackRequiresUserGesture = false`).
+☐ First‑gesture audio unlock works on Android (see `.agents/memory/ios-audio-unlock.md` for the pattern).
+☐ Denying mic permission degrades gracefully (game still playable without voice).
+☐ Audio pauses on background and resumes on foreground.
+
+---
+
+## 6. Lifecycle, network & stability
+
+☐ `app_background` / `app_foreground` events fire and the app reacts (pause timers/audio, resume cleanly).
+☐ `network_status_change` events drive an offline indicator; **Soft Offline Mode** serves cached gameplay.
+☐ Keep‑alive ping (~15s) holds the voice WebSocket open while foregrounded.
+☐ No ANR/crash on rotation, incoming call, or rapid background/foreground (see
+   `docs/ANDROID_ANR_PREVENTION_GUIDE.md`, `docs/ANDROID_CRASH_PREVENTION_GUIDE.md`).
+☐ App resumes to the correct screen after being killed by the OS.
+
+---
+
+## 7. Play Store compliance & release config
+
+☐ Target SDK / version code & name set; signed release (App Bundle) builds.
+☐ App icons, feature graphic, screenshots, store listing finalized.
+☐ Privacy policy URL live; **Data safety** form matches what the app collects (mic/voice, account, purchases).
+☐ Billing permission declared; subscriptions configured with base plans/offers.
+☐ Required disclosures for ads + IAP present.
+☐ Internal/closed testing track validated with **license testers** before production rollout.
+
+---
+
+## 8. ✅ Full architect review for publishing readiness (required)
+
+Before flipping to production, run a **full architect review** focused on launch readiness.
+Use the `code_review` skill's architect via the code execution tool:
+
+```javascript
+await architect({
+  task: `Full publishing-readiness review of the BabelWords Android WebView container.
+Verify end-to-end correctness of ALL paid features and native-bridge surfaces before Play Store release.
+Specifically assess:
+1) Google Play Billing path: client purchase (nativeBridge.ts) -> native bridge contract
+   -> server verification (POST /api/iap/google/verify) -> hintBalance/entitlement crediting.
+   Confirm the googleapis dependency is installed and GOOGLE_PLAY_KEY-based verification actually
+   runs and REJECTS forged tokens (this was a known blocker). Check for double-credit / token reuse.
+2) Subscriptions (sub_scholar_monthly, sub_premium_monthly): activation, renewal, expiry, restore.
+3) Ads policy (adController.ts) cadence/caps and graceful no-fill; ad-free for subscribers.
+4) Voice (mic permission, /ws/stt, TTS) and lifecycle/network events behave in-container.
+5) Security: no client-trusted entitlement grants in production; test-purchase route guarded.
+Rate each finding by severity and give concrete fixes. State a clear GO / NO-GO for publishing.`,
+  relevantFiles: [
+    "client/src/lib/nativeBridge.ts",
+    "client/src/pages/store.tsx",
+    "client/src/lib/adController.ts",
+    "public/adbridge.js",
+    "server/routes.ts",
+    "docs/ANDROID_CONTAINER_LAUNCH_READINESS.md"
+  ],
+  responsibility: "evaluate_task",
+  includeGitDiff: false,
+});
+```
+
+☐ Architect review run and its findings recorded.
+☐ All **critical/high** findings fixed (or explicitly waived with rationale).
+☐ Architect returns a clear **GO** for publishing.
+
+---
+
+## 9. Final sign‑off
+
+☐ Sections 1–7 fully checked on a **real Android device** (not just an emulator).
+☐ Section 3 **🚧 blocker** resolved: `googleapis` installed + `GOOGLE_PLAY_KEY` set + real purchase verified.
+☐ Section 8 architect review = **GO**.
+☐ Internal testing track validated; ready to promote to production.
+
+> When all boxes are checked, the Android container is ready to publish. If anything here is
+> unverifiable in the current environment (e.g. real Play purchases), note it explicitly and
+> validate it on the closed‑testing track before production rollout.
