@@ -1,0 +1,195 @@
+# BabelWords Android — Update Guide
+
+A practical playbook for updating the BabelWords Android app (a native WebView
+wrapper, same architecture as LinguaGT/LinguaVibe). It captures the hard-won
+lessons from recent releases so future updates go smoothly the first time.
+
+> **Read this first:** the Android app builds **only in GitHub Actions** — there
+> is no local Android SDK/Gradle in this environment. You cannot compile-test a
+> change here; the first real signal is the CI build. Plan changes carefully and
+> verify the merged manifest and the produced AAB after every build.
+
+---
+
+## 1. Toolchain (current, known-good)
+
+| Component | Version | Notes |
+|---|---|---|
+| Android Gradle Plugin (AGP) | **8.5.1** | Higher versions have historically caused manifest corruption in CI. |
+| Gradle | **8.9** | `android/gradle/wrapper/gradle-wrapper.properties` (`gradle-8.9-all.zip`). |
+| Kotlin | **2.2.0** | Required by play-services-ads 24.x (see §4). Bumped up from 1.9.25. |
+| JDK | **17** | Required for Gradle 8.x. |
+| compileSdk / targetSdk | **35** | Don't raise to 36 unless you also move the ads SDK to 25.x. |
+| minSdk | **24** | |
+| build-tools | **35.0.0** | |
+
+All of the above live in **`android/build.gradle`** under the `plugins {}` block
+and the `ext {}` block. `android/app/build.gradle` inherits them via
+`rootProject.ext.*`.
+
+---
+
+## 2. How to bump the app version (every release)
+
+Change the version in **three** places, or CI will ship a stale/duplicate number:
+
+1. `android/app/build.gradle` → `versionCode` and `versionName`
+2. `android/build.gradle` → the `versionCode` / `versionName` in the
+   `subprojects { ... defaultConfig { ... } }` block
+3. `.github/workflows/android-sdk-update-v25.yml` → three spots:
+   - the `version_name` input **description** (e.g. `'Version Name (e.g., 28.0.0)'`)
+   - the `version_name` input **default**
+   - the `env:` fallbacks `VERSION_CODE` and `VERSION_NAME`
+
+**Rules**
+- `versionCode` must be a **higher integer** than any artifact ever uploaded to
+  Play (across ALL tracks). Play rejects re-used or lower codes.
+- A version number, once used in a build, is "burned" — bump again for the next
+  attempt even if the previous build failed and produced nothing.
+- After editing, verify there are no stragglers:
+  ```bash
+  rg -n "<OLD_VERSION>" android/ .github/
+  ```
+  (Ignore `127.0.0.1` in `network_security_config.xml` — that's an IP, not a version.)
+
+---
+
+## 3. AdMob / ANR — the real fixes
+
+### 3a. ANR mitigation (the important one for revenue)
+ANRs reported in Play Vitals as `MessageQueue.nativePollOnce` and/or
+`AdMobBridge.loadInterstitialAd` ("Input dispatching timed out") are caused by
+the Google Mobile Ads SDK doing synchronous work on the **main thread** during
+init and ad loading.
+
+**Fix — add these two `<meta-data>` flags inside `<application>`** in
+`android/app/src/main/AndroidManifest.xml`:
+```xml
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+```
+These move SDK init + ad loading off the main thread. They work on any recent
+ads SDK and require **no web-app / JS-bridge changes** — the
+`window.AndroidAdBridge` contract is untouched.
+
+**Also keep the ads SDK reasonably current.** Newer play-services-ads releases
+ship additional off-main-thread/ANR fixes, so `flags + current SDK` is the
+strongest combination — not just the flags alone.
+
+### 3b. No web-app changes for native ad/ANR work
+The JS bridge contract (`loadInterstitial()`, `showInterstitial()`,
+`isInterstitialReady()`, and the `window.on*` callbacks) is stable. Native SDK
+bumps, OPTIMIZE flags, and version bumps never require touching the web app.
+
+---
+
+## 4. ⚠️ play-services-ads ↔ Kotlin version coupling (critical)
+
+This is the trap that broke a recent build.
+
+- **play-services-ads 24.x is compiled with Kotlin 2.x.** The 24.9.0 jars carry
+  Kotlin **metadata 2.2.0** and transitively pull **kotlin-stdlib 2.1.0**.
+- A **Kotlin 1.9.x** compiler can only read metadata up to 2.0.0, so the build
+  fails at `:app:compileReleaseKotlin` with:
+  ```
+  e: ... play-services-ads-24.9.0 ... was compiled with an incompatible
+     version of Kotlin. The binary version of its metadata is 2.2.0,
+     expected version is 1.9.0.
+  ```
+  …plus **cascading** errors in your own `.kt` files (e.g. `Unresolved
+  reference: mapOf` / `to`) — those are *symptoms* of the compiler failing to
+  load stdlib, not real code bugs.
+
+**Rule:** the project's Kotlin version (`org.jetbrains.kotlin.android` plugin
+version **and** `ext.kotlin_version` in `android/build.gradle`) must be **>=**
+the Kotlin version the ads SDK was built with. We are on **Kotlin 2.2.0** to
+match play-services-ads 24.9.0.
+
+**compileSdk ceiling:** stay on the **24.x** ads line while `compileSdk = 35`.
+The **25.x** line targets Android 16 / API 36 and can force `compileSdk 36`.
+
+**Check the latest ads version:**
+`https://dl.google.com/dl/android/maven2/com/google/android/gms/play-services-ads/maven-metadata.xml`
+
+### Kotlin upgrade risk
+Kotlin 2.x uses the stricter **K2** compiler. This project is a *good* candidate
+(no Jetpack Compose, no kapt/annotation processing — the two usual pain points),
+so risk is low. But K2 can still surface latent strictness issues (nullability,
+type inference, smart-cast edge cases) that are **only visible in the CI build**.
+If they appear, fix them as small targeted changes — don't revert Kotlin.
+
+---
+
+## 5. Google Play "AD_ID permission missing" — it's OPERATIONAL, not a bug
+
+When Play warns that AD_ID is missing "in an active artifact":
+
+- The source manifest **does** declare it:
+  ```xml
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+  ```
+  and play-services-ads merges it again. The compiled AAB verifiably contains it.
+- The warning persists because Play validates **every active artifact across all
+  tracks**. Old AABs built *before* AD_ID existed stay active and trigger it.
+  **Rewriting the manifest does nothing.**
+
+**What actually fixes it:**
+1. Verify the AAB you're uploading really has it:
+   ```bash
+   unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a AD_ID
+   ```
+   (The permission string is readable inside the protobuf.)
+2. In Play Console, **supersede/deactivate the old releases** in every track
+   (Internal / Closed / Open / Production).
+3. Complete **App content → Advertising ID** declaration.
+4. **NEVER click "Release without permission"** — that zeroes the advertising ID
+   and kills ad revenue.
+
+A **CI gate** in the workflow already fails the build if AD_ID is absent from the
+compiled merged manifest (it runs `aapt dump permissions` after the AdMob App ID
+check). Keep that gate.
+
+---
+
+## 6. Standard release flow
+
+1. Make code/config changes.
+2. Bump the version in all three places (§2).
+3. Push to GitHub (the repo's `main`) — that's what CI builds from. Replit
+   checkpoints alone do **not** reach CI.
+4. Trigger the workflow (`android-sdk-update-v25.yml`, via `workflow_dispatch`).
+5. After it goes green, verify the produced AAB:
+   - AD_ID present (§5 step 1)
+   - both OPTIMIZE meta-data entries present
+6. Upload to Play, then **supersede old artifacts** in all tracks.
+7. Monitor **Play Vitals ANR trend for 7–14 days** before any further SDK/UMP work.
+
+---
+
+## 7. Gotchas / red herrings
+
+- **ripgrep ANSI color glitch:** captured `rg` output can make a manifest line
+  like `...AD_ID"` *look* mangled (e.g. `.n`). It's purely a terminal color-code
+  display artifact — the file bytes are fine. Verify with `od -c` or `grep -c`,
+  not colored `rg` output.
+- **A failed build still "uses up" a version number** — bump again next attempt.
+- **There are two workflow files** in `.github/workflows/`; the active one is
+  **`android-sdk-update-v25.yml`** (the `(old)` one is dormant). Edit the active one.
+- **AdMob IDs** (reference): App ID `ca-app-pub-9991891515643313~7514450861`;
+  Interstitial `/5076005693`; Rewarded `/6313049833`. Only Interstitial and
+  Rewarded are enabled (Banner disabled by policy).
+
+---
+
+## 8. Quick reference — files you'll touch most
+
+| File | What it controls |
+|---|---|
+| `android/build.gradle` | AGP, Kotlin, SDK versions; global version defaults |
+| `android/app/build.gradle` | App version, dependencies (incl. play-services-ads) |
+| `android/app/src/main/AndroidManifest.xml` | Permissions (AD_ID), AdMob App ID, OPTIMIZE flags |
+| `.github/workflows/android-sdk-update-v25.yml` | CI build, version defaults, AD_ID gate |
