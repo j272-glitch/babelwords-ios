@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "jJiRgloFLwYO2IDyxA0z8"
+uri = "file://docs/REWARDED_INTERSTITIAL_WEB_INTEGRATION.md"
+type = "text"
+title = "Rewarded Interstitial — Web App Integration"
