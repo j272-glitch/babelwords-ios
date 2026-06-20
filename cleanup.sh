@@ -64,6 +64,34 @@ echo "   (not referenced by the manifest or the live com.linguawonder.app code)"
 remove_path "android/app/src/main/java/com/lingualink/linguagt"
 
 echo ""
+echo "4) Old exposed signing keystores + plaintext passwords (retired)"
+remove_path "release.keystore"
+remove_path "my-release-key.jks"
+remove_path "keystore-info.txt"
+remove_path "android-secrets-setup.md"
+remove_path "keystore.base64.txt"
+remove_path "release-keystore-base64.txt"
+
+echo ""
+echo "5) New BabelWords keystore base64 (keystore-base64.txt)"
+echo "   This file is the ONLY on-disk copy of your new signing key."
+echo "   It must be untracked before pushing, or the key leaks to GitHub."
+if [ -e "keystore-base64.txt" ]; then
+    echo ""
+    echo "   Before deleting it, confirm BOTH are done:"
+    echo "     1. Pasted its contents into the GitHub secret ANDROID_KEYSTORE_BASE64"
+    echo "     2. Saved a copy in a secure password manager / backup"
+    printf "   Type 'yes' to remove keystore-base64.txt now: "
+    read -r confirm_base64
+    if [ "$confirm_base64" = "yes" ]; then
+        remove_path "keystore-base64.txt"
+    else
+        echo "  ⚠ kept keystore-base64.txt — do NOT run ./push.sh until it is removed"
+        echo "    (re-run this script once you've saved the value)."
+    fi
+fi
+
+echo ""
 echo "============================================"
 if [ "$removed_any" -eq 1 ]; then
     echo " Cleanup complete."

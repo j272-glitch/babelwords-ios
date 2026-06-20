@@ -1,0 +1,1 @@
+- [BabelWords signing key](babelwords-signing-key.md) — fresh June-2026 keystore (alias babelwords); old LinguaGT keystores retired (plaintext passwords); never regenerate post-publish.

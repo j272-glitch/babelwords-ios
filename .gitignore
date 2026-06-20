@@ -1,0 +1,10 @@
+# Signing keystores & secret material — never commit these to the repo.
+# The keystore lives ONLY in GitHub Actions secrets (ANDROID_KEYSTORE_BASE64 etc.)
+# and your own secure backup (password manager).
+*.jks
+*.keystore
+keystore-info.txt
+android-secrets-setup.md
+keystore.base64.txt
+keystore-base64.txt
+release-keystore-base64.txt

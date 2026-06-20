@@ -21,7 +21,7 @@ Preferred communication style: Simple, everyday language.
 
 **Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled (legacy build configuration).
 
-**Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds use a production keystore (linguagt-release-key) with SHA-256 fingerprint-based signing for Google Play Store deployment.
+**Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds use the BabelWords release keystore (alias `babelwords`, SHA-256 `D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B`) for Google Play Store deployment. This is a fresh key generated for BabelWords (June 2026); the older LinguaGT-era keystores (`release.keystore`/`linguagt-release-key`, `my-release-key.jks`) were retired because their passwords had been committed to the repo in plaintext.
 
 ## CI/CD Pipeline
 
@@ -34,7 +34,7 @@ Preferred communication style: Simple, everyday language.
 
 **Build Challenges**: The project documentation extensively covers GitHub Actions container limitations, particularly around Gradle wrapper network dependencies and Android build tool compatibility. Solutions implemented include pre-caching Gradle distributions and using stable AGP versions.
 
-**Signing Configuration**: Uses base64-encoded keystore files stored in GitHub Secrets for secure APK signing during CI builds. The keystore has 68+ years validity (until 2093) using RSA 2048-bit encryption.
+**Signing Configuration**: The keystore is base64-encoded and stored ONLY in GitHub Actions secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`) — never committed to the repo (see `.gitignore`). The BabelWords key uses RSA 2048-bit encryption and is valid until 2053. The base64 value is the only backup, so it must also be kept in a secure password manager; losing it after publishing means app updates can no longer be signed.
 
 ## Android Application Architecture
 
