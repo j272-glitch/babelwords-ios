@@ -39,9 +39,9 @@ class AdBridge(
         private const val TAG = "AdBridge"
         
         // PRODUCTION AD UNIT IDs ONLY - No test ads
-        private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/5076005693"
-        private const val REWARDED_AD_UNIT = "ca-app-pub-9991891515643313/6313049833"
-        private const val REWARDED_INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/8883372855"
+        private const val INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/7320741331"
+        private const val REWARDED_AD_UNIT = "ca-app-pub-9991891515643313/5816087977"
+        private const val REWARDED_INTERSTITIAL_AD_UNIT = "ca-app-pub-9991891515643313/8095032889"
         
         private const val MAX_RETRY_DELAY_MS = 60000L
         private const val INITIAL_RETRY_DELAY_MS = 1000L

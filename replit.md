@@ -17,7 +17,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Build System
 
-**Android Gradle Plugin (AGP)**: The project has evolved through multiple AGP versions, with version 8.0.2 being the most stable for TestRigor compatibility and CI/CD builds. Higher versions (8.1.x, 8.5.x) have been tested but caused manifest corruption and build failures in containerized environments.
+**Android Gradle Plugin (AGP)**: Currently on **AGP 8.5.1** (per the BabelWords Update Guide known-good toolchain). This was a deliberate upgrade from 8.0.2 — required so the project can run Kotlin 2.2.0, which play-services-ads 24.x mandates. The version is pinned in `android/build.gradle` (plugins + ext) AND `android/settings.gradle` (`resolutionStrategy.useModule`); both must agree or the build silently uses the wrong AGP. A `verifyTestRigorCompatibility` assertion in `android/build.gradle` also enforces the AGP version.
 
 **Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled to prevent TestRigor manifest corruption issues.
 
@@ -79,8 +79,8 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 - Uses preloaded ads from AdPreloadManager for fast display
 
 *AdMob Configuration*:
-- App ID: `ca-app-pub-9991891515643313~7514450861`
-- Interstitial: /5076005693, Rewarded: /6313049833
+- App ID (BabelWords): `ca-app-pub-9991891515643313~9480266747` (defined in `res/values/strings.xml` as `admob_app_id`)
+- Interstitial: /7320741331, Rewarded: /6313049833
 - AdBridge.kt handles UMP consent flow
 
 *Native Ad Preload Strategy (AdPreloadManager.kt)*:
@@ -130,8 +130,8 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 # External Dependencies
 
 ## Core Android Dependencies
-- **Android SDK**: Compile SDK 34, Min SDK 21, Target SDK 34
-- **Kotlin**: Version 1.8.10 for AGP 8.0.2 compatibility
+- **Android SDK**: Compile SDK 35, Min SDK 24, Target SDK 35
+- **Kotlin**: Version 2.2.0 (K2 compiler; required by play-services-ads 24.x)
 - **AndroidX Libraries**: Core, Activity, WebView components
 - **Capacitor CLI**: Version 7.4.3 for cross-platform mobile support
 
@@ -142,7 +142,7 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 
 ## Build Tools
 - **Gradle Wrapper**: Multiple versions tested (7.6, 8.3, 8.9)
-- **Android Build Tools**: Version 34.0.0
+- **Android Build Tools**: Version 35.0.0
 - **JDK**: Version 17 (required for Gradle 8.x)
 
 ## Cloud Services

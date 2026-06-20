@@ -54,6 +54,14 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id"/>
 
+        <!-- ANR mitigation: move AdMob SDK init + ad loading off the main thread -->
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+            android:value="true"/>
+        <meta-data
+            android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+            android:value="true"/>
+
         <!-- FIX: Disable Firebase auto-initialization to prevent blocking main thread on startup -->
         <!-- Firebase will be manually initialized after WebView is ready -->
         <meta-data

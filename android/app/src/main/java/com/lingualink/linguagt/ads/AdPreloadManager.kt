@@ -47,8 +47,8 @@ object AdPreloadManager : LifecycleEventObserver {
     private const val TAG = "AdPreloadManager"
     
     // Production Ad Unit IDs (LinguaVibe)
-    private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/5076005693"
-    private const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/6313049833"
+    private const val INTERSTITIAL_AD_UNIT_ID = "ca-app-pub-9991891515643313/7320741331"
+    private const val REWARDED_AD_UNIT_ID = "ca-app-pub-9991891515643313/5816087977"
     
     // Ad expiration time (45 minutes per AdMob docs)
     private const val AD_EXPIRY_MS = 45 * 60 * 1000L

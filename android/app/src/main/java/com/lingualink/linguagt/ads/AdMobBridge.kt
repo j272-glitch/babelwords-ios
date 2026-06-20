@@ -53,8 +53,8 @@ class AdMobBridge(
         
         // Default placement IDs (can be overridden by JS)
         private const val DEFAULT_BANNER_ID = "ca-app-pub-9991891515643313/6878126239"
-        private const val DEFAULT_INTERSTITIAL_ID = "ca-app-pub-9991891515643313/5076005693"
-        private const val DEFAULT_REWARDED_ID = "ca-app-pub-9991891515643313/6313049833"
+        private const val DEFAULT_INTERSTITIAL_ID = "ca-app-pub-9991891515643313/7320741331"
+        private const val DEFAULT_REWARDED_ID = "ca-app-pub-9991891515643313/5816087977"
         
         // Foreground recovery delay after ad click
         private const val FOREGROUND_DELAY_MS = 1500L
