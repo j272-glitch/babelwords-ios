@@ -1,4 +1,4 @@
-name: BabelWords Android Build - AAB with Full Diagnostics (macOS Compatible)
+name: BabelWords Android Build - AAB with Full Diagnostics (Linux)
 
 on:
   workflow_dispatch:
@@ -45,13 +45,11 @@ env:
   ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
   ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
   ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-  ANDROID_HOME: /Users/admin/Library/Android/sdk
-  ANDROID_SDK_ROOT: /Users/admin/Library/Android/sdk
 
 jobs:
   build-android-aab:
     name: Build BabelWords Android AAB with Diagnostics
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     
     outputs:
@@ -166,7 +164,7 @@ jobs:
           echo ""
           echo "✅ Initial diagnostic complete"
 
-      - name: Deep Configuration Analysis (macOS Compatible)
+      - name: Deep Configuration Analysis
         run: |
           echo "=== DEEP CONFIGURATION ANALYSIS ==="
           
