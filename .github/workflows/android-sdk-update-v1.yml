@@ -8,9 +8,9 @@ on:
         required: false
         type: string
       version_name:
-        description: 'Version Name (e.g., 25.0.0)'
+        description: 'Version Name (e.g., 1.0.0)'
         required: false
-        default: '25.0.0'
+        default: '1.0.0'
         type: string
       create_release:
         description: 'Create GitHub Release'
@@ -37,8 +37,8 @@ env:
   GRADLE_OPTS: "-Xmx8192m -Dfile.encoding=UTF-8"
   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
   WEBVIEW_URL: "https://linguagt.com"
-  VERSION_CODE: ${{ github.event.inputs.version_code || '25' }}
-  VERSION_NAME: ${{ github.event.inputs.version_name || '25.0.0' }}
+  VERSION_CODE: ${{ github.event.inputs.version_code || '1' }}
+  VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
   CREATE_RELEASE: ${{ github.event.inputs.create_release || 'true' }}
   DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'true' }}
   ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -54,6 +54,7 @@ jobs:
     
     outputs:
       release_aab_path: ${{ steps.build_outputs.outputs.release_aab }}
+      release_apk_path: ${{ steps.build_outputs.outputs.release_apk }}
       build_status: ${{ steps.build_outputs.outputs.status }}
       error_summary: ${{ steps.build_outputs.outputs.error_summary }}
 
@@ -542,10 +543,10 @@ jobs:
           fi
           
           # Run the bundle build with comprehensive error capture
-          echo "Executing: ./gradlew bundleRelease $GRADLE_FLAGS"
+          echo "Executing: ./gradlew bundleRelease assembleRelease $GRADLE_FLAGS"
           echo ""
           
-          ./gradlew bundleRelease \
+          ./gradlew bundleRelease assembleRelease \
             --no-daemon \
             --no-build-cache \
             --no-parallel \
@@ -617,6 +618,21 @@ jobs:
             echo "❌ Release AAB not found in expected location"
             echo "Checking entire build directory:"
             find app/build -name "*.aab" -o -name "*.apk" 2>/dev/null || echo "No output files found"
+            exit 1
+          fi
+
+          # Verify release APK was created
+          APK_PATH=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+
+          if [ -n "$APK_PATH" ]; then
+            echo ""
+            echo "✅ Release APK build successful!"
+            echo "Location: $APK_PATH"
+            echo "Size: $(du -h "$APK_PATH" | cut -f1)"
+          else
+            echo "❌ Release APK not found in expected location"
+            echo "Checking for any APKs:"
+            find app/build -name "*.apk" 2>/dev/null || echo "No APK files found"
             exit 1
           fi
 
@@ -752,13 +768,13 @@ jobs:
           RELEASE_AAB=$(find android/app/build/outputs -name "*.aab" -type f 2>/dev/null | head -n 1 || echo "")
           
           if [ -n "$RELEASE_AAB" ]; then
-              echo "✅ Found AAB: $RELEASE_AAB"
-              echo "release_aab=$RELEASE_AAB" >> $GITHUB_OUTPUT
+              # Copy AAB to a standardized BabelWords name and publish that path
+              STD_AAB="android/app/build/outputs/bundle/release/babelwords-v${VERSION_NAME}-${VERSION_CODE}.aab"
+              cp "$RELEASE_AAB" "$STD_AAB" 2>/dev/null || STD_AAB="$RELEASE_AAB"
+              echo "✅ Found AAB: $STD_AAB"
+              echo "release_aab=$STD_AAB" >> $GITHUB_OUTPUT
               echo "status=success" >> $GITHUB_OUTPUT
               echo "error_summary=Build successful" >> $GITHUB_OUTPUT
-              
-              # Copy AAB to a standardized name
-              cp "$RELEASE_AAB" "android/app/build/outputs/bundle/release/linguagt-v${VERSION_NAME}-${VERSION_CODE}.aab" 2>/dev/null || true
           else
               echo "❌ No AAB found"
               echo "release_aab=" >> $GITHUB_OUTPUT
@@ -773,12 +789,34 @@ jobs:
               fi
           fi
 
+          # Search for release APK and publish a standardized BabelWords name
+          RELEASE_APK=$(find android/app/build/outputs/apk/release -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
+
+          if [ -n "$RELEASE_APK" ]; then
+              STD_APK="android/app/build/outputs/apk/release/babelwords-v${VERSION_NAME}-${VERSION_CODE}.apk"
+              cp "$RELEASE_APK" "$STD_APK" 2>/dev/null || STD_APK="$RELEASE_APK"
+              echo "✅ Found APK: $STD_APK"
+              echo "release_apk=$STD_APK" >> $GITHUB_OUTPUT
+          else
+              echo "❌ No release APK found"
+              echo "release_apk=" >> $GITHUB_OUTPUT
+          fi
+
       - name: Upload Release AAB
         if: always() && steps.build_outputs.outputs.release_aab != ''
         uses: actions/upload-artifact@v4
         with:
-          name: linguagt-bundle-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          name: babelwords-bundle-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
           path: ${{ steps.build_outputs.outputs.release_aab }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Release APK
+        if: always() && steps.build_outputs.outputs.release_apk != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: ${{ steps.build_outputs.outputs.release_apk }}
           if-no-files-found: error
           retention-days: 30
 
@@ -805,9 +843,11 @@ jobs:
             
             - **Build**: #${{ github.run_number }} | Code ${{ env.VERSION_CODE }}
             - **AAB**: Ready for Play Store upload
+            - **APK**: Direct-install / sideload build
             - Voice translation (36+ languages), AdMob ads, GDPR compliant
           files: |
             ${{ steps.build_outputs.outputs.release_aab }}
+            ${{ steps.build_outputs.outputs.release_apk }}
           draft: false
           prerelease: false
         env:
@@ -832,6 +872,8 @@ jobs:
             echo ""
             echo "AAB Location:"
             echo "  ${{ steps.build_outputs.outputs.release_aab }}"
+            echo "APK Location:"
+            echo "  ${{ steps.build_outputs.outputs.release_apk }}"
             echo ""
             echo "Next Steps:"
             echo "  1. Download AAB artifact from GitHub Actions"

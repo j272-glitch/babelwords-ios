@@ -1,5 +1,16 @@
 uploads = []
-generated = []
+
+[[generated]]
+id = "T7vAjlhpj-46RYhx3Pkue"
+uri = "file://attached_assets/generated_images/babelwords_icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "L9FlRpn2ryXZ_Pg6JaRF_"
+uri = "file://attached_assets/generated_images/babelwords_fg.png"
+type = "image"
+title = "generated_image"
 
 [[outputs]]
 id = "jJiRgloFLwYO2IDyxA0z8"
@@ -12,3 +23,15 @@ id = "acKYHqfWcG1Dk1JyU5k31"
 uri = "file://keystore-base64.txt"
 type = "text"
 title = "ANDROID_KEYSTORE_BASE64 — copy the whole value into this GitHub secret"
+
+[[outputs]]
+id = "uNkbP40DhfuZOvMbst317"
+uri = "file://attached_assets/generated_images/babelwords_icon.png"
+type = "image"
+title = "BabelWords app icon"
+
+[[outputs]]
+id = "CzYEK2SQUY2uN6p_yWHOV"
+uri = "file://attached_assets/generated_images/babelwords_playstore_512.png"
+type = "image"
+title = "Play Store icon (512x512)"
