@@ -10,7 +10,7 @@ description: Non-obvious constraints for the BabelWords (com.linguawonder.app) A
 
 # Versions are pinned in TWO places — keep them in sync
 - AGP and Kotlin versions live in BOTH `android/build.gradle` (plugins block + `ext`) AND `android/settings.gradle` (`pluginManagement.resolutionStrategy.eachPlugin { useModule(...) }`). If only one is changed, `useModule` in settings.gradle silently overrides the plugins block.
-- `android/build.gradle` has a `verifyTestRigorCompatibility` task with `assert agp_version == '<X>'` — bumping AGP requires updating this assert or the build hard-fails.
+- TestRigor is fully removed from the repo (build/config/docs scrubbed; the `verifyTestRigorCompatibility` + `buildForTestRigor` Gradle tasks deleted). Remaining testrigor strings live only in dead code / pasted `attached_assets/` reference dumps, which `cleanup.sh` (user-run) deletes.
 
 # gradle.properties must stay clean for AGP 8.x
 - AGP 8.x hard-fails on removed legacy flags (android.enableAapt2, android.enableR8, android.r8.failOnMissingClasses, android.enableNewResourceShrinker, android.enableIncrementalDesugaring, android.bundle.enableUncompressedNativeLibs, etc.). Do not re-add them.

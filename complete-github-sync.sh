@@ -21,7 +21,7 @@ REPO_DIR="lingualink-android2"
 GITHUB_REPO="https://github.com/j272-glitch/lingualink-android2.git"
 SOURCE_FILE="gradle/wrapper/gradle-wrapper.jar"
 TARGET_FILE="gradle/wrapper/gradle-wrapper.jar"
-COMMIT_MESSAGE="Update gradle-wrapper.jar to version 8.9 for TestRigor compatibility"
+COMMIT_MESSAGE="Update gradle-wrapper.jar to version 8.9"
 
 echo -e "${BLUE}Step 1: Verifying source file...${NC}"
 if [ ! -f "$SOURCE_FILE" ]; then
@@ -217,4 +217,4 @@ else
 fi
 
 echo ""
-echo "The gradle-wrapper.jar is ready for TestRigor-compatible Android builds!"
+echo "The gradle-wrapper.jar is ready for Android builds!"

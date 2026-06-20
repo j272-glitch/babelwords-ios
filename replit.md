@@ -17,9 +17,9 @@ Preferred communication style: Simple, everyday language.
 
 ## Build System
 
-**Android Gradle Plugin (AGP)**: Currently on **AGP 8.5.1** (per the BabelWords Update Guide known-good toolchain). This was a deliberate upgrade from 8.0.2 — required so the project can run Kotlin 2.2.0, which play-services-ads 24.x mandates. The version is pinned in `android/build.gradle` (plugins + ext) AND `android/settings.gradle` (`resolutionStrategy.useModule`); both must agree or the build silently uses the wrong AGP. A `verifyTestRigorCompatibility` assertion in `android/build.gradle` also enforces the AGP version.
+**Android Gradle Plugin (AGP)**: Currently on **AGP 8.5.1** (per the BabelWords Update Guide known-good toolchain). This was a deliberate upgrade from 8.0.2 — required so the project can run Kotlin 2.2.0, which play-services-ads 24.x mandates. The version is pinned in `android/build.gradle` (plugins + ext) AND `android/settings.gradle` (`resolutionStrategy.useModule`); both must agree or the build silently uses the wrong AGP.
 
-**Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled to prevent TestRigor manifest corruption issues.
+**Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled (legacy build configuration).
 
 **Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds use a production keystore (linguagt-release-key) with SHA-256 fingerprint-based signing for Google Play Store deployment.
 
@@ -62,12 +62,12 @@ Preferred communication style: Simple, everyday language.
 6. **JavaScript Bridge Timing (7 solutions)**: Page load state tracking in WebAppBridge, data encoding checks, size limits
 7. **Activity Lifecycle (6 solutions)**: Dialog tracking, isSafeToShowDialog, handler callback cleanup
 8. **Resource Leak & Exception (11 solutions)**: Cleanup in onDestroy, LifecycleAwareHandler with allPendingWrappers list, OOM protection
-9. **Appium/TestRigor Compatibility (3 solutions)**:
+9. **Appium Compatibility (3 solutions)**:
    - Solution #89: IMA consent timing - deferred initialization until WebView fully loaded
    - Solution #90: Window measurement safety - isWindowAttached(), isFullyReady() tracking, exception handler chain protection, content view tracking for Appium getCurrentWindowSize compatibility
    - Solution #91: Permission dialog crash prevention - isFullyReady() check before showing permission dialog, deferred permission request if activity not ready
 
-Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, TestRigorLogger.kt, LinguaLinkApplication.kt, IMAManager.kt, AdBridge.kt
+Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, LinguaLinkApplication.kt, IMAManager.kt, AdBridge.kt
 
 ## Third-Party Integrations
 
@@ -154,7 +154,6 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 - **Twilio**: SMS notifications (referenced in attached assets)
 - **Facebook Login**: OAuth authentication (GDPR-compliant implementation documented)
 - **Google/X (Twitter) Sign-In**: Social authentication options
-- **TestRigor**: Mobile testing platform compatibility requirements
 
 ## Development Tools
 - **Replit Database**: Key-value storage (@replit/database)

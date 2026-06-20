@@ -15,7 +15,7 @@
 
 -keep class com.lingualink.translator.ads.WebAppInterface { *; }
 
-# TESTRIGOR FIX: Keep WebAppBridge JavaScript interface methods
+# Keep WebAppBridge JavaScript interface methods
 -keepclassmembers class com.lingualink.linguagt.WebAppBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
@@ -354,7 +354,7 @@
 -keep class com.lingualink.linguagt.MainActivity { *; }
 -keep class com.lingualink.linguagt.BaseActivity { *; }
 
-# TESTRIGOR FIX: Keep all linguagt package classes
+# Keep all linguagt package classes
 -keep class com.lingualink.linguagt.** { *; }
 -keepclassmembers class com.lingualink.linguagt.** { *; }
 
@@ -433,7 +433,7 @@
 # ========================================
 # Optimization Settings
 # ========================================
-# Balanced optimization (not too aggressive for TestRigor compatibility)
+# Balanced optimization (not too aggressive)
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
 -optimizationpasses 5
 -allowaccessmodification

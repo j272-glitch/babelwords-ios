@@ -1,5 +1,4 @@
-// settings.gradle - Simplified and fixed for TestRigor compatibility
-// CRITICAL: This configuration is tested to prevent manifest corruption errors
+// settings.gradle
 
 pluginManagement {
     repositories {
@@ -39,15 +38,3 @@ rootProject.name = "LinguaLink"
 
 // Include app module
 include ':app'
-
-// Print configuration info
-println """
-╔════════════════════════════════════════════════════════════╗
-║                 TESTRIGOR BUILD CONFIGURATION               ║
-╠════════════════════════════════════════════════════════════╣
-║ Project: ${rootProject.name}                                
-║ AGP Version: 8.5.1 (locked)                                
-║ Kotlin Version: 2.2.0 (locked)                            
-║ Gradle Version: ${gradle.gradleVersion}                     
-╚════════════════════════════════════════════════════════════╝
-"""

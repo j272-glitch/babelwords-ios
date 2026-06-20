@@ -1,5 +1,4 @@
-// Top-level build.gradle optimized for TestRigor compatibility
-// CRITICAL: Using AGP 8.0.2 which is proven to work with TestRigor
+// Top-level build.gradle
 plugins {
     id 'com.android.application' version '8.5.1' apply false
     id 'com.android.library' version '8.5.1' apply false
@@ -11,8 +10,8 @@ plugins {
 
 // Define common versions and configuration
 ext {
-    // Version configuration - CRITICAL FOR TESTRIGOR
-    agp_version = '8.5.1'  // Updated per BabelWords Update Guide (known-good)
+    // Version configuration
+    agp_version = '8.5.1'  // Per BabelWords Update Guide (known-good)
     kotlin_version = '2.2.0'  // Required by play-services-ads 24.x (K2 compiler)
 
     // SDK and build tool versions - MUST MATCH AndroidManifest.xml
@@ -21,7 +20,7 @@ ext {
     target_sdk = 35   // Changed from 34 to match manifest
     build_tools_version = '35.0.0'
 
-    // TestRigor compatibility flags - CRITICAL
+    // Build flags
     enableProguardInReleaseBuilds = false
     enableHermes = false
     enableShrinkResources = false
@@ -79,12 +78,12 @@ subprojects {
                     viewBinding false
                 }
 
-                // CRITICAL: Packaging options for TestRigor compatibility
+                // Packaging options
                 packagingOptions {
                     // Prevent APK corruption
                     doNotStrip '**/*.so'
 
-                    // Legacy packaging for TestRigor
+                    // Legacy packaging
                     dex {
                         useLegacyPackaging = true
                     }
@@ -122,7 +121,7 @@ subprojects {
                     }
                 }
 
-                // CRITICAL: AAPT options to prevent manifest corruption
+                // AAPT options to prevent manifest corruption
                 aaptOptions {
                     // Don't compress these files
                     noCompress = ['.apk', '.so', '.xml', '.arsc', '.png', '.webp', '.jpg', '.jpeg']
@@ -130,7 +129,7 @@ subprojects {
                     // Ignore problematic assets
                     ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
 
-                    // CRITICAL: Disable PNG crunching for TestRigor
+                    // Disable PNG crunching
                     cruncherEnabled = false
 
                     // Additional flags for compatibility
@@ -147,7 +146,7 @@ subprojects {
                     additionalParameters += ['--no-optimize']
                 }
 
-                // Lint options - disable for TestRigor builds
+                // Lint options
                 lintOptions {
                     checkReleaseBuilds false
                     abortOnError false
@@ -162,11 +161,10 @@ subprojects {
                     debug {
                         minifyEnabled false
                         shrinkResources false
-                        zipAlignEnabled false  // Changed to false for TestRigor
+                        zipAlignEnabled false
                         multiDexEnabled true
                         debuggable true
 
-                        // TestRigor specific
                         crunchPngs false
                         renderscriptOptimLevel 0
 
@@ -182,12 +180,11 @@ subprojects {
                     }
 
                     release {
-                        minifyEnabled false  // Keep disabled for TestRigor
+                        minifyEnabled false
                         shrinkResources false
                         zipAlignEnabled true
                         multiDexEnabled true
 
-                        // TestRigor compatibility
                         crunchPngs false
 
                         // ProGuard disabled via minifyEnabled = false
@@ -197,7 +194,7 @@ subprojects {
                     }
                 }
 
-                // Splits - disable for TestRigor
+                // Splits - disabled
                 splits {
                     abi {
                         enable false
@@ -210,7 +207,7 @@ subprojects {
                     }
                 }
 
-                // Bundle - disable for TestRigor
+                // Bundle - disabled
                 bundle {
                     abi {
                         enableSplit false
@@ -299,113 +296,3 @@ tasks.register('clean', Delete) {
         include '**/.gradle'
     }
 }
-
-// CRITICAL: Task to verify TestRigor compatibility
-tasks.register('verifyTestRigorCompatibility') {
-    doLast {
-        println "\n================================"
-        println "TestRigor Compatibility Check"
-        println "================================"
-        println "Build Environment:"
-        println "  Gradle Version: ${gradle.gradleVersion}"
-        println "  AGP Version: ${agp_version} ✓"
-        println "  Kotlin Version: ${kotlin_version}"
-        println "  Java Version: ${System.getProperty('java.version')}"
-        println "--------------------------------"
-        println "SDK Configuration:"
-        println "  Compile SDK: ${compile_sdk}"
-        println "  Min SDK: ${min_sdk}"
-        println "  Target SDK: ${target_sdk}"
-        println "  Build Tools: ${build_tools_version}"
-        println "--------------------------------"
-        println "TestRigor Critical Settings:"
-        println "  Legacy Packaging: ${useLegacyPackaging} ✓"
-        println "  ProGuard/R8: Disabled ✓"
-        println "  Resource Shrinking: Disabled ✓"
-        println "  PNG Crunching: Disabled ✓"
-        println "  Resource Optimization: Disabled ✓"
-        println "  Binary XML: Disabled ✓"
-        println "================================"
-
-        // Verify critical settings
-        assert agp_version == '8.5.1' : "AGP must be 8.5.1 (BabelWords Update Guide)"
-        assert !enableProguardInReleaseBuilds : "ProGuard must be disabled"
-        assert !enableShrinkResources : "Resource shrinking must be disabled"
-        assert useLegacyPackaging : "Legacy packaging must be enabled"
-
-        println "✓ All TestRigor compatibility checks passed"
-        println "================================\n"
-    }
-}
-
-// Task to build TestRigor-compatible APK with verification
-tasks.register('buildForTestRigor') {
-    group = 'testrigor'
-    description = 'Build and verify a TestRigor-compatible APK'
-
-    dependsOn 'verifyTestRigorCompatibility'
-    dependsOn ':app:clean'
-    dependsOn ':app:assembleDebug'
-
-    doLast {
-        def apkPath = file("${rootDir}/app/build/outputs/apk/debug/app-debug.apk")
-        if (apkPath.exists()) {
-            println "\n✓ APK generated successfully:"
-            println "  Path: ${apkPath.absolutePath}"
-            println "  Size: ${String.format('%.2f', apkPath.length() / 1024.0 / 1024.0)} MB"
-
-            // Verify APK structure using aapt
-            println "\nVerifying APK integrity..."
-            try {
-                def proc = "aapt dump badging ${apkPath.absolutePath}".execute()
-                def output = proc.text
-                proc.waitFor()
-
-                if (proc.exitValue() == 0) {
-                    println "✓ APK structure is valid"
-
-                    // Check for manifest
-                    if (output.contains("package: name='com.lingualink.translator'")) {
-                        println "✓ Package name verified"
-                    }
-                    if (output.contains("sdkVersion:'24'")) {
-                        println "✓ Min SDK verified"
-                    }
-                    if (output.contains("targetSdkVersion:'35'")) {
-                        println "✓ Target SDK verified"
-                    }
-                } else {
-                    println "⚠️ APK verification failed - check aapt output"
-                }
-            } catch (Exception e) {
-                println "⚠️ Could not run aapt verification: ${e.message}"
-            }
-
-            println "\n✓ APK is ready for TestRigor upload"
-        } else {
-            throw new GradleException("❌ APK not found at expected location")
-        }
-    }
-}
-
-// Ensure verification runs before build
-afterEvaluate {
-    tasks.findByPath(':app:preBuild')?.dependsOn(tasks.named('verifyTestRigorCompatibility'))
-}
-
-// Gradle configuration cache settings (disabled for compatibility)
-
-// Print important notice on configuration
-println """
-╔════════════════════════════════════════════════════════════════╗
-║                    TESTRIGOR BUILD CONFIGURATION                  ║
-╠════════════════════════════════════════════════════════════════╣
-║ This build is configured for TestRigor compatibility              ║
-║ Key settings:                                                     ║
-║ • AGP 8.0.2 (DO NOT UPGRADE - newer versions cause issues)       ║
-║ • All optimizations disabled                                      ║
-║ • Legacy packaging enabled                                        ║
-║                                                                    ║
-║ To build: ./gradlew buildForTestRigor                            ║
-╚════════════════════════════════════════════════════════════════╝
-"""

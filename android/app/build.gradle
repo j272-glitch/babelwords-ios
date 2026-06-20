@@ -1,4 +1,4 @@
-// app/build.gradle - TestRigor compatible configuration with Conversation Mode support
+// app/build.gradle - Conversation Mode support
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 // DISABLED FOR TESTING: apply plugin: 'com.google.gms.google-services'
@@ -105,7 +105,7 @@ android {
             debuggable true
             minifyEnabled false
             shrinkResources false
-            zipAlignEnabled false  // Disabled for TestRigor
+            zipAlignEnabled false
 
             // Use debug signing
             signingConfig signingConfigs.debug
@@ -122,7 +122,7 @@ android {
 
         release {
             debuggable false
-            minifyEnabled false  // Keep disabled for TestRigor
+            minifyEnabled false
             shrinkResources false
             zipAlignEnabled true
 
@@ -166,7 +166,7 @@ android {
         compose false
     }
 
-    // CRITICAL: Packaging options for TestRigor (AGP 8.0.2 compatible syntax)
+    // Packaging options
     packagingOptions {
         // Don't strip native libraries
         doNotStrip '**/*.so'
@@ -207,7 +207,7 @@ android {
         quiet true
     }
 
-    // Disable splits for TestRigor
+    // Disable splits
     splits {
         abi {
             enable false
@@ -342,7 +342,7 @@ tasks.whenTaskAdded { task ->
                 println "✓ APK Size: ${String.format('%.2f MB', apkFile.length() / 1024.0 / 1024.0)}"
                 println "✓ Conversation Mode: ENABLED"
                 println "✓ WebSocket Support: YES"
-                println "✓ Ready for TestRigor upload"
+                println "✓ Ready for upload"
             } else {
                 println "❌ APK not found!"
             }
@@ -370,7 +370,6 @@ tasks.whenTaskAdded { task ->
     }
 }
 
-// Apply additional TestRigor compatibility settings
 // FIXED: Using AGP 8.x compatible API for renaming APK outputs
 androidComponents {
     onVariants(selector().all()) { variant ->
