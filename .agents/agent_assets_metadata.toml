@@ -24,6 +24,18 @@ uri = "file://attached_assets/generated_images/babelwords_zig_fg.png"
 type = "image"
 title = "generated_image"
 
+[[generated]]
+id = "aTXElYhcIGJgbY1KkBP4O"
+uri = "file://attached_assets/generated_images/babel_temple_icon.png"
+type = "image"
+title = "generated_image"
+
+[[generated]]
+id = "Co6Bo4U-B57h_Xt-LfMY-"
+uri = "file://attached_assets/generated_images/babel_temple_fg.png"
+type = "image"
+title = "generated_image"
+
 [[outputs]]
 id = "jJiRgloFLwYO2IDyxA0z8"
 uri = "file://docs/REWARDED_INTERSTITIAL_WEB_INTEGRATION.md"
@@ -53,3 +65,9 @@ id = "uK8Kyl2NSUrLQQIJkwolP"
 uri = "file://attached_assets/generated_images/babelwords_zig_icon.png"
 type = "image"
 title = "BabelWords icon — ziggurat of letter tiles"
+
+[[outputs]]
+id = "aBCM17Hk3m-IfFi3mX7UX"
+uri = "file://attached_assets/generated_images/babel_temple_icon.png"
+type = "image"
+title = "BabelWords icon — Tower of Babel + white letter tiles"
