@@ -7,4 +7,5 @@
     -->
     <string name="admob_interstitial_id">ca-app-pub-9991891515643313/7320741331</string>
     <string name="admob_rewarded_id">ca-app-pub-9991891515643313/5816087977</string>
+    <string name="admob_rewarded_interstitial_id">ca-app-pub-9991891515643313/8095032889</string>
 </resources>

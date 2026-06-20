@@ -23,6 +23,7 @@ class AdBridge(
         activity.runOnUiThread {
             mgr.preloadInterstitial()
             mgr.preloadRewarded()
+            mgr.preloadRewardedInterstitial()
         }
         fireEvent("adMobInitialized", "true")
     }
@@ -60,6 +61,25 @@ class AdBridge(
         adMobManagerProvider()?.isRewardedReady() ?: false
 
     @JavascriptInterface
+    fun loadRewardedInterstitial() {
+        val mgr = adMobManagerProvider() ?: return
+        activity.runOnUiThread { mgr.preloadRewardedInterstitial() }
+    }
+
+    @JavascriptInterface
+    fun showRewardedInterstitial() {
+        val mgr = adMobManagerProvider() ?: run {
+            fireEvent("rewardedInterstitialFailed", "manager_not_ready")
+            return
+        }
+        activity.runOnUiThread { mgr.showRewardedInterstitial(activity) }
+    }
+
+    @JavascriptInterface
+    fun isRewardedInterstitialReady(): Boolean =
+        adMobManagerProvider()?.isRewardedInterstitialReady() ?: false
+
+    @JavascriptInterface
     fun isInitialized(): Boolean =
         adMobManagerProvider()?.isInitialized() ?: false
 
@@ -70,6 +90,7 @@ class AdBridge(
             put("adMobInitialized", mgr?.isInitialized() ?: false)
             put("interstitialReady", mgr?.isInterstitialReady() ?: false)
             put("rewardedReady", mgr?.isRewardedReady() ?: false)
+            put("rewardedInterstitialReady", mgr?.isRewardedInterstitialReady() ?: false)
             put("timestamp", System.currentTimeMillis())
         }.toString()
     }
@@ -87,9 +108,14 @@ class AdBridge(
 
     internal fun fireEvent(eventType: String, data: String = "") {
         android.util.Log.d("AdBridge", "fireEvent: $eventType data=$data")
+        val escaped = data
+            .replace("\\", "\\\\")
+            .replace("'", "\\'")
+            .replace("\n", "\\n")
+            .replace("\r", "\\r")
         activity.runOnUiThread {
             (activity as? MainActivity)?.evalJs(
-                "window.onAdBridgeEvent && window.onAdBridgeEvent('$eventType', '$data');"
+                "window.onAdBridgeEvent && window.onAdBridgeEvent('$eventType', '$escaped');"
             )
         }
     }

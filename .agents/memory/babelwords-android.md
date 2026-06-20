@@ -26,8 +26,15 @@ description: Non-obvious constraints for the BabelWords (com.linguawonder.app) A
 # ripgrep ANSI display artifact
 - Captured `rg` output can render ad-unit / manifest strings mangled (e.g. `ca-app-pub-...` collapsed to `n`, `AD_ID` as `.n`). The file bytes are fine. Verify with plain `grep`/`od -c` or the read tool, not colored `rg`.
 
-# Ad config layout
+# Ad config layout — TWO stacks, only one is live
+- **ACTIVE runtime path** = `com.linguawonder.app` package: `ads/AdMobManager.kt` (load/show) + `bridge/AdBridge.kt` (JS interface), wired in `MainActivity`. Ad UNIT ids come from `res/values/admob_ids.xml` (`admob_interstitial_id`, `admob_rewarded_id`, `admob_rewarded_interstitial_id`) via `getString`. This is what actually runs.
+- **DORMANT path** = `com.lingualink.linguagt.ads.*` (`AdBridge.kt`, `AdMobBridge.kt`, `AdPreloadManager.kt`) with hardcoded Kotlin constants — NOT wired into MainActivity. Update for consistency only; changing it alone does nothing at runtime. A past task set production IDs only here and missed the live path.
 - AdMob App ID lives in `res/values/strings.xml` as `admob_app_id` (referenced by manifest `@string/admob_app_id`).
-- Ad UNIT ids are hardcoded Kotlin constants across `ads/AdBridge.kt`, `ads/AdMobBridge.kt`, `ads/AdPreloadManager.kt` — interstitial appears in all three; update them together.
-- Only Interstitial + Rewarded are enabled (Banner disabled by policy).
-- ANR fix: two `<meta-data>` flags in AndroidManifest `<application>` — `OPTIMIZE_INITIALIZATION` and `OPTIMIZE_AD_LOADING` (move ads SDK init/loading off main thread). No web/JS-bridge changes needed.
+- Interstitial + Rewarded + Rewarded-interstitial are wired in the active stack (Banner disabled by policy).
+- ANR fix: two `<meta-data>` flags in AndroidManifest `<application>` — `OPTIMIZE_INITIALIZATION` and `OPTIMIZE_AD_LOADING`.
+
+# JS bridge contract (active stack)
+- The native bridge is registered as **`window.AdBridge`** (see `WebViewConfig.kt addJavascriptInterface(adBridge, "AdBridge")`), NOT `window.NativeAdBridge`. The repo's `index.html` landing page calls `window.NativeAdBridge` (with one spot mixing `window.AdBridge`) — it is out of sync with the real registration; the production web app must call `window.AdBridge.*`.
+- Native→web events flow ONLY through `window.onAdBridgeEvent(eventType, data)`. Adding a new ad type needs NO MainActivity change — events route generically via the `eventCallback` lambda. Event names: `interstitial{Loaded,Shown,Closed,Failed}`, `rewarded{Loaded,Shown,Closed,Failed}`, `rewardedInterstitial{Loaded,Shown,Closed,Failed}`, shared `rewardEarned` (data = amount string), `adMobInitialized`.
+- **Init-race contract:** `MainActivity` builds `AdMobManager` inside `lifecycleScope.launch` (async, after `MobileAds.initialize`) but creates `AdBridge` synchronously. So `adMobManager` MUST stay nullable (`var ... = null`) and the provider lambda `{ adMobManager }` must return `AdMobManager?` — every `AdBridge` method null-checks the provider. Making it `lateinit` reintroduces an `UninitializedPropertyAccessException` crash on early JS calls.
+- JS event payloads are string-interpolated into single-quoted JS in BOTH `MainActivity` evalJs callback and `AdBridge.fireEvent` — escape `\`, `'`, `\n`, `\r` in `data` (error messages contain apostrophes) or the callback JS breaks.

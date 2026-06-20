@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private lateinit var adMobManager: AdMobManager
+    private var adMobManager: AdMobManager? = null
     private lateinit var adBridge: AdBridge
     private lateinit var subscriptionBridge: SubscriptionBridge
 
@@ -29,7 +29,11 @@ class MainActivity : AppCompatActivity() {
             MobileAds.initialize(this@MainActivity)
             adMobManager = AdMobManager(this@MainActivity) { event, data ->
                 runOnUiThread {
-                    val escaped = data?.replace("\"", "\\\"") ?: ""
+                    val escaped = (data ?: "")
+                        .replace("\\", "\\\\")
+                        .replace("'", "\\'")
+                        .replace("\n", "\\n")
+                        .replace("\r", "\\r")
                     webView.evaluateJavascript(
                         "window.onAdBridgeEvent && window.onAdBridgeEvent('$event', '$escaped');",
                         null
