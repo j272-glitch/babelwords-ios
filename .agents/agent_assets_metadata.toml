@@ -6,3 +6,9 @@ id = "jJiRgloFLwYO2IDyxA0z8"
 uri = "file://docs/REWARDED_INTERSTITIAL_WEB_INTEGRATION.md"
 type = "text"
 title = "Rewarded Interstitial — Web App Integration"
+
+[[outputs]]
+id = "acKYHqfWcG1Dk1JyU5k31"
+uri = "file://keystore-base64.txt"
+type = "text"
+title = "ANDROID_KEYSTORE_BASE64 value (copy entire contents)"
