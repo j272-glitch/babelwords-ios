@@ -25,6 +25,14 @@ object WebViewConfig {
             mediaPlaybackRequiresUserGesture = false
             cacheMode = WebSettings.LOAD_DEFAULT
             setSupportZoom(false)
+
+            // Testing access gate: tag every request from this app with a token in the
+            // User-Agent so the web app can allow only requests coming from the app.
+            // The web side checks for "BabelWordsApp/<token>" in the User-Agent header.
+            val accessToken = BuildConfig.ACCESS_TOKEN
+            if (accessToken.isNotEmpty()) {
+                userAgentString = "$userAgentString BabelWordsApp/$accessToken"
+            }
         }
 
         webView.addJavascriptInterface(adBridge, "AdBridge")
