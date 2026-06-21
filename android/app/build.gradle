@@ -37,7 +37,11 @@ android {
         // Build config fields
         buildConfigField "boolean", "DEBUG_MODE", "true"
         buildConfigField "String", "BASE_URL", "\"https://linguagt.com\""
-        buildConfigField "String", "ACCESS_TOKEN", "\"${localProperties.getProperty('LINGUALINK_ACCESS_TOKEN', 'bw_test_1b82d8896c89635ed71b2f3b')}\""
+        // Site access code for the production gate (must match the server's SITE_ACCESS_TOKEN).
+        // Sourced from the BABELWORDS_ACCESS_TOKEN env var (CI) or local.properties; never hardcoded.
+        // Empty by default so dev/preview builds (where the gate is off) load with no code.
+        def accessToken = System.getenv("BABELWORDS_ACCESS_TOKEN") ?: localProperties.getProperty('BABELWORDS_ACCESS_TOKEN', '')
+        buildConfigField "String", "ACCESS_TOKEN", "\"${accessToken}\""
 
         // Resource configs - include all 36 Deepgram languages
         resConfigs "en", "es", "fr", "de", "zh", "ja", "ko", "hi", "pt", "ru",

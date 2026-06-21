@@ -1,3 +1,3 @@
 - [BabelWords signing key](babelwords-signing-key.md) — fresh June-2026 keystore (alias babelwords); old LinguaGT keystores retired (plaintext passwords); never regenerate post-publish.
 - [Android project location](android-project-location.md) — real Android source is in THIS repo (not a separate project); CI-only build; recheck all package refs after a rename.
-- [WebView access-token gate](webview-access-token-gate.md) — test gate tags WebView User-Agent (not header/query) so SPA fetch calls carry it; not real auth.
+- [WebView production access gate](webview-access-token-gate.md) — app passes site code via ?access= query param (sets site_access cookie); token from BABELWORDS_ACCESS_TOKEN; must equal server SITE_ACCESS_TOKEN; soft gate.

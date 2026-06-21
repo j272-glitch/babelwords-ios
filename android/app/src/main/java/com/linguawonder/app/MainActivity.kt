@@ -1,6 +1,8 @@
 package com.linguawonder.app
 
+import android.net.Uri
 import android.os.Bundle
+import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -49,7 +51,17 @@ class MainActivity : AppCompatActivity() {
 
         WebViewConfig.configure(webView, this, adBridge, subscriptionBridge)
 
-        webView.loadUrl(WEB_APP_URL)
+        // Keep cookies so the production access gate only needs the code once:
+        // ?access=<code> sets a 30-day "site_access" cookie, then later requests are allowed.
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+
+        val accessToken = BuildConfig.ACCESS_TOKEN
+        if (accessToken.isNotEmpty()) {
+            webView.loadUrl("$WEB_APP_URL/?access=${Uri.encode(accessToken)}")
+        } else {
+            webView.loadUrl(WEB_APP_URL)
+        }
     }
 
     fun evalJs(script: String) {

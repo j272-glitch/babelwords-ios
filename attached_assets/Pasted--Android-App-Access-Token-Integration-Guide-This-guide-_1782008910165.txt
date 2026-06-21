@@ -1,0 +1,146 @@
+# Android App — Access Token Integration Guide
+
+This guide explains how the Android WebView app passes the **production access code** so it
+gets through the site access gate. It matches the gate implemented in `server/accessGate.ts`.
+
+> The development / preview site is **never** gated, so you can test freely there with no token.
+> Only the published production site (linguagt.com) requires the code.
+
+---
+
+## How the gate works (server side)
+
+The server reads the access code from the `SITE_ACCESS_TOKEN` secret (falling back to the
+legacy `PRODUCTION_ACCESS_TOKEN` if that's all that's set). When a code is configured **and**
+the server is running in production, every request must present a matching code in one of
+three ways:
+
+1. **Query parameter** on the URL — `?access=<code>` or `?access_token=<code>`.
+   On a match the server sets a cookie named `site_access` (valid 30 days) and redirects to the
+   clean URL. This is the simplest method for a WebView's first load.
+2. **Request header** — `x-access-token: <code>` on every request.
+3. **Cookie** — `site_access=<code>`, which is issued automatically after method (1) succeeds.
+
+If no valid code is present, the server returns a small "Private Access" page (HTTP 200) instead
+of the app.
+
+**Always public (no code required):** `/health`, `/.well-known/*` (App Links / domain
+verification), `/privacy-policy`, `/manifest.json`, `robots.txt`, `sitemap.xml`, `app-ads.txt`,
+and `security.txt`.
+
+---
+
+## 1. Store the access code (do NOT hardcode it)
+
+Put the code in `local.properties` (which is **not** committed to version control):
+
+```properties
+# local.properties
+BABELWORDS_ACCESS_TOKEN=your-production-access-code
+```
+
+Read it in `app/build.gradle`:
+
+```groovy
+android {
+    defaultConfig {
+        def localProperties = new Properties()
+        def f = rootProject.file('local.properties')
+        if (f.exists()) { localProperties.load(new FileInputStream(f)) }
+        buildConfigField "String", "ACCESS_TOKEN",
+            "\"${localProperties.getProperty('BABELWORDS_ACCESS_TOKEN', '')}\""
+    }
+}
+```
+
+---
+
+## 2. Recommended: query parameter on first load (cookie handles the rest)
+
+Because a WebView keeps cookies, you only need to send the code once. The server sets the
+`site_access` cookie and every later request (pages, assets, `/api/*`) is allowed automatically.
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var webView: WebView
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        webView = findViewById(R.id.webView)
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        // Make sure cookies (incl. the session cookie) are enabled.
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+
+        val baseUrl = "https://linguagt.com"
+        val token = BuildConfig.ACCESS_TOKEN
+
+        if (token.isNotEmpty()) {
+            webView.loadUrl("$baseUrl/?access=$token")   // server sets cookie, then redirects to /
+        } else {
+            webView.loadUrl(baseUrl)                       // dev/preview: no code needed
+        }
+    }
+}
+```
+
+---
+
+## 3. Alternative: send the header on every request
+
+If you prefer not to rely on the cookie, add the `x-access-token` header to requests for your
+domain using a custom `WebViewClient`:
+
+```kotlin
+webView.webViewClient = object : WebViewClient() {
+    override fun shouldInterceptRequest(
+        view: WebView?, request: WebResourceRequest?
+    ): WebResourceResponse? {
+        if (request?.url?.host == "linguagt.com") {
+            // Re-issue the request with the access header (implement with OkHttp).
+            // Simplest robust approach is still method 2 (query param + cookie).
+        }
+        return super.shouldInterceptRequest(view, request)
+    }
+}
+```
+
+For **native** API calls made outside the WebView, just add the header:
+
+```kotlin
+val request = Request.Builder()
+    .url("https://linguagt.com/api/some-endpoint")
+    .addHeader("x-access-token", BuildConfig.ACCESS_TOKEN)
+    .build()
+```
+
+---
+
+## 4. iOS (WKWebView) — same idea
+
+Load `https://linguagt.com/?access=<code>` on first launch; `WKWebView` keeps the cookie for
+later requests. Or add `x-access-token` via a custom `URLRequest`.
+
+---
+
+## Testing checklist
+
+- **Preview/dev URL:** loads with no code (gate is disabled outside production).
+- **Production with correct code:** `https://linguagt.com/?access=<code>` opens the game and a
+  `site_access` cookie is set; reloads work without the code for 30 days.
+- **Production with wrong/no code:** the "Private Access" page is shown.
+- **App Links & privacy policy:** `https://linguagt.com/.well-known/assetlinks.json` and
+  `https://linguagt.com/privacy-policy` load **without** a code.
+
+## Security notes
+
+- Never hardcode the code in source; use `local.properties` / build config and obfuscate with R8.
+- The code is shared with testers, so treat it as a soft gate, not strong authentication. Rotate
+  it by updating the `SITE_ACCESS_TOKEN` secret on the server and the value in the app build.
+- The code used in production must **exactly** match the server's `SITE_ACCESS_TOKEN` secret.
