@@ -1,0 +1,180 @@
+# Android App Update Instructions
+
+**Audience:** Whoever builds and ships the native Android app (the separate Android Studio / build project — **not** this Replit web repo).
+
+**Status of the web app:** No changes needed. The website already serves the correct
+Digital Asset Links file (see [Section 4](#4-digital-asset-links-app-links-verification)).
+Everything below must be done in the **separate Android project**.
+
+---
+
+## 1. The problem (from the latest Device Farm test)
+
+The uploaded build was installed as `com.linguawonder.app` and **crashed immediately on
+launch** — it never ran. The fuzz test "passed" its setup/teardown lifecycle, but that only
+means the harness started and stopped cleanly; the app itself died in the first ~3 seconds.
+
+The fatal error in the device log:
+
+```
+FATAL EXCEPTION: main
+Process: com.linguawonder.app
+java.lang.RuntimeException: Unable to instantiate application
+    com.linguawonder.app.LinguaLinkApplication
+Caused by: java.lang.ClassNotFoundException:
+    Didn't find class "com.linguawonder.app.LinguaLinkApplication"
+```
+
+> Note: the log also contains two other `FATAL EXCEPTION` lines and ~747 "errors." Those are
+> **not** the app — they are the test robot toggling NFC (`svc nfc`) and normal Samsung/Qualcomm
+> device-driver noise (camera, display, audio). Only the crash above matters.
+
+---
+
+## 2. Root cause
+
+The app's package was renamed:
+
+| | Old | New (current) |
+|---|---|---|
+| Package / applicationId | `com.lingualink.linguagt` | `com.linguawonder.app` |
+
+The `AndroidManifest.xml` declares a custom application class via
+`<application android:name="…LinguaLinkApplication">`. After the rename, the build looks for
+`com.linguawonder.app.LinguaLinkApplication`, but **no such class is present in the APK** — the
+`LinguaLinkApplication` source was never moved/repackaged into the new `com.linguawonder.app`
+package. Android can't instantiate the Application object, so it force-closes before any UI loads.
+
+---
+
+## 3. The fix (pick ONE)
+
+### Option A — Remove the custom Application class (recommended if it has no required startup logic)
+
+In `AndroidManifest.xml`, delete the `android:name` attribute from the `<application>` tag:
+
+```xml
+<!-- BEFORE -->
+<application
+    android:name="com.lingualink.linguagt.LinguaLinkApplication"
+    ... >
+
+<!-- AFTER -->
+<application
+    ... >
+```
+
+Android falls back to the default `android.app.Application` and the app starts normally.
+
+### Option B — Keep it, but repackage the class (if it contains real startup logic)
+
+1. Move the `LinguaLinkApplication` source file so its `package` declaration is
+   `com.linguawonder.app` (i.e. into `…/java/com/linguawonder/app/LinguaLinkApplication.kt`).
+2. Reference it relatively in the manifest so it tracks the `applicationId`:
+
+   ```xml
+   <application
+       android:name=".LinguaLinkApplication"
+       ... >
+   ```
+3. Make sure the file is actually compiled into the build (not excluded by source-set or
+   ProGuard/R8 `-keep` rules). If R8 is on, add:
+
+   ```
+   -keep class com.linguawonder.app.LinguaLinkApplication { *; }
+   ```
+
+---
+
+## 4. Align ALL package references to `com.linguawonder.app`
+
+The rename must be consistent everywhere, or you'll hit the same class of crash on other
+components (`.MainActivity`, `.TranslationService`, etc.).
+
+**`build.gradle` (app module):**
+
+```gradle
+android {
+    namespace 'com.linguawonder.app'        // was com.lingualink.linguagt
+    defaultConfig {
+        applicationId "com.linguawonder.app" // was com.lingualink.linguagt
+    }
+}
+```
+
+**Checklist:**
+- [ ] `applicationId` and `namespace` → `com.linguawonder.app`
+- [ ] Every `package` declaration in `.kt`/`.java` sources → `com.linguawonder.app`
+- [ ] Source folders match the package path (`…/java/com/linguawonder/app/…`)
+- [ ] Any fully-qualified class name in `AndroidManifest.xml` updated (or switched to relative `.ClassName`)
+- [ ] Firebase `google-services.json` `package_name` → `com.linguawonder.app`
+- [ ] Google Play Console listing and the Play Billing product IDs target the new package
+
+---
+
+## 5. Digital Asset Links (App Links verification)
+
+This is **already configured on the web side** — no action needed there. The website serves, at
+`https://linguagt.com/.well-known/assetlinks.json`:
+
+```json
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.linguawonder.app",
+      "sha256_cert_fingerprints": [
+        "D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B"
+      ]
+    }
+  }
+]
+```
+
+**What the Android side must guarantee:**
+- The release APK/AAB is signed with the certificate whose SHA-256 fingerprint **exactly matches**
+  the one above. If you sign with **Play App Signing**, use the fingerprint Google shows in
+  *Play Console → Setup → App signing* (it may differ from your local upload key — if so, the
+  fingerprint in `assetlinks.json` must be updated to match; tell the web side and it will be changed).
+- The deep-link `intent-filter` already targets host `linguagt.com` (path prefix `/translate`).
+  Keep it, and add `android:autoVerify="true"` to that filter so App Links verify automatically:
+
+  ```xml
+  <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
+      <data android:scheme="https" android:host="linguagt.com" android:pathPrefix="/translate" />
+  </intent-filter>
+  ```
+
+---
+
+## 6. Verify before re-submitting
+
+1. **Install & launch locally:**
+   ```bash
+   ./gradlew installRelease     # or installDebug
+   adb shell am start -n com.linguawonder.app/.MainActivity
+   adb logcat -b crash          # must show NO "FATAL EXCEPTION" for com.linguawonder.app
+   ```
+   The app should open to its main screen and stay open.
+
+2. **Check App Links verification:**
+   ```bash
+   adb shell pm get-app-links com.linguawonder.app
+   # the linguagt.com domain should report "verified"
+   ```
+
+3. **Re-run the cloud test / Google Play pre-launch report** with the new build. Confirm there is
+   no launch crash.
+
+---
+
+## 7. Note on this repo
+
+The folders `tmp/app/` and `bitbar-structure/` inside the Replit project are **stale leftover
+scaffolding** — they still reference the old `com.lingualink.linguagt` package and contain no real
+Kotlin/Java sources. They are **not** the source of truth and should not be used to build the app.
+Make all changes in the real Android project.
