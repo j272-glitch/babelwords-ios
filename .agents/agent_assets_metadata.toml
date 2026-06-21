@@ -71,3 +71,9 @@ id = "aBCM17Hk3m-IfFi3mX7UX"
 uri = "file://attached_assets/generated_images/babel_temple_icon.png"
 type = "image"
 title = "BabelWords icon — Tower of Babel + white letter tiles"
+
+[[outputs]]
+id = "WJe3-d6j1_4M_wW0smldm"
+uri = "file://assetlinks.json"
+type = "unspecified"
+title = "assetlinks.json (BabelWords)"
