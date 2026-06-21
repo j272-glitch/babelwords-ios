@@ -1,10 +1,10 @@
-package com.linguawonder.app
+package com.babelwords.app
 
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.webkit.*
-import com.linguawonder.app.bridge.AdBridge
-import com.linguawonder.app.bridge.SubscriptionBridge
+import com.babelwords.app.bridge.AdBridge
+import com.babelwords.app.bridge.SubscriptionBridge
 
 object WebViewConfig {
 

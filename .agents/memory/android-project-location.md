@@ -3,7 +3,7 @@ name: Android project is in this repo (CI-only build)
 description: Orientation — the real BabelWords Android source lives here despite docs claiming a "separate project"; build only via GitHub Actions.
 ---
 
-The real BabelWords Android project (`com.linguawonder.app`) lives in THIS Replit repo under `android/app/src/main/...`. Attached instruction docs sometimes claim the Android source is in a "separate Android Studio project, not this Replit web repo" — that is wrong for this repo. Make Android changes here.
+The real BabelWords Android project (`com.babelwords.app`) lives in THIS Replit repo under `android/app/src/main/...`. Attached instruction docs sometimes claim the Android source is in a "separate Android Studio project, not this Replit web repo" — that is wrong for this repo. Make Android changes here.
 
 **Why:** A package-rename launch crash (`ClassNotFoundException` for a manifest `android:name` class that no longer existed in sources) had to be fixed directly in this repo's `AndroidManifest.xml`.
 

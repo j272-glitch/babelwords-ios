@@ -1,10 +1,10 @@
-package com.linguawonder.app.bridge
+package com.babelwords.app.bridge
 
 import android.app.Activity
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.linguawonder.app.billing.BillingManager
+import com.babelwords.app.billing.BillingManager
 import org.json.JSONObject
 
 /**

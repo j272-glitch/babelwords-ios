@@ -9,32 +9,32 @@
 # WebView JavaScript Interface
 # ========================================
 # Keep JavaScript interface for IMA/ads bridge
--keepclassmembers class com.linguawonder.app.ads.WebAppInterface {
+-keepclassmembers class com.babelwords.app.ads.WebAppInterface {
     @android.webkit.JavascriptInterface <methods>;
 }
 
--keep class com.linguawonder.app.ads.WebAppInterface { *; }
+-keep class com.babelwords.app.ads.WebAppInterface { *; }
 
 # Keep WebAppBridge JavaScript interface methods
--keepclassmembers class com.linguawonder.app.WebAppBridge {
+-keepclassmembers class com.babelwords.app.WebAppBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 
--keep class com.linguawonder.app.WebAppBridge { *; }
+-keep class com.babelwords.app.WebAppBridge { *; }
 
 # Keep AdBridge JavaScript interface methods for AdMob integration
--keepclassmembers class com.linguawonder.app.ads.AdBridge {
+-keepclassmembers class com.babelwords.app.ads.AdBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 
--keep class com.linguawonder.app.ads.AdBridge { *; }
+-keep class com.babelwords.app.ads.AdBridge { *; }
 
 # Keep AdMobBridge JavaScript interface methods
--keepclassmembers class com.linguawonder.app.ads.AdMobBridge {
+-keepclassmembers class com.babelwords.app.ads.AdMobBridge {
     @android.webkit.JavascriptInterface <methods>;
 }
 
--keep class com.linguawonder.app.ads.AdMobBridge { *; }
+-keep class com.babelwords.app.ads.AdMobBridge { *; }
 
 # Picasso (for image loading)
 -keep class com.squareup.picasso.** { *; }
@@ -345,34 +345,34 @@
 # App-Specific Classes
 # ========================================
 # Keep your main application class
--keep class com.linguawonder.app.LinguaLinkApplication { *; }
--keep class com.linguawonder.app.LinguaLinkApplication { *; }
+-keep class com.babelwords.app.LinguaLinkApplication { *; }
+-keep class com.babelwords.app.LinguaLinkApplication { *; }
 
 # Keep your activities
--keep class com.linguawonder.app.MainActivity { *; }
--keep class com.linguawonder.app.BaseActivity { *; }
--keep class com.linguawonder.app.MainActivity { *; }
--keep class com.linguawonder.app.BaseActivity { *; }
+-keep class com.babelwords.app.MainActivity { *; }
+-keep class com.babelwords.app.BaseActivity { *; }
+-keep class com.babelwords.app.MainActivity { *; }
+-keep class com.babelwords.app.BaseActivity { *; }
 
 # Keep all linguagt package classes
--keep class com.linguawonder.app.** { *; }
--keepclassmembers class com.linguawonder.app.** { *; }
+-keep class com.babelwords.app.** { *; }
+-keepclassmembers class com.babelwords.app.** { *; }
 
 # Keep your services
--keep class com.linguawonder.app.TranslationService { *; }
--keep class com.linguawonder.app.TranslationService { *; }
+-keep class com.babelwords.app.TranslationService { *; }
+-keep class com.babelwords.app.TranslationService { *; }
 
 # Keep your ad manager classes (IMPORTANT for AdMob)
--keep class com.linguawonder.app.ads.** { *; }
+-keep class com.babelwords.app.ads.** { *; }
 
 # Keep AdManager specifically
--keep class com.linguawonder.app.ads.AdManager {
+-keep class com.babelwords.app.ads.AdManager {
     public *;
     public <methods>;
 }
 
 # Keep callback interfaces and lambda functions
--keepclassmembers class com.linguawonder.app.ads.AdManager {
+-keepclassmembers class com.babelwords.app.ads.AdManager {
     public void set*Callback(...);
     private ** *Callback;
 }
@@ -416,11 +416,11 @@
 # Data Models (Add your models here)
 # ========================================
 # Example: Keep your translation data models
-# -keep class com.linguawonder.app.models.** { *; }
+# -keep class com.babelwords.app.models.** { *; }
 
 # Keep data classes that might be used with Gson/JSON
--keep class com.linguawonder.app.models.TranslationResult { *; }
--keep class com.linguawonder.app.models.Language { *; }
+-keep class com.babelwords.app.models.TranslationResult { *; }
+-keep class com.babelwords.app.models.Language { *; }
 
 # ========================================
 # View Binding / Data Binding
@@ -487,8 +487,8 @@
 -keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
 
 # Keep IMAManager class
--keep class com.linguawonder.app.ads.IMAManager { *; }
--keepclassmembers class com.linguawonder.app.ads.IMAManager { *; }
+-keep class com.babelwords.app.ads.IMAManager { *; }
+-keepclassmembers class com.babelwords.app.ads.IMAManager { *; }
 
 # ========================================
 # AdMob Best Practices (from ANDROID_ADMOB_220 Guide)

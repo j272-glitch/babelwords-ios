@@ -1,9 +1,9 @@
-package com.linguawonder.app.bridge
+package com.babelwords.app.bridge
 
 import android.app.Activity
 import android.webkit.JavascriptInterface
-import com.linguawonder.app.MainActivity
-import com.linguawonder.app.ads.AdMobManager
+import com.babelwords.app.MainActivity
+import com.babelwords.app.ads.AdMobManager
 import org.json.JSONObject
 
 /**

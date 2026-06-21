@@ -4,13 +4,13 @@ apply plugin: 'kotlin-android'
 // DISABLED FOR TESTING: apply plugin: 'com.google.gms.google-services'
 
 android {
-    namespace 'com.linguawonder.app'
+    namespace 'com.babelwords.app'
 
     compileSdk rootProject.ext.compile_sdk
     buildToolsVersion rootProject.ext.build_tools_version
 
     defaultConfig {
-        applicationId "com.linguawonder.app"
+        applicationId "com.babelwords.app"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
         versionCode 25

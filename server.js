@@ -11,7 +11,7 @@ app.use(express.static('.'));
 // IAP — Google Play Billing verification
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PACKAGE_NAME = 'com.linguawonder.app';
+const PACKAGE_NAME = 'com.babelwords.app';
 
 const PRODUCT_CREDITS = {
     boost_hints_small:    { type: 'hints',        amount: 3  },

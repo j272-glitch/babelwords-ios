@@ -1,4 +1,4 @@
-package com.linguawonder.app.ads
+package com.babelwords.app.ads
 
 import android.app.Activity
 import android.content.Context
@@ -48,13 +48,13 @@ class AdMobManager(
     private var loadingRewardedInterstitial = false
 
     private val interstitialAdUnitId by lazy {
-        context.getString(com.linguawonder.app.R.string.admob_interstitial_id)
+        context.getString(com.babelwords.app.R.string.admob_interstitial_id)
     }
     private val rewardedAdUnitId by lazy {
-        context.getString(com.linguawonder.app.R.string.admob_rewarded_id)
+        context.getString(com.babelwords.app.R.string.admob_rewarded_id)
     }
     private val rewardedInterstitialAdUnitId by lazy {
-        context.getString(com.linguawonder.app.R.string.admob_rewarded_interstitial_id)
+        context.getString(com.babelwords.app.R.string.admob_rewarded_interstitial_id)
     }
 
     init {

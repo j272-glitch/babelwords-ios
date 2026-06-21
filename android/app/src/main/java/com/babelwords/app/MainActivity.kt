@@ -1,4 +1,4 @@
-package com.linguawonder.app
+package com.babelwords.app
 
 import android.net.Uri
 import android.os.Bundle
@@ -7,9 +7,9 @@ import android.webkit.WebView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.ads.MobileAds
-import com.linguawonder.app.ads.AdMobManager
-import com.linguawonder.app.bridge.AdBridge
-import com.linguawonder.app.bridge.SubscriptionBridge
+import com.babelwords.app.ads.AdMobManager
+import com.babelwords.app.bridge.AdBridge
+import com.babelwords.app.bridge.SubscriptionBridge
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {

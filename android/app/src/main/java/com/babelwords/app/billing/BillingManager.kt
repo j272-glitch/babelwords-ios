@@ -1,4 +1,4 @@
-package com.linguawonder.app.billing
+package com.babelwords.app.billing
 
 import android.app.Activity
 import android.content.Context

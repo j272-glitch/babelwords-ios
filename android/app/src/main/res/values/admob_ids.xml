@@ -2,7 +2,7 @@
 <resources>
     <!--
         PRODUCTION AdMob ad unit IDs (BabelWords) — used by the active
-        com.linguawonder.app.ads.AdMobManager runtime path.
+        com.babelwords.app.ads.AdMobManager runtime path.
         App ID lives in strings.xml as admob_app_id.
     -->
     <string name="admob_interstitial_id">ca-app-pub-9991891515643313/7320741331</string>

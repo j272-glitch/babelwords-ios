@@ -60,7 +60,7 @@ remove_path "Users"
 
 echo ""
 echo "3) Dead TestRigor-laden package: com.lingualink.linguagt"
-echo "   (not referenced by the manifest or the live com.linguawonder.app code)"
+echo "   (not referenced by the manifest or the live com.babelwords.app code)"
 remove_path "android/app/src/main/java/com/lingualink/linguagt"
 
 echo ""

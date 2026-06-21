@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 
-        Package/namespace defined in build.gradle as 'com.linguawonder.app'
+        Package/namespace defined in build.gradle as 'com.babelwords.app'
         AGP 8.x no longer supports the package attribute here
     -->
 

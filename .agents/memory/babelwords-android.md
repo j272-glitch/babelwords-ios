@@ -1,6 +1,6 @@
 ---
 name: BabelWords Android toolchain & git/ads gotchas
-description: Non-obvious constraints for the BabelWords (com.linguawonder.app) Android WebView wrapper — toolchain version coupling, where versions are pinned, git push flow, and ad-config layout.
+description: Non-obvious constraints for the BabelWords (com.babelwords.app) Android WebView wrapper — toolchain version coupling, where versions are pinned, git push flow, and ad-config layout.
 ---
 
 # Toolchain version coupling (play-services-ads ↔ Kotlin ↔ AGP)
@@ -27,7 +27,7 @@ description: Non-obvious constraints for the BabelWords (com.linguawonder.app) A
 - Captured `rg` output can render ad-unit / manifest strings mangled (e.g. `ca-app-pub-...` collapsed to `n`, `AD_ID` as `.n`). The file bytes are fine. Verify with plain `grep`/`od -c` or the read tool, not colored `rg`.
 
 # Ad config layout — TWO stacks, only one is live
-- **ACTIVE runtime path** = `com.linguawonder.app` package: `ads/AdMobManager.kt` (load/show) + `bridge/AdBridge.kt` (JS interface), wired in `MainActivity`. Ad UNIT ids come from `res/values/admob_ids.xml` (`admob_interstitial_id`, `admob_rewarded_id`, `admob_rewarded_interstitial_id`) via `getString`. This is what actually runs.
+- **ACTIVE runtime path** = `com.babelwords.app` package: `ads/AdMobManager.kt` (load/show) + `bridge/AdBridge.kt` (JS interface), wired in `MainActivity`. Ad UNIT ids come from `res/values/admob_ids.xml` (`admob_interstitial_id`, `admob_rewarded_id`, `admob_rewarded_interstitial_id`) via `getString`. This is what actually runs.
 - **DORMANT path** = `com.lingualink.linguagt.ads.*` (`AdBridge.kt`, `AdMobBridge.kt`, `AdPreloadManager.kt`) with hardcoded Kotlin constants — NOT wired into MainActivity. Update for consistency only; changing it alone does nothing at runtime. A past task set production IDs only here and missed the live path.
 - AdMob App ID lives in `res/values/strings.xml` as `admob_app_id` (referenced by manifest `@string/admob_app_id`).
 - Interstitial + Rewarded + Rewarded-interstitial are wired in the active stack (Banner disabled by policy).
