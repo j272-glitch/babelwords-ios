@@ -89,3 +89,9 @@ id = "0oHS7NaenqHKtRVxwnnB6"
 uri = "file://exports/babelwords_icon_1024.png"
 type = "image"
 title = "BabelWords icon — high resolution"
+
+[[outputs]]
+id = "r-FWSV8jHGk9avtHHFN72"
+uri = "file://docs/WEB_APP_UPDATE_INSTRUCTIONS.md"
+type = "text"
+title = "Web App Update Instructions (BabelWords Android)"
