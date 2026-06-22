@@ -62,20 +62,15 @@
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
             android:value="true"/>
 
-        <!-- FIX: Disable Firebase auto-initialization to prevent blocking main thread on startup -->
-        <!-- Firebase will be manually initialized after WebView is ready -->
+        <!-- Firebase: enable Crashlytics + Analytics collection so they report out of the box. -->
+        <!-- Firebase auto-inits off the main thread via FirebaseInitProvider; these flags only -->
+        <!-- control whether data is collected, and we want it on for crash + usage reporting. -->
         <meta-data
-            android:name="firebase_analytics_collection_deferred"
+            android:name="firebase_analytics_collection_enabled"
             android:value="true"/>
-        
-        <!-- Disable Firebase Crashlytics auto-collection (if present) -->
+
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
-            android:value="false"/>
-        
-        <!-- Disable Firebase Performance auto-collection (if present) -->
-        <meta-data
-            android:name="firebase_performance_collection_deferred"
             android:value="true"/>
 
         <!-- Privacy Sandbox Ad Services Config - resolve conflict between play-services-ads and measurement -->

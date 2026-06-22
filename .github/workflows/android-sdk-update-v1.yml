@@ -51,6 +51,9 @@ env:
   ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
   ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
   BABELWORDS_ACCESS_TOKEN: ${{ secrets.BABELWORDS_ACCESS_TOKEN }}
+  # Firebase client config (base64 of android/app/google-services.json). Optional:
+  # if unset, the build still succeeds but ships without Crashlytics/Analytics.
+  GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
 
 jobs:
   build-android-aab:
@@ -505,6 +508,28 @@ jobs:
           ls -lh *.keystore 2>/dev/null || echo "No keystore files found"
           
           echo "✅ Signing configuration complete"
+
+      - name: Setup Firebase google-services.json
+        run: |
+          echo "=== SETTING UP FIREBASE CONFIG ==="
+          if [ -n "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > android/app/google-services.json && {
+              BYTES=$(wc -c < android/app/google-services.json)
+              echo "✅ Wrote android/app/google-services.json ($BYTES bytes) — Firebase will be ENABLED"
+              # Sanity check: must be valid JSON containing the expected package name.
+              if grep -q '"package_name": "com.babelwords.app"' android/app/google-services.json; then
+                echo "✅ google-services.json references com.babelwords.app"
+              else
+                echo "⚠️ google-services.json does NOT list com.babelwords.app — Firebase config may be wrong."
+              fi
+            } || {
+              echo "❌ Failed to decode GOOGLE_SERVICES_JSON_BASE64"
+              exit 1
+            }
+          else
+            echo "ℹ️ GOOGLE_SERVICES_JSON_BASE64 not set — building WITHOUT Firebase (Crashlytics/Analytics)."
+            echo "   Add the secret to enable Firebase. The build will still succeed without it."
+          fi
 
       - name: Clean Previous Builds and Refresh Dependencies
         run: |

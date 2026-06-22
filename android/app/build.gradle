@@ -1,7 +1,19 @@
 // app/build.gradle - Conversation Mode support
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
-// DISABLED FOR TESTING: apply plugin: 'com.google.gms.google-services'
+
+// Firebase (Crashlytics + Analytics) is applied ONLY when google-services.json exists.
+// In CI the file is written from the GOOGLE_SERVICES_JSON_BASE64 secret before the build.
+// Locally (or in CI without the secret) the file is absent and the build skips Firebase
+// entirely, so it never fails just because Firebase config is missing.
+def firebaseEnabled = file('google-services.json').exists()
+if (firebaseEnabled) {
+    apply plugin: 'com.google.gms.google-services'
+    apply plugin: 'com.google.firebase.crashlytics'
+    println "✅ Firebase ENABLED (google-services.json found)"
+} else {
+    println "ℹ️ Firebase DISABLED (no google-services.json) — building without Crashlytics/Analytics"
+}
 
 android {
     namespace 'com.babelwords.app'
@@ -328,11 +340,14 @@ dependencies {
     // Google Play Billing for in-app subscriptions (v7 required for BillingManager)
     implementation 'com.android.billingclient:billing-ktx:7.0.0'
 
-    // DISABLED FOR TESTING - Firebase BoM (Bill of Materials) - 32.8.0 compatible with Kotlin 1.8.x/1.9.x
-    // implementation platform('com.google.firebase:firebase-bom:32.8.0')
-    
-    // DISABLED FOR TESTING - Firebase Analytics (required for AdMob)
-    // implementation 'com.google.firebase:firebase-analytics'
+    // Firebase (Crashlytics + Analytics). Pulled in only when google-services.json exists
+    // so non-Firebase builds don't ship dead Firebase libs or hit init errors at startup.
+    // BoM 33.7.0 is Kotlin 2.2.0 / AGP 8.5.1 / compileSdk 35 compatible (do NOT use 32.x).
+    if (firebaseEnabled) {
+        implementation platform('com.google.firebase:firebase-bom:33.7.0')
+        implementation 'com.google.firebase:firebase-analytics'    // user/ad analytics (also feeds AdMob)
+        implementation 'com.google.firebase:firebase-crashlytics'  // crash + ANR reporting
+    }
 
     // Testing
     testImplementation 'junit:junit:4.13.2'

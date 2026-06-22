@@ -1,13 +1,18 @@
-# Firebase Test Lab — Live Cloud-Device Ad Test (CI)
+# Firebase for BabelWords — Crashlytics + Analytics, and the Live Cloud-Device Test (CI)
 
-This is the **complete, start-to-finish** guide to running the BabelWords release APK on a
-**real Google cloud phone** straight from GitHub Actions — recording **video + Logcat** so
-you can actually watch whether ads load and show. Builds are CI-only (no local device), so
-this is the repeatable way to see what ads really do on a device.
+This guide covers **two related things**, both already wired into the code and the CI
+workflow `.github/workflows/android-sdk-update-v1.yml`:
 
-The CI job is already wired into `.github/workflows/android-sdk-update-v1.yml`
-(job: **Firebase Test Lab (Robo + Logcat + Video)**). Everything below is the one-time
-account/console setup you do yourself, then how to run it.
+- **Part A — Firebase Crashlytics + Analytics in the app.** The app now reports real
+  crashes/ANRs (Crashlytics) and usage (Analytics) from real users. This needs the
+  `google-services.json` config, which you provide to CI as **one GitHub secret** (never
+  committed to the repo — same approach as the signing keystore).
+- **Part B — Firebase Test Lab cloud-device test.** Run the release APK on a **real Google
+  cloud phone** from GitHub Actions, recording **video + Logcat**, so you can watch whether
+  ads load and show. Builds are CI-only (no local device), so this is the repeatable way to
+  see what ads really do on a device.
+
+Everything below is the one-time account/console setup you do yourself, then how to run it.
 
 > **App identity used below**
 > - Package name: `com.babelwords.app`
@@ -18,8 +23,12 @@ account/console setup you do yourself, then how to run it.
 
 ## Overview of what you'll do (once)
 
+**For Crashlytics + Analytics (Part A):**
 1. Create or pick a **Firebase project** (a Firebase project *is* a Google Cloud project).
-2. *(Optional)* Register the **BabelWords Android app** in that project.
+2. Register the **BabelWords Android app**, download **`google-services.json`**, and add it
+   to CI as the **`GOOGLE_SERVICES_JSON_BASE64`** GitHub secret.
+
+**For the cloud-device test (Part B):**
 3. Turn on **Blaze billing**.
 4. Enable the **Cloud Testing API** and **Cloud Tool Results API**.
 5. Create a **service account**, give it **Editor**, download its **JSON key**.
@@ -27,6 +36,22 @@ account/console setup you do yourself, then how to run it.
 7. Run the workflow with **`run_firebase_test = true`** and download the result.
 
 Steps 1–6 are one-time. Step 7 is what you do whenever you want a fresh device test.
+
+> **Want only the Test Lab device test, not Crashlytics/Analytics?** Skip the
+> `GOOGLE_SERVICES_JSON_BASE64` secret in Step 2. The app still builds and runs on the cloud
+> phone — it just ships without Firebase reporting. Everything else (Steps 3–7) is unchanged.
+
+---
+
+## What's already wired in the code (you don't need to touch this)
+
+- `android/build.gradle` declares the Google Services + Crashlytics Gradle plugins.
+- `android/app/build.gradle` applies them and adds Firebase Analytics + Crashlytics
+  **only when `google-services.json` is present**, so builds without it still succeed.
+- `AndroidManifest.xml` turns **on** Crashlytics + Analytics collection so they report
+  out of the box.
+- The CI workflow writes `google-services.json` from the `GOOGLE_SERVICES_JSON_BASE64`
+  secret before each build, and `.gitignore` blocks the file from ever being committed.
 
 ---
 
@@ -48,19 +73,53 @@ the friendly name — copy the exact ID.
 
 ---
 
-## Step 2 — (Optional) Register the BabelWords Android app
+## Step 2 — Register the app, get `google-services.json`, add it as a secret
 
-For a **Robo test you do NOT need to register the app or add `google-services.json`** —
-Test Lab just installs and runs the APK you give it, and BabelWords doesn't use the
-Firebase SDKs. Do this step only if you also want the app to appear in the Firebase
-console for other Firebase features.
+This is what turns on **Crashlytics + Analytics**. (For a Test-Lab-only run you can skip
+this entire step — see the note at the top of the Overview.)
 
+**2a. Register the Android app**
 1. In **Project settings → General → Your apps**, click the **Android** icon.
-2. **Android package name:** `com.babelwords.app`
+2. **Android package name:** `com.babelwords.app` (must match exactly).
 3. **App nickname:** `BabelWords` (anything you like).
-4. *(Optional)* **SHA-1**: not needed for Test Lab.
-5. Click **Register app**. You can **skip** downloading `google-services.json` and skip
-   the SDK/Gradle steps — they aren't required for the device test.
+4. *(Optional)* **SHA-1**: not needed for Crashlytics/Analytics or Test Lab.
+5. Click **Register app**.
+
+**2b. Download `google-services.json`**
+1. Click **Download google-services.json**.
+2. Open it and confirm it contains `"package_name": "com.babelwords.app"`.
+3. **Do not commit this file** — it holds the project's client API key. The repo's
+   `.gitignore` already blocks it, and CI recreates it from the secret below.
+
+**2c. Turn the file into the `GOOGLE_SERVICES_JSON_BASE64` secret**
+
+Encode the file to a single base64 line (no line wrapping):
+
+- **macOS / Linux:**
+  ```bash
+  base64 -i google-services.json | tr -d '\n' > google-services.json.base64.txt
+  ```
+- **Windows (PowerShell):**
+  ```powershell
+  [Convert]::ToBase64String([IO.File]::ReadAllBytes("google-services.json")) > google-services.json.base64.txt
+  ```
+- **No terminal (iPhone-only):** use any trusted "file to Base64" tool, paste in the file
+  contents, and copy the Base64 output.
+
+Then in the repo **`j272-glitch/babelwords-android` → Settings → Secrets and variables →
+Actions → New repository secret**:
+
+| Secret name | Value |
+|-------------|-------|
+| `GOOGLE_SERVICES_JSON_BASE64` | The **entire base64 string** from above (one line) |
+
+> **Keep a backup** of `google-services.json` (or its base64) in your password manager,
+> just like the keystore. Delete the local `*.base64.txt` file afterward.
+
+That's all for Crashlytics + Analytics. On the next build, CI decodes the secret to
+`android/app/google-services.json`, the Gradle plugins activate, and crash/usage data
+starts flowing to the Firebase console (give it a few minutes and a real device session;
+the cloud-phone Robo run in Part B counts as one).
 
 ---
 
@@ -163,7 +222,8 @@ If you'd rather not enable Blaze billing:
    **console** quota.
 4. Watch the video and read the Logcat right in the browser.
 
-This needs only Steps 1–2 above (no service account, no GitHub secrets).
+This needs only **Step 1** above (no service account, no GitHub secrets). Step 2
+(`google-services.json`) is only for Crashlytics/Analytics, not for the device test.
 
 ---
 

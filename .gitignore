@@ -8,3 +8,10 @@ android-secrets-setup.md
 keystore.base64.txt
 keystore-base64.txt
 release-keystore-base64.txt
+
+# Firebase config — contains the project's client API key. Never commit it.
+# It lives ONLY in the GitHub secret GOOGLE_SERVICES_JSON_BASE64 (and your secure backup);
+# CI writes it to android/app/google-services.json at build time.
+google-services.json
+**/google-services.json
+google-services.json.base64.txt
