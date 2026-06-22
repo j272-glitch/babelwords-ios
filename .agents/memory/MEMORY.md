@@ -1,4 +1,3 @@
-- [BabelWords signing key](babelwords-signing-key.md) — fresh June-2026 keystore (alias babelwords); old LinguaGT keystores retired (plaintext passwords); never regenerate post-publish.
-- [Android project location](android-project-location.md) — real Android source is in THIS repo (not a separate project); CI-only build; recheck all package refs after a rename.
-- [WebView production access gate](webview-access-token-gate.md) — app passes site code via ?access= query param (sets site_access cookie); token from BABELWORDS_ACCESS_TOKEN; must equal server SITE_ACCESS_TOKEN; soft gate.
-- [Workflow dir bash fs guard](workflow-dir-fs-guard.md) — bash sed -i/rm under .github/workflows is blocked; use edit/write tools, or code_execution fs.unlinkSync to delete.
+# Memory Index
+
+- [BabelWords ad architecture](babelwords-ad-architecture.md) — user's ad-fix guides describe a legacy LinguaGT design (AdMobBridge/AndroidAdBridge/isActivityResumed) that does NOT exist in this repo; grep before porting any guide.

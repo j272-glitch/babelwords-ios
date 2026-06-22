@@ -22,6 +22,11 @@ on:
         required: true
         default: true
         type: boolean
+      run_firebase_test:
+        description: 'Run Firebase Test Lab cloud-device test (needs Blaze billing + GCP_SA_KEY/GCP_PROJECT_ID secrets)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ main ]
   pull_request:
@@ -899,3 +904,117 @@ jobs:
           fi
           echo ""
           echo "========================================="
+
+  # ---------------------------------------------------------------------------
+  # Firebase Test Lab — runs the release APK on a real Google cloud phone,
+  # records video + Logcat, and uploads them as a downloadable artifact.
+  # Gated: only runs on manual dispatch with run_firebase_test = true.
+  # Requires repo secrets GCP_SA_KEY (service-account JSON) and GCP_PROJECT_ID,
+  # plus Blaze billing on the GCP project (Test Lab free quota is console-only).
+  # ---------------------------------------------------------------------------
+  firebase-test-lab:
+    name: Firebase Test Lab (Robo + Logcat + Video)
+    needs: build-android-aab
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_firebase_test == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Download Release APK
+        id: download_apk
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: firebase-apk
+
+      - name: Locate APK
+        id: locate_apk
+        run: |
+          APK=$(find firebase-apk -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
+          if [ -z "$APK" ]; then
+            echo "⚠️ No APK artifact found — skipping Firebase Test Lab. The AAB build is unaffected."
+            echo "apk=" >> "$GITHUB_OUTPUT"
+          else
+            echo "✅ APK located: $APK"
+            echo "apk=$APK" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.locate_apk.outputs.apk != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        if: steps.locate_apk.outputs.apk != ''
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run Robo test (auto-launches app, records video)
+        if: steps.locate_apk.outputs.apk != ''
+        run: |
+          set +e
+          APK="${{ steps.locate_apk.outputs.apk }}"
+          echo "Running Firebase Test Lab Robo test on: $APK"
+          gcloud firebase test android run \
+            --type robo \
+            --app "$APK" \
+            --device model=MediumPhone.arm,version=33,locale=en_US,orientation=portrait \
+            --timeout 180s \
+            --record-video \
+            --project "${{ secrets.GCP_PROJECT_ID }}" 2>&1 | tee firebase-run.log
+          echo "gcloud exit handled; results parsed in next step."
+
+      - name: Pull Logcat + video from results bucket
+        if: always() && steps.locate_apk.outputs.apk != ''
+        run: |
+          # IMPORTANT: do NOT pass --results-bucket. Test Lab auto-creates a writable
+          # test-lab-* bucket; we parse its gs:// path out of gcloud's own output.
+          RAW=$(grep -oE 'storage/browser/[^[:space:]"]+' firebase-run.log | head -n 1 || echo "")
+          if [ -z "$RAW" ]; then
+            echo "⚠️ Could not parse a results-bucket path from gcloud output."
+            exit 0
+          fi
+          GS_PATH="gs://$(echo "$RAW" | sed 's#storage/browser/##; s#?.*##; s#/*$##')"
+          echo "Results path: $GS_PATH"
+          mkdir -p firebase-results
+          gsutil -m cp -r "${GS_PATH}/**" firebase-results/ 2>/dev/null \
+            || gsutil -m cp -r "${GS_PATH}/*" firebase-results/ 2>/dev/null \
+            || echo "⚠️ Could not copy results (check service-account storage permissions)."
+
+      - name: Scan Logcat for the ad funnel
+        if: always() && steps.locate_apk.outputs.apk != ''
+        run: |
+          LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
+          echo "==================== AD FUNNEL ===================="
+          if [ -n "$LOGCAT" ]; then
+            grep -E "LOADED|Attempting to show|Auto-show|FailedToShow|IMPRESSION|not resumed|background|Already showing|watchdog" "$LOGCAT" \
+              || echo "(no ad-funnel markers matched — read the full logcat in the artifact)"
+          else
+            echo "(no logcat file found in results)"
+          fi
+          echo "==================================================="
+
+      - name: Stage colon-free artifact folder
+        if: always() && steps.locate_apk.outputs.apk != ''
+        run: |
+          # upload-artifact@v4 rejects any path containing ':' and Test Lab folders are
+          # timestamped (e.g. 2026-06-22_21:12:16). Flatten the useful files into a
+          # colon-free folder and upload that instead of the raw results tree.
+          mkdir -p firebase-artifact
+          cp firebase-run.log firebase-artifact/firebase-run.log 2>/dev/null || true
+          LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
+          VIDEO=$(find firebase-results -name "video.mp4" -type f 2>/dev/null | head -n 1 || echo "")
+          [ -n "$LOGCAT" ] && cp "$LOGCAT" firebase-artifact/logcat.txt || true
+          [ -n "$VIDEO" ] && cp "$VIDEO" firebase-artifact/video.mp4 || true
+          echo "Artifact contents:"
+          ls -la firebase-artifact
+
+      - name: Upload Firebase Test Lab artifact
+        if: always() && steps.locate_apk.outputs.apk != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-testlab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: firebase-artifact
+          if-no-files-found: warn
+          retention-days: 14
