@@ -21,7 +21,9 @@ Preferred communication style: Simple, everyday language.
 
 **Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled (legacy build configuration).
 
-**Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds use the BabelWords release keystore (alias `babelwords`, SHA-256 `D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B`) for Google Play Store deployment. This is a fresh key generated for BabelWords (June 2026); the older LinguaGT-era keystores (`release.keystore`/`linguagt-release-key`, `my-release-key.jks`) were retired because their passwords had been committed to the repo in plaintext.
+**Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds are signed with the BabelWords **upload key** (alias `babelwords`, SHA-256 `D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B`). This is a fresh key generated for BabelWords (June 2026); the older LinguaGT-era keystores (`release.keystore`/`linguagt-release-key`, `my-release-key.jks`) were retired because their passwords had been committed to the repo in plaintext.
+
+**Two signing keys (Play App Signing)**: The app is published via Google **Play App Signing**, so there are two distinct fingerprints. The **upload key** (`D4:1D:…:AB:8B`) is what we sign the uploaded AAB with. Google then re-signs installed builds with the Play-managed **app signing key**, SHA-256 `15:5D:00:27:77:20:0B:EC:09:0A:8B:65:46:6C:D5:44:1D:ED:96:6A:4B:96:D8:E3:F4:FD:67:49:FE:24:5D:1B`. Because App Links verification is tied to the cert installed devices actually run, **production `assetlinks.json` must list the `15:5D:…` app signing key** (the served copy on linguagt.com already does). The repo's reference `assetlinks.json` lists both fingerprints — `15:5D:…` (Play installs) and `D4:1D:…` (sideloaded test APKs signed only with the upload key).
 
 ## CI/CD Pipeline
 
