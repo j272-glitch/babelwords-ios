@@ -1,0 +1,204 @@
+# Applying LinguaVibe Learnings to the BabelWords Android App
+
+This guide ports the recent changes made to the **LinguaVibe** Android app over to the
+**BabelWords** Android app. BabelWords uses the same architecture: a native Kotlin
+**WebView wrapper** around a remotely-hosted website, built as a signed AAB/APK **only
+via GitHub Actions** (no local Android SDK), monetized with **AdMob** (Interstitial +
+Rewarded only, Banner disabled).
+
+> **Before you start:** BabelWords has its **own** domain, package name, AdMob App ID,
+> ad-unit IDs, and signing keystore. Wherever you see a `«PLACEHOLDER»` below, swap in
+> the BabelWords value — do **not** copy LinguaVibe's identifiers verbatim.
+
+| Thing | LinguaVibe value | BabelWords value to use |
+|---|---|---|
+| Web domain | `gtlingua.com` | `«babelwords-domain.com»` |
+| Package name | `com.lingualink.linguagt` | `«babelwords package»` (leave as-is if it already exists — permanent on Play Store) |
+| Custom deep-link scheme | `gtlingua` | `«babelwords-scheme»` |
+| AdMob App ID | `ca-app-pub-9991891515643313~7514450861` | `«babelwords app id»` |
+| Interstitial unit | `…/5076005693` | `«babelwords interstitial»` |
+| Rewarded unit | `…/6313049833` | `«babelwords rewarded»` |
+
+---
+
+## 1. Remove the rewarded-interstitial ad format (keep only Interstitial + Rewarded)
+
+The rewarded-interstitial format was fully removed. The ad system should support **only**
+two types: `INTERSTITIAL` and `REWARDED`.
+
+In `AdBridge.kt` (or BabelWords' equivalent ad bridge):
+- The `AdType` enum must contain **only** `INTERSTITIAL` and `REWARDED`.
+- Delete every reference to the rewarded-interstitial format: the ad-unit constant,
+  load/show/callback methods, retry scheduling, error handling, and any JS bridge
+  methods that exposed it to the web app.
+- Grep for leftovers afterward — there should be **zero** dangling references:
+  ```bash
+  rg -i "rewardedinterstitial|rewarded_interstitial|rewarded-interstitial" android/app/src
+  ```
+- If BabelWords ships ProGuard/R8 rules for that format, remove the matching keep rule.
+
+> Note: keep the **AdMob App ID** and **ad-unit IDs** as BabelWords' own values; only the
+> *format support* is what changes here.
+
+---
+
+## 2. Enable Liftoff (Vungle) + Unity mediation
+
+LinguaVibe runs AdMob mediation with both **Unity** and **Liftoff/Vungle** adapters. The
+adapter + SDK versions **must be compatible with the Google Mobile Ads SDK version** —
+mismatched versions break the build or silently disable the network.
+
+In `android/app/build.gradle` dependencies, the working set is:
+```gradle
+implementation 'com.google.android.gms:play-services-ads:24.9.0'
+
+// Unity Ads mediation — adapter + SDK (versions must match GMA 24.9.0)
+implementation 'com.google.ads.mediation:unity:4.16.6.0'
+implementation 'com.unity3d.ads:unity-ads:4.16.6'
+
+// Liftoff / Vungle mediation
+implementation 'com.google.ads.mediation:vungle:7.7.0.0'
+```
+
+For BabelWords:
+- Match `play-services-ads` to whatever GMA version BabelWords is on; if you bump it,
+  re-check the adapter versions against Google's mediation compatibility table.
+- Only enable a network **after it is approved** in the AdMob console for that app.
+- In the **AdMob console**, configure Unity and Liftoff as **bidding** sources, not
+  waterfall — Unity's waterfall mediation was discontinued (Jan 31, 2026).
+
+> **ProGuard note:** these adapters need explicit `-keep` rules **only if minification is
+> on**. LinguaVibe builds with `minifyEnabled false`, so the commented-out Vungle/Unity
+> keep rules in `proguard-rules.pro` are intentionally inactive. If BabelWords sets
+> `minifyEnabled true`, uncomment the Unity and Vungle keep/dontwarn rules.
+
+---
+
+## 3. Make every URL reference use the BabelWords domain
+
+This is the highest-risk-for-inconsistency area. The domain appears in several places —
+some functional, some informational. Set **all** of them to `«babelwords-domain.com»`.
+
+**Functional (the app actually uses these):**
+- `android/app/build.gradle` → `buildConfigField "String", "BASE_URL", "\"https://«babelwords-domain.com»\""`
+- `MainActivity.kt` → `private const val BASE_URL = "https://«babelwords-domain.com»"` (the URL the WebView loads)
+- `ApiService.kt` → `private const val BASE_URL = "https://«babelwords-domain.com»/"`
+- `AndroidManifest.xml` App Link `<data>` hosts:
+  ```xml
+  <data android:scheme="https" android:host="«babelwords-domain.com»" />
+  <data android:scheme="https" android:host="www.«babelwords-domain.com»" />
+  ```
+
+**Informational (keep consistent even though the build doesn't read them):**
+- The GitHub Actions workflow `WEBVIEW_URL: "https://«babelwords-domain.com»"` — note this
+  env var is declared but **not consumed** by the build (the app hardcodes `BASE_URL`),
+  so it's documentation only. Set it correctly anyway.
+- Any contact email / privacy text (e.g. `privacy@«babelwords-domain.com»`) and README/docs.
+
+**Verify nothing was missed** (excludes package name and historical artifacts):
+```bash
+rg -n "https?://[a-zA-Z0-9.-]+" android/app/src server.js \
+  | rg -iv "schemas.android.com|googleapis|google.com|gstatic"
+```
+Every real web URL should read `«babelwords-domain.com»`. The package name
+(`com.lingualink.linguagt`-style) is **not** a URL — leave it alone.
+
+---
+
+## 4. Rename the custom deep-link scheme
+
+LinguaVibe's custom scheme was changed from `linguagt://` to `gtlingua://`. The scheme
+lives in **one** place — the manifest's custom-scheme intent-filter:
+```xml
+<data android:scheme="«babelwords-scheme»" android:host="open" />
+```
+No Kotlin code matches the scheme by name (App Links are matched by **host**, not scheme),
+so the manifest is the only edit needed. Confirm with:
+```bash
+rg -n 'scheme="' android/app/src/main/AndroidManifest.xml
+```
+
+> ⚠️ **Breaking change:** any `oldscheme://…` links already published (emails, web buttons,
+> QR codes) will stop opening the app. Only rename if BabelWords has no live deep links on
+> the old scheme, or update those links too.
+
+---
+
+## 5. Bump the version in all three places (they must stay in sync)
+
+A version bump must be applied in **three** files or the build will be inconsistent:
+
+1. `android/app/build.gradle`:
+   ```gradle
+   versionCode «N»
+   versionName "«N».0.0"
+   ```
+2. `android/build.gradle` (the root build file carries a duplicate block):
+   ```gradle
+   versionCode «N»
+   versionName "«N».0.0"
+   ```
+3. The GitHub Actions workflow `env:` and `workflow_dispatch` inputs:
+   ```yaml
+   version_name:
+     description: 'Version Name (e.g., «N».0.0)'
+     default: '«N».0.0'
+   # …
+   VERSION_CODE: ${{ github.event.inputs.version_code || '«N»' }}
+   VERSION_NAME: ${{ github.event.inputs.version_name || '«N».0.0' }}
+   ```
+
+`versionCode` must always **increase** for every Play Store upload.
+
+---
+
+## 6. Rebrand the workflow display strings (cosmetic, but do it)
+
+In the GitHub Actions workflow, update the human-readable strings to **BabelWords**:
+- The workflow `name:` header (line 1)
+- The job `name:` (e.g. `Build BabelWords Android AAB with Diagnostics`)
+- The GitHub Release `name:` and release-notes body
+
+Do **not** change functional identifiers: the package name, artifact filenames, or
+keystore alias are permanent — renaming them breaks signing continuity and Play Store
+upload.
+
+---
+
+## 7. Environment / build facts to match
+
+BabelWords should build on the same toolchain that's proven stable for LinguaVibe:
+
+| Setting | Value |
+|---|---|
+| Build method | GitHub Actions **only** (no local Android SDK) |
+| AGP | `8.5.1` |
+| Gradle | `8.9` |
+| Kotlin | `2.2.0` (required by `play-services-ads` 24.x Kotlin 2.x metadata) |
+| JDK | `17` |
+| compileSdk / targetSdk | `35` |
+| minSdk | `24` |
+| minifyEnabled | `false` |
+
+Required GitHub **Secrets** for signed CI builds (set these for the BabelWords repo):
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`,
+`ANDROID_KEY_PASSWORD`.
+
+---
+
+## 8. Post-migration checklist
+
+- [ ] `AdType` enum has only `INTERSTITIAL` + `REWARDED`; zero rewarded-interstitial refs
+- [ ] Unity + Vungle adapters present and version-matched to the GMA SDK
+- [ ] Unity & Liftoff configured as **bidding** in the AdMob console
+- [ ] `app-ads.txt` is live on `«babelwords-domain.com»` (lives in the **web** repo)
+- [ ] All `BASE_URL` / manifest hosts / `WEBVIEW_URL` / docs use `«babelwords-domain.com»`
+- [ ] Custom deep-link scheme renamed (and old links updated if any exist)
+- [ ] `versionCode` / `versionName` bumped in all **three** files
+- [ ] Workflow display strings say BabelWords; package + artifact names left unchanged
+- [ ] GitHub Secrets for keystore signing are set on the BabelWords repo
+- [ ] CI build runs green and produces a signed AAB
+
+> Reminder: `app-ads.txt` and the website content itself live in BabelWords' **separate
+> web repo**, not in the Android repo. Mediation revenue depends on `app-ads.txt` being
+> published on the live domain.

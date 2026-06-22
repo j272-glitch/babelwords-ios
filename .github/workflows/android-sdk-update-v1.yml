@@ -8,9 +8,9 @@ on:
         required: false
         type: string
       version_name:
-        description: 'Version Name (e.g., 1.0.0)'
+        description: 'Version Name (e.g., 25.0.0)'
         required: false
-        default: '1.0.0'
+        default: '25.0.0'
         type: string
       create_release:
         description: 'Create GitHub Release'
@@ -37,8 +37,8 @@ env:
   GRADLE_OPTS: "-Xmx8192m -Dfile.encoding=UTF-8"
   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
   WEBVIEW_URL: "https://linguagt.com"
-  VERSION_CODE: ${{ github.event.inputs.version_code || '1' }}
-  VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
+  VERSION_CODE: ${{ github.event.inputs.version_code || '25' }}
+  VERSION_NAME: ${{ github.event.inputs.version_name || '25.0.0' }}
   CREATE_RELEASE: ${{ github.event.inputs.create_release || 'true' }}
   DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'true' }}
   ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -198,7 +198,7 @@ jobs:
               echo ""
               echo "   Add this to android/app/build.gradle:"
               echo "   android {"
-              echo "       namespace 'com.lingualink.linguagt'"
+              echo "       namespace 'com.babelwords.app'"
               echo "       ..."
               echo "   }"
             else
@@ -446,7 +446,7 @@ jobs:
               echo "NAMESPACE ERROR DETECTED"
               echo "Add namespace to android/app/build.gradle:"
               echo "android {"
-              echo "    namespace 'com.lingualink.linguagt'"
+              echo "    namespace 'com.babelwords.app'"
               echo "    ..."
               echo "}"
             fi

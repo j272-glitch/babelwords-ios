@@ -497,7 +497,6 @@
 -keep class com.google.android.gms.ads.FullScreenContentCallback { *; }
 -keep class com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback { *; }
 -keep class com.google.android.gms.ads.rewarded.RewardedAdLoadCallback { *; }
--keep class com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback { *; }
 -keep class com.google.android.gms.ads.OnUserEarnedRewardListener { *; }
 -keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
 -keep class com.google.android.gms.ads.AdError { *; }

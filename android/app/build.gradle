@@ -318,6 +318,13 @@ dependencies {
     // Google Mobile Ads SDK
     implementation 'com.google.android.gms:play-services-ads:24.9.0'
 
+    // AdMob mediation adapters — versions matched to GMA 24.9.0.
+    // Configure Unity & Liftoff/Vungle as BIDDING sources in the AdMob console.
+    // (No ProGuard keep rules needed while minifyEnabled is false.)
+    implementation 'com.google.ads.mediation:unity:4.16.6.0'
+    implementation 'com.unity3d.ads:unity-ads:4.16.6'
+    implementation 'com.google.ads.mediation:vungle:7.7.0.0'
+
     // Google Play Billing for in-app subscriptions (v7 required for BillingManager)
     implementation 'com.android.billingclient:billing-ktx:7.0.0'
 

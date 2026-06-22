@@ -8,8 +8,6 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 import com.google.android.gms.ads.rewarded.RewardedAd
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback
-import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAd
-import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoadCallback
 
 /**
  * Loads and shows AdMob interstitial and rewarded ads.
@@ -27,11 +25,6 @@ import com.google.android.gms.ads.rewardedinterstitial.RewardedInterstitialAdLoa
  *   rewardEarned         → user earned reward (data = amount as string, e.g. "30")
  *   rewardedClosed       → rewarded dismissed
  *   rewardedFailed       → rewarded error
- *   rewardedInterstitialLoaded → rewarded interstitial ready
- *   rewardedInterstitialShown  → rewarded interstitial impression
- *   rewardedInterstitialClosed → rewarded interstitial dismissed
- *   rewardedInterstitialFailed → rewarded interstitial error
- *   (rewardEarned is shared — also fires when a rewarded interstitial grants a reward)
  */
 class AdMobManager(
     private val context: Context,
@@ -41,11 +34,9 @@ class AdMobManager(
 
     private var interstitialAd: InterstitialAd? = null
     private var rewardedAd: RewardedAd? = null
-    private var rewardedInterstitialAd: RewardedInterstitialAd? = null
     private var initialized = false
     private var loadingInterstitial = false
     private var loadingRewarded = false
-    private var loadingRewardedInterstitial = false
 
     private val interstitialAdUnitId by lazy {
         context.getString(com.babelwords.app.R.string.admob_interstitial_id)
@@ -53,21 +44,16 @@ class AdMobManager(
     private val rewardedAdUnitId by lazy {
         context.getString(com.babelwords.app.R.string.admob_rewarded_id)
     }
-    private val rewardedInterstitialAdUnitId by lazy {
-        context.getString(com.babelwords.app.R.string.admob_rewarded_interstitial_id)
-    }
 
     init {
         initialized = true
         preloadInterstitial()
         preloadRewarded()
-        preloadRewardedInterstitial()
     }
 
     fun isInitialized() = initialized
     fun isInterstitialReady() = interstitialAd != null
     fun isRewardedReady() = rewardedAd != null
-    fun isRewardedInterstitialReady() = rewardedInterstitialAd != null
 
     fun preloadInterstitial() {
         if (interstitialAd != null || loadingInterstitial) return
@@ -189,70 +175,6 @@ class AdMobManager(
         ad.show(activity) { rewardItem ->
             val amount = rewardItem.amount.takeIf { it > 0 } ?: 30
             Log.d(TAG, "💰 Reward earned: $amount")
-            eventCallback("rewardEarned", amount.toString())
-        }
-    }
-
-    fun preloadRewardedInterstitial() {
-        if (rewardedInterstitialAd != null || loadingRewardedInterstitial) return
-        loadingRewardedInterstitial = true
-        Log.d(TAG, "Loading rewarded interstitial…")
-
-        val request = AdRequest.Builder().build()
-        RewardedInterstitialAd.load(context, rewardedInterstitialAdUnitId, request,
-            object : RewardedInterstitialAdLoadCallback() {
-                override fun onAdLoaded(ad: RewardedInterstitialAd) {
-                    Log.d(TAG, "✅ Rewarded interstitial loaded")
-                    rewardedInterstitialAd = ad
-                    loadingRewardedInterstitial = false
-                    setupRewardedInterstitialCallbacks(ad)
-                    eventCallback("rewardedInterstitialLoaded", null)
-                }
-
-                override fun onAdFailedToLoad(error: LoadAdError) {
-                    Log.w(TAG, "Rewarded interstitial load failed: ${error.message}")
-                    rewardedInterstitialAd = null
-                    loadingRewardedInterstitial = false
-                    eventCallback("rewardedInterstitialFailed", error.message)
-                }
-            }
-        )
-    }
-
-    private fun setupRewardedInterstitialCallbacks(ad: RewardedInterstitialAd) {
-        ad.fullScreenContentCallback = object : FullScreenContentCallback() {
-            override fun onAdShowedFullScreenContent() {
-                Log.d(TAG, "✅ Rewarded interstitial shown")
-                rewardedInterstitialAd = null
-                eventCallback("rewardedInterstitialShown", null)
-            }
-
-            override fun onAdDismissedFullScreenContent() {
-                Log.d(TAG, "Rewarded interstitial dismissed")
-                eventCallback("rewardedInterstitialClosed", null)
-                preloadRewardedInterstitial()
-            }
-
-            override fun onAdFailedToShowFullScreenContent(error: AdError) {
-                Log.w(TAG, "Rewarded interstitial show failed: ${error.message}")
-                rewardedInterstitialAd = null
-                eventCallback("rewardedInterstitialFailed", error.message)
-                preloadRewardedInterstitial()
-            }
-        }
-    }
-
-    fun showRewardedInterstitial(activity: Activity) {
-        val ad = rewardedInterstitialAd
-        if (ad == null) {
-            Log.w(TAG, "showRewardedInterstitial called but ad not ready")
-            eventCallback("rewardedInterstitialFailed", "not_loaded")
-            preloadRewardedInterstitial()
-            return
-        }
-        ad.show(activity) { rewardItem ->
-            val amount = rewardItem.amount.takeIf { it > 0 } ?: 30
-            Log.d(TAG, "💰 Reward earned (rewarded interstitial): $amount")
             eventCallback("rewardEarned", amount.toString())
         }
     }
