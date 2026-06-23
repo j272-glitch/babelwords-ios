@@ -107,3 +107,9 @@ id = "EctgOxxldXGaZdrUfBR6m"
 uri = "file://docs/PLAY_STORE_LISTING.md"
 type = "text"
 title = "Google Play Store Listing Guide"
+
+[[outputs]]
+id = "KeyW7d3Q6aZ9LSbsuUrs4"
+uri = "file://docs/AD_SERVING_BEST_PRACTICES.md"
+type = "text"
+title = "Ad Serving Best Practices"
