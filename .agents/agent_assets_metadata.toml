@@ -101,3 +101,9 @@ id = "gvqInXFkYya1vvTLjTL23"
 uri = "file://docs/WEB_APP_AD_REWARDS.md"
 type = "text"
 title = "Web App Guide: Rewarding Hints from Ads"
+
+[[outputs]]
+id = "EctgOxxldXGaZdrUfBR6m"
+uri = "file://docs/PLAY_STORE_LISTING.md"
+type = "text"
+title = "Google Play Store Listing Guide"
