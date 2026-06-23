@@ -1000,7 +1000,10 @@ jobs:
             echo "⚠️ Could not parse a results-bucket path from gcloud output."
             exit 0
           fi
-          GS_PATH="gs://$(echo "$RAW" | sed 's#storage/browser/##; s#?.*##; s#/*$##')"
+          # gcloud prints the URL wrapped in brackets ("...qtNd/]"), so strip a trailing
+          # ']' (and anything after) and any query string before building the gs:// path —
+          # otherwise the path is malformed and nothing copies.
+          GS_PATH="gs://$(echo "$RAW" | sed 's#storage/browser/##; s#].*##; s#?.*##; s#/*$##')"
           echo "Results path: $GS_PATH"
           mkdir -p firebase-results
           gsutil -m cp -r "${GS_PATH}/**" firebase-results/ 2>/dev/null \
