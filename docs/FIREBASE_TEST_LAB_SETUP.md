@@ -204,6 +204,31 @@ The job prints a funnel in its log. Look for these markers in order:
 A healthy run shows `LOADED` → `Attempting to show` → `IMPRESSION` with no guard
 rejections. For deep triage, open the full `logcat.txt` in the downloaded artifact.
 
+### Ads now show automatically in Test Lab (so the video proves it)
+
+Robo taps native buttons but can't reliably click the ad buttons inside the web page, so
+on its own it only proves ads **load**, not that they **show**. To close that gap, the app
+detects when it is running inside Test Lab (the system flag `firebase.test.lab` is `true`
+only on Test Lab phones — never on a real user's device) and then:
+
+1. Switches to **Google's official test ad units** (never your real units — automated
+   shows on live units can be flagged as invalid traffic).
+2. **Auto-shows the interstitial once** as soon as it loads, then **auto-shows the
+   rewarded ad once** after the interstitial is closed.
+
+So a Test Lab video will now actually show a full-screen ad appearing. Search `logcat.txt`
+for these exact markers:
+
+| Marker in logcat | Means |
+|--------|-------|
+| `🧪 Test Lab: auto-showing interstitial` | Auto-show was triggered |
+| `✅ Interstitial shown` | The interstitial rendered on screen ✓ |
+| `🧪 Test Lab: auto-showing rewarded` | Rewarded auto-show triggered after interstitial closed |
+| `✅ Rewarded shown` | The rewarded ad rendered ✓ |
+
+This whole path is inert in production — real users never have `firebase.test.lab` set, so
+they always get your real ad units and the normal web-triggered show flow.
+
 > **Tip for the BabelWords bridge debate:** the logcat from a real run is also the
 > fastest way to confirm whether the live site calls `window.AdBridge` or
 > `window.AndroidAdBridge` — search the log for those names and for the `AdBridge`
