@@ -113,3 +113,9 @@ id = "KeyW7d3Q6aZ9LSbsuUrs4"
 uri = "file://docs/AD_SERVING_BEST_PRACTICES.md"
 type = "text"
 title = "Ad Serving Best Practices"
+
+[[outputs]]
+id = "9h_p47Gdr3IQ_XzjE-1U5"
+uri = "file://docs/REAL_IMPRESSION_VIA_FIREBASE_ROBO.md"
+type = "text"
+title = "How a Real Ad Impression Was Served Through Firebase Robo"
