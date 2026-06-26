@@ -348,6 +348,12 @@
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 
+# AppOpenAdManager (JavaScript interface not exposed, but keep for safety)
+-keep class com.babelwords.app.ads.AppOpenAdManager { *; }
+
+# ConsentManager (not a JS interface, but critical for ad functionality)
+-keep class com.babelwords.app.ads.ConsentManager { *; }
+
 # Keep your activities
 -keep class com.babelwords.app.MainActivity { *; }
 -keep class com.babelwords.app.BaseActivity { *; }

@@ -6,6 +6,11 @@
     <!-- AdMob App ID — BabelWords (LinguaWonder) production AdMob App ID -->
     <string name="admob_app_id">ca-app-pub-9991891515643313~9480266747</string>
 
+    <!-- AdMob Ad Unit IDs (replace with your real IDs) -->
+    <string name="admob_interstitial_id">ca-app-pub-9991891515643313/7320741331</string>
+    <string name="admob_rewarded_id">ca-app-pub-9991891515643313/6313049833</string>
+    <string name="admob_app_open_id">ca-app-pub-3940256099942544/9251695926</string>
+
     <!-- Loading Messages -->
     <string name="loading_translation_app">Loading Translation App…</string>
 
