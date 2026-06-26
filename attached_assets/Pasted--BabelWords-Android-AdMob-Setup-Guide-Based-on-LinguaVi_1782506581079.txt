@@ -1,0 +1,688 @@
+# BabelWords — Android AdMob Setup Guide
+
+**Based on:** LinguaVibe Android v46.0.0 production architecture  
+**Date:** 2026-06-26  
+**Scope:** Full AdMob integration for a WebView-based Android app — Interstitial, Rewarded, and App Open ads with automatic retry, lifecycle safety, and web bridge callbacks.
+
+---
+
+## Overview
+
+This guide mirrors the LinguaVibe v46 ad setup exactly. All ad logic (loading, showing, retry, lifecycle guards, frequency capping) lives in the **native Android layer**. The web app only calls the bridge and listens for callbacks.
+
+### Ad Types Supported
+
+| Type | Trigger | Automatic? |
+|------|---------|-----------|
+| App Open | Cold start + warm resume | Yes — no web call needed |
+| Interstitial | Web app calls bridge | No — web app triggers |
+| Rewarded | Web app calls bridge | No — web app triggers |
+
+---
+
+## Step 1 — AdMob Account Setup
+
+1. Create an AdMob account at [admob.google.com](https://admob.google.com)
+2. Create a new **Android App** in AdMob
+3. Note your **App ID** — format: `ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY`
+4. Create three ad units:
+   - **App Open** — note the unit ID
+   - **Interstitial** — note the unit ID
+   - **Rewarded** — note the unit ID
+
+> **Test IDs for development** (use these until ready for production):
+> - App Open: `ca-app-pub-3940256099942544/9251695926`
+> - Interstitial: `ca-app-pub-3940256099942544/1033173712`
+> - Rewarded: `ca-app-pub-3940256099942544/5224354917`
+
+---
+
+## Step 2 — Android Manifest
+
+### 2a. Add AdMob App ID
+
+In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<!-- Replace with your real AdMob App ID -->
+<meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"/>
+
+<!-- ANR prevention flags (required for AdMob 24.x) -->
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+
+<!-- AD_ID permission (required for Play Store compliance) -->
+<uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+```
+
+### 2b. Required permissions
+
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+```
+
+---
+
+## Step 3 — Gradle Dependencies
+
+In `android/app/build.gradle`:
+
+```groovy
+dependencies {
+    // AdMob — keep in sync with Kotlin version (24.x requires Kotlin 2.x)
+    implementation 'com.google.android.gms:play-services-ads:24.4.0'
+
+    // UMP (consent) SDK — required for GDPR compliance
+    implementation 'com.google.android.ump:user-messaging-platform:3.1.0'
+}
+```
+
+In `android/build.gradle` (project level):
+
+```groovy
+buildscript {
+    ext {
+        kotlin_version = '2.2.0'  // Must be 2.x when using play-services-ads 24.x
+    }
+}
+```
+
+> **Important:** `play-services-ads` 24.x ships Kotlin 2.x metadata. If your project uses Kotlin 1.x, builds will fail. Always match the Kotlin version.
+
+---
+
+## Step 4 — Application Class (`BabelWordsApplication.kt`)
+
+Initialize the AdMob SDK as early as possible — in the Application class, not in an Activity.
+
+```kotlin
+class BabelWordsApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize AdMob SDK at app start (Google-recommended pattern)
+        MobileAds.initialize(this) { initializationStatus ->
+            Log.d("BabelWords", "AdMob initialized: $initializationStatus")
+        }
+    }
+}
+```
+
+Register in `AndroidManifest.xml`:
+
+```xml
+<application
+    android:name=".BabelWordsApplication"
+    ...>
+```
+
+---
+
+## Step 5 — Consent Flow (`AdBridge.kt`)
+
+UMP consent must be collected before loading ads. Handle this in your ad initialization:
+
+```kotlin
+class AdBridge(private val activity: Activity) {
+
+    fun requestConsent(onConsentReady: (Boolean) -> Unit) {
+        val params = ConsentRequestParameters.Builder()
+            .setTagForUnderAgeOfConsent(false)
+            .build()
+
+        val consentInformation = UserMessagingPlatform.getConsentInformation(activity)
+        consentInformation.requestConsentInfoUpdate(activity, params,
+            {
+                // Consent info updated
+                if (consentInformation.isConsentFormAvailable) {
+                    UserMessagingPlatform.loadAndShowConsentFormIfRequired(activity) { formError ->
+                        val canRequestAds = consentInformation.canRequestAds()
+                        onConsentReady(canRequestAds)
+                    }
+                } else {
+                    onConsentReady(consentInformation.canRequestAds())
+                }
+            },
+            { requestConsentError ->
+                // Consent error — allow ads with non-personalized flag as fallback
+                Log.w("BabelWords", "Consent error: ${requestConsentError.message}")
+                onConsentReady(true)
+            }
+        )
+    }
+
+    fun buildAdRequest(consentObtained: Boolean): AdRequest {
+        return if (consentObtained) {
+            AdRequest.Builder().build()
+        } else {
+            // Non-personalized ads when consent not obtained
+            val extras = Bundle().apply { putString("npa", "1") }
+            AdRequest.Builder()
+                .addNetworkExtrasBundle(AdMobAdapter::class.java, extras)
+                .build()
+        }
+    }
+}
+```
+
+---
+
+## Step 6 — Core Ad Bridge (`AdMobBridge.kt`)
+
+This is the main bridge registered as `window.AndroidAdBridge` in the WebView.
+
+### 6a. Class skeleton
+
+```kotlin
+class AdMobBridge(
+    private val activity: Activity,
+    private val webView: WebView
+) {
+    companion object {
+        const val BRIDGE_NAME = "AndroidAdBridge"
+        const val MIN_INTERSTITIAL_INTERVAL_MS = 30_000L  // 30-second frequency cap
+        const val AD_EXPIRY_MS = 4 * 60 * 60 * 1000L     // 4-hour freshness window
+
+        // Ad unit IDs — replace with your real IDs
+        const val INTERSTITIAL_AD_UNIT = "ca-app-pub-XXXXXXXXXXXXXXXX/INTERSTITIAL_ID"
+        const val REWARDED_AD_UNIT     = "ca-app-pub-XXXXXXXXXXXXXXXX/REWARDED_ID"
+    }
+
+    private var interstitialAd: InterstitialAd? = null
+    private var rewardedAd: RewardedAd? = null
+
+    private var isInterstitialLoading = false
+    private var isRewardedLoading = false
+    private var isShowingAd = false
+
+    private var pendingShowInterstitial = false
+    private var pendingShowRewarded = false
+
+    private var interstitialImpressionFired = false
+    private var rewardedImpressionFired = false
+
+    private var lastInterstitialShowTime = 0L
+    private var interstitialRetryCount = 0
+    private var rewardedRetryCount = 0
+
+    private var isActivityResumed = false
+    private var consentObtained = false
+
+    private val handler = Handler(Looper.getMainLooper())
+}
+```
+
+### 6b. 1-step load-and-show methods (register with `@JavascriptInterface`)
+
+```kotlin
+@JavascriptInterface
+fun loadInterstitialAndShow(placementId: String = "") {
+    activity.runOnUiThread {
+        checkConsentThenLoadInterstitial(autoShow = true, placementId = placementId)
+    }
+}
+
+@JavascriptInterface
+fun loadRewardedAndShow(placementId: String = "") {
+    activity.runOnUiThread {
+        checkConsentThenLoadRewarded(autoShow = true, placementId = placementId)
+    }
+}
+
+// Legacy aliases — delegate to 1-step methods for backward compatibility
+@JavascriptInterface
+fun preloadInterstitial() = loadInterstitialAndShow()
+
+@JavascriptInterface
+fun preloadRewarded() = loadRewardedAndShow()
+
+@JavascriptInterface
+fun preloadRewardedAd() = loadRewardedAndShow()
+
+@JavascriptInterface
+fun isInterstitialReady(): Boolean =
+    interstitialAd != null && !isShowingAd
+
+@JavascriptInterface
+fun isRewardedReady(): Boolean =
+    rewardedAd != null && !isShowingAd
+```
+
+### 6c. Interstitial loading
+
+```kotlin
+private fun checkConsentThenLoadInterstitial(autoShow: Boolean, placementId: String) {
+    if (isInterstitialLoading) return
+    if (interstitialAd != null && autoShow) {
+        // Already cached — show immediately
+        notifyWeb("onInterstitialAlreadyReady")
+        showInterstitialAd()
+        return
+    }
+    isInterstitialLoading = true
+    notifyWeb("onInterstitialLoading")
+
+    val adRequest = buildAdRequest()
+    InterstitialAd.load(activity, INTERSTITIAL_AD_UNIT, adRequest,
+        object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                isInterstitialLoading = false
+                interstitialRetryCount = 0
+                interstitialAd = ad
+                ad.fullScreenContentCallback = buildInterstitialCallback()
+                notifyWeb("onInterstitialReady")
+                if (autoShow || pendingShowInterstitial) {
+                    pendingShowInterstitial = false
+                    showInterstitialAd()
+                }
+            }
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                isInterstitialLoading = false
+                notifyWeb("onInterstitialLoadFailed", error.message, error.code)
+                scheduleRetry(isInterstitial = true)
+            }
+        }
+    )
+}
+
+private fun showInterstitialAd() {
+    val ad = interstitialAd ?: run {
+        pendingShowInterstitial = true
+        return
+    }
+    if (!isActivityResumed) {
+        pendingShowInterstitial = true
+        return  // Will retry on onResume
+    }
+    if (isShowingAd) {
+        notifyWeb("onInterstitialFailedToShow", "Already showing another ad", -4)
+        return
+    }
+    val now = System.currentTimeMillis()
+    if (now - lastInterstitialShowTime < MIN_INTERSTITIAL_INTERVAL_MS) {
+        notifyWeb("onInterstitialFailedToShow", "Too frequent", -14)
+        return
+    }
+    interstitialImpressionFired = false
+    isShowingAd = true
+    try {
+        ad.show(activity)
+    } catch (e: Exception) {
+        isShowingAd = false
+        notifyWeb("onInterstitialFailedToShow", e.message ?: "Show threw exception", -13)
+        scheduleRetry(isInterstitial = true)
+    }
+}
+```
+
+### 6d. Interstitial FullScreenContentCallback
+
+```kotlin
+private fun buildInterstitialCallback() = object : FullScreenContentCallback() {
+    override fun onAdShowedFullScreenContent() {
+        lastInterstitialShowTime = System.currentTimeMillis()
+        fireInterstitialImpression("onAdShowed")
+    }
+    override fun onAdDismissedFullScreenContent() {
+        isShowingAd = false
+        interstitialAd = null
+        notifyWeb("onInterstitialClosed")
+        handler.postDelayed({ loadInterstitialAndShow("background_reload") }, 2000L)
+    }
+    override fun onAdFailedToShowFullScreenContent(error: AdError) {
+        isShowingAd = false
+        interstitialAd = null
+        notifyWeb("onInterstitialFailedToShow", error.message, error.code)
+        scheduleRetry(isInterstitial = true)
+    }
+    override fun onAdImpression() {
+        fireInterstitialImpression("onAdImpression")
+    }
+    override fun onAdClicked() {
+        // Bring app to foreground after ad click (prevents Play Store redirect bug)
+        val intent = activity.packageManager
+            .getLaunchIntentForPackage(activity.packageName)
+            ?.apply { addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT) }
+        if (intent != null) activity.startActivity(intent)
+    }
+}
+
+private fun fireInterstitialImpression(path: String) {
+    if (interstitialImpressionFired) return
+    interstitialImpressionFired = true
+    notifyWebAdImpression("interstitial")
+}
+```
+
+### 6e. Rewarded loading (mirrors interstitial)
+
+```kotlin
+private fun checkConsentThenLoadRewarded(autoShow: Boolean, placementId: String) {
+    if (isRewardedLoading) return
+    if (rewardedAd != null && autoShow) {
+        notifyWeb("onRewardedAlreadyReady")
+        showRewardedAd()
+        return
+    }
+    isRewardedLoading = true
+    notifyWeb("onRewardedLoading")
+
+    val adRequest = buildAdRequest()
+    RewardedAd.load(activity, REWARDED_AD_UNIT, adRequest,
+        object : RewardedAdLoadCallback() {
+            override fun onAdLoaded(ad: RewardedAd) {
+                isRewardedLoading = false
+                rewardedRetryCount = 0
+                rewardedAd = ad
+                ad.fullScreenContentCallback = buildRewardedCallback()
+                notifyWeb("onRewardedReady")
+                if (autoShow || pendingShowRewarded) {
+                    pendingShowRewarded = false
+                    showRewardedAd()
+                }
+            }
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                isRewardedLoading = false
+                notifyWeb("onRewardedLoadFailed", error.message, error.code)
+                scheduleRetry(isInterstitial = false)
+            }
+        }
+    )
+}
+
+private fun showRewardedAd() {
+    val ad = rewardedAd ?: run { pendingShowRewarded = true; return }
+    if (!isActivityResumed) { pendingShowRewarded = true; return }
+    if (isShowingAd) {
+        notifyWeb("onRewardedFailedToShow", "Already showing another ad", -4)
+        return
+    }
+    rewardedImpressionFired = false
+    fireRewardedImpression("preShow")  // Pre-show impression for tracking
+    isShowingAd = true
+    try {
+        ad.show(activity) { rewardItem ->
+            notifyWeb("onRewardEarned", rewardItem.type, rewardItem.amount.toString())
+        }
+    } catch (e: Exception) {
+        isShowingAd = false
+        notifyWeb("onRewardedFailedToShow", e.message ?: "Show threw exception", -13)
+        scheduleRetry(isInterstitial = false)
+    }
+}
+
+private fun buildRewardedCallback() = object : FullScreenContentCallback() {
+    override fun onAdShowedFullScreenContent() {
+        fireRewardedImpression("onAdShowed")
+    }
+    override fun onAdDismissedFullScreenContent() {
+        isShowingAd = false
+        rewardedAd = null
+        notifyWeb("onRewardedClosed")
+        handler.postDelayed({ loadRewardedAndShow("background_reload") }, 2000L)
+    }
+    override fun onAdFailedToShowFullScreenContent(error: AdError) {
+        isShowingAd = false
+        rewardedAd = null
+        notifyWeb("onRewardedFailedToShow", error.message, error.code)
+        scheduleRetry(isInterstitial = false)
+    }
+    override fun onAdImpression() {
+        fireRewardedImpression("onAdImpression")
+    }
+}
+
+private fun fireRewardedImpression(path: String) {
+    if (rewardedImpressionFired) return
+    rewardedImpressionFired = true
+    notifyWebAdImpression("rewarded")
+}
+```
+
+### 6f. Retry backoff
+
+```kotlin
+private fun scheduleRetry(isInterstitial: Boolean) {
+    val retryCount = if (isInterstitial) ++interstitialRetryCount else ++rewardedRetryCount
+    val delayMs = backoffDelayMs(retryCount)
+    handler.postDelayed({
+        if (isInterstitial) checkConsentThenLoadInterstitial(autoShow = true, placementId = "retry")
+        else checkConsentThenLoadRewarded(autoShow = false, placementId = "retry")
+    }, delayMs)
+}
+
+private fun backoffDelayMs(retryCount: Int): Long = when {
+    retryCount <= 1 -> 2_000L
+    retryCount == 2 -> 4_000L
+    retryCount == 3 -> 8_000L
+    retryCount == 4 -> 16_000L
+    retryCount == 5 -> 32_000L
+    else            -> 60_000L
+}
+```
+
+### 6g. Web callbacks helper
+
+```kotlin
+private fun notifyWeb(event: String, vararg args: Any?) {
+    val argStr = args.filterNotNull().joinToString(", ") { "\"$it\"" }
+    val js = "if(window.$event) window.$event($argStr);"
+    activity.runOnUiThread {
+        webView.evaluateJavascript(js, null)
+    }
+}
+
+private fun notifyWebAdImpression(adType: String) {
+    notifyWeb("onAdImpression", adType)
+}
+
+// Called from MainActivity.onResume
+fun setActivityResumed(resumed: Boolean) {
+    isActivityResumed = resumed
+    if (resumed) {
+        if (pendingShowInterstitial) { pendingShowInterstitial = false; showInterstitialAd() }
+        if (pendingShowRewarded) { pendingShowRewarded = false; showRewardedAd() }
+    }
+}
+```
+
+---
+
+## Step 7 — App Open Ads (`AppOpenAdManager.kt`)
+
+```kotlin
+class AppOpenAdManager(
+    private val application: Application,
+    private val getWebView: () -> WebView?
+) {
+    companion object {
+        const val APP_OPEN_AD_UNIT = "ca-app-pub-XXXXXXXXXXXXXXXX/APP_OPEN_ID"
+        const val AD_EXPIRY_MS = 4 * 60 * 60 * 1000L
+    }
+
+    private var appOpenAd: AppOpenAd? = null
+    private var isLoading = false
+    private var loadTime = 0L
+
+    fun loadAd() {
+        if (isLoading || isAdAvailable()) return
+        isLoading = true
+        val request = AdRequest.Builder().build()
+        AppOpenAd.load(application, APP_OPEN_AD_UNIT, request,
+            object : AppOpenAd.AppOpenAdLoadCallback() {
+                override fun onAdLoaded(ad: AppOpenAd) {
+                    isLoading = false
+                    appOpenAd = ad
+                    loadTime = System.currentTimeMillis()
+                    ad.fullScreenContentCallback = buildCallback()
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    isLoading = false
+                    notifyWeb("onAppOpenAdLoadFailed", error.message, error.code)
+                }
+            }
+        )
+    }
+
+    fun showAdIfAvailable(activity: Activity) {
+        if (!isAdAvailable()) { loadAd(); return }
+        appOpenAd?.show(activity)
+    }
+
+    private fun isAdAvailable(): Boolean =
+        appOpenAd != null && System.currentTimeMillis() - loadTime < AD_EXPIRY_MS
+
+    private fun buildCallback() = object : FullScreenContentCallback() {
+        override fun onAdShowedFullScreenContent() { notifyWeb("onAppOpenAdShown") }
+        override fun onAdDismissedFullScreenContent() {
+            appOpenAd = null
+            notifyWeb("onAppOpenAdClosed")
+            loadAd()  // Reload for next time
+        }
+        override fun onAdImpression() { notifyWeb("onAppOpenAdImpression") }
+        override fun onAdFailedToShowFullScreenContent(error: AdError) {
+            appOpenAd = null
+            notifyWeb("onAppOpenAdLoadFailed", error.message, error.code)
+            loadAd()
+        }
+    }
+
+    private fun notifyWeb(event: String, vararg args: Any?) {
+        val argStr = args.filterNotNull().joinToString(", ") { "\"$it\"" }
+        val js = "if(window.$event) window.$event($argStr);"
+        getWebView()?.post { getWebView()?.evaluateJavascript(js, null) }
+    }
+}
+```
+
+---
+
+## Step 8 — MainActivity Wiring
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private lateinit var adMobBridge: AdMobBridge
+    private lateinit var appOpenAdManager: AppOpenAdManager
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        webView = findViewById(R.id.webView)
+        setupWebView()
+
+        // Initialize bridges
+        adMobBridge = AdMobBridge(this, webView)
+        appOpenAdManager = AppOpenAdManager(application) { webView }
+
+        // Register bridge with WebView
+        webView.addJavascriptInterface(adMobBridge, "AndroidAdBridge")
+
+        // Handle consent then preload
+        val adBridge = AdBridge(this)
+        adBridge.requestConsent { canRequestAds ->
+            if (canRequestAds) {
+                adMobBridge.preloadInterstitial()  // Warm inventory at startup
+                adMobBridge.preloadRewarded()
+                appOpenAdManager.loadAd()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        adMobBridge.setActivityResumed(true)
+        // Show App Open Ad on warm resume (background → foreground)
+        appOpenAdManager.showAdIfAvailable(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        adMobBridge.setActivityResumed(false)
+    }
+
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            mediaPlaybackRequiresUserGesture = false
+        }
+        webView.loadUrl("https://YOUR_WEB_APP_URL")
+    }
+}
+```
+
+---
+
+## Step 9 — ProGuard Rules
+
+Add to `android/app/proguard-rules.pro`:
+
+```proguard
+# Keep AdMob bridge (critical if minify is enabled)
+-keep class com.yourdomain.babelwords.ads.AdMobBridge { *; }
+-keep class com.yourdomain.babelwords.ads.AppOpenAdManager { *; }
+
+# Keep AdMob SDK
+-keep class com.google.android.gms.ads.** { *; }
+-keep class com.google.ads.** { *; }
+```
+
+> **Important:** Without these rules, release builds with minification enabled will silently strip the `@JavascriptInterface` methods and no ads will show.
+
+---
+
+## Step 10 — Error Code Reference
+
+| Code | Meaning | Auto-recovered? |
+|------|---------|----------------|
+| -2 | Activity not resumed | Yes — retried on onResume |
+| -3 | App in background | Yes — retried on foreground |
+| -4 | Already showing another ad | Yes — current ad finishes first |
+| -10 | Activity reference lost | Yes — handled internally |
+| -11 | Activity finishing/destroyed | Yes — handled internally |
+| -12 | Show stalled (watchdog) | Yes — watchdog retries |
+| -13 | Show threw exception | Yes — retried with backoff |
+| -14 | Too frequent (30s cap) | No — web app should wait |
+
+---
+
+## Step 11 — Build Checklist
+
+- [ ] AdMob App ID in `AndroidManifest.xml`
+- [ ] `OPTIMIZE_INITIALIZATION` + `OPTIMIZE_AD_LOADING` flags in manifest
+- [ ] `AD_ID` permission in manifest
+- [ ] `play-services-ads:24.x` + Kotlin `2.x` in gradle
+- [ ] `MobileAds.initialize()` in Application class
+- [ ] `AdMobBridge` registered as `window.AndroidAdBridge`
+- [ ] `AppOpenAdManager` wired to `onResume`
+- [ ] `preloadInterstitial()` + `preloadRewarded()` called after consent
+- [ ] ProGuard keep rules added
+
+---
+
+## Key Differences from LinguaVibe
+
+| Setting | LinguaVibe | BabelWords (yours) |
+|---------|-----------|-------------------|
+| App ID | `ca-app-pub-9991891515643313~7514450861` | Your AdMob App ID |
+| Bridge name | `window.AndroidAdBridge` | `window.AndroidAdBridge` (same) |
+| Interstitial cap | 30 seconds | 30 seconds (same) |
+| Ad freshness | 4 hours | 4 hours (same) |
+| Retry backoff | 2s → 4s → 8s → 16s → 32s → 60s | Same |
+| App Open | Cold start + warm resume | Same |
+
+---
+
+**Version:** Matches LinguaVibe v46.0.0  
+**Last updated:** 2026-06-26  
+**Web app counterpart:** `BABELWORDS_WEB_APP_AD_BRIDGE_GUIDE.md`  
+**CI/Firebase counterpart:** `BABELWORDS_FIREBASE_CI_GUIDE.md`
