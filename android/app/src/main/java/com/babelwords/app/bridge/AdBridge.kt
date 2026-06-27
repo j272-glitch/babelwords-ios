@@ -44,10 +44,7 @@ class AdBridge(
     @JavascriptInterface
     fun initialize() {
         val mgr = adMobManagerProvider() ?: return
-        activity.runOnUiThread {
-            mgr.preloadInterstitial()
-            mgr.preloadRewarded()
-        }
+        activity.runOnUiThread { mgr.preloadInterstitial() }
         fireEvent("adMobInitialized", "true")
     }
 
@@ -74,8 +71,9 @@ class AdBridge(
 
     @JavascriptInterface
     fun loadRewarded() {
+        // Rewarded removed — alias to interstitial preload for backward compat
         val mgr = adMobManagerProvider() ?: return
-        activity.runOnUiThread { mgr.preloadRewarded() }
+        activity.runOnUiThread { mgr.preloadInterstitial() }
     }
 
     @JavascriptInterface
@@ -84,13 +82,14 @@ class AdBridge(
             fireEvent("rewardedFailed", "manager_not_ready")
             return
         }
-        activity.runOnUiThread { mgr.showRewarded(activity) }
+        // Alias to interstitial show
+        activity.runOnUiThread { mgr.showInterstitial(activity) }
     }
 
     @JavascriptInterface
     fun isRewardedReady(): Boolean {
         val mgr = adMobManagerProvider() ?: return false
-        return mgr.isRewardedReady()
+        return mgr.isInterstitialReady() // alias to interstitial
     }
 
     @JavascriptInterface
@@ -130,35 +129,22 @@ class AdBridge(
             fireEvent("interstitialFailed", "manager_not_ready")
             return
         }
-        activity.runOnUiThread {
-            if (mgr.isInterstitialReady()) {
-                mgr.showInterstitial(activity)
-            } else {
-                mgr.preloadInterstitial()
-            }
-        }
+        activity.runOnUiThread { mgr.loadInterstitialAndShow(activity) }
     }
 
     @JavascriptInterface
     fun loadRewardedAndShow() {
+        // Backward-compat alias — rewarded video removed, now uses interstitial
         val mgr = adMobManagerProvider() ?: run {
             fireEvent("rewardedFailed", "manager_not_ready")
             return
         }
-        activity.runOnUiThread {
-            if (mgr.isRewardedReady()) {
-                mgr.showRewarded(activity)
-            } else {
-                mgr.preloadRewarded()
-            }
-        }
+        activity.runOnUiThread { mgr.loadRewardedAndShow(activity) }
     }
 
     // ==================== Lifecycle (called from MainActivity) ====================
-    fun setActivityResumed(resumed: Boolean) {
-        val mgr = adMobManagerProvider() ?: return
-        mgr.setActivityResumed(resumed)
-    }
+    // No-op: AdMobManager now handles its own foreground tracking via
+    // onActivityResumed / onActivityPaused (called directly from MainActivity).
 
     // ==================== Event dispatch ====================
     internal fun fireEvent(eventType: String, data: String = "") {

@@ -348,8 +348,7 @@
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 
-# AppOpenAdManager (JavaScript interface not exposed, but keep for safety)
--keep class com.babelwords.app.ads.AppOpenAdManager { *; }
+# AppOpenAdManager removed — foreground interstitial replaces App Open ads
 
 # ConsentManager (not a JS interface, but critical for ad functionality)
 -keep class com.babelwords.app.ads.ConsentManager { *; }
@@ -486,11 +485,7 @@
 
 # Keep AdLoadCallback classes (legacy)
 -keep class com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback { *; }
--keep class com.google.android.gms.ads.rewarded.RewardedAdLoadCallback { *; }
-
-# Keep OnUserEarnedRewardListener (legacy)
--keep class com.google.android.gms.ads.OnUserEarnedRewardListener { *; }
--keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
+# RewardedAd classes removed — interstitial-only ad strategy (2026-06-26)
 
 # Keep IMAManager class
 -keep class com.babelwords.app.ads.IMAManager { *; }
@@ -502,9 +497,7 @@
 # Keep AdMob callback classes (ANDROID_PROGUARD_004)
 -keep class com.google.android.gms.ads.FullScreenContentCallback { *; }
 -keep class com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback { *; }
--keep class com.google.android.gms.ads.rewarded.RewardedAdLoadCallback { *; }
--keep class com.google.android.gms.ads.OnUserEarnedRewardListener { *; }
--keep class com.google.android.gms.ads.rewarded.RewardItem { *; }
+# RewardedAd classes removed — interstitial-only ad strategy (2026-06-26)
 -keep class com.google.android.gms.ads.AdError { *; }
 -keep class com.google.android.gms.ads.LoadAdError { *; }
 

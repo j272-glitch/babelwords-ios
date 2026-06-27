@@ -1,0 +1,285 @@
+# Android App Ad Changes — Complete Guide
+
+## Overview
+
+This document summarizes all Android-side changes needed for the LinguaLink ad system.
+
+**Key change:** Rewarded video removed. All ad triggers now use static interstitial.
+App Open replaced with interstitial-on-foreground for higher impression volume.
+
+---
+
+## What Must Change in Android Code
+
+### 1. Remove RewardedAd entirely
+
+**Delete or comment out all `RewardedAd.load()` calls.**
+
+```kotlin
+// DELETE these:
+// RewardedAd.load(context, REWARDED_AD_UNIT_ID, adRequest, rewardedCallback)
+// rewardedAd.show(activity)
+// rewardedAd.setServerSideVerificationOptions(...)
+```
+
+### 2. Keep `loadRewardedAndShow()` as alias
+
+The web app still calls `loadRewardedAndShow()` for the "Watch ad for more" button.
+Keep this method but make it a one-line alias:
+
+```kotlin
+@JavascriptInterface
+fun loadRewardedAndShow() = loadInterstitialAndShow()
+```
+
+### 3. Core interstitial method
+
+```kotlin
+@JavascriptInterface
+fun loadInterstitialAndShow() {
+    activity.runOnUiThread {
+        InterstitialAd.load(
+            context,
+            INTERSTITIAL_AD_UNIT_ID,  // ca-app-pub-9991891515643313/5076005693
+            AdRequest.Builder().build(),
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                        override fun onAdDismissedFullScreenContent() {
+                            webView.evaluateJavascript(
+                                "window.onInterstitialClosed && window.onInterstitialClosed()", null
+                            )
+                        }
+                        override fun onAdImpression() {
+                            webView.evaluateJavascript(
+                                "window.onAdImpression && window.onAdImpression('interstitial')", null
+                            )
+                        }
+                        override fun onAdFailedToShowFullScreenContent(error: AdError) {
+                            webView.evaluateJavascript(
+                                "window.onInterstitialFailed && window.onInterstitialFailed('${error.message}', ${error.code})", null
+                            )
+                        }
+                    }
+                    ad.show(activity)
+                }
+                override fun onAdFailedToLoad(error: LoadAdError) {
+                    webView.evaluateJavascript(
+                        "window.onInterstitialFailed && window.onInterstitialFailed('${error.message}', ${error.code})", null
+                    )
+                }
+            }
+        )
+    }
+}
+```
+
+### 4. Preload on app open / resume
+
+```kotlin
+override fun onResume() {
+    super.onResume()
+    preloadInterstitial()
+}
+
+private var cachedInterstitial: InterstitialAd? = null
+
+private fun preloadInterstitial() {
+    InterstitialAd.load(
+        this,
+        INTERSTITIAL_AD_UNIT_ID,
+        AdRequest.Builder().build(),
+        object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                cachedInterstitial = ad
+            }
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                cachedInterstitial = null
+            }
+        }
+    )
+}
+```
+
+Then use cache in `loadInterstitialAndShow()`:
+
+```kotlin
+@JavascriptInterface
+fun loadInterstitialAndShow() {
+    activity.runOnUiThread {
+        val cached = cachedInterstitial
+        if (cached != null) {
+            cachedInterstitial = null
+            cached.show(activity)
+            preloadInterstitial()  // preload next one
+        } else {
+            // load fresh (see full method above)
+        }
+    }
+}
+```
+
+### 5. Retry on timeout (code -2)
+
+```kotlin
+private var retryCount = 0
+
+override fun onAdFailedToLoad(error: LoadAdError) {
+    val delayMs = when {
+        error.code == -2 && retryCount == 0 -> 0L      // first timeout: retry immediately
+        error.code == -2 -> (2000L * retryCount).coerceAtMost(30_000L)
+        error.code == 3  -> 30_000L                     // no fill: wait 30s
+        else             -> 5_000L
+    }
+    retryCount++
+    if (retryCount <= 5) {
+        handler.postDelayed({ preloadInterstitial() }, delayMs)
+    } else {
+        retryCount = 0
+    }
+}
+```
+
+### 6. Replace AppOpenAd with interstitial-on-foreground
+
+**Delete `AppOpenAdManager` or `AppOpenAd.load()` calls.**
+
+Replace with interstitial shown when app comes to foreground:
+
+```kotlin
+private var lastForegroundAdTime = 0L
+private val FOREGROUND_AD_COOLDOWN_MS = 5 * 60 * 1000L  // 5 minutes
+
+override fun onActivityResumed(activity: Activity) {
+    val now = System.currentTimeMillis()
+    if (now - lastForegroundAdTime < FOREGROUND_AD_COOLDOWN_MS) return
+    lastForegroundAdTime = now
+
+    InterstitialAd.load(
+        activity,
+        INTERSTITIAL_AD_UNIT_ID,
+        AdRequest.Builder().build(),
+        object : InterstitialAdLoadCallback() {
+            override fun onAdLoaded(ad: InterstitialAd) {
+                ad.fullScreenContentCallback = object : FullScreenContentCallback() {
+                    override fun onAdDismissedFullScreenContent() {
+                        webView.evaluateJavascript(
+                            "window.onInterstitialClosed && window.onInterstitialClosed()", null
+                        )
+                    }
+                    override fun onAdImpression() {
+                        webView.evaluateJavascript(
+                            "window.onAdImpression && window.onAdImpression('interstitial')", null
+                        )
+                    }
+                }
+                ad.show(activity)
+            }
+            override fun onAdFailedToLoad(error: LoadAdError) {
+                // Silently ignore — foreground ad is not user-initiated
+            }
+        }
+    )
+}
+```
+
+---
+
+## Bridge Methods Summary
+
+| Method | Required | Action |
+|--------|----------|--------|
+| `loadInterstitialAndShow()` | ✅ Yes | Primary trigger — loads + shows interstitial |
+| `loadRewardedAndShow()` | ✅ Yes | Alias → `loadInterstitialAndShow()` |
+| `isInterstitialReady()` | Optional | Returns true if cached ad ready |
+| `isRewardedReady()` | Optional | Can return same as `isInterstitialReady()` |
+| `preloadInterstitial()` | Optional | Preload only — no show |
+| `preloadRewarded()` | ❌ Remove | No longer used |
+| `showInterstitial()` | ❌ Remove | Legacy, replaced by `loadInterstitialAndShow()` |
+| `showRewarded()` | ❌ Remove | Legacy, replaced by `loadRewardedAndShow()` |
+| `AppOpenAdManager` | ❌ Remove | Replaced with `onActivityResumed` + interstitial |
+| `RewardedAd.load()` | ❌ Remove | Rewarded video eliminated |
+
+---
+
+## Liftoff Mediation (Optional)
+
+If activating `LV_APP_OPEN-7196969`:
+
+### Gradle dependency
+
+```gradle
+dependencies {
+    implementation 'com.vungle:vungle-ads:7.4.1'
+}
+```
+
+### SDK initialization
+
+```kotlin
+import com.vungle.ads.VungleAds
+
+class MyApplication : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        VungleAds.init(this, "YOUR_LIFTOFF_APP_ID") { error ->
+            if (error == null) Log.d("Liftoff", "Initialized")
+            else Log.e("Liftoff", "Init failed: ${error.message}")
+        }
+    }
+}
+```
+
+### AdMob mediation config
+
+> AdMob → Mediation → Create mediation group
+> → Ad format: App Open
+> → Add ad source: Liftoff Monetize
+> → Placement ID: `LV_APP_OPEN-7196969`
+
+---
+
+## Server-Side Verification (SSV) — Optional Future Use
+
+If you re-add rewarded video later:
+
+### AdMob Console
+
+> Ad units → Rewarded → Server-side verification → Enable
+> → Callback URL: `https://gtlingua.com/api/ads/reward-verify`
+
+### Android code needed
+
+```kotlin
+val ssvOptions = ServerSideVerificationOptions.Builder()
+    .setUserId(currentSessionId)   // web app session ID
+    .build()
+rewardedAd.setServerSideVerificationOptions(ssvOptions)
+```
+
+**Where to get `currentSessionId`:** Read `localStorage.getItem('lingualink_session_id')`
+from the WebView and pass it to Android via the bridge.
+
+---
+
+## AdMob Console Changes Required
+
+| Ad Unit | ID | Action | Priority |
+|---------|----|--------|----------|
+| Interstitial | `ca-app-pub-9991891515643313/5076005693` | Set to **Image only** | ✅ Critical |
+| App Open | `ca-app-pub-9991891515643313/3278416949` | Set to **Image only** | ✅ Critical |
+| Rewarded | `ca-app-pub-9991891515643313/6313049833` | Optional — not used | ❌ Low |
+| Rewarded → SSV | Same as above | Enable if re-adding rewarded later | ❌ Future |
+
+---
+
+## Testing Checklist
+
+- [ ] Interstitial loads and shows on "5 translations used" trigger
+- [ ] Interstitial loads and shows on "Watch ad for more" trigger
+- [ ] +5 translations granted after interstitial dismissed
+- [ ] 30-min unlimited granted after interstitial dismissed
+- [ ] App foreground shows interstitial (with 5-min cooldown)
+- [ ] No `RewardedAd.load()` calls in code
+- [ ] No `AppOpenAd` loading in code
+- [ ] Impressions reach production DB (`ad_events` table)

@@ -8,7 +8,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.ads.MobileAds
 import com.babelwords.app.ads.AdMobManager
-import com.babelwords.app.ads.AppOpenAdManager
 import com.babelwords.app.ads.ConsentManager
 import com.babelwords.app.bridge.AdBridge
 import com.babelwords.app.bridge.SubscriptionBridge
@@ -20,7 +19,6 @@ class MainActivity : AppCompatActivity() {
     private var adMobManager: AdMobManager? = null
     private lateinit var adBridge: AdBridge
     private lateinit var consentManager: ConsentManager
-    private var appOpenAdManager: AppOpenAdManager? = null
     private lateinit var subscriptionBridge: SubscriptionBridge
 
     private val WEB_APP_URL = "https://linguagt.com"
@@ -54,30 +52,9 @@ class MainActivity : AppCompatActivity() {
                 getConsentManager = { consentManager }
             )
 
-            appOpenAdManager = AppOpenAdManager(
-                application = application,
-                adUnitId = getString(R.string.admob_app_open_id),
-                getConsentManager = { consentManager },
-                eventCallback = { event, data ->
-                    runOnUiThread {
-                        val escaped = (data ?: "")
-                            .replace("\\", "\\\\")
-                            .replace("'", "\\'")
-                            .replace("\n", "\\n")
-                            .replace("\r", "\\r")
-                        webView.evaluateJavascript(
-                            "window.onAdBridgeEvent && window.onAdBridgeEvent('$event', '$escaped');",
-                            null
-                        )
-                    }
-                }
-            )
-
             // Show consent form if needed, then load ads
             consentManager.requestConsent(this@MainActivity) { canRequestAds ->
                 adMobManager?.preloadInterstitial()
-                adMobManager?.preloadRewarded()
-                appOpenAdManager?.loadAd()
             }
         }
 
@@ -111,14 +88,13 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         webView.onResume()
-        adBridge.setActivityResumed(true)
-        appOpenAdManager?.showAdIfAvailable(this)
+        adMobManager?.onActivityResumed(this)
     }
 
     override fun onPause() {
         super.onPause()
         webView.onPause()
-        adBridge.setActivityResumed(false)
+        adMobManager?.onActivityPaused()
     }
 
     override fun onDestroy() {

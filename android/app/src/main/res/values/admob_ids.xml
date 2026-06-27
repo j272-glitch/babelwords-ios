@@ -6,5 +6,5 @@
         App ID lives in strings.xml as admob_app_id.
     -->
     <string name="admob_interstitial_id">ca-app-pub-9991891515643313/7320741331</string>
-    <string name="admob_rewarded_id">ca-app-pub-9991891515643313/5816087977</string>
+    <!-- Rewarded ad unit removed — all ad triggers now use interstitials -->
 </resources>
