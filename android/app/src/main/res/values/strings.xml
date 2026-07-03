@@ -8,8 +8,8 @@
 
     <!-- AdMob Ad Unit IDs -->
     <string name="admob_interstitial_id">ca-app-pub-9991891515643313/7320741331</string>
-    <!-- App Open: Google sample ID (replace with real unit when ready) -->
-    <string name="admob_app_open_id">ca-app-pub-3940256099942544/9251695926</string>
+    <!-- App Open: live production unit -->
+    <string name="admob_app_open_id">ca-app-pub-9991891515643313/3733157606</string>
     <!-- Rewarded ad unit removed — all ad triggers now use interstitials -->
     <!-- Loading Messages -->
     <string name="loading_translation_app">Loading Translation App…</string>
