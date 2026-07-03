@@ -1,0 +1,428 @@
+# BabelWords Android — v50 Ad System Migration Guide
+
+**Source:** LinguaVibe v50.0.0 production ad system  
+**Date:** 2026-07-03  
+**Scope:** Port the complete LinguaVibe v50 ad stack — App Open ads, ANR prevention, lifecycle guards, and mic safety — to the BabelWords Android app.
+
+> **Architecture note:** BabelWords is a native Kotlin WebView wrapper, same as LinguaVibe. It builds **only in GitHub Actions** (no local Android SDK). All changes are compiled and tested via CI.
+
+---
+
+## 1. What v50 Adds (vs the Pre-v50 Interstitial-Only Setup)
+
+| Feature | Pre-v50 | v50 | Revenue Impact |
+|---------|---------|-----|----------------|
+| Interstitial | ✅ Static image only | ✅ Same | Baseline |
+| Rewarded | ❌ Removed (alias to interstitial) | ✅ Same alias | No change |
+| App Open | ❌ None / foreground interstitial alias | ✅ Real AppOpenAd with warm-resume | **+12–17 impressions/day** |
+| ANR prevention | ❌ None | ✅ `OPTIMIZE_INITIALIZATION` + `OPTIMIZE_AD_LOADING` | Fewer crashes = more impressions |
+| Lifecycle guards | ❌ Basic | ✅ `isDestroyed` flag on all ad managers | No leaked Activities or stray callbacks |
+| Mic safety | ❌ None | ✅ JS heartbeat + 45s watchdog | No blocked ads during recording |
+| Speed-aware preload | ❌ Always preload | ✅ Skip on slow cellular | Better UX on 2G/3G |
+| Frequency cap | ❌ In-memory only | ✅ SharedPreferences (survives process death) | Consistent 4h cap |
+
+---
+
+## 2. Placeholder Map — BabelWords Values to Substitute
+
+| Placeholder | What to put | LinguaVibe example |
+|---|---|---|
+| `«BW_DOMAIN»` | BabelWords web domain | `gtlingua.com` |
+| `«BW_PACKAGE»` | Android package name | `com.lingualink.linguagt` |
+| `«BW_SCHEME»` | Custom deep-link scheme | `gtlingua` |
+| `«BW_ADMOB_APP_ID»` | AdMob App ID | `ca-app-pub-9991891515643313~7514450861` |
+| `«BW_INTERSTITIAL_UNIT»` | Interstitial ad unit | `/5076005693` |
+| `«BW_REWARDED_UNIT»` | Rewarded ad unit | `/6313049833` |
+| `«BW_APPOPEN_UNIT»` | App Open ad unit | `/3278416949` |
+
+> **Never copy LinguaVibe's ad unit IDs.** Create your own in the AdMob console.
+
+---
+
+## 3. Android Manifest (`AndroidManifest.xml`)
+
+Inside `<application>`, add these three entries:
+
+```xml
+<!-- AdMob App ID -->
+<meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="«BW_ADMOB_APP_ID»"/>
+
+<!-- ANR prevention flags (REQUIRED for play-services-ads 24.x) -->
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+```
+
+Also keep the existing permissions:
+```xml
+<uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+```
+
+> **Critical:** The flag values must be `"true"` (string), not `"1"`. `play-services-ads-api:24.9.0` defines these flags internally with `android:value="true"`, and the manifest merger will fail if your value doesn't match exactly.
+
+---
+
+## 4. Gradle Dependencies (`app/build.gradle`)
+
+Keep the proven working set:
+
+```groovy
+dependencies {
+    // Google Mobile Ads — 24.x requires Kotlin 2.x (see §5)
+    implementation 'com.google.android.gms:play-services-ads:24.9.0'
+
+    // UMP (consent) SDK
+    implementation 'com.google.android.ump:user-messaging-platform:3.1.0'
+
+    // Lifecycle components (for AppOpenAdManager DefaultLifecycleObserver)
+    implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+
+    // Optional mediation adapters — only if already approved in AdMob console
+    // implementation 'com.google.ads.mediation:unity:4.16.6.0'
+    // implementation 'com.google.ads.mediation:vungle:7.7.0.0'
+}
+```
+
+And in the project-level `build.gradle`:
+```groovy
+buildscript {
+    ext {
+        kotlin_version = '2.2.0'  // Must be ≥2.2.0 for play-services-ads 24.9.0
+    }
+}
+```
+
+---
+
+## 5. Kotlin Version Warning (Critical)
+
+`play-services-ads:24.9.0` ships **Kotlin 2.2.0 metadata**. If BabelWords is still on Kotlin 1.9.x, the build fails at `:app:compileReleaseKotlin` with:
+
+```
+was compiled with an incompatible version of Kotlin.
+The binary version of its metadata is 2.2.0, expected version is 1.9.0
+```
+
+**Fix:** Bump both the Kotlin Gradle plugin version and `ext.kotlin_version` to `2.2.0` (or higher, matching whatever the ads SDK requires). Do this **before** adding the v50 ad code.
+
+---
+
+## 6. App Open AdManager (`AppOpenAdManager.kt`) — The New File
+
+This is the biggest addition. Copy LinguaVibe's `AppOpenAdManager.kt` and adapt the placeholders:
+
+### 6a. Class structure
+
+```kotlin
+class AppOpenAdManager(
+    private val activity: MainActivity
+) : DefaultLifecycleObserver {
+
+    companion object {
+        private const val AD_UNIT_ID = "ca-app-pub-«BW_ADMOB_APP_ID_PREFIX»/«BW_APPOPEN_UNIT»"
+        private const val LOAD_TIMEOUT_MS = 15_000L
+        private const val FREQUENCY_CAP_MS = 4 * 60 * 60 * 1000L  // 4 hours
+        private const val BACKGROUND_THRESHOLD_MS = 5_000L         // 5s for warm-resume
+        private const val RETRY_NO_FILL_MS = 60_000L
+        private const val RETRY_TIMEOUT_MS = 20_000L
+        private const val RETRY_NETWORK_MS = 15_000L
+        private const val PREFS_NAME = "app_open_ad_prefs"
+        private const val PREF_LAST_SHOW = "app_open_last_show_ms"
+    }
+
+    @Volatile
+    private var isDestroyed = false
+
+    private var appOpenAd: AppOpenAd? = null
+    private var isLoading = false
+    private var isShowingAd = false
+    private var loadStartTime = 0L
+    private var lastBackgroundTime = 0L
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var loadTimeoutRunnable: Runnable? = null
+    private var prefs: SharedPreferences = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    // ... rest of the class (see LinguaVibe source for full implementation)
+}
+```
+
+### 6b. Key behaviors to preserve
+
+| Behavior | How it works |
+|----------|--------------|
+| **Warm-resume** | `onStop` records timestamp; `onResume` checks if ≥5s passed → shows ad |
+| **4h frequency cap** | Reads/writes `SharedPreferences` key `app_open_last_show_ms` |
+| **15s timeout** | `handler.postDelayed` with `LOAD_TIMEOUT_MS` → nulls stale ad |
+| **Error backoff** | No-fill → 60s, timeout → 20s, network → 15s |
+| **Destroyed guard** | Every `loadAd()`, `showAd()`, and callback body checks `if (isDestroyed) return` |
+| **Thread confinement** | All SDK callbacks (`onAdLoaded`, `onAdFailedToLoad`) are wrapped in `handler.post {}` so they run on the main Looper, serialized with `cleanup()` |
+
+### 6c. Lifecycle wiring in `MainActivity.kt`
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var appOpenAdManager: AppOpenAdManager
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // ... existing setup ...
+        appOpenAdManager = AppOpenAdManager(this)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appOpenAdManager)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        appOpenAdManager.cleanup()
+    }
+}
+```
+
+---
+
+## 7. Interstitial/Rewarded Bridge Updates
+
+### 7a. `AdMobBridge.kt` — Add destroyed-flag guards
+
+In the interstitial `loadInterstitialAd()` callback:
+
+```kotlin
+InterstitialAd.load(activity, INTERSTITIAL_AD_UNIT, request,
+    object : InterstitialAdLoadCallback() {
+        override fun onAdLoaded(ad: InterstitialAd) {
+            if (isDestroyed) {  // ← ADD THIS
+                ad.fullScreenContentCallback = null
+                return
+            }
+            // ... existing logic ...
+        }
+        override fun onAdFailedToLoad(error: LoadAdError) {
+            if (isDestroyed) return  // ← ADD THIS
+            // ... existing logic ...
+        }
+    })
+```
+
+Also add `isDestroyed` at the top of `destroy()` and check it in `showInterstitial()` / `showRewarded()`.
+
+### 7b. `AdPreloadManager.kt` — Add destroyed-flag + speed-aware preload
+
+```kotlin
+@Volatile
+private var isDestroyed = false
+
+fun clearCallbacks() {
+    isDestroyed = true  // ← set FIRST, before nulling references
+    // ... null callbacks ...
+}
+
+// In onAdLoaded / onAdFailedToLoad:
+if (isDestroyed) {
+    ad?.fullScreenContentCallback = null
+    return
+}
+```
+
+For speed-aware preload (add in `preloadIfNeeded()`):
+
+```kotlin
+fun preloadIfNeeded() {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork ?: return
+    val capabilities = cm.getNetworkCapabilities(network) ?: return
+    val isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+    val isUnmetered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED).not()
+    // Only preload on WiFi or fast unmetered; skip on slow cellular
+    if (!isWifi && !isUnmetered) {
+        Log.d("AdPreload", "Skipping preload on slow/metered network")
+        return
+    }
+    // ... existing preload logic ...
+}
+```
+
+---
+
+## 8. Mic Safety (`MainActivity.kt`)
+
+If BabelWords has speech/audio features, add the mic guard so App Open ads don't interrupt recording:
+
+### 8a. Add the flag and watchdog
+
+```kotlin
+@Volatile
+var isMicActive: Boolean = false  // Do NOT assign directly — use setMicState()
+
+private val micWatchdogHandler = Handler(Looper.getMainLooper())
+private var micWatchdogRunnable: Runnable? = null
+private const val MIC_WATCHDOG_MS = 45_000L
+
+fun setMicState(active: Boolean) {
+    isMicActive = active
+    if (active) {
+        micWatchdogRunnable?.let { micWatchdogHandler.removeCallbacks(it) }
+        val watchdog = Runnable {
+            if (isMicActive) {
+                // Stale lock — renderer probably crashed mid-recording
+                isMicActive = false
+                Log.w("MicWatchdog", "isMicActive reset after ${MIC_WATCHDOG_MS / 1000}s (stale lock cleared)")
+            }
+        }
+        micWatchdogRunnable = watchdog
+        micWatchdogHandler.postDelayed(watchdog, MIC_WATCHDOG_MS)
+    } else {
+        micWatchdogRunnable?.let {
+            micWatchdogHandler.removeCallbacks(it)
+            micWatchdogRunnable = null
+        }
+    }
+}
+```
+
+> **Critical:** The property is `var isMicActive` (Kotlin auto-generates a setter). Your explicit method must be named something **else** — `setMicState`, NOT `setMicActive`, or you'll get a "platform declaration clash" build error.
+
+### 8b. Add JS heartbeat (in the injected getUserMedia wrapper)
+
+While any audio track is `live`, re-call `window.AndroidBridge.notifyMicActive(true)` every 15 seconds. Each call routes through `setMicState(true)`, which re-arms the 45s watchdog. A genuine long recording never lets the watchdog fire; a crash/freeze does.
+
+### 8c. Reset mic on lifecycle events
+
+```kotlin
+// In WebViewClient:
+override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+    if (isMicActive) { setMicState(false); Log.d("Mic", "Reset on navigation") }
+    super.onPageStarted(view, url, favicon)
+}
+
+override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+    if (isMicActive) { setMicState(false); Log.w("Mic", "Reset on renderer crash") }
+    // ... existing logic ...
+}
+```
+
+### 8d. Block App Open ad during recording
+
+In `AppOpenAdManager.showAdIfAvailable()`:
+
+```kotlin
+if (activity.isMicActive) {
+    Log.d("AppOpen", "Blocked — mic is active")
+    return
+}
+```
+
+---
+
+## 9. Audio Routing Symmetry
+
+Ads need `AudioManager.MODE_NORMAL` while on screen. Toggle audio mode on every show/dismiss/fail edge:
+
+```kotlin
+private fun setAudioModeForAd() {
+    val am = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    am.mode = AudioManager.MODE_NORMAL
+}
+
+private fun restoreAudioMode() {
+    val am = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    am.mode = AudioManager.MODE_IN_COMMUNICATION  // or MODE_NORMAL if no mic
+}
+```
+
+Call `setAudioModeForAd()` before `ad.show()` and `restoreAudioMode()` in `onAdDismissed`, `onAdFailedToShow`, and `onAdShowed` callbacks.
+
+---
+
+## 10. CI Workflow Updates
+
+In `.github/workflows/«your-workflow».yml`, add a manifest verification step:
+
+```yaml
+- name: Verify ANR flags in merged manifest
+  run: |
+    MANIFEST="android/app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
+    if [ ! -f "$MANIFEST" ]; then
+      echo "::error::Merged manifest not found"
+      exit 1
+    fi
+    if ! grep -q 'OPTIMIZE_INITIALIZATION' "$MANIFEST"; then
+      echo "::error::OPTIMIZE_INITIALIZATION flag missing from manifest"
+      exit 1
+    fi
+    if ! grep -q 'OPTIMIZE_AD_LOADING' "$MANIFEST"; then
+      echo "::error::OPTIMIZE_AD_LOADING flag missing from manifest"
+      exit 1
+    fi
+    echo "✅ ANR prevention flags verified in merged manifest"
+```
+
+Also verify `AD_ID` permission:
+```yaml
+- name: Verify AD_ID permission
+  run: |
+    aapt dump permissions android/app/build/outputs/apk/release/*.apk | grep -q AD_ID
+```
+
+---
+
+## 11. Version Bump Checklist
+
+Bump in **all three** places for every release:
+
+| File | Fields |
+|---|---|
+| `android/app/build.gradle` | `versionCode`, `versionName` |
+| `android/build.gradle` | `versionCode`, `versionName` (duplicate block in `subprojects`) |
+| `.github/workflows/«workflow».yml` | `VERSION_CODE`, `VERSION_NAME` env defaults + input defaults |
+
+**Rules:**
+- `versionCode` must increase for every Play Store upload (never reuse).
+- A failed build still "burns" the version number — bump again for the retry.
+
+---
+
+## 12. Post-Migration Checklist
+
+- [ ] `AppOpenAdManager.kt` added with `«BW_APPOPEN_UNIT»`
+- [ ] `OPTIMIZE_INITIALIZATION` + `OPTIMIZE_AD_LOADING` in manifest (value `"true"`)
+- [ ] `AD_ID` permission in manifest
+- [ ] Kotlin ≥2.2.0 in both plugin and `ext.kotlin_version`
+- [ ] `isDestroyed` guard added to `AdMobBridge.kt` interstitial callbacks
+- [ ] `isDestroyed` guard added to `AdPreloadManager.kt` callbacks
+- [ ] Speed-aware preload gate in `AdPreloadManager.kt`
+- [ ] Mic watchdog + `setMicState()` in `MainActivity.kt` (if audio features exist)
+- [ ] JS heartbeat calling `notifyMicActive(true)` every 15s during recording
+- [ ] `isMicActive` check blocking App Open ad show
+- [ ] Audio mode toggle (MODE_NORMAL on show, restore on dismiss/fail)
+- [ ] CI manifest verification step added
+- [ ] Version bumped in all 3 files
+- [ ] GitHub Secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+- [ ] Build passes in CI (`:app:compileReleaseKotlin` → `:app:bundleRelease` → green)
+- [ ] AAB inspected: `unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a 'OPTIMIZE'`
+
+---
+
+## 13. Troubleshooting
+
+| CI Error | Cause | Fix |
+|----------|-------|-----|
+| `Manifest merger failed` on OPTIMIZE flags | Value is `"1"` instead of `"true"` | Change to `android:value="true"` |
+| `Platform declaration clash: setMicActive(Z)V` | Explicit `fun setMicActive` collides with Kotlin property setter | Rename to `setMicState` |
+| `this is not an abstract class` in Runnable | `this` inside `Runnable {}` refers to enclosing class, not Runnable | Use stored runnable reference: `handler.postDelayed(micWatchdogRunnable, delay)` |
+| `incompatible version of Kotlin` | Kotlin 1.9.x trying to read ads SDK 2.2.0 metadata | Bump Kotlin to 2.2.0 |
+| `Activity leak` in LeakCanary | Old ad manager instance still receiving callbacks | Ensure `cleanup()` calls `handler.removeCallbacksAndMessages(null)` and sets `isDestroyed = true` |
+| App Open ad never shows | `isMicActive` stuck true after crash | Check mic watchdog + JS heartbeat are wired |
+| Ad shows but no impression | `isShowingAd` stuck true after exception | Add try/catch around `ad.show()` with `isShowingAd = false` in catch |
+
+---
+
+**Version:** LinguaVibe v50.0.0 ad system  
+**Companion guides:** `BABELWORDS_ANDROID_AD_SETUP_GUIDE.md` (interstitial-only base), `BABELWORDS_WEB_APP_AD_BRIDGE_GUIDE.md` (JS side), `BABELWORDS_FIREBASE_CI_GUIDE.md` (Test Lab)  
+**Last updated:** 2026-07-03
