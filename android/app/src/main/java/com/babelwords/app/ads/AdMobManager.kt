@@ -2,6 +2,9 @@ package com.babelwords.app.ads
 
 import android.app.Activity
 import android.content.Context
+import android.media.AudioManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -13,18 +16,20 @@ import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
 
 /**
- * Interstitial-only ad manager.
+ * Interstitial-only ad manager (v50 — with isDestroyed guards + speed-aware preload).
  *
- * Rewarded video and App Open ads have been removed per the v2026-06-26 ad
- * strategy change. All ad triggers now use static interstitials.
+ * Rewarded video and App Open ads have been removed. All ad triggers use static interstitials.
  *
  * Key methods:
  *   loadInterstitialAndShow()  — primary trigger (loads + shows)
  *   loadRewardedAndShow()      — backward-compat alias → loadInterstitialAndShow()
  *   preloadInterstitial()      — warm cache for faster show
+ *   destroy()                  — set isDestroyed, cancel all pending work
  *
  * Foreground ad: shows an interstitial when the app resumes from background
  * (5-minute cooldown). This replaces the removed App Open ad format.
+ *
+ * Speed-aware: skips preload on slow/metered cellular networks.
  *
  * Events sent to the web app (window.onAdBridgeEvent):
  *   interstitialLoaded / interstitialShown / interstitialClosed / interstitialFailed
@@ -37,12 +42,15 @@ class AdMobManager(
     private val TAG = "AdMobManager"
 
     companion object {
-        // Sample unit — used ONLY in Firebase Test Lab (never on real devices).
+        // Sample unit — used ONLY in Firebase Test Lab.
         private const val TEST_INTERSTITIAL_ID = "ca-app-pub-3940256099942544/1033173712"
         private const val MAX_AUTO_SHOW_ATTEMPTS = 3
         // Foreground interstitial cooldown (5 minutes)
         private const val FOREGROUND_AD_COOLDOWN_MS = 5 * 60 * 1000L
     }
+
+    @Volatile
+    private var isDestroyed = false
 
     private var interstitialAd: InterstitialAd? = null
     private var loadingInterstitial = false
@@ -58,7 +66,7 @@ class AdMobManager(
     private var wasBackgrounded = false
     private var backgroundTimestamp = 0L
 
-    // Test Lab auto-show (for Test Lab video proof only)
+    // Test Lab auto-show
     private var hasAutoShownInterstitial = false
     private var interstitialAutoShowAttempts = 0
 
@@ -78,7 +86,14 @@ class AdMobManager(
 
     // ==================== Preload ====================
     fun preloadInterstitial() {
-        if (interstitialAd != null || loadingInterstitial) return
+        if (isDestroyed || interstitialAd != null || loadingInterstitial) return
+
+        // Speed-aware: skip preload on slow/metered cellular
+        if (shouldSkipPreload()) {
+            Log.d(TAG, "Skipping preload on slow/metered network")
+            return
+        }
+
         loadingInterstitial = true
         Log.d(TAG, "Loading interstitial…")
 
@@ -86,6 +101,10 @@ class AdMobManager(
         InterstitialAd.load(context, interstitialAdUnitId, request,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
+                    if (isDestroyed) {
+                        ad.fullScreenContentCallback = null
+                        return
+                    }
                     Log.d(TAG, "✅ Interstitial loaded")
                     interstitialAd = ad
                     loadingInterstitial = false
@@ -95,6 +114,7 @@ class AdMobManager(
                     maybeAutoShowInterstitial()
                 }
                 override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                    if (isDestroyed) return
                     Log.w(TAG, "Interstitial load failed: ${error.message} (code=${error.code})")
                     interstitialAd = null
                     loadingInterstitial = false
@@ -105,8 +125,21 @@ class AdMobManager(
         )
     }
 
+    private fun shouldSkipPreload(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = cm.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(network) ?: return false
+        val isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        val isEthernet = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        val isUnmetered = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        // Only skip if we're on a metered, non-WiFi/non-Ethernet connection
+        return !isWifi && !isEthernet && !isUnmetered
+    }
+
     // ==================== Show ====================
     fun showInterstitial(activity: Activity) {
+        if (isDestroyed) return
         val ad = interstitialAd
         if (ad == null) {
             Log.w(TAG, "showInterstitial: not ready — loading now")
@@ -120,10 +153,12 @@ class AdMobManager(
             return
         }
         isShowingAd = true
+        setAudioModeForAd(activity)
         try {
             ad.show(activity)
         } catch (e: Exception) {
             isShowingAd = false
+            restoreAudioMode(activity)
             Log.w(TAG, "showInterstitial threw: ${e.message}")
             eventCallback("interstitialFailed", e.message ?: "show_exception")
             preloadInterstitial()
@@ -132,36 +167,37 @@ class AdMobManager(
 
     // ==================== 1-step load-and-show ====================
     fun loadInterstitialAndShow(activity: Activity) {
+        if (isDestroyed) return
         val cached = interstitialAd
         if (cached != null) {
             Log.d(TAG, "Using cached interstitial")
             interstitialAd = null
             showInterstitial(activity)
-            preloadInterstitial() // load next one immediately
+            preloadInterstitial()
             return
         }
-        // No cache — load fresh and show when ready
         Log.d(TAG, "No cached interstitial — loading fresh")
         if (loadingInterstitial) {
-            // Already loading; the onAdLoaded callback will auto-show via pending flag
-            // Not implemented here because we don't store pending activity ref
-            // For simplicity: just tell the caller to try again shortly
             eventCallback("interstitialFailed", "loading_in_progress")
             return
         }
-        // Load with auto-show on completion
         loadingInterstitial = true
         val request = getConsentManager()?.buildAdRequest() ?: AdRequest.Builder().build()
         InterstitialAd.load(context, interstitialAdUnitId, request,
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
+                    if (isDestroyed) {
+                        ad.fullScreenContentCallback = null
+                        return
+                    }
                     loadingInterstitial = false
                     retryCount = 0
                     ad.fullScreenContentCallback = buildCallback()
-                    interstitialAd = ad // store briefly
+                    interstitialAd = ad
                     showInterstitial(activity)
                 }
                 override fun onAdFailedToLoad(error: com.google.android.gms.ads.LoadAdError) {
+                    if (isDestroyed) return
                     loadingInterstitial = false
                     eventCallback("interstitialFailed", error.message)
                     scheduleRetry(error.code)
@@ -170,7 +206,7 @@ class AdMobManager(
         )
     }
 
-    // Backward-compat alias — web app still calls this for "Watch ad for more"
+    // Backward-compat alias
     fun loadRewardedAndShow(activity: Activity) = loadInterstitialAndShow(activity)
 
     // ==================== Callbacks ====================
@@ -184,12 +220,14 @@ class AdMobManager(
         override fun onAdDismissedFullScreenContent() {
             Log.d(TAG, "Interstitial dismissed")
             isShowingAd = false
+            restoreAudioMode(context as? Activity)
             eventCallback("interstitialClosed", null)
             preloadInterstitial()
         }
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             Log.w(TAG, "Interstitial show failed: ${error.message}")
             isShowingAd = false
+            restoreAudioMode(context as? Activity)
             interstitialAd = null
             eventCallback("interstitialFailed", error.message)
             preloadInterstitial()
@@ -199,11 +237,10 @@ class AdMobManager(
     // ==================== Retry ====================
     private fun scheduleRetry(errorCode: Int) {
         retryRunnable?.let { handler.removeCallbacks(it) }
-
         val delayMs = when {
-            errorCode == -2 && retryCount == 0 -> 0L      // first timeout: retry immediately
+            errorCode == -2 && retryCount == 0 -> 0L
             errorCode == -2 -> (2_000L * retryCount).coerceAtMost(30_000L)
-            errorCode == 3  -> 30_000L                     // no fill: wait 30s
+            errorCode == 3  -> 30_000L
             else             -> 5_000L
         }
         retryCount++
@@ -225,9 +262,8 @@ class AdMobManager(
 
     // ==================== Foreground Ad ====================
     fun onActivityResumed(activity: Activity) {
+        if (isDestroyed) return
         val now = System.currentTimeMillis()
-
-        // Show foreground interstitial if app was backgrounded long enough
         if (wasBackgrounded) {
             val inBackground = now - backgroundTimestamp
             wasBackgrounded = false
@@ -238,8 +274,6 @@ class AdMobManager(
                 return
             }
         }
-
-        // If we were just loading, nothing else to do
     }
 
     fun onActivityPaused() {
@@ -261,8 +295,28 @@ class AdMobManager(
         activity.runOnUiThread { showInterstitial(activity) }
     }
 
+    // ==================== Audio ====================
+    private fun setAudioModeForAd(activity: Activity?) {
+        val am = activity?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        am.mode = AudioManager.MODE_NORMAL
+    }
+
+    private fun restoreAudioMode(activity: Activity?) {
+        val am = activity?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        am.mode = AudioManager.MODE_NORMAL
+    }
+
+    // ==================== Destroy ====================
+    fun destroy() {
+        isDestroyed = true
+        cancelRetries()
+        interstitialAd?.fullScreenContentCallback = null
+        interstitialAd = null
+        Log.d(TAG, "Destroyed")
+    }
+
     // ==================== Queries ====================
-    fun isInterstitialReady() = interstitialAd != null
-    fun isRewardedReady() = isInterstitialReady() // backward compat
-    fun isInitialized() = true
+    fun isInterstitialReady() = !isDestroyed && interstitialAd != null
+    fun isRewardedReady() = isInterstitialReady()
+    fun isInitialized() = !isDestroyed
 }

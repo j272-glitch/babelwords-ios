@@ -13,10 +13,10 @@ import org.json.JSONObject
  * Matches the NativeAdBridge TypeScript interface. All callbacks fire via
  * window.onAdBridgeEvent (handled in MainActivity).
  *
- * Upgraded with features from the LinguaVibe v46 guide:
+ * v50 updates:
+ *   - notifyMicActive() — JS heartbeat for mic safety
  *   - loadInterstitialAndShow() / loadRewardedAndShow() — 1-step load-and-show
  *   - isInterstitialReady() / isRewardedReady() — checks ad + show-state
- *   - setActivityResumed() — lifecycle tracking
  *   - getDiagnostics() — returns JSON with ad state
  *   - requestConsent() — triggers UMP consent flow
  *   - Backward-compatible aliases for existing calls
@@ -27,6 +27,13 @@ class AdBridge(
     private val consentManagerProvider: () -> ConsentManager? = { null },
 ) {
     private val TAG = "AdBridge"
+
+    // ==================== Mic Safety (JS heartbeat) ====================
+    @JavascriptInterface
+    fun notifyMicActive(active: Boolean) {
+        Log.d(TAG, "notifyMicActive: $active")
+        (activity as? com.babelwords.app.MainActivity)?.setMicState(active)
+    }
 
     // ==================== Consent ====================
     @JavascriptInterface
@@ -141,10 +148,6 @@ class AdBridge(
         }
         activity.runOnUiThread { mgr.loadRewardedAndShow(activity) }
     }
-
-    // ==================== Lifecycle (called from MainActivity) ====================
-    // No-op: AdMobManager now handles its own foreground tracking via
-    // onActivityResumed / onActivityPaused (called directly from MainActivity).
 
     // ==================== Event dispatch ====================
     internal fun fireEvent(eventType: String, data: String = "") {

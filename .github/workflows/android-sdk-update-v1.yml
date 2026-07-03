@@ -709,10 +709,10 @@ jobs:
                 
                 # Verify the actual value
                 if echo "$ADMOB_CHECK" | grep -q "ca-app-pub-9991891515643313"; then
-                  echo "✅ AdMob App ID correctly set to: ca-app-pub-9991891515643313~7514450861"
+                  echo "✅ AdMob App ID correctly set to: ca-app-pub-9991891515643313~9480266747"
                 else
                   echo "⚠️ WARNING: AdMob App ID may not be the expected value!"
-                  echo "Expected: ca-app-pub-9991891515643313~7514450861"
+                  echo "Expected: ca-app-pub-9991891515643313~9480266747"
                 fi
               else
                 echo "❌ AdMob Application ID NOT found in compiled manifest!"
@@ -730,6 +730,26 @@ jobs:
           
           echo ""
           echo "✅ AdMob verification step complete"
+
+      - name: Verify ANR Prevention Flags in Merged Manifest
+        if: success()
+        run: |
+          echo "=== VERIFYING ANR PREVENTION FLAGS ==="
+          cd android
+          MANIFEST="app/build/intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml"
+          if [ ! -f "$MANIFEST" ]; then
+            echo "::warning::Merged manifest not found at $MANIFEST (skipping flag verification)"
+            exit 0
+          fi
+          if ! grep -q 'OPTIMIZE_INITIALIZATION' "$MANIFEST"; then
+            echo "::error::OPTIMIZE_INITIALIZATION flag missing from manifest"
+            exit 1
+          fi
+          if ! grep -q 'OPTIMIZE_AD_LOADING' "$MANIFEST"; then
+            echo "::error::OPTIMIZE_AD_LOADING flag missing from manifest"
+            exit 1
+          fi
+          echo "✅ ANR prevention flags verified in merged manifest"
 
       - name: Post-Build Diagnostic (On Failure)
         if: failure()

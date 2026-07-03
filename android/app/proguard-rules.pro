@@ -348,7 +348,12 @@
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 -keep class com.babelwords.app.LinguaLinkApplication { *; }
 
-# AppOpenAdManager removed — foreground interstitial replaces App Open ads
+# AppOpenAdManager (v50 — foreground App Open ads with interstitial fallback)
+-keep class com.babelwords.app.ads.AppOpenAdManager { *; }
+
+# AppOpenAd SDK classes
+-keep class com.google.android.gms.ads.appopen.AppOpenAd { *; }
+-keep class com.google.android.gms.ads.appopen.AppOpenAd$AppOpenAdLoadCallback { *; }
 
 # ConsentManager (not a JS interface, but critical for ad functionality)
 -keep class com.babelwords.app.ads.ConsentManager { *; }

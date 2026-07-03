@@ -31,6 +31,17 @@ object WebViewConfig {
         webView.addJavascriptInterface(subscriptionBridge, "AndroidSubscriptionBridge")
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                // Mic safety: reset mic on navigation (stale lock from crashed renderer)
+                (activity as? MainActivity)?.let {
+                    if (it.isMicActive) {
+                        it.setMicState(false)
+                        android.util.Log.d("Mic", "Reset on navigation")
+                    }
+                }
+                super.onPageStarted(view, url, favicon)
+            }
+
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
                 view.evaluateJavascript("window.__androidWebChromeClient = true;", null)
@@ -43,6 +54,17 @@ object WebViewConfig {
                     view.loadUrl("about:blank")
                     view.loadUrl(view.url ?: "about:blank")
                 }
+            }
+
+            override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+                // Mic safety: reset mic on renderer crash
+                (activity as? MainActivity)?.let {
+                    if (it.isMicActive) {
+                        it.setMicState(false)
+                        android.util.Log.w("Mic", "Reset on renderer crash")
+                    }
+                }
+                return super.onRenderProcessGone(view, detail)
             }
         }
 
