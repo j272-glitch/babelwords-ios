@@ -56,6 +56,11 @@ class AdMobManager(
         // Retry backoff: 5s → 60s
         private const val RETRY_INITIAL_MS = 5_000L
         private const val RETRY_MAX_MS = 60_000L
+
+        // Cross-manager: shared flag so AppOpenAdManager can avoid showing
+        // when interstitial is already showing (and vice versa).
+        @Volatile
+        var isAnyFullscreenAdShowing = false
     }
 
     // ==================== Lifecycle / Safety ====================
@@ -131,8 +136,8 @@ class AdMobManager(
         if (isDestroyed) return
         val expectedSession = sessionId.get()
 
-        if (isShowingAd) {
-            Log.w(TAG, "showInterstitial: already showing")
+        if (isShowingAd || isAnyFullscreenAdShowing) {
+            Log.w(TAG, "showInterstitial: already showing (local=$isShowingAd global=$isAnyFullscreenAdShowing)")
             eventCallback("interstitialFailed", "already_showing")
             return
         }
@@ -164,12 +169,14 @@ class AdMobManager(
         }
 
         isShowingAd = true
+        isAnyFullscreenAdShowing = true
         lastShowTime = now
         setAudioModeForAd(activity)
         try {
             ad.show(activity)
         } catch (e: Exception) {
             isShowingAd = false
+            isAnyFullscreenAdShowing = false
             restoreAudioMode(activity)
             Log.w(TAG, "showInterstitial threw: ${e.message}")
             eventCallback("interstitialFailed", e.message ?: "show_exception")
@@ -185,9 +192,10 @@ class AdMobManager(
         val cached = interstitialAd
         if (cached != null && isFresh()) {
             Log.d(TAG, "Using cached interstitial")
-            interstitialAd = null
+            // Do NOT null interstitialAd here — let showInterstitial() consume it
+            // and the callback null it after successful show.
             showInterstitial(activity)
-            load(null)
+            load(null)  // refresh after show
             return
         }
         Log.d(TAG, "No cached/fresh interstitial — loading fresh with auto-show")
@@ -305,6 +313,7 @@ class AdMobManager(
         override fun onAdShowedFullScreenContent() {
             if (sessionId.get() != expectedSession) return
             Log.d(TAG, "✅ Interstitial shown")
+            isAnyFullscreenAdShowing = true
             if (isTestLab) hasAutoShownInterstitial = true
             interstitialAd = null
             eventCallback("interstitialShown", null)
@@ -313,6 +322,7 @@ class AdMobManager(
             if (sessionId.get() != expectedSession) return
             Log.d(TAG, "Interstitial dismissed")
             isShowingAd = false
+            isAnyFullscreenAdShowing = false
             restoreAudioMode(context as? Activity)
             eventCallback("interstitialClosed", null)
             load(null)
@@ -321,6 +331,7 @@ class AdMobManager(
             if (sessionId.get() != expectedSession) return
             Log.w(TAG, "Interstitial show failed: ${error.message}")
             isShowingAd = false
+            isAnyFullscreenAdShowing = false
             restoreAudioMode(context as? Activity)
             interstitialAd = null
             eventCallback("interstitialFailed", error.message)
@@ -444,6 +455,8 @@ class AdMobManager(
         interstitialAd = null
         isLoading.set(false)
         pendingShow = false
+        isAnyFullscreenAdShowing = false
+        isShowingAd = false
         Log.d(TAG, "Destroyed")
     }
 

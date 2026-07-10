@@ -160,6 +160,12 @@ class AppOpenAdManager(
         if (isDestroyed || isShowingAd) return
         val ad = appOpenAd ?: return
 
+        // Cross-manager: don't show if interstitial is already showing
+        if (AdMobManager.isAnyFullscreenAdShowing) {
+            Log.d(TAG, "Blocked — interstitial is currently showing")
+            return
+        }
+
         // Mic safety: don't interrupt recording
         if (activity.isMicActive) {
             Log.d(TAG, "Blocked — mic is active")
@@ -175,12 +181,14 @@ class AppOpenAdManager(
         }
 
         isShowingAd = true
+        AdMobManager.isAnyFullscreenAdShowing = true
         setAudioModeForAd()
         try {
             ad.show(activity)
         } catch (e: Exception) {
             Log.w(TAG, "App Open show threw: ${e.message}")
             isShowingAd = false
+            AdMobManager.isAnyFullscreenAdShowing = false
             restoreAudioMode()
             appOpenAd = null
             loadAd()
@@ -191,18 +199,21 @@ class AppOpenAdManager(
     private fun buildCallback() = object : FullScreenContentCallback() {
         override fun onAdShowedFullScreenContent() {
             Log.d(TAG, "✅ App Open shown")
+            AdMobManager.isAnyFullscreenAdShowing = true
             prefs.edit().putLong(PREF_LAST_SHOW, System.currentTimeMillis()).apply()
             appOpenAd = null
         }
         override fun onAdDismissedFullScreenContent() {
             Log.d(TAG, "App Open dismissed")
             isShowingAd = false
+            AdMobManager.isAnyFullscreenAdShowing = false
             restoreAudioMode()
             loadAd()
         }
         override fun onAdFailedToShowFullScreenContent(error: AdError) {
             Log.w(TAG, "App Open show failed: ${error.message}")
             isShowingAd = false
+            AdMobManager.isAnyFullscreenAdShowing = false
             restoreAudioMode()
             appOpenAd = null
             loadAd()
@@ -238,6 +249,7 @@ class AppOpenAdManager(
         handler.removeCallbacksAndMessages(null)
         appOpenAd?.fullScreenContentCallback = null
         appOpenAd = null
+        AdMobManager.isAnyFullscreenAdShowing = false
         Log.d(TAG, "Cleaned up")
     }
 }
