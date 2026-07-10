@@ -19,7 +19,7 @@ import com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback
 import com.babelwords.app.MainActivity
 
 /**
- * App Open ad manager (v50 LinguaVibe port).
+ * App Open ad manager (v50 port from LinguaVibe production system).
  *
  * Shows an App Open ad when the app returns from background (warm-resume ≥5s)
  * with a 4-hour frequency cap backed by SharedPreferences.
