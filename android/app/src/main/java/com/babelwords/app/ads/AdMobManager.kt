@@ -422,7 +422,15 @@ class AdMobManager(
 
     // ==================== Test Lab Auto-show ====================
     private fun maybeAutoShowInterstitial() {
-        if (!isTestLab || hasAutoShownInterstitial) return
+        if (!isTestLab) return
+        // Fail-safe: gate auto-show on successful test-device registration.
+        // If registration failed, suppress auto-show to avoid real-creative impressions
+        // (invalid traffic). Prefer no impression over a risky one.
+        if (!BabelWordsApplication.isTestDeviceRegistrationActive) {
+            Log.w(TAG, "🧪 Test Lab: auto-show suppressed — test-device registration not active")
+            return
+        }
+        if (hasAutoShownInterstitial) return
         if (interstitialAutoShowAttempts >= MAX_AUTO_SHOW_ATTEMPTS) {
             Log.w(TAG, "🧪 Test Lab: interstitial auto-show gave up")
             return
@@ -430,7 +438,7 @@ class AdMobManager(
         val activity = context as? Activity ?: return
         if (activity.isFinishing || activity.isDestroyed) return
         interstitialAutoShowAttempts++
-        Log.d(TAG, "🧪 Test Lab: auto-showing interstitial (attempt $interstitialAutoShowAttempts)")
+        Log.i(TAG, "🯪 Test Lab: auto-showing interstitial (attempt $interstitialAutoShowAttempts)")
         activity.runOnUiThread { showInterstitial(activity) }
     }
 

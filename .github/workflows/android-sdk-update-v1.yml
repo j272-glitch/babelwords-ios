@@ -27,6 +27,11 @@ on:
         required: false
         default: false
         type: boolean
+      real_ads_on_test_lab:
+        description: 'REAL creatives on Test Lab (one-off fill check only; default false = test creatives)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ main ]
   pull_request:
@@ -580,6 +585,14 @@ jobs:
           echo "Executing: ./gradlew bundleRelease assembleRelease $GRADLE_FLAGS"
           echo ""
           
+          # Pass REAL_ADS_ON_TEST_LAB if the workflow input is set (one-off fill check only)
+          if [ "${{ github.event.inputs.real_ads_on_test_lab }}" = "true" ]; then
+            echo "⚠️ REAL_ADS_ON_TEST_LAB=true — Test Lab will use REAL creatives (not test). One-off only."
+            EXTRA_PROPS="-PREAL_ADS_ON_TEST_LAB=true"
+          else
+            EXTRA_PROPS=""
+          fi
+
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
             --no-build-cache \
@@ -588,6 +601,7 @@ jobs:
             $GRADLE_FLAGS \
             -Pandroid.injected.version.code=$VERSION_CODE \
             -Pandroid.injected.version.name=$VERSION_NAME \
+            $EXTRA_PROPS \
             2>&1 | tee build-output.log || BUILD_FAILED=true
           
           if [ "$BUILD_FAILED" = "true" ]; then
@@ -1039,8 +1053,18 @@ jobs:
           LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
           echo "==================== AD FUNNEL ===================="
           if [ -n "$LOGCAT" ]; then
-            grep -E "LOADED|Attempting to show|Auto-show|FailedToShow|IMPRESSION|not resumed|background|Already showing|watchdog" "$LOGCAT" \
-              || echo "(no ad-funnel markers matched — read the full logcat in the artifact)"
+            echo "--- Test Lab detection ---"
+            grep -E "Firebase Test Lab detected|test-device registration FAILED" "$LOGCAT" || echo "(none)"
+            echo "--- LOADED events ---"
+            grep -E "LOADED" "$LOGCAT" || echo "(none)"
+            echo "--- IMPRESSION events ---"
+            grep -E "IMPRESSION" "$LOGCAT" || echo "(none)"
+            echo "--- Show attempts ---"
+            grep -E "Attempting to show|Auto-show" "$LOGCAT" || echo "(none)"
+            echo "--- Guard rejections ---"
+            grep -E "cannot show|Activity not resumed|App in background|Already showing|stale - reloading" "$LOGCAT" || echo "(none)"
+            echo "--- FailedToShow ---"
+            grep -E "FailedToShow|FAILED|watchdog" "$LOGCAT" || echo "(none)"
           else
             echo "(no logcat file found in results)"
           fi
@@ -1060,6 +1084,47 @@ jobs:
           [ -n "$VIDEO" ] && cp "$VIDEO" firebase-artifact/video.mp4 || true
           echo "Artifact contents:"
           ls -la firebase-artifact
+
+      - name: Verify ad impression was served (fail CI if missing)
+        if: always() && steps.locate_apk.outputs.apk != ''
+        run: |
+          echo "========================================="
+          echo "  AD SERVING VERIFICATION"
+          echo "========================================="
+          LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
+          if [ -z "$LOGCAT" ]; then
+            echo "::error::No logcat file — cannot verify ad serving."
+            exit 1
+          fi
+          PASS=1
+          # 0) Fail if real-ad override was active (should never happen on default runs)
+          if grep -qE "REAL_ADS_ON_TEST_LAB is true" "$LOGCAT"; then
+            echo "::error::Real-ad override ACTIVE — this run is not safe for standard verification."
+            PASS=0
+          fi
+          # 1) SAFETY GATE: test-device registration must have applied
+          if grep -qE "test-device registration FAILED" "$LOGCAT"; then
+            echo "::error::Test-device registration FAILED — auto-show suppressed."
+            PASS=0
+          elif grep -qE "Firebase Test Lab detected" "$LOGCAT"; then
+            echo "✅ Test Lab device registration applied."
+          else
+            echo "::error::Test Lab detection NOT found — registration did not apply."
+            PASS=0
+          fi
+          # 2) REQUIRED: at least one impression
+          if grep -qE "IMPRESSION" "$LOGCAT"; then
+            echo "✅ Ad impression confirmed:"
+            grep -E "IMPRESSION" "$LOGCAT" | head
+          else
+            echo "::error::No ad IMPRESSION in Logcat — no ad rendered."
+            PASS=0
+          fi
+          if [ "$PASS" -ne 1 ]; then
+            echo "❌ Ad serving verification FAILED."
+            exit 1
+          fi
+          echo "✅ Ad serving verification PASSED."
 
       - name: Upload Firebase Test Lab artifact
         if: always() && steps.locate_apk.outputs.apk != ''

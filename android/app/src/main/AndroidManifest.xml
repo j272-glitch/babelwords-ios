@@ -37,6 +37,7 @@
         android:required="false" />
 
     <application
+        android:name="com.babelwords.app.BabelWordsApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

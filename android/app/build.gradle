@@ -55,6 +55,11 @@ android {
         def accessToken = System.getenv("BABELWORDS_ACCESS_TOKEN") ?: localProperties.getProperty('BABELWORDS_ACCESS_TOKEN', '')
         buildConfigField "String", "ACCESS_TOKEN", "\"${accessToken}\""
 
+        // Default false = safe (test creatives on Test Lab). CI can override via Gradle property:
+        // ./gradlew assembleRelease -PREAL_ADS_ON_TEST_LAB=true
+        buildConfigField "boolean", "REAL_ADS_ON_TEST_LAB",
+            "${project.hasProperty('REAL_ADS_ON_TEST_LAB') ? project.getProperty('REAL_ADS_ON_TEST_LAB') : 'false'}"
+
         // Resource configs - include all 36 Deepgram languages
         resConfigs "en", "es", "fr", "de", "zh", "ja", "ko", "hi", "pt", "ru",
                    "ar", "it", "nl", "pl", "tr", "sv", "da", "no", "fi", "id",
