@@ -1,0 +1,477 @@
+# BabelWords Android — v53 Interstitial Pipeline Merge Guide
+
+**Source:** LinguaVibe v53.1.0+v53.1.1 production ad system  
+**Date:** 2026-07-10  
+**Scope:** Port the unified `InterstitialAdManager` (merges dual interstitial pipelines) and the 3 post-architect-review fixes to the BabelWords Android app.
+
+> **Architecture note:** BabelWords is a native Kotlin WebView wrapper, same as LinguaVibe. It builds **only in GitHub Actions** (no local Android SDK). All changes are compiled and tested via CI.
+
+---
+
+## 1. What v53.1 Changes (vs the v50/v51 Dual-Pipeline Setup)
+
+| Area | Pre-v53.1 (v50/v51) | v53.1 | Why |
+|------|----------------------|-------|-----|
+| Interstitial load ownership | **Two independent pipelines** — `AdPreloadManager` and `AdMobBridge` each call `InterstitialAd.load()` with separate `isInterstitialLoading` flags | **One pipeline** — `InterstitialAdManager` owns all load/show state | Prevents duplicate `InterstitialAd.load()` calls on cold start / Test Lab |
+| `isInterstitialReady()` bridge poll | Checked only bridge-local state; never consulted `AdPreloadManager` cache | Checks `InterstitialAdManager.isReady() ‖‖ AdPreloadManager.isInterstitialReady()` | Web app "ad ready" polls were wrong when preload had a cached ad |
+| Load throttle (`lastLoadTime`) | Stamped on every `load()` call, even pre-resume cold-start loads | Only advances when `isActivityResumed=true` | Pre-resume loads no longer consume throttle budget |
+| `isLoading` guard | `@Volatile Boolean` (not actually atomic) | `AtomicBoolean` with `compareAndSet(false, true)` | Race-safe single-flight guard |
+| `show()` -> stale/missing ad | Called `load()` but **did not** set `pendingShow`; show request was dropped | Sets `pendingShow=true` before `load()`; `onAdLoaded` auto-shows | Test Lab / user show-on-cold-start now works |
+| Network callback | Existed but **never registered** | Registered in `AdMobBridge.init()` | Auto-reload when connectivity returns after offline period |
+
+---
+
+## 2. Placeholder Map — BabelWords Values to Substitute
+
+| Placeholder | What to put | LinguaVibe example |
+|---|---|---|
+| `«BW_PACKAGE»` | Android package name | `com.lingualink.linguagt` |
+| `«BW_ADMOB_APP_ID»` | AdMob App ID | `ca-app-pub-9991891515643313~7514450861` |
+| `«BW_INTERSTITIAL_UNIT»` | Interstitial ad unit | `/5076005693` |
+| `«BW_REWARDED_UNIT»` | Rewarded ad unit | `/6313049833` |
+| `«BW_APPOPEN_UNIT»` | App Open ad unit | `/3278416949` |
+
+> **Never copy LinguaVibe's ad unit IDs.** Create your own in the AdMob console.
+
+---
+
+## 3. New File: `InterstitialAdManager.kt`
+
+Create this file at:
+```
+android/app/src/main/java/«BW_PACKAGE»/ads/InterstitialAdManager.kt
+```
+
+This is a **new class** (not a rename of anything existing). It replaces the interstitial portions of both `AdPreloadManager` and `AdMobBridge`.
+
+### 3a. What to keep from the LinguaVibe source
+
+Copy LinguaVibe's `InterstitialAdManager.kt` **verbatim** (it is domain/ad-unit agnostic — those are constructor parameters). The file is ~770 lines and contains:
+
+- **Constants:** expiry (45 min), refresh-before-expiry (40 min), load timeout (15s), retry backoff (5–60s), frequency cap (30s), load throttle (30s)
+- **State:** `AtomicBoolean isLoading`, `@Volatile isShowingAd`, `interstitialAd`, `loadTime`, `lastLoadTime`, `lastShowTime`
+- **Session token:** `AtomicLong sessionId` for stale-callback safety (destroy increments it, callbacks check it)
+- **Lifecycle:** `LifecycleEventObserver` with `ON_START` auto-reload if stale
+- **Network callback:** `registerNetworkCallback()` / `unregisterNetworkCallback()` for auto-reload on connectivity return
+- **Public API:**
+  - `load(activity?)` — single-flight AtomicBoolean guard, pre-resume throttle fix
+  - `show(activity)` — subscription/activity/foreground/already-showing/frequency guards; `pendingShow` on stale/no-ad
+  - `isReady()` — `interstitialAd != null && isFresh()`
+  - `isCurrentlyShowingAd` — accessor for `isShowingAd`
+  - `setActivityResumed(Boolean)` — executes deferred `pendingShow` when true
+  - `setActivity(Activity)` — stores weak activity ref
+  - `registerNetworkCallback()` / `unregisterNetworkCallback()`
+  - `destroy()` — sets `isDestroyed`, `isLoading.set(false)`, cancels all runnables, unregisters network callback
+- **Callbacks:** `onEvent`, `onAdPresented`, `onAdDismissed`, `subscriptionChecker`
+- **Telemetry:** `emit(type, subtype, code, error)` — fires `onEvent` callback for bridge/web consumption
+
+### 3b. The 3 v53.1.1 architect-review fixes (already in LinguaVibe source)
+
+If you are copying from a **pre-v53.1.1** LinguaVibe snapshot, apply these 3 patches:
+
+**Fix 1: `pendingShow` in `show()` for stale/missing ad**
+
+In `show()`, both the "ad stale" and "no cached ad" branches must set `pendingShow = true` before calling `load()`:
+
+```kotlin
+// Staleness guard
+if (!isFresh()) {
+    log("Ad stale — reloading with auto-show", "W")
+    emit("showSuppressed", code = -15, error = "ad_stale_reloading")
+    emit("loading")
+    pendingShow = true   // ← ADD THIS
+    load(activity)
+    return false
+}
+
+val ad = interstitialAd ?: run {
+    log("⏳ No cached ad — triggering load", "W")
+    emit("showSuppressed", code = -16, error = "no_cached_ad")
+    emit("loading")
+    pendingShow = true   // ← ADD THIS
+    load(activity)
+    return false
+}
+```
+
+**Fix 2: `registerNetworkCallback()` wiring**
+
+In `AdMobBridge.init()` (or wherever you construct `InterstitialAdManager`), add after manager creation:
+
+```kotlin
+interstitialManager = InterstitialAdManager(activity, currentInterstitialId)
+// ... set callbacks, wire to AdPreloadManager ...
+interstitialManager?.registerNetworkCallback()   // ← ADD THIS
+ProcessLifecycleOwner.get().lifecycle.addObserver(interstitialManager!!)
+```
+
+**Fix 3: `isLoading` as `AtomicBoolean` with CAS**
+
+Change field declaration:
+
+```kotlin
+// BEFORE (volatile boolean, not actually atomic)
+@Volatile
+private var isLoading = false
+
+// AFTER (true CAS guard)
+private val isLoading = AtomicBoolean(false)
+```
+
+Change the guard and all set/clear sites:
+
+```kotlin
+// Guard (in load()):
+if (!isLoading.compareAndSet(false, true)) {
+    log("Already loading — skipping duplicate request")
+    return
+}
+
+// Early-return resets (when load is skipped after compareAndSet succeeded):
+isLoading.set(false)
+
+// Success/failure callback resets:
+isLoading.set(false)
+
+// Refresh runnable check:
+if (isAppInForeground && !isLoading.get()) { ... }
+
+// Destroy cleanup:
+isLoading.set(false)
+```
+
+---
+
+## 4. Modify `AdPreloadManager.kt`
+
+The interstitial-specific load/show/ready/retry code in `AdPreloadManager` is now a **delegate** to `InterstitialAdManager`. Do not delete `AdPreloadManager` — it still handles SDK init, UMP consent, rewarded preloading, and the Test Lab auto-show wiring.
+
+### 4a. Add the delegate bridge
+
+Add these fields/methods (they are **new**; do not conflict with existing rewarded or network code):
+
+```kotlin
+// v53.1: Delegate bridge to unified InterstitialAdManager
+private var interstitialManagerRef: WeakReference<InterstitialAdManager>? = null
+
+fun setInterstitialManager(manager: InterstitialAdManager?) {
+    interstitialManagerRef = manager?.let { WeakReference(it) }
+    log("InterstitialAdManager ref ${if (manager == null) "cleared" else "set"}")
+}
+
+private fun getInterstitialManager(): InterstitialAdManager? =
+    interstitialManagerRef?.get()?.takeIf { !it.isCurrentlyShowingAd }
+```
+
+### 4b. Delegate interstitial methods
+
+Change these 4 methods to delegate when a manager is set:
+
+```kotlin
+fun preloadInterstitial(context: Context, requiredSession: Long = -1L) {
+    // v53.1: Delegate to unified InterstitialAdManager if available.
+    getInterstitialManager()?.let { mgr ->
+        log("Delegating preloadInterstitial to InterstitialAdManager")
+        mgr.load()
+        return
+    }
+    // ... existing fallback logic stays (for the no-manager case) ...
+}
+
+fun isInterstitialReady(): Boolean {
+    getInterstitialManager()?.let { return it.isReady() }
+    return isInterstitialFresh()
+}
+
+fun getCachedInterstitial(): InterstitialAd? {
+    getInterstitialManager()?.getCachedInterstitial()?.let { return it }
+    return interstitialAd
+}
+
+fun showInterstitial(activity: Activity): Boolean {
+    // v53.1: Prefer InterstitialAdManager show (telemetry, guards, callback wrapping).
+    getInterstitialManager()?.let { mgr ->
+        log("Delegating showInterstitial to InterstitialAdManager")
+        val shown = mgr.show(activity)
+        return shown
+    }
+    // ... existing fallback logic stays ...
+}
+```
+
+### 4c. Keep the Test Lab callback wiring
+
+Do **not** change `onInterstitialReady`, `onAdImpression`, `onAdShown`, `onAdDismissed`. The `AdMobBridge` (see §5) forwards manager events back into these callbacks, so `MainActivity`'s Test Lab auto-show still works unchanged.
+
+---
+
+## 5. Modify `AdMobBridge.kt`
+
+Remove the interstitial state from `AdMobBridge` and delegate to `InterstitialAdManager`.
+
+### 5a. Remove from AdMobBridge
+
+Delete these fields/methods (they now live in `InterstitialAdManager`):
+
+- `interstitialAd: InterstitialAd?`
+- `isInterstitialReady: Boolean`
+- `isInterstitialLoading: Boolean` / `interstitialIsLoadingAtomic: AtomicBoolean`
+- `interstitialLoadTime`, `interstitialRetryDelay`, `interstitialRetryCount`
+- `interstitialRetryRunnable`, `interstitialRefreshRunnable`, `showWatchdogRunnable`
+- `interstitialImpressionFired`, `lastInterstitialLoadTime`
+- `pendingShowInterstitial`
+- `loadInterstitialAd()` method
+- Interstitial-specific `FullScreenContentCallback`
+- Interstitial-specific retry/refresh/watchdog scheduling
+
+> **Keep:** The JS-exposed methods `loadInterstitialAndShow()`, `showInterstitial()`, `preloadInterstitial()`, `isInterstitialReady()`, `isInterstitialLoaded()`, plus all telemetry formatting (`notifyAdEvent`, `notifyJs`), banner handling, consent, and recovery.
+
+### 5b. Add `interstitialManager` field and init wiring
+
+```kotlin
+// v53.1: Unified interstitial manager (replaces bridge-local interstitial state)
+internal var interstitialManager: InterstitialAdManager? = null
+
+init {
+    // ... existing bridge init (banner, consent, etc.) ...
+
+    // v53.1: Initialize unified interstitial manager
+    interstitialManager = InterstitialAdManager(activity, currentInterstitialId)
+    interstitialManager?.setActivity(activity)
+    interstitialManager?.onAdPresented = { notifyAdPresented() }
+    interstitialManager?.onAdDismissed = { notifyAdDismissed() }
+
+    // v53.1: Wire InterstitialAdManager into AdPreloadManager so Test Lab calls
+    // delegate to the unified manager and do NOT spawn a second load on cold start.
+    interstitialManager?.let { mgr ->
+        AdPreloadManager.setInterstitialManager(mgr)
+        // Forward unified events back into AdPreloadManager callbacks
+        // so MainActivity's TestLab wiring still fires.
+        mgr.onEvent = { type, subtype, code, error ->
+            if (type == "interstitial") {
+                when (subtype) {
+                    "ready"      -> AdPreloadManager.onInterstitialReady?.invoke()
+                    "impression" -> AdPreloadManager.onAdImpression?.invoke("interstitial")
+                    "loaded"     -> AdPreloadManager.onInterstitialReady?.invoke()
+                }
+            }
+            // Bridge impression counter + telemetry
+            if (subtype == "impression") {
+                totalImpressions++
+                interstitialImpressions++
+                log("★★★ INTERSTITIAL IMPRESSION #$interstitialImpressions ★★★")
+            }
+            notifyAdEvent(type, subtype, code, error)
+        }
+    }
+
+    interstitialManager?.registerNetworkCallback()   // v53.1.1 fix
+    ProcessLifecycleOwner.get().lifecycle.addObserver(interstitialManager!!)
+}
+```
+
+### 5c. Delegate JS interstitial methods to manager
+
+```kotlin
+@JavascriptInterface
+fun loadInterstitialAndShow() {
+    log("JS → loadInterstitialAndShow()")
+    mainHandler.post {
+        val mgr = interstitialManager ?: return@post
+        mgr.autoShow = true
+        mgr.load()
+    }
+}
+
+@JavascriptInterface
+fun showInterstitial() {
+    log("JS → showInterstitial()")
+    mainHandler.post {
+        val mgr = interstitialManager ?: return@post
+        val act = activityRef.get() ?: return@post
+        mgr.show(act)
+    }
+}
+
+@JavascriptInterface
+fun preloadInterstitial() {
+    log("JS → preloadInterstitial() [preload only]")
+    mainHandler.post {
+        val mgr = interstitialManager ?: return@post
+        mgr.load()
+    }
+}
+
+@JavascriptInterface
+fun isInterstitialReady(placementId: String): Boolean {
+    val mgrReady = interstitialManager?.isReady() ?: false
+    val preloadReady = AdPreloadManager.isInterstitialReady()
+    val ready = mgrReady || preloadReady
+    log("JS → isInterstitialReady() = $ready (manager=$mgrReady preload=$preloadReady)")
+    return ready
+}
+```
+
+### 5d. Forward lifecycle calls
+
+```kotlin
+fun setActivityResumed(resumed: Boolean) {
+    interstitialManager?.setActivityResumed(resumed)
+    // ... keep existing banner/AppOpen forwarding ...
+}
+
+fun onAppForegroundChange(inForeground: Boolean) {
+    // InterstitialAdManager observes ProcessLifecycleOwner directly,
+    // so no manual foreground forwarding needed.
+    // ... keep existing AppOpen/banner logic ...
+}
+
+fun destroy() {
+    interstitialManager?.destroy()
+    // ... keep existing banner/AppOpen cleanup ...
+}
+```
+
+### 5e. Handle dangling `loadInterstitialAd()` call
+
+If any code path in `AdMobBridge` still calls `loadInterstitialAd()` (e.g. a consent-changed reload), replace it with:
+
+```kotlin
+interstitialManager?.load()
+```
+
+---
+
+## 6. Modify `MainActivity.kt`
+
+### 6a. Wire AdPreloadManager to the manager in `initializeNativeAdPreload()`
+
+Add this block right after `AdPreloadManager.initialize(this)`:
+
+```kotlin
+// v53.1: Wire AdPreloadManager to the InterstitialAdManager created inside
+// AdMobBridge so all interstitial calls (preload/show/isReady) delegate to
+// the unified manager and prevent duplicate InterstitialAd.load() on cold start.
+if (::adMobBridge.isInitialized) {
+    adMobBridge.interstitialManager?.let { mgr ->
+        AdPreloadManager.setInterstitialManager(mgr)
+        AppLogger.logMilestone("AdPreloadManager wired to InterstitialAdManager")
+    }
+}
+```
+
+### 6b. Keep Test Lab callbacks unchanged
+
+`AdPreloadManager.onInterstitialReady`, `onAdImpression`, etc. stay exactly as they were — `AdMobBridge` forwards manager events into them (see §5b).
+
+---
+
+## 7. Test Migration (androidTest)
+
+v53.1.0 rewrote the instrumentation tests to account for interstitial state moving from `AdMobBridge` to `InterstitialAdManager`. If your BabelWords CI gates on these tests, you must port the rewrites.
+
+### 7a. `AdMobBridgeIsReadyTest.kt`
+
+This test now validates that `isInterstitialReady()` consults **both** the manager and the preload fallback, and that pre-resume loads don't advance the throttle clock.
+
+**Changes:**
+- Test `isInterstitialReady_returnsTrueWhenPreloadManagerHasCachedAd()` now clears the manager delegate (`AdPreloadManager.setInterstitialManager(null)`) before injecting a fake ad into `AdPreloadManager`'s own cache. This tests the fallback path when no unified manager is active.
+- Uses reflection to read `InterstitialAdManager` fields (`lastLoadTime`, `isActivityResumed`, `isLoading` as `AtomicBoolean`).
+- New test `preResumeLoad_doesNotAdvanceThrottleClock()` verifies `lastLoadTime` doesn't advance when `isActivityResumed=false`.
+
+**Key reflection pattern to update:**
+```kotlin
+// BEFORE (isLoading was @Volatile Boolean):
+val isLoading = mgrField(mgr, "isLoading").getBoolean(mgr)
+
+// AFTER (isLoading is now AtomicBoolean):
+val isLoading = (mgrField(mgr, "isLoading").get(mgr) as java.util.concurrent.atomic.AtomicBoolean).get()
+```
+
+### 7b. `AdMobBridgeRotationTest.kt`
+
+Now tests `InterstitialAdManager` teardown instead of `AdMobBridge` teardown.
+
+**Changes:**
+- Uses `mgrField()` helpers to access `InterstitialAdManager.isDestroyed`, `isShowingAd`, `interstitialAd`, `isLoading`.
+- Tests verify `destroy()` nulls `interstitialAd`, resets `isShowingAd`, sets `isDestroyed=true`, and doesn't crash when called while `isShowingAd=true`.
+- `isLoading` read updated to `AtomicBoolean` cast.
+
+### 7c. `AdMobBridgeShowTelemetryTest.kt`
+
+Now sets guard state on the **manager** instead of the bridge.
+
+**Changes:**
+- `bridgeField("isActivityResumed")` → `mgrField(imm, "isActivityResumed")`
+- `bridgeField("isAppInForeground")` → `mgrField(imm, "isAppInForeground")`
+- `bridgeField("isShowingAd")` → `mgrField(imm, "isShowingAd")`
+- `bridgeField("pendingShow")` → `mgrField(imm, "pendingShow")`
+
+The bridge itself still receives and emits telemetry; only the **guard state** is on the manager now.
+
+### 7d. Summary of test changes per file
+
+| Test file | What changed |
+|---|---|
+| `AdMobBridgeIsReadyTest.kt` | Manager delegate clearing, `AtomicBoolean` reflection, pre-resume throttle test |
+| `AdMobBridgeRotationTest.kt` | `mgrField` helpers, `AtomicBoolean` reflection, manager teardown focus |
+| `AdMobBridgeShowTelemetryTest.kt` | Guard state set on manager via `mgrField`, bridge still emits telemetry |
+
+---
+
+## 8. Version Bump
+
+Bump in **three** places for the v53.1 release:
+
+| File | Fields |
+|---|---|
+| `android/app/build.gradle` | `versionCode`, `versionName` |
+| `android/build.gradle` | `versionCode`, `versionName` (duplicate block in `subprojects`) |
+| `.github/workflows/«workflow».yml` | `VERSION_CODE`, `VERSION_NAME` env defaults + input defaults |
+
+Example:
+```gradle
+// app/build.gradle
+versionCode 55
+versionName "53.1.1"
+```
+
+---
+
+## 9. Post-Migration Checklist
+
+- [ ] `InterstitialAdManager.kt` added with all 3 v53.1.1 fixes (pendingShow, network callback, AtomicBoolean)
+- [ ] `AdPreloadManager.setInterstitialManager()` added and `preloadInterstitial` / `isInterstitialReady` / `getCachedInterstitial` / `showInterstitial` delegate to manager
+- [ ] `AdMobBridge` no longer has `interstitialAd`, `isInterstitialLoading`, `loadInterstitialAd()` — delegates to `InterstitialAdManager`
+- [ ] `AdMobBridge.init()` calls `mgr.registerNetworkCallback()`
+- [ ] `AdMobBridge` forwards manager events (`ready`, `impression`, `loaded`) back to `AdPreloadManager` callbacks
+- [ ] `MainActivity.initializeNativeAdPreload()` wires `AdPreloadManager.setInterstitialManager(mgr)`
+- [ ] `MainActivity` Test Lab auto-show callbacks unchanged (still on `AdPreloadManager.onInterstitialReady`)
+- [ ] `AdMobBridge.destroy()` calls `interstitialManager?.destroy()`
+- [ ] No dangling `loadInterstitialAd()` calls remain in `AdMobBridge`
+- [ ] `isLoading` in `InterstitialAdManager` is `AtomicBoolean`, not `@Volatile Boolean`
+- [ ] `isActivityResumed` throttle fix verified: `lastLoadTime` only advances when `isActivityResumed=true`
+- [ ] `pendingShow` fix verified: `show()` stale/no-ad branches set `pendingShow=true` before `load()`
+- [ ] Version bumped in all 3 files
+- [ ] CI build runs green (`:app:compileReleaseKotlin` → `:app:bundleRelease`)
+- [ ] AAB inspected: `unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a 'OPTIMIZE'`
+
+---
+
+## 10. Troubleshooting
+
+| CI Error / Bug | Cause | Fix |
+|---|---|---|
+| Duplicate `InterstitialAd.load()` on cold start | Both `AdPreloadManager` and `AdMobBridge` still have independent load paths | Verify `AdPreloadManager.preloadInterstitial()` delegates to `getInterstitialManager()?.load()` |
+| `isInterstitialReady()` always false even when ad is loaded | Bridge only checks its own field, not `AdPreloadManager` cache | Verify `AdMobBridge.isInterstitialReady()` checks `mgr.isReady() ‖‖ AdPreloadManager.isInterstitialReady()` |
+| Show request dropped after ad loads | `show()` called `load()` without `pendingShow=true` | Add `pendingShow = true` in both stale-ad and no-ad branches of `show()` |
+| `isLoading` race between ON_START and bridge preload | `@Volatile Boolean` not atomic | Convert to `AtomicBoolean` with `compareAndSet(false, true)` |
+| Network return doesn't reload stale ad | `registerNetworkCallback()` never called | Add `interstitialManager?.registerNetworkCallback()` in bridge init |
+| `loadInterstitialAd()` unresolved reference | Old method still called somewhere | Search/replace all `loadInterstitialAd()` calls with `interstitialManager?.load()` |
+| `getBoolean()` crash in tests after refactor | Tests reflectively read `isLoading` as boolean, but it's now `AtomicBoolean` | Update tests: `(field.get(obj) as AtomicBoolean).get()` |
+
+---
+
+**Version:** LinguaVibe v53.1.1 ad system  
+**Companion guides:** `BABELWORDS_ANDROID_V50_AD_MIGRATION_GUIDE.md` (AppOpen + ANR + v50 stack), `BABELWORDS_ANDROID_UPDATE_GUIDE.md` (toolchain + version bumps), `BABELWORDS_WEB_APP_AD_BRIDGE_GUIDE.md` (JS side)  
+**Last updated:** 2026-07-10

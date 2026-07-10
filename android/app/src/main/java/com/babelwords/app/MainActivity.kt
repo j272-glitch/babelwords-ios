@@ -94,6 +94,9 @@ class MainActivity : AppCompatActivity() {
             appOpenAdManager = AppOpenAdManager(this@MainActivity)
             ProcessLifecycleOwner.get().lifecycle.addObserver(appOpenAdManager)
 
+            // Wire network callback for auto-reload on connectivity return
+            adMobManager?.registerNetworkCallback()
+
             // Show consent form if needed, then load ads
             consentManager.requestConsent(this@MainActivity) { canRequestAds ->
                 adMobManager?.preloadInterstitial()
@@ -142,6 +145,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        adMobManager?.unregisterNetworkCallback()
         adMobManager?.destroy()
         appOpenAdManager.cleanup()
         // Cancel mic watchdog

@@ -8,9 +8,9 @@ on:
         required: false
         type: string
       version_name:
-        description: 'Version Name (e.g., 1.0.0)'
+        description: 'Version Name (e.g., 53.1.0)'
         required: false
-        default: '1.0.0'
+        default: '53.1.0'
         type: string
       create_release:
         description: 'Create GitHub Release'
