@@ -34,7 +34,8 @@ import com.babelwords.app.MainActivity
  * Lifecycle: wired to ProcessLifecycleOwner as a DefaultLifecycleObserver.
  */
 class AppOpenAdManager(
-    private val activity: MainActivity
+    private val activity: MainActivity,
+    private val getConsentManager: () -> ConsentManager? = { null }
 ) : DefaultLifecycleObserver {
 
     companion object {
@@ -124,7 +125,7 @@ class AppOpenAdManager(
         loadTimeoutRunnable = timeout
         handler.postDelayed(timeout, LOAD_TIMEOUT_MS)
 
-        val request = AdRequest.Builder().build()
+        val request = getConsentManager()?.buildAdRequest() ?: AdRequest.Builder().build()
         AppOpenAd.load(activity, adUnitId, request,
             object : AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {

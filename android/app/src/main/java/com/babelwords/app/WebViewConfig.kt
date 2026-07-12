@@ -70,7 +70,18 @@ object WebViewConfig {
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) {
-                request.grant(request.resources)
+                val allowed = request.resources.filter { resource ->
+                    when (resource) {
+                        PermissionRequest.RESOURCE_AUDIO_CAPTURE,
+                        PermissionRequest.RESOURCE_VIDEO_CAPTURE -> true
+                        else -> false
+                    }
+                }
+                if (allowed.isNotEmpty()) {
+                    request.grant(allowed.toTypedArray())
+                } else {
+                    request.deny()
+                }
             }
         }
     }

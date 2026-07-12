@@ -91,7 +91,7 @@ class MainActivity : AppCompatActivity() {
                 getConsentManager = { consentManager }
             )
 
-            appOpenAdManager = AppOpenAdManager(this@MainActivity)
+            appOpenAdManager = AppOpenAdManager(this@MainActivity) { consentManager }
             ProcessLifecycleOwner.get().lifecycle.addObserver(appOpenAdManager)
 
             // Wire network callback for auto-reload on connectivity return
@@ -147,6 +147,7 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         adMobManager?.unregisterNetworkCallback()
         adMobManager?.destroy()
+        ProcessLifecycleOwner.get().lifecycle.removeObserver(appOpenAdManager)
         appOpenAdManager.cleanup()
         // Cancel mic watchdog
         micWatchdogRunnable?.let { micWatchdogHandler.removeCallbacks(it) }
