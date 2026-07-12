@@ -764,6 +764,13 @@ jobs:
             exit 1
           fi
           echo "✅ ANR prevention flags verified in merged manifest"
+          echo ""
+          echo "=== VERIFYING AD_ID PERMISSION ==="
+          if ! grep -q 'com.google.android.gms.permission.AD_ID' "$MANIFEST"; then
+            echo "::error::AD_ID permission missing from merged manifest"
+            exit 1
+          fi
+          echo "✅ AD_ID permission verified in merged manifest"
 
       - name: Post-Build Diagnostic (On Failure)
         if: failure()
