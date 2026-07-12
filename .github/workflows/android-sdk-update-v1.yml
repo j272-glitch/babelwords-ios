@@ -1002,8 +1002,8 @@ jobs:
         run: |
           APK=$(find firebase-apk -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
           if [ -z "$APK" ]; then
-            echo "⚠️ No APK artifact found — skipping Firebase Test Lab. The AAB build is unaffected."
-            echo "apk=" >> "$GITHUB_OUTPUT"
+            echo "::error::No APK artifact found — Firebase Test Lab run was requested but APK is missing."
+            exit 1
           else
             echo "✅ APK located: $APK"
             echo "apk=$APK" >> "$GITHUB_OUTPUT"
