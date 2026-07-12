@@ -50,7 +50,7 @@ env:
   # If you leave the version_code field blank, it auto-increments from the build number
   # plus a 100 offset, so every build is unique, always increases, and stays above the old
   # code 25. Google Play requires a strictly higher code on each upload. Type a value to override.
-  VERSION_CODE: ${{ github.event.inputs.version_code || (github.run_number + 100) }}
+  VERSION_CODE: ${{ github.event.inputs.version_code || github.run_number }}
   VERSION_NAME: ${{ github.event.inputs.version_name || '53.1.0' }}
   CREATE_RELEASE: ${{ github.event.inputs.create_release || 'true' }}
   DEBUG_MODE: ${{ github.event.inputs.debug_mode || 'true' }}
