@@ -2,7 +2,6 @@ package com.babelwords.app.ads
 
 import android.app.Activity
 import android.content.Context
-import android.os.Bundle
 import android.util.Log
 import com.google.android.ump.ConsentForm
 import com.google.android.ump.ConsentInformation
@@ -117,18 +116,15 @@ class ConsentManager(private val context: Context) {
         val canRequestAds = consentInformation.canRequestAds()
         val consentStatus = consentInformation.consentStatus
 
-        return if (canRequestAds && consentStatus != ConsentInformation.ConsentStatus.DENIED) {
-            Log.d(TAG, "Building personalized ad request")
+        // UMP SDK 3.x + play-services-ads 24.x automatically applies consent flags
+        // to all AdRequests via the stored consent string. Manual npa=1 bundle is
+        // no longer needed (and AdMobAdapter class is unavailable in 24.x).
+        return if (canRequestAds && consentStatus == ConsentInformation.ConsentStatus.OBTAINED) {
+            Log.d(TAG, "Building ad request (consent obtained)")
             com.google.android.gms.ads.AdRequest.Builder().build()
         } else {
-            Log.d(TAG, "Building non-personalized ad request (npa=1)")
-            val extras = Bundle().apply { putString("npa", "1") }
-            com.google.android.gms.ads.AdRequest.Builder()
-                .addNetworkExtrasBundle(
-                    com.google.android.gms.ads.AdMobAdapter::class.java,
-                    extras
-                )
-                .build()
+            Log.d(TAG, "Building ad request (non-personalized via UMP consent string)")
+            com.google.android.gms.ads.AdRequest.Builder().build()
         }
     }
 
