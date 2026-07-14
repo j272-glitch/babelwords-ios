@@ -25,7 +25,7 @@ android {
         applicationId "com.babelwords.com"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
-        versionCode 1
+        versionCode 54
         versionName "1.0.0"
 
         // MultiDex support
