@@ -25,8 +25,8 @@ android {
         applicationId "com.babelwords.com"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
-        versionCode ((findProperty('VERSION_CODE') ?: System.getenv('VERSION_CODE') ?: '54')).toInteger()
-        versionName (findProperty('VERSION_NAME') ?: System.getenv('VERSION_NAME') ?: '1.0.0')
+        versionCode (project.findProperty('VERSION_CODE')?.toInteger() ?: 54)
+        versionName (project.findProperty('VERSION_NAME') ?: '1.0.0')
 
         // MultiDex support
         multiDexEnabled true
