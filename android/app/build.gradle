@@ -16,13 +16,13 @@ if (firebaseEnabled) {
 }
 
 android {
-    namespace 'com.babelwords.app'
+    namespace 'com.babelwords.com'
 
     compileSdk rootProject.ext.compile_sdk
     buildToolsVersion rootProject.ext.build_tools_version
 
     defaultConfig {
-        applicationId "com.babelwords.app"
+        applicationId "com.babelwords.com"
         minSdk rootProject.ext.min_sdk
         targetSdk rootProject.ext.target_sdk
         versionCode 53

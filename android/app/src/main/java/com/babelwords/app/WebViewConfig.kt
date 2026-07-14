@@ -1,10 +1,10 @@
-package com.babelwords.app
+package com.babelwords.com
 
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.webkit.*
-import com.babelwords.app.bridge.AdBridge
-import com.babelwords.app.bridge.SubscriptionBridge
+import com.babelwords.com.bridge.AdBridge
+import com.babelwords.com.bridge.SubscriptionBridge
 
 object WebViewConfig {
 

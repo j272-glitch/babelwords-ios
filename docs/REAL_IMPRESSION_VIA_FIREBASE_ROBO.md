@@ -110,7 +110,7 @@ clock in `firebase-run.log` was 00:44–00:47 UTC). The matrix outcome was
 **Passed** on `MediumPhone.arm-33-en_US-portrait` (Android 13), test time 101s.
 
 ```
-17:44:59.783  FirebaseCrashlytics  Initializing Firebase Crashlytics 19.3.0 for com.babelwords.app
+17:44:59.783  FirebaseCrashlytics  Initializing Firebase Crashlytics 19.3.0 for com.babelwords.com
 17:45:00.115  AdMobManager  Loading interstitial…
 17:45:00.116  AdMobManager  Loading rewarded ad…
 17:45:05.799  AdMobManager  ✅ Interstitial loaded

@@ -15,7 +15,7 @@ workflow `.github/workflows/android-sdk-update-v1.yml`:
 Everything below is the one-time account/console setup you do yourself, then how to run it.
 
 > **App identity used below**
-> - Package name: `com.babelwords.app`
+> - Package name: `com.babelwords.com`
 > - Builds: GitHub Actions only (repo `j272-glitch/babelwords-android`)
 > - Test type: **Robo** (auto-explores the app; no test code to write)
 
@@ -80,14 +80,14 @@ this entire step — see the note at the top of the Overview.)
 
 **2a. Register the Android app**
 1. In **Project settings → General → Your apps**, click the **Android** icon.
-2. **Android package name:** `com.babelwords.app` (must match exactly).
+2. **Android package name:** `com.babelwords.com` (must match exactly).
 3. **App nickname:** `BabelWords` (anything you like).
 4. *(Optional)* **SHA-1**: not needed for Crashlytics/Analytics or Test Lab.
 5. Click **Register app**.
 
 **2b. Download `google-services.json`**
 1. Click **Download google-services.json**.
-2. Open it and confirm it contains `"package_name": "com.babelwords.app"`.
+2. Open it and confirm it contains `"package_name": "com.babelwords.com"`.
 3. **Do not commit this file** — it holds the project's client API key. The repo's
    `.gitignore` already blocks it, and CI recreates it from the secret below.
 

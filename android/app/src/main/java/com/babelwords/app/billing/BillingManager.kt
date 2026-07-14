@@ -1,4 +1,4 @@
-package com.babelwords.app.billing
+package com.babelwords.com.billing
 
 import android.app.Activity
 import android.content.Context

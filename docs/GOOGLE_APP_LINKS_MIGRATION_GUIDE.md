@@ -26,7 +26,7 @@ Current contents (served by this repo from `public/.well-known/assetlinks.json`)
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.babelwords.app",
+      "package_name": "com.babelwords.com",
       "sha256_cert_fingerprints": [
         "D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B"
       ]
@@ -72,7 +72,7 @@ Edit **both** copies in this repo so they stay in sync, then redeploy:
 - `public/.well-known/assetlinks.json`  (the one actually served)
 - `client/public/.well-known/assetlinks.json`
 
-Confirm `package_name` is correct (currently `com.babelwords.app`) and replace the
+Confirm `package_name` is correct (currently `com.babelwords.com`) and replace the
 fingerprint(s). You may list **multiple** fingerprints to support a transition window (for
 example, the new Play signing key + the upload key, or old + new during rollout):
 
@@ -82,7 +82,7 @@ example, the new Play signing key + the upload key, or old + new during rollout)
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.babelwords.app",
+      "package_name": "com.babelwords.com",
       "sha256_cert_fingerprints": [
         "PLAY_APP_SIGNING_SHA256_FINGERPRINT_HERE",
         "UPLOAD_KEY_SHA256_FINGERPRINT_HERE"
@@ -120,7 +120,7 @@ Keep it valid JSON (no trailing commas, no placeholder text left behind).
    ```
 5. On a device with the new build installed:
    ```bash
-   adb shell pm get-app-links com.babelwords.app
+   adb shell pm get-app-links com.babelwords.com
    # the linguagt.com domain should report: verified
    ```
 

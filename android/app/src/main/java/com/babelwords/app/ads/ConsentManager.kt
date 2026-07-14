@@ -1,4 +1,4 @@
-package com.babelwords.app.ads
+package com.babelwords.com.ads
 
 import android.app.Activity
 import android.content.Context

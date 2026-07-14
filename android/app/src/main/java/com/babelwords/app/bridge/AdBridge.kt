@@ -1,10 +1,10 @@
-package com.babelwords.app.bridge
+package com.babelwords.com.bridge
 
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.util.Log
-import com.babelwords.app.ads.AdMobManager
-import com.babelwords.app.ads.ConsentManager
+import com.babelwords.com.ads.AdMobManager
+import com.babelwords.com.ads.ConsentManager
 import org.json.JSONObject
 
 /**
@@ -32,7 +32,7 @@ class AdBridge(
     @JavascriptInterface
     fun notifyMicActive(active: Boolean) {
         Log.d(TAG, "notifyMicActive: $active")
-        (activity as? com.babelwords.app.MainActivity)?.setMicState(active)
+        (activity as? com.babelwords.com.MainActivity)?.setMicState(active)
     }
 
     // ==================== Consent ====================
@@ -158,7 +158,7 @@ class AdBridge(
             .replace("\n", "\\n")
             .replace("\r", "\\r")
         activity.runOnUiThread {
-            (activity as? com.babelwords.app.MainActivity)?.evalJs(
+            (activity as? com.babelwords.com.MainActivity)?.evalJs(
                 "window.onAdBridgeEvent && window.onAdBridgeEvent('$eventType', '$escaped');"
             )
         }

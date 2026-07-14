@@ -2,7 +2,7 @@
 
 **Audience:** whoever maintains the production web app at **linguagt.com**.
 
-**Why:** the Android container (`com.babelwords.app`) was updated. The web app
+**Why:** the Android container (`com.babelwords.com`) was updated. The web app
 talks to the container through a JavaScript bridge, so the web side has to be
 kept in sync or ad calls will silently fail. This guide lists exactly what to
 change on the web.
@@ -20,7 +20,7 @@ change on the web.
    method now hits a method that no longer exists (`undefined`).
 2. **Mediation adapters were added** (Unity + Liftoff/Vungle). This needs matching
    lines in the web-hosted **`app-ads.txt`**.
-3. **Package/domain are settled** as `com.babelwords.app` / `linguagt.com`. The
+3. **Package/domain are settled** as `com.babelwords.com` / `linguagt.com`. The
    web-hosted **`assetlinks.json`** must list the Play app-signing fingerprint.
 
 ---
@@ -183,7 +183,7 @@ app-signing** SHA-256 fingerprint (the cert Google re-signs installs with):
 15:5D:00:27:77:20:0B:EC:09:0A:8B:65:46:6C:D5:44:1D:ED:96:6A:4B:96:D8:E3:F4:FD:67:49:FE:24:5D:1B
 ```
 
-Package name must be `com.babelwords.app`. (Listing the upload key
+Package name must be `com.babelwords.com`. (Listing the upload key
 `D4:1D:…:AB:8B` as a second fingerprint is fine for sideloaded test builds, but
 the `15:5D:…` one is the one that matters for Play installs.)
 
@@ -285,5 +285,5 @@ web app and the native AdBridge agree before shipping.
 - [ ] Web app uses `window.AdBridge` + `window.onAdBridgeEvent` (not the old names)
 - [ ] `rewardEarned` grants the reward; `data` parsed as a number
 - [ ] `app-ads.txt` updated with Unity + Liftoff/Vungle lines and verified
-- [ ] `assetlinks.json` lists the `15:5D:…` fingerprint for `com.babelwords.app`
+- [ ] `assetlinks.json` lists the `15:5D:…` fingerprint for `com.babelwords.com`
 - [ ] `confirmAdBridgeMatchesNative()` logs ✅ PASS inside the container (Section 6)

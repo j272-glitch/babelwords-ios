@@ -1,6 +1,6 @@
 # BabelWords Android — Update Guide
 
-A practical playbook for updating the BabelWords Android app (com.babelwords.app, LinguaWonder). It captures hard-won lessons from recent releases so future updates go smoothly.
+A practical playbook for updating the BabelWords Android app (com.babelwords.com, LinguaWonder). It captures hard-won lessons from recent releases so future updates go smoothly.
 
 > **Read this first:** the Android app builds **only in GitHub Actions** — there is no local Android SDK/Gradle in this environment. The first real signal is the CI build. Plan changes carefully and verify the produced AAB after every build.
 

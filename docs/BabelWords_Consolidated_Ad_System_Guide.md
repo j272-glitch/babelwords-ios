@@ -5,7 +5,7 @@
 *actually implemented* in the codebase, not aspirational features.
 
 > **Architecture:** Native Kotlin WebView wrapper for `linguagt.com`. Package:
-> `com.babelwords.app`. App name: LinguaWonder. Builds **only in GitHub Actions**.
+> `com.babelwords.com`. App name: LinguaWonder. Builds **only in GitHub Actions**.
 
 ---
 
@@ -365,7 +365,7 @@ Permissions:
 
 ```xml
 <application
-    android:name="com.babelwords.app.BabelWordsApplication"
+    android:name="com.babelwords.com.BabelWordsApplication"
     ...>
 ```
 

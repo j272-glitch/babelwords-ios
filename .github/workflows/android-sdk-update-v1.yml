@@ -214,7 +214,7 @@ jobs:
               echo ""
               echo "   Add this to android/app/build.gradle:"
               echo "   android {"
-              echo "       namespace 'com.babelwords.app'"
+              echo "       namespace 'com.babelwords.com'"
               echo "       ..."
               echo "   }"
             else
@@ -462,7 +462,7 @@ jobs:
               echo "NAMESPACE ERROR DETECTED"
               echo "Add namespace to android/app/build.gradle:"
               echo "android {"
-              echo "    namespace 'com.babelwords.app'"
+              echo "    namespace 'com.babelwords.com'"
               echo "    ..."
               echo "}"
             fi
@@ -525,10 +525,10 @@ jobs:
               BYTES=$(wc -c < android/app/google-services.json)
               echo "✅ Wrote android/app/google-services.json ($BYTES bytes) — Firebase will be ENABLED"
               # Sanity check: must be valid JSON containing the expected package name.
-              if grep -q '"package_name": "com.babelwords.app"' android/app/google-services.json; then
-                echo "✅ google-services.json references com.babelwords.app"
+              if grep -q '"package_name": "com.babelwords.com"' android/app/google-services.json; then
+                echo "✅ google-services.json references com.babelwords.com"
               else
-                echo "⚠️ google-services.json does NOT list com.babelwords.app — Firebase config may be wrong."
+                echo "⚠️ google-services.json does NOT list com.babelwords.com — Firebase config may be wrong."
               fi
             } || {
               echo "❌ Failed to decode GOOGLE_SERVICES_JSON_BASE64"

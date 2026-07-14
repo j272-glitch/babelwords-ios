@@ -6,12 +6,12 @@
 **What this covers:** the three Android-side changes that must line up with the web app after the
 BabelWords rebrand:
 
-1. **Package rename** → `com.babelwords.app`
+1. **Package rename** → `com.babelwords.com`
 2. **Access gate token** → compiled-in code must equal the server's `SITE_ACCESS_TOKEN`
 3. **App Links** → manifest `autoVerify` + signing with the key whose SHA-256 is in
    `assetlinks.json`
 
-> The web side is already done: `assetlinks.json` lists `com.babelwords.app` with the Play App
+> The web side is already done: `assetlinks.json` lists `com.babelwords.com` with the Play App
 > Signing SHA-256 `15:5D:00:27:…:24:5D:1B`, the gate whitelists `/.well-known/*`, and the token is
 > read from `SITE_ACCESS_TOKEN`. This doc is **only** the Android-side work.
 
@@ -22,18 +22,18 @@ Deep-dive companions (read these for full detail):
 
 ---
 
-## 1. Rename the package to `com.babelwords.app`
+## 1. Rename the package to `com.babelwords.com`
 
 This is a **new app identity** (it cannot be changed after first publish, and it's a new Play
 listing). Update **every** place the old package appears (`com.linguawonder.app` →
-`com.babelwords.app`):
+`com.babelwords.com`):
 
 - **`app/build.gradle`**
   ```groovy
   android {
-      namespace 'com.babelwords.app'           // was com.linguawonder.app
+      namespace 'com.babelwords.com'           // was com.linguawonder.app
       defaultConfig {
-          applicationId "com.babelwords.app"   // was com.linguawonder.app
+          applicationId "com.babelwords.com"   // was com.linguawonder.app
       }
   }
   ```
@@ -43,7 +43,7 @@ listing). Update **every** place the old package appears (`com.linguawonder.app`
 - **`AndroidManifest.xml`** — any fully-qualified component names (e.g. `.MainActivity` is fine, but
   replace any explicit `com.linguawonder.app.*`).
 - **ProGuard / R8 `-keep` rules** that reference the old package (e.g. `Application` subclass).
-- **Firebase `google-services.json`** — the `package_name` must be `com.babelwords.app`. Register
+- **Firebase `google-services.json`** — the `package_name` must be `com.babelwords.com`. Register
   the new package in the Firebase console and download a fresh `google-services.json`, or the app
   will crash at startup / lose Firebase services.
 - **AdMob / any SDK** consoles that key off the package name (re-register the app there too).
@@ -110,7 +110,7 @@ For `https://linguagt.com` links to open the app (and for verified domain associ
 ## 4. Build, sign, and upload
 
 1. Build a **signed `.aab`** (Android App Bundle) with your upload key.
-2. Upload to a Play track (start with **internal testing**) for the **`com.babelwords.app`** app,
+2. Upload to a Play track (start with **internal testing**) for the **`com.babelwords.com`** app,
    with **Play App Signing** enabled.
 3. Publish the **web app** too (if not already) so the updated `assetlinks.json` is live in
    production.
@@ -122,7 +122,7 @@ For `https://linguagt.com` links to open the app (and for verified domain associ
 1. **assetlinks is live and public (no code needed):**
    ```bash
    curl -s https://linguagt.com/.well-known/assetlinks.json
-   # expect package com.babelwords.app + the 15:5D:… fingerprint
+   # expect package com.babelwords.com + the 15:5D:… fingerprint
    ```
 2. **Google's Digital Asset Links API resolves it:**
    ```
@@ -130,7 +130,7 @@ For `https://linguagt.com` links to open the app (and for verified domain associ
    ```
 3. **On a device with the Play build installed:**
    ```bash
-   adb shell pm get-app-links com.babelwords.app
+   adb shell pm get-app-links com.babelwords.com
    # the linguagt.com domain should report: verified
    ```
 4. **Gate works:** the app opens the game in production (cookie set), while a fresh browser with no
@@ -142,9 +142,9 @@ For `https://linguagt.com` links to open the app (and for verified domain associ
 
 ## 6. Quick checklist
 
-- [ ] `applicationId` + `namespace` → `com.babelwords.app`
-- [ ] All `.kt`/`.java` `package`/`import` declarations + source folders → `com.babelwords.app`
-- [ ] Fresh `google-services.json` with `package_name = com.babelwords.app`
+- [ ] `applicationId` + `namespace` → `com.babelwords.com`
+- [ ] All `.kt`/`.java` `package`/`import` declarations + source folders → `com.babelwords.com`
+- [ ] Fresh `google-services.json` with `package_name = com.babelwords.com`
 - [ ] AdMob / other SDK consoles re-registered for the new package
 - [ ] `BABELWORDS_ACCESS_TOKEN` build secret == server `SITE_ACCESS_TOKEN` (not hardcoded)
 - [ ] First load uses `https://linguagt.com/?access=<token>`; cookies enabled
@@ -152,4 +152,4 @@ For `https://linguagt.com` links to open the app (and for verified domain associ
 - [ ] App published via Play App Signing (key SHA-256 matches `assetlinks.json`)
 - [ ] (If sideloading) upload-key SHA-256 added to `assetlinks.json`
 - [ ] Web app republished so production serves the new `assetlinks.json`
-- [ ] `adb shell pm get-app-links com.babelwords.app` → verified
+- [ ] `adb shell pm get-app-links com.babelwords.com` → verified

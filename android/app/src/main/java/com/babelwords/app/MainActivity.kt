@@ -1,4 +1,4 @@
-package com.babelwords.app
+package com.babelwords.com
 
 import android.net.Uri
 import android.os.Bundle
@@ -11,11 +11,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.ads.MobileAds
-import com.babelwords.app.ads.AdMobManager
-import com.babelwords.app.ads.AppOpenAdManager
-import com.babelwords.app.ads.ConsentManager
-import com.babelwords.app.bridge.AdBridge
-import com.babelwords.app.bridge.SubscriptionBridge
+import com.babelwords.com.ads.AdMobManager
+import com.babelwords.com.ads.AppOpenAdManager
+import com.babelwords.com.ads.ConsentManager
+import com.babelwords.com.bridge.AdBridge
+import com.babelwords.com.bridge.SubscriptionBridge
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {

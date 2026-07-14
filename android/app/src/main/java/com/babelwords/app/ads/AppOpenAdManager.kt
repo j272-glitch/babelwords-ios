@@ -1,4 +1,4 @@
-package com.babelwords.app.ads
+package com.babelwords.com.ads
 
 import android.app.Activity
 import android.content.Context
@@ -16,7 +16,7 @@ import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.LoadAdError
 import com.google.android.gms.ads.appopen.AppOpenAd
 import com.google.android.gms.ads.appopen.AppOpenAd.AppOpenAdLoadCallback
-import com.babelwords.app.MainActivity
+import com.babelwords.com.MainActivity
 
 /**
  * App Open ad manager (v50 port from LinguaVibe production system).
@@ -75,7 +75,7 @@ class AppOpenAdManager(
 
     private val adUnitId: String by lazy {
         if (isTestLab) "ca-app-pub-3940256099942544/9251695926"
-        else activity.getString(com.babelwords.app.R.string.admob_app_open_id)
+        else activity.getString(com.babelwords.com.R.string.admob_app_open_id)
     }
 
     // ==================== Lifecycle ====================

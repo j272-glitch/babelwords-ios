@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 
-        Package/namespace defined in build.gradle as 'com.babelwords.app'
+        Package/namespace defined in build.gradle as 'com.babelwords.com'
         AGP 8.x no longer supports the package attribute here
     -->
 
@@ -37,7 +37,7 @@
         android:required="false" />
 
     <application
-        android:name="com.babelwords.app.BabelWordsApplication"
+        android:name="com.babelwords.com.BabelWordsApplication"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

@@ -1,4 +1,4 @@
-package com.babelwords.app
+package com.babelwords.com
 
 import android.app.Application
 import android.provider.Settings

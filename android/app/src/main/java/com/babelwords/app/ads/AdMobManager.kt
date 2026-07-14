@@ -1,4 +1,4 @@
-package com.babelwords.app.ads
+package com.babelwords.com.ads
 
 import android.app.Activity
 import android.content.Context
@@ -11,7 +11,7 @@ import android.provider.Settings
 import android.util.Log
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
-import com.babelwords.app.BabelWordsApplication
+import com.babelwords.com.BabelWordsApplication
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.interstitial.InterstitialAd
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback
@@ -116,7 +116,7 @@ class AdMobManager(
 
     private val interstitialAdUnitId by lazy {
         if (isTestLab) TEST_INTERSTITIAL_ID
-        else context.getString(com.babelwords.app.R.string.admob_interstitial_id)
+        else context.getString(com.babelwords.com.R.string.admob_interstitial_id)
     }
 
     // ==================== Freshness ====================

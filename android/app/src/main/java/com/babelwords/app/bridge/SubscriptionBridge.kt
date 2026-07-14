@@ -1,10 +1,10 @@
-package com.babelwords.app.bridge
+package com.babelwords.com.bridge
 
 import android.app.Activity
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import com.babelwords.app.billing.BillingManager
+import com.babelwords.com.billing.BillingManager
 import org.json.JSONObject
 
 /**

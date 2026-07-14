@@ -26,7 +26,7 @@ certificate the installed app uses.
 
 ### What changed
 - **Old package name:** `com.linguawonder.app`
-- **New package name:** `com.babelwords.app`
+- **New package name:** `com.babelwords.com`
 
 ### What to publish
 
@@ -39,7 +39,7 @@ Update the served `assetlinks.json` (and any second copy your web repo keeps in 
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.babelwords.app",
+      "package_name": "com.babelwords.com",
       "sha256_cert_fingerprints": [
         "D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B"
       ]
@@ -105,7 +105,7 @@ installed app), not real authentication.
    ```
 4. On a device with the new build installed:
    ```bash
-   adb shell pm get-app-links com.babelwords.app
+   adb shell pm get-app-links com.babelwords.com
    # the linguagt.com domain should report: verified
    ```
 5. Sanity-check the gate: opening `https://linguagt.com/?access=<the token>` should set the cookie
@@ -118,5 +118,5 @@ installed app), not real authentication.
 
 - Re-run section 1 whenever the **signing key** changes (resetting Play App Signing changes the
   fingerprint again).
-- If Play Console ever shows a different package name than `com.babelwords.app`, update
+- If Play Console ever shows a different package name than `com.babelwords.com`, update
   `package_name` to match — the app and `assetlinks.json` must always agree.
