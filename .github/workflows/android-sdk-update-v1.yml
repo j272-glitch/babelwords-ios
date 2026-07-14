@@ -528,7 +528,12 @@ jobs:
               if grep -q '"package_name": "com.babelwords.com"' android/app/google-services.json; then
                 echo "✅ google-services.json references com.babelwords.com"
               else
-                echo "⚠️ google-services.json does NOT list com.babelwords.com — Firebase config may be wrong."
+                echo "⚠️ google-services.json package name does NOT match com.babelwords.com."
+                echo "   Disabling Firebase for this build so the Gradle plugin doesn't hard-fail."
+                echo "   To re-enable Firebase: go to Firebase Console → Project settings → Add app → Android"
+                echo "   → enter package name 'com.babelwords.com' → download google-services.json"
+                echo "   → base64-encode it → update the GOOGLE_SERVICES_JSON_BASE64 GitHub secret."
+                rm android/app/google-services.json
               fi
             } || {
               echo "❌ Failed to decode GOOGLE_SERVICES_JSON_BASE64"
