@@ -8,9 +8,9 @@ on:
         required: false
         type: string
       version_name:
-        description: 'Version Name (e.g., 53.1.0)'
+        description: 'Version Name (e.g., 1.0.0)'
         required: false
-        default: '53.1.0'
+        default: '1.0.0'
         type: string
       create_release:
         description: 'Create GitHub Release'
@@ -604,8 +604,8 @@ jobs:
             --no-parallel \
             --refresh-dependencies \
             $GRADLE_FLAGS \
-            -Pandroid.injected.version.code=$VERSION_CODE \
-            -Pandroid.injected.version.name=$VERSION_NAME \
+            -PVERSION_CODE=$VERSION_CODE \
+            -PVERSION_NAME=$VERSION_NAME \
             $EXTRA_PROPS \
             2>&1 | tee build-output.log || BUILD_FAILED=true
           
@@ -837,6 +837,40 @@ jobs:
           echo "3. Ensure package names match across all files"
           echo "4. Check gradle.properties for syntax errors"
           echo "5. Verify source files are in correct package directory"
+
+      - name: Verify AAB Version Code
+        if: always()
+        run: |
+          echo "=== AAB VERSION VERIFICATION ==="
+          RELEASE_AAB=$(find android/app/build/outputs -name "*.aab" -type f 2>/dev/null | head -n 1 || echo "")
+          if [ -z "$RELEASE_AAB" ]; then
+            echo "⚠️  No AAB found — skipping verification"
+            exit 0
+          fi
+          # Extract versionCode and versionName from the AAB manifest using aapt2 or unzip+grep
+          AAPT2=$(find "$ANDROID_HOME" -name "aapt2" -type f 2>/dev/null | head -n 1 || echo "")
+          if [ -n "$AAPT2" ]; then
+            MANIFEST_DUMP=$("$AAPT2" dump manifest "$RELEASE_AAB" 2>/dev/null || echo "")
+            ACTUAL_CODE=$(echo "$MANIFEST_DUMP" | grep -oP 'versionCode=\K[0-9]+' | head -1 || echo "unknown")
+            ACTUAL_NAME=$(echo "$MANIFEST_DUMP" | grep -oP "versionName='\K[^']+" | head -1 || echo "unknown")
+          else
+            # Fallback: unzip base manifest and grep
+            TMPDIR_AAB=$(mktemp -d)
+            unzip -p "$RELEASE_AAB" "base/manifest/AndroidManifest.xml" > "$TMPDIR_AAB/manifest.bin" 2>/dev/null || true
+            ACTUAL_CODE=$(strings "$TMPDIR_AAB/manifest.bin" 2>/dev/null | grep -oP '(?<=versionCode=)[0-9]+' | head -1 || echo "unknown")
+            ACTUAL_NAME=$(strings "$TMPDIR_AAB/manifest.bin" 2>/dev/null | grep -oP '(?<=versionName=)[0-9.]+' | head -1 || echo "unknown")
+            rm -rf "$TMPDIR_AAB"
+          fi
+          echo "Expected versionCode : $VERSION_CODE"
+          echo "Expected versionName : $VERSION_NAME"
+          echo "Actual   versionCode : $ACTUAL_CODE"
+          echo "Actual   versionName : $ACTUAL_NAME"
+          if [ "$ACTUAL_CODE" != "unknown" ] && [ "$ACTUAL_CODE" != "$VERSION_CODE" ]; then
+            echo "❌ VERSION CODE MISMATCH — AAB has $ACTUAL_CODE but expected $VERSION_CODE"
+            echo "   Play Console WILL reject this upload. Fix -PVERSION_CODE or build.gradle."
+            exit 1
+          fi
+          echo "✅ Version code verified: $ACTUAL_CODE"
 
       - name: Collect Build Outputs
         if: always()
