@@ -401,10 +401,12 @@ class AdMobManager(
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: android.net.Network) {
                 if (isDestroyed) return
-                // Auto-reload if we have a stale ad or no ad at all
+                // Auto-reload if we have a stale ad or no ad at all.
+                // CRITICAL: NetworkCallback runs on ConnectivityThread (background).
+                // InterstitialAd.load() requires main thread — must dispatch via handler.
                 if (interstitialAd == null || !isFresh()) {
-                    Log.d(TAG, "Network available — auto-reloading interstitial")
-                    load(null)
+                    Log.d(TAG, "Network available — auto-reloading interstitial (dispatch to main thread)")
+                    handler.post { load(null) }
                 }
             }
         }

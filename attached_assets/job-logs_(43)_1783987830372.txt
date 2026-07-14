@@ -1,0 +1,538 @@
+﻿2026-07-13T01:04:27.3911088Z Current runner version: '2.335.1'
+2026-07-13T01:04:27.3992448Z ##[group]Runner Image Provisioner
+2026-07-13T01:04:27.3994106Z Hosted Compute Agent
+2026-07-13T01:04:27.3995166Z Version: 20260624.560
+2026-07-13T01:04:27.3996333Z Commit: 925d229a51159bc391ae97e54a2dd1fe20af789d
+2026-07-13T01:04:27.3997742Z Build Date: 2026-06-24T18:26:47Z
+2026-07-13T01:04:27.3999034Z Worker ID: {06866e5f-0500-4191-9a8d-377397e68da3}
+2026-07-13T01:04:27.4000403Z Azure Region: northcentralus
+2026-07-13T01:04:27.4012334Z ##[endgroup]
+2026-07-13T01:04:27.4015116Z ##[group]Operating System
+2026-07-13T01:04:27.4016403Z Ubuntu
+2026-07-13T01:04:27.4017309Z 24.04.4
+2026-07-13T01:04:27.4018452Z LTS
+2026-07-13T01:04:27.4019361Z ##[endgroup]
+2026-07-13T01:04:27.4020596Z ##[group]Runner Image
+2026-07-13T01:04:27.4032377Z Image: ubuntu-24.04
+2026-07-13T01:04:27.4033670Z Version: 20260705.232.1
+2026-07-13T01:04:27.4035925Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260705.232/images/ubuntu/Ubuntu2404-Readme.md
+2026-07-13T01:04:27.4038852Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260705.232
+2026-07-13T01:04:27.4040603Z ##[endgroup]
+2026-07-13T01:04:27.4043458Z ##[group]GITHUB_TOKEN Permissions
+2026-07-13T01:04:27.4046935Z Actions: read
+2026-07-13T01:04:27.4048080Z Checks: read
+2026-07-13T01:04:27.4049007Z Contents: write
+2026-07-13T01:04:27.4050181Z Metadata: read
+2026-07-13T01:04:27.4051148Z Packages: write
+2026-07-13T01:04:27.4072940Z ##[endgroup]
+2026-07-13T01:04:27.4076412Z Secret source: Actions
+2026-07-13T01:04:27.4078148Z Prepare workflow directory
+2026-07-13T01:04:27.4935432Z Prepare all required actions
+2026-07-13T01:04:27.4989547Z Getting action download info
+2026-07-13T01:04:27.7304066Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2026-07-13T01:04:28.7717963Z Download action repository 'google-github-actions/auth@v2' (SHA:c200f3691d83b41bf9bbd8638997a462592937ed)
+2026-07-13T01:04:29.2119449Z Download action repository 'google-github-actions/setup-gcloud@v2' (SHA:e427ad8a34f8676edf47cf7d7925499adf3eb74f)
+2026-07-13T01:04:29.4617791Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-07-13T01:04:29.6787174Z Complete job name: Firebase Test Lab (Robo + Logcat + Video)
+2026-07-13T01:04:29.7513607Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-13T01:04:29.7522966Z ##[group]Run actions/download-artifact@v4
+2026-07-13T01:04:29.7524137Z with:
+2026-07-13T01:04:29.7525114Z   name: ***-apk-v1.0.0-1
+2026-07-13T01:04:29.7526051Z   path: firebase-apk
+2026-07-13T01:04:29.7526915Z   merge-multiple: false
+2026-07-13T01:04:29.7527880Z   repository: j272-glitch/***
+2026-07-13T01:04:29.7528786Z   run-id: 29216400006
+2026-07-13T01:04:29.7530213Z env:
+2026-07-13T01:04:29.7531090Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:04:29.7532355Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:04:29.7533426Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:04:29.7534450Z   VERSION_CODE: 1
+2026-07-13T01:04:29.7535268Z   VERSION_NAME: 1.0.0
+2026-07-13T01:04:29.7536140Z   CREATE_RELEASE: true
+2026-07-13T01:04:29.7536999Z   DEBUG_MODE: true
+2026-07-13T01:04:29.7568388Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:04:29.7569513Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:04:29.7570454Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:04:29.7571556Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:04:29.7572529Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:04:29.7610155Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:04:29.7611080Z ##[endgroup]
+2026-07-13T01:04:29.9313566Z Downloading single artifact
+2026-07-13T01:04:29.9453994Z (node:1931) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-13T01:04:29.9457655Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-13T01:04:30.0583999Z Preparing to download the following artifacts:
+2026-07-13T01:04:30.0587173Z - ***-apk-v1.0.0-1 (ID: 8266793125, Size: 12996271, Expected Digest: sha256:7abbc5bb0798e51f7496f0577454d81513673c72d61af375f119279be898a5b9)
+2026-07-13T01:04:30.2034092Z Redirecting to blob download url: https://productionresultssa3.blob.core.windows.net/actions-results/ce8f825a-97f6-45f4-a1e9-2cec273d6338/workflow-job-run-f5929e83-0bb7-5d49-b4e0-5dbb89ab0419/artifacts/d81d375b515dfcf782b3ad7d996606ee8f1b1ec96177c0d707134183dc3d7f1b.zip
+2026-07-13T01:04:30.2038413Z Starting download of artifact to: /home/runner/work/***/***/firebase-apk
+2026-07-13T01:04:30.3549410Z (node:1931) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-07-13T01:04:30.7265411Z SHA256 digest of downloaded artifact is 7abbc5bb0798e51f7496f0577454d81513673c72d61af375f119279be898a5b9
+2026-07-13T01:04:30.7268884Z Artifact download completed successfully.
+2026-07-13T01:04:30.7270786Z Total of 1 artifact(s) downloaded
+2026-07-13T01:04:30.7272928Z Download artifact has finished successfully
+2026-07-13T01:04:30.7525309Z ##[group]Run APK=$(find firebase-apk -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")
+2026-07-13T01:04:30.7527112Z [36;1mAPK=$(find firebase-apk -name "*.apk" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2026-07-13T01:04:30.7528470Z [36;1mif [ -z "$APK" ]; then[0m
+2026-07-13T01:04:30.7529874Z [36;1m  echo "::error::No APK artifact found — Firebase Test Lab run was requested but APK is missing."[0m
+2026-07-13T01:04:30.7607959Z [36;1m  exit 1[0m
+2026-07-13T01:04:30.7609450Z [36;1melse[0m
+2026-07-13T01:04:30.7610941Z [36;1m  echo "✅ APK located: $APK"[0m
+2026-07-13T01:04:30.7612643Z [36;1m  echo "apk=$APK" >> "$GITHUB_OUTPUT"[0m
+2026-07-13T01:04:30.7614287Z [36;1mfi[0m
+2026-07-13T01:04:30.7756748Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:04:30.7757809Z env:
+2026-07-13T01:04:30.7758817Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:04:30.7760050Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:04:30.7761315Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:04:30.7762659Z   VERSION_CODE: 1
+2026-07-13T01:04:30.7763597Z   VERSION_NAME: 1.0.0
+2026-07-13T01:04:30.7764553Z   CREATE_RELEASE: true
+2026-07-13T01:04:30.7765499Z   DEBUG_MODE: true
+2026-07-13T01:04:30.7797174Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:04:30.7798439Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:04:30.7799484Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:04:30.7800617Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:04:30.7801807Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:04:30.7839118Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:04:30.7840174Z ##[endgroup]
+2026-07-13T01:04:30.7961302Z ✅ APK located: firebase-apk/***-v1.0.0-1.apk
+2026-07-13T01:04:30.8165375Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-13T01:04:30.8168667Z ##[group]Run google-github-actions/auth@v2
+2026-07-13T01:04:30.8169630Z with:
+2026-07-13T01:04:30.8285882Z   credentials_json: ***
+2026-07-13T01:04:30.8286829Z   create_credentials_file: true
+2026-07-13T01:04:30.8287767Z   export_environment_variables: true
+2026-07-13T01:04:30.8288738Z   universe: googleapis.com
+2026-07-13T01:04:30.8289650Z   cleanup_credentials: true
+2026-07-13T01:04:30.8290555Z   access_token_lifetime: 3600s
+2026-07-13T01:04:30.8291759Z   access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+2026-07-13T01:04:30.8292925Z   id_token_include_email: false
+2026-07-13T01:04:30.8293824Z env:
+2026-07-13T01:04:30.8295192Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:04:30.8296341Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:04:30.8297396Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:04:30.8298331Z   VERSION_CODE: 1
+2026-07-13T01:04:30.8299156Z   VERSION_NAME: 1.0.0
+2026-07-13T01:04:30.8300012Z   CREATE_RELEASE: true
+2026-07-13T01:04:30.8300860Z   DEBUG_MODE: true
+2026-07-13T01:04:30.8331994Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:04:30.8333123Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:04:30.8334083Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:04:30.8335094Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:04:30.8336093Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:04:30.8373454Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:04:30.8374392Z ##[endgroup]
+2026-07-13T01:04:30.9557097Z Created credentials file at "/home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json"
+2026-07-13T01:04:30.9789807Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-13T01:04:30.9792722Z ##[group]Run google-github-actions/setup-gcloud@v2
+2026-07-13T01:04:30.9793731Z with:
+2026-07-13T01:04:30.9794534Z   version: latest
+2026-07-13T01:04:30.9795364Z   skip_install: false
+2026-07-13T01:04:30.9796229Z   skip_tool_cache: false
+2026-07-13T01:04:30.9797081Z env:
+2026-07-13T01:04:30.9797942Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:04:30.9799020Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:04:30.9800113Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:04:30.9801051Z   VERSION_CODE: 1
+2026-07-13T01:04:30.9802160Z   VERSION_NAME: 1.0.0
+2026-07-13T01:04:30.9803019Z   CREATE_RELEASE: true
+2026-07-13T01:04:30.9803920Z   DEBUG_MODE: true
+2026-07-13T01:04:30.9834843Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:04:30.9835989Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:04:30.9836967Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:04:30.9837987Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:04:30.9838980Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:04:30.9876589Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:04:30.9878176Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:30.9880040Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:30.9881835Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:30.9883092Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:04:30.9884049Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:04:30.9884957Z   GCLOUD_PROJECT: ***
+2026-07-13T01:04:30.9885849Z   GCP_PROJECT: ***
+2026-07-13T01:04:30.9886765Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:04:30.9887660Z ##[endgroup]
+2026-07-13T01:04:31.9885753Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/8d4e474d-f9cb-44f1-b914-5e56ad88865a -f /home/runner/work/_temp/7072c925-f498-449c-bca1-42b965fe4985
+2026-07-13T01:04:52.8481799Z Successfully authenticated
+2026-07-13T01:04:52.8715957Z ##[group]Run set +e
+2026-07-13T01:04:52.8716325Z [36;1mset +e[0m
+2026-07-13T01:04:52.8716691Z [36;1mAPK="firebase-apk/***-v1.0.0-1.apk"[0m
+2026-07-13T01:04:52.8717126Z [36;1mecho "Running Firebase Test Lab Robo test on: $APK"[0m
+2026-07-13T01:04:52.8717537Z [36;1mgcloud firebase test android run \[0m
+2026-07-13T01:04:52.8717894Z [36;1m  --type robo \[0m
+2026-07-13T01:04:52.8718195Z [36;1m  --app "$APK" \[0m
+2026-07-13T01:04:52.8718644Z [36;1m  --device model=MediumPhone.arm,version=33,locale=en_US,orientation=portrait \[0m
+2026-07-13T01:04:52.8719130Z [36;1m  --timeout 180s \[0m
+2026-07-13T01:04:52.8719430Z [36;1m  --record-video \[0m
+2026-07-13T01:04:52.8719851Z [36;1m  --project "***" 2>&1 | tee firebase-run.log[0m
+2026-07-13T01:04:52.8720501Z [36;1mecho "gcloud exit handled; results parsed in next step."[0m
+2026-07-13T01:04:52.8761159Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:04:52.8761671Z env:
+2026-07-13T01:04:52.8762041Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:04:52.8762446Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:04:52.8763017Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:04:52.8763344Z   VERSION_CODE: 1
+2026-07-13T01:04:52.8763608Z   VERSION_NAME: 1.0.0
+2026-07-13T01:04:52.8763879Z   CREATE_RELEASE: true
+2026-07-13T01:04:52.8764154Z   DEBUG_MODE: true
+2026-07-13T01:04:52.8781466Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:04:52.8781893Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:04:52.8782223Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:04:52.8782582Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:04:52.8782941Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:04:52.8809714Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:04:52.8810425Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:52.8811316Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:52.8812373Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:04:52.8812867Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:04:52.8813191Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:04:52.8813508Z   GCLOUD_PROJECT: ***
+2026-07-13T01:04:52.8813858Z   GCP_PROJECT: ***
+2026-07-13T01:04:52.8814156Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:04:52.8814520Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:04:52.8814933Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:04:52.8815273Z ##[endgroup]
+2026-07-13T01:04:52.8883187Z Running Firebase Test Lab Robo test on: firebase-apk/***-v1.0.0-1.apk
+2026-07-13T01:04:53.9396412Z 
+2026-07-13T01:04:53.9398013Z Have questions, feedback, or issues? Get support by visiting:
+2026-07-13T01:04:53.9399164Z   https://firebase.google.com/support/
+2026-07-13T01:04:53.9400068Z 
+2026-07-13T01:04:56.9973270Z Uploading [firebase-apk/***-v1.0.0-1.apk] to Firebase Test Lab...
+2026-07-13T01:04:59.1444400Z Raw results will be stored in your GCS bucket at [https://console.developers.google.com/storage/browser/test-lab-wx74jwwvah642-nra3wc6jihnya/2026-07-13_01:04:54.385648_HrLf/]
+2026-07-13T01:04:59.1458020Z 
+2026-07-13T01:04:59.5880833Z Test [matrix-2tmk555gctct5] has been created in the Google Cloud.
+2026-07-13T01:04:59.5902676Z Creating individual test executions...
+2026-07-13T01:05:05.7638316Z ..............................done.
+2026-07-13T01:05:05.8736915Z Firebase Test Lab will execute your robo test on 1 device(s). More devices may be added later if flaky test attempts are specified.
+2026-07-13T01:05:05.8753980Z 
+2026-07-13T01:05:05.8763412Z Test results will be streamed to [ https://console.firebase.google.com/project/***/testlab/histories/bh.c8e22c014dfb0cb3/matrices/5364133704703033460 ].
+2026-07-13T01:05:05.9072630Z 01:05:05 Test is Pending
+2026-07-13T01:05:17.9828099Z 01:05:17 Starting attempt 1.
+2026-07-13T01:05:17.9829879Z 01:05:17 Setting up Android test.
+2026-07-13T01:05:17.9833849Z 01:05:17 Starting Android test.
+2026-07-13T01:05:17.9835127Z 01:05:17 Test is Running
+2026-07-13T01:06:18.1913306Z 01:06:18 Completed Android test.
+2026-07-13T01:06:18.1914441Z 01:06:18 Tearing down Android test.
+2026-07-13T01:06:30.2294974Z 01:06:30 Done. Test time = 25 (secs)
+2026-07-13T01:06:30.2296407Z 01:06:30 Starting results processing. Attempt: 1
+2026-07-13T01:06:42.2878638Z 01:06:42 Completed results processing. Time taken = 5 (secs)
+2026-07-13T01:06:42.2892562Z 01:06:42 Test is Finished
+2026-07-13T01:06:42.3384081Z 
+2026-07-13T01:06:42.3385002Z Robo testing complete.
+2026-07-13T01:06:42.3385564Z 
+2026-07-13T01:06:42.3386923Z More details are available at [ https://console.firebase.google.com/project/***/testlab/histories/bh.c8e22c014dfb0cb3/matrices/5364133704703033460 ].
+2026-07-13T01:06:42.8495574Z ┌─────────┬───────────────────────────────────┬─────────────────────┐
+2026-07-13T01:06:42.8497402Z │ OUTCOME │          TEST_AXIS_VALUE          │     TEST_DETAILS    │
+2026-07-13T01:06:42.8498526Z ├─────────┼───────────────────────────────────┼─────────────────────┤
+2026-07-13T01:06:42.8499602Z │ Failed  │ MediumPhone.arm-33-en_US-portrait │ Application crashed │
+2026-07-13T01:06:42.8500747Z └─────────┴───────────────────────────────────┴─────────────────────┘
+2026-07-13T01:06:42.9703822Z gcloud exit handled; results parsed in next step.
+2026-07-13T01:06:42.9746885Z ##[group]Run # IMPORTANT: do NOT pass --results-bucket. Test Lab auto-creates a writable
+2026-07-13T01:06:42.9747568Z [36;1m# IMPORTANT: do NOT pass --results-bucket. Test Lab auto-creates a writable[0m
+2026-07-13T01:06:42.9748156Z [36;1m# test-lab-* bucket; we parse its gs:// path out of gcloud's own output.[0m
+2026-07-13T01:06:42.9748761Z [36;1mRAW=$(grep -oE 'storage/browser/[^[:space:]"]+' firebase-run.log | head -n 1 || echo "")[0m
+2026-07-13T01:06:42.9749241Z [36;1mif [ -z "$RAW" ]; then[0m
+2026-07-13T01:06:42.9749709Z [36;1m  echo "⚠️ Could not parse a results-bucket path from gcloud output."[0m
+2026-07-13T01:06:42.9750147Z [36;1m  exit 0[0m
+2026-07-13T01:06:42.9750404Z [36;1mfi[0m
+2026-07-13T01:06:42.9750785Z [36;1m# gcloud prints the URL wrapped in brackets ("...qtNd/]"), so strip a trailing[0m
+2026-07-13T01:06:42.9751647Z [36;1m# ']' (and anything after) and any query string before building the gs:// path —[0m
+2026-07-13T01:06:42.9752444Z [36;1m# otherwise the path is malformed and nothing copies.[0m
+2026-07-13T01:06:42.9753004Z [36;1mGS_PATH="gs://$(echo "$RAW" | sed 's#storage/browser/##; s#].*##; s#?.*##; s#/*$##')"[0m
+2026-07-13T01:06:42.9753452Z [36;1mecho "Results path: $GS_PATH"[0m
+2026-07-13T01:06:42.9753779Z [36;1mmkdir -p firebase-results[0m
+2026-07-13T01:06:42.9754164Z [36;1mgsutil -m cp -r "${GS_PATH}/**" firebase-results/ 2>/dev/null \[0m
+2026-07-13T01:06:42.9754652Z [36;1m  || gsutil -m cp -r "${GS_PATH}/*" firebase-results/ 2>/dev/null \[0m
+2026-07-13T01:06:42.9755203Z [36;1m  || echo "⚠️ Could not copy results (check service-account storage permissions)."[0m
+2026-07-13T01:06:42.9788954Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:06:42.9789268Z env:
+2026-07-13T01:06:42.9789566Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:06:42.9789956Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:06:42.9790335Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:06:42.9790662Z   VERSION_CODE: 1
+2026-07-13T01:06:42.9790928Z   VERSION_NAME: 1.0.0
+2026-07-13T01:06:42.9791197Z   CREATE_RELEASE: true
+2026-07-13T01:06:42.9791718Z   DEBUG_MODE: true
+2026-07-13T01:06:42.9808799Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:06:42.9809206Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:06:42.9809528Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:06:42.9809865Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:06:42.9810212Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:06:42.9837553Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:06:42.9838240Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:42.9839041Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:42.9839768Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:42.9840227Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:06:42.9840541Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:06:42.9840826Z   GCLOUD_PROJECT: ***
+2026-07-13T01:06:42.9841116Z   GCP_PROJECT: ***
+2026-07-13T01:06:42.9841558Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:06:42.9841907Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:06:42.9842315Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:06:42.9842650Z ##[endgroup]
+2026-07-13T01:06:42.9954925Z Results path: gs://test-lab-wx74jwwvah642-nra3wc6jihnya/2026-07-13_01:04:54.385648_HrLf
+2026-07-13T01:06:46.4066930Z ##[group]Run LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
+2026-07-13T01:06:46.4068459Z [36;1mLOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2026-07-13T01:06:46.4069331Z [36;1mecho "==================== AD FUNNEL ===================="[0m
+2026-07-13T01:06:46.4069861Z [36;1mif [ -n "$LOGCAT" ]; then[0m
+2026-07-13T01:06:46.4070394Z [36;1m  echo "--- Test Lab detection ---"[0m
+2026-07-13T01:06:46.4071247Z [36;1m  grep -E "Firebase Test Lab detected|test-device registration FAILED" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4072338Z [36;1m  echo "--- LOADED events ---"[0m
+2026-07-13T01:06:46.4072917Z [36;1m  grep -E "LOADED" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4073521Z [36;1m  echo "--- IMPRESSION events ---"[0m
+2026-07-13T01:06:46.4074099Z [36;1m  grep -E "IMPRESSION" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4074701Z [36;1m  echo "--- Show attempts ---"[0m
+2026-07-13T01:06:46.4075340Z [36;1m  grep -E "Attempting to show|Auto-show" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4076022Z [36;1m  echo "--- Guard rejections ---"[0m
+2026-07-13T01:06:46.4076985Z [36;1m  grep -E "cannot show|Activity not resumed|App in background|Already showing|stale - reloading" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4077961Z [36;1m  echo "--- FailedToShow ---"[0m
+2026-07-13T01:06:46.4078598Z [36;1m  grep -E "FailedToShow|FAILED|watchdog" "$LOGCAT" || echo "(none)"[0m
+2026-07-13T01:06:46.4079220Z [36;1melse[0m
+2026-07-13T01:06:46.4079656Z [36;1m  echo "(no logcat file found in results)"[0m
+2026-07-13T01:06:46.4080169Z [36;1mfi[0m
+2026-07-13T01:06:46.4080597Z [36;1mecho "==================================================="[0m
+2026-07-13T01:06:46.4129170Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:06:46.4129625Z env:
+2026-07-13T01:06:46.4130063Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:06:46.4130726Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:06:46.4131564Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:06:46.4132060Z   VERSION_CODE: 1
+2026-07-13T01:06:46.4132444Z   VERSION_NAME: 1.0.0
+2026-07-13T01:06:46.4132840Z   CREATE_RELEASE: true
+2026-07-13T01:06:46.4133244Z   DEBUG_MODE: true
+2026-07-13T01:06:46.4164613Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:06:46.4165288Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:06:46.4165789Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:06:46.4166338Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:06:46.4166870Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:06:46.4223541Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:06:46.4224666Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4225993Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4227203Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4227988Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:06:46.4228480Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:06:46.4228937Z   GCLOUD_PROJECT: ***
+2026-07-13T01:06:46.4229374Z   GCP_PROJECT: ***
+2026-07-13T01:06:46.4229818Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:06:46.4230383Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:06:46.4231039Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:06:46.4231784Z ##[endgroup]
+2026-07-13T01:06:46.4336723Z ==================== AD FUNNEL ====================
+2026-07-13T01:06:46.4337490Z --- Test Lab detection ---
+2026-07-13T01:06:46.4385605Z 07-12 18:05:43.800 11002 11002 I BabelWordsApp: 🧪 Firebase Test Lab detected — registered as AdMob test device (real ad units, test creatives, zero invalid traffic)
+2026-07-13T01:06:46.4387937Z 07-12 18:05:47.111 11524 11524 I BabelWordsApp: 🧪 Firebase Test Lab detected — registered as AdMob test device (real ad units, test creatives, zero invalid traffic)
+2026-07-13T01:06:46.4389411Z --- LOADED events ---
+2026-07-13T01:06:46.4403027Z 07-12 18:05:45.006 11002 11002 I chromium: [INFO:CONSOLE(1124)] "🤖 NATIVE_EVENT: PAGE_LOADED [object Object]", source: https://linguagt.com/android-app-config.js (1124)
+2026-07-13T01:06:46.4404924Z --- IMPRESSION events ---
+2026-07-13T01:06:46.4424724Z (none)
+2026-07-13T01:06:46.4427203Z --- Show attempts ---
+2026-07-13T01:06:46.4445908Z (none)
+2026-07-13T01:06:46.4446739Z --- Guard rejections ---
+2026-07-13T01:06:46.4490593Z (none)
+2026-07-13T01:06:46.4495641Z --- FailedToShow ---
+2026-07-13T01:06:46.4511895Z 07-12 18:05:17.644   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4520628Z 07-12 18:05:25.038   168  9008 I keystore2: keystore2::watchdog: Watchdog thread idle -> terminating. Have a great day.
+2026-07-13T01:06:46.4523238Z 07-12 18:05:41.702   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4526932Z 07-12 18:05:41.796   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4529416Z 07-12 18:05:41.887   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4532108Z 07-12 18:05:42.159   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4534643Z 07-12 18:05:42.409   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4536257Z 07-12 18:05:42.461   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4537669Z 07-12 18:05:42.477   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4539081Z 07-12 18:05:42.547   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4540477Z 07-12 18:05:42.582   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4549981Z 07-12 18:05:42.590   542  9027 E SettingsToPropertiesMapper: adservices/disable_sdk_sandbox,adservices/enforce_broadcast_receiver_restrictions,adservices/fledge_ad_selection_enforce_foreground_status_custom_audience,adservices/fledge_custom_audience_max_count,adservices/fledge_custom_audience_max_num_ads,adservices/fledge_custom_audience_max_owner_count,adservices/fledge_custom_audience_per_app_max_count,adservices/fledge_js_isolate_enforce_max_heap_size,adservices/fledge_js_isolate_max_heap_size_bytes,adservices/sdk_request_permits_per_second,adservices/sdksandbox_customized_sdk_context_enabled,configuration/namespace_to_package_mapping,constrain_display_apis/always_constrain_display_apis,constrain_display_apis/never_constrain_display_apis,constrain_display_apis/never_constrain_display_apis_all_packages,device_policy_manager/disable_resources_updatability,flipendo/default_savings_mode_launch,flipendo/essential_apps,flipendo/flipendo_enabled_launch,flipendo/grayscale_enabled_launch,flipendo/lever_ble_scanning_enabled_launch,flipendo/lever_hotspot_enabled_launch,flipendo/lever_work_profile_enabled_launch,flipendo/resuspend_delay_minutes,namespace/key,namespace1/key1,namespace1/key2,namespace2/key1,namespace2/key2,package_manager_service/incfs_default_timeouts,package_manager_service/known_digesters_list,privacy/location_access_check_periodic_interval_millis,rollback/enable_rollback_timeout,rollback/watchdog_explicit_health_check_enabled,rollback/watchdog_request_timeout_millis,rollback/watchdog_trigger_failure_count,rollback/watchdog_trigger_failure_duration_millis,rollback_boot/rollback_lifetime_in_millis,systemui/nas_generate_actions,systemui/nas_generate_replies,systemui/nas_max_messages_to_extract,systemui/nas_max_suggestions,testspace/another,testspace/flagname,textclassifier/config_updater_model_enabled,textclassifier/key,textclassifier/key2,textclassifier/manifest_url_annotator_en,textclassifier/manifest_url_annotator_ru,textclassifier/model_download_backoff_delay_in_millis,textclassifier/model_download_manager_enabled,textclassifier/multi_language_support_enabled,textclassifier/testing_locale_list_override,textclassifier/textclassifier_service_package_override,window_manager/enable_default_rescind_bal_privileges_from_pending_intent_sender,wrong/nas_generate_replies, exceeds system property max length.
+2026-07-13T01:06:46.4559354Z 07-12 18:05:42.601   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4560839Z 07-12 18:05:42.617   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4562868Z 07-12 18:05:42.707   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4564327Z 07-12 18:05:42.791   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4565730Z 07-12 18:05:42.854   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4567113Z 07-12 18:05:42.914   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4568552Z 07-12 18:05:42.948   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4569950Z 07-12 18:05:43.013   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4571551Z 07-12 18:05:43.041   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4572990Z 07-12 18:05:43.163   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4574371Z 07-12 18:05:43.174   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4575944Z 07-12 18:05:43.197   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4577449Z 07-12 18:05:43.212   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4578832Z 07-12 18:05:43.365   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4580216Z 07-12 18:05:43.380   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4581844Z 07-12 18:05:43.542   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4583236Z 07-12 18:05:43.636   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4584619Z 07-12 18:05:43.652   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4586001Z 07-12 18:05:43.688   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4587387Z 07-12 18:05:43.792   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4588774Z 07-12 18:05:43.821   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4590155Z 07-12 18:05:43.953   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4591763Z 07-12 18:05:44.006   542   542 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo{com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl}
+2026-07-13T01:06:46.4592899Z 07-12 18:05:51.483   168  9393 I keystore2: keystore2::watchdog: Watchdog thread idle -> terminating. Have a great day.
+2026-07-13T01:06:46.4593452Z ===================================================
+2026-07-13T01:06:46.4624507Z ##[group]Run # upload-artifact@v4 rejects any path containing ':' and Test Lab folders are
+2026-07-13T01:06:46.4625188Z [36;1m# upload-artifact@v4 rejects any path containing ':' and Test Lab folders are[0m
+2026-07-13T01:06:46.4625747Z [36;1m# timestamped (e.g. 2026-06-22_21:12:16). Flatten the useful files into a[0m
+2026-07-13T01:06:46.4626276Z [36;1m# colon-free folder and upload that instead of the raw results tree.[0m
+2026-07-13T01:06:46.4626722Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-13T01:06:46.4627169Z [36;1mcp firebase-run.log firebase-artifact/firebase-run.log 2>/dev/null || true[0m
+2026-07-13T01:06:46.4627809Z [36;1mLOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2026-07-13T01:06:46.4628479Z [36;1mVIDEO=$(find firebase-results -name "video.mp4" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2026-07-13T01:06:46.4629083Z [36;1m[ -n "$LOGCAT" ] && cp "$LOGCAT" firebase-artifact/logcat.txt || true[0m
+2026-07-13T01:06:46.4629761Z [36;1m[ -n "$VIDEO" ] && cp "$VIDEO" firebase-artifact/video.mp4 || true[0m
+2026-07-13T01:06:46.4630160Z [36;1mecho "Artifact contents:"[0m
+2026-07-13T01:06:46.4630481Z [36;1mls -la firebase-artifact[0m
+2026-07-13T01:06:46.4663516Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:06:46.4663810Z env:
+2026-07-13T01:06:46.4664083Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:06:46.4664470Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:06:46.4664854Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:06:46.4665167Z   VERSION_CODE: 1
+2026-07-13T01:06:46.4665416Z   VERSION_NAME: 1.0.0
+2026-07-13T01:06:46.4665666Z   CREATE_RELEASE: true
+2026-07-13T01:06:46.4665919Z   DEBUG_MODE: true
+2026-07-13T01:06:46.4683010Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:06:46.4683412Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:06:46.4683724Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:06:46.4684063Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:06:46.4684413Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:06:46.4711559Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:06:46.4712210Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4712997Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4713706Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.4714163Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:06:46.4714468Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:06:46.4714753Z   GCLOUD_PROJECT: ***
+2026-07-13T01:06:46.4715032Z   GCP_PROJECT: ***
+2026-07-13T01:06:46.4715329Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:06:46.4715674Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:06:46.4716076Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:06:46.4716400Z ##[endgroup]
+2026-07-13T01:06:46.4892225Z Artifact contents:
+2026-07-13T01:06:46.4905521Z total 3524
+2026-07-13T01:06:46.4908824Z drwxr-xr-x 2 runner runner    4096 Jul 13 01:06 .
+2026-07-13T01:06:46.4909440Z drwxr-xr-x 5 runner runner    4096 Jul 13 01:06 ..
+2026-07-13T01:06:46.4910214Z -rw-r--r-- 1 runner runner    2151 Jul 13 01:06 firebase-run.log
+2026-07-13T01:06:46.4910887Z -rw-r--r-- 1 runner runner 1998023 Jul 13 01:06 logcat.txt
+2026-07-13T01:06:46.4911720Z -rw-r--r-- 1 runner runner 1595096 Jul 13 01:06 video.mp4
+2026-07-13T01:06:46.4943677Z ##[group]Run echo "========================================="
+2026-07-13T01:06:46.4944172Z [36;1mecho "========================================="[0m
+2026-07-13T01:06:46.4944538Z [36;1mecho "  AD SERVING VERIFICATION"[0m
+2026-07-13T01:06:46.4944878Z [36;1mecho "========================================="[0m
+2026-07-13T01:06:46.4945397Z [36;1mLOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")[0m
+2026-07-13T01:06:46.4945922Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-13T01:06:46.4946320Z [36;1m  echo "::error::No logcat file — cannot verify ad serving."[0m
+2026-07-13T01:06:46.4946721Z [36;1m  exit 1[0m
+2026-07-13T01:06:46.4946967Z [36;1mfi[0m
+2026-07-13T01:06:46.4947207Z [36;1mPASS=1[0m
+2026-07-13T01:06:46.4947590Z [36;1m# 0) Fail if real-ad override was active (should never happen on default runs)[0m
+2026-07-13T01:06:46.4948109Z [36;1mif grep -qE "REAL_ADS_ON_TEST_LAB is true" "$LOGCAT"; then[0m
+2026-07-13T01:06:46.4948718Z [36;1m  echo "::error::Real-ad override ACTIVE — this run is not safe for standard verification."[0m
+2026-07-13T01:06:46.4949218Z [36;1m  PASS=0[0m
+2026-07-13T01:06:46.4949462Z [36;1mfi[0m
+2026-07-13T01:06:46.4949788Z [36;1m# 1) SAFETY GATE: test-device registration must have applied[0m
+2026-07-13T01:06:46.4950254Z [36;1mif grep -qE "test-device registration FAILED" "$LOGCAT"; then[0m
+2026-07-13T01:06:46.4950768Z [36;1m  echo "::error::Test-device registration FAILED — auto-show suppressed."[0m
+2026-07-13T01:06:46.4951188Z [36;1m  PASS=0[0m
+2026-07-13T01:06:46.4951818Z [36;1melif grep -qE "Firebase Test Lab detected" "$LOGCAT"; then[0m
+2026-07-13T01:06:46.4952477Z [36;1m  echo "✅ Test Lab device registration applied."[0m
+2026-07-13T01:06:46.4952831Z [36;1melse[0m
+2026-07-13T01:06:46.4953201Z [36;1m  echo "::error::Test Lab detection NOT found — registration did not apply."[0m
+2026-07-13T01:06:46.4953647Z [36;1m  PASS=0[0m
+2026-07-13T01:06:46.4953898Z [36;1mfi[0m
+2026-07-13T01:06:46.4954181Z [36;1m# 2) REQUIRED: at least one impression[0m
+2026-07-13T01:06:46.4954550Z [36;1mif grep -qE "IMPRESSION" "$LOGCAT"; then[0m
+2026-07-13T01:06:46.4954916Z [36;1m  echo "✅ Ad impression confirmed:"[0m
+2026-07-13T01:06:46.4955281Z [36;1m  grep -E "IMPRESSION" "$LOGCAT" | head[0m
+2026-07-13T01:06:46.4955610Z [36;1melse[0m
+2026-07-13T01:06:46.4955936Z [36;1m  echo "::error::No ad IMPRESSION in Logcat — no ad rendered."[0m
+2026-07-13T01:06:46.4956324Z [36;1m  PASS=0[0m
+2026-07-13T01:06:46.4956573Z [36;1mfi[0m
+2026-07-13T01:06:46.4956830Z [36;1mif [ "$PASS" -ne 1 ]; then[0m
+2026-07-13T01:06:46.4957191Z [36;1m  echo "❌ Ad serving verification FAILED."[0m
+2026-07-13T01:06:46.4957526Z [36;1m  exit 1[0m
+2026-07-13T01:06:46.4957760Z [36;1mfi[0m
+2026-07-13T01:06:46.4958029Z [36;1mecho "✅ Ad serving verification PASSED."[0m
+2026-07-13T01:06:46.4991293Z shell: /usr/bin/bash -e {0}
+2026-07-13T01:06:46.4991802Z env:
+2026-07-13T01:06:46.4992106Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:06:46.4992514Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:06:46.4992902Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:06:46.4993217Z   VERSION_CODE: 1
+2026-07-13T01:06:46.4993469Z   VERSION_NAME: 1.0.0
+2026-07-13T01:06:46.4993723Z   CREATE_RELEASE: true
+2026-07-13T01:06:46.4993981Z   DEBUG_MODE: true
+2026-07-13T01:06:46.5011139Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:06:46.5011817Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:06:46.5012135Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:06:46.5012473Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:06:46.5012813Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:06:46.5040089Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:06:46.5040770Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5041668Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5042735Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5043208Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:06:46.5043532Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:06:46.5043829Z   GCLOUD_PROJECT: ***
+2026-07-13T01:06:46.5044429Z   GCP_PROJECT: ***
+2026-07-13T01:06:46.5044863Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:06:46.5045375Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:06:46.5046094Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:06:46.5046596Z ##[endgroup]
+2026-07-13T01:06:46.5122620Z =========================================
+2026-07-13T01:06:46.5125299Z   AD SERVING VERIFICATION
+2026-07-13T01:06:46.5125898Z =========================================
+2026-07-13T01:06:46.5210185Z ✅ Test Lab device registration applied.
+2026-07-13T01:06:46.5249384Z ##[error]No ad IMPRESSION in Logcat — no ad rendered.
+2026-07-13T01:06:46.5259514Z ❌ Ad serving verification FAILED.
+2026-07-13T01:06:46.5262618Z ##[error]Process completed with exit code 1.
+2026-07-13T01:06:46.5338394Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-13T01:06:46.5339678Z ##[group]Run actions/upload-artifact@v4
+2026-07-13T01:06:46.5339993Z with:
+2026-07-13T01:06:46.5340251Z   name: firebase-testlab-v1.0.0-1
+2026-07-13T01:06:46.5340565Z   path: firebase-artifact
+2026-07-13T01:06:46.5340854Z   if-no-files-found: warn
+2026-07-13T01:06:46.5341507Z   retention-days: 14
+2026-07-13T01:06:46.5341820Z   compression-level: 6
+2026-07-13T01:06:46.5342085Z   overwrite: false
+2026-07-13T01:06:46.5342347Z   include-hidden-files: false
+2026-07-13T01:06:46.5342622Z env:
+2026-07-13T01:06:46.5342900Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-13T01:06:46.5343330Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-13T01:06:46.5343704Z   WEBVIEW_URL: https://linguagt.com
+2026-07-13T01:06:46.5344006Z   VERSION_CODE: 1
+2026-07-13T01:06:46.5344254Z   VERSION_NAME: 1.0.0
+2026-07-13T01:06:46.5344508Z   CREATE_RELEASE: true
+2026-07-13T01:06:46.5344760Z   DEBUG_MODE: true
+2026-07-13T01:06:46.5362333Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-13T01:06:46.5362742Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-13T01:06:46.5363063Z   ANDROID_KEY_ALIAS: ***
+2026-07-13T01:06:46.5363406Z   ANDROID_KEY_PASSWORD: ***
+2026-07-13T01:06:46.5363748Z   BABELWORDS_ACCESS_TOKEN: ***
+2026-07-13T01:06:46.5390936Z   GOOGLE_SERVICES_JSON_BASE64: ***
+2026-07-13T01:06:46.5391780Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5392821Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5393544Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json
+2026-07-13T01:06:46.5394033Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-13T01:06:46.5394387Z   CLOUDSDK_PROJECT: ***
+2026-07-13T01:06:46.5394683Z   GCLOUD_PROJECT: ***
+2026-07-13T01:06:46.5394967Z   GCP_PROJECT: ***
+2026-07-13T01:06:46.5395245Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-13T01:06:46.5395593Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-13T01:06:46.5396006Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-13T01:06:46.5396333Z ##[endgroup]
+2026-07-13T01:06:46.7390909Z (node:2338) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-13T01:06:46.7392604Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-13T01:06:46.7468714Z With the provided path, there will be 3 files uploaded
+2026-07-13T01:06:46.7475853Z Artifact name is valid!
+2026-07-13T01:06:46.7476579Z Root directory input is valid!
+2026-07-13T01:06:46.9312237Z Beginning upload of artifact content to blob storage
+2026-07-13T01:06:47.0512945Z (node:2338) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-07-13T01:06:47.3652717Z Uploaded bytes 1741210
+2026-07-13T01:06:47.4012579Z Finished uploading artifact content to blob storage!
+2026-07-13T01:06:47.4018403Z SHA256 digest of uploaded artifact zip is a6a5f9d5b2cc2af1c2b3a3ae041de6c641d904c191d7039d70448ed35e0b4753
+2026-07-13T01:06:47.4024278Z Finalizing artifact upload
+2026-07-13T01:06:47.5714875Z Artifact firebase-testlab-v1.0.0-1.zip successfully finalized. Artifact ID 8266823944
+2026-07-13T01:06:47.5716431Z Artifact firebase-testlab-v1.0.0-1 has been successfully uploaded! Final size is 1741210 bytes. Artifact ID is 8266823944
+2026-07-13T01:06:47.5718261Z Artifact download URL: https://github.com/j272-glitch/***/actions/runs/29216400006/artifacts/8266823944
+2026-07-13T01:06:47.5914073Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-13T01:06:47.5915295Z Post job cleanup.
+2026-07-13T01:06:47.6934605Z Removed exported credentials at "/home/runner/work/***/***/gha-creds-0aa8ee2146f1ffee.json".
+2026-07-13T01:06:47.7052972Z Cleaning up orphan processes
+2026-07-13T01:06:47.7321911Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/download-artifact@v4, actions/upload-artifact@v4, google-github-actions/auth@v2, google-github-actions/setup-gcloud@v2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
