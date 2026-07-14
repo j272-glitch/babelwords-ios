@@ -919,12 +919,10 @@ jobs:
           tag_name: v${{ env.VERSION_NAME }}
           name: BabelWords v${{ env.VERSION_NAME }} - Build ${{ github.run_number }}
           body: |
-            ## BabelWords v${{ env.VERSION_NAME }}
-            
-            - **Build**: #${{ github.run_number }} | Code ${{ env.VERSION_CODE }}
-            - **AAB**: Ready for Play Store upload
-            - **APK**: Direct-install / sideload build
-            - Voice translation (36+ languages), AdMob ads, GDPR compliant
+            **BabelWords v${{ env.VERSION_NAME }}**
+
+            - Version code: ${{ env.VERSION_CODE }}
+            - Includes AAB (Play Store) + APK (sideload)
           files: |
             ${{ steps.build_outputs.outputs.release_aab }}
             ${{ steps.build_outputs.outputs.release_apk }}
