@@ -842,35 +842,33 @@ jobs:
         if: always()
         run: |
           echo "=== AAB VERSION VERIFICATION ==="
-          RELEASE_AAB=$(find android/app/build/outputs -name "*.aab" -type f 2>/dev/null | head -n 1 || echo "")
-          if [ -z "$RELEASE_AAB" ]; then
-            echo "⚠️  No AAB found — skipping verification"
+          # Use the intermediate merged manifest (plain XML — reliable, no binary parsing)
+          MERGED_MANIFEST="android/app/build/intermediates/merged_manifests/release/AndroidManifest.xml"
+          if [ ! -f "$MERGED_MANIFEST" ]; then
+            # Fallback path used by some AGP versions
+            MERGED_MANIFEST=$(find android/app/build/intermediates -name "AndroidManifest.xml" -path "*/release/*" 2>/dev/null | head -1 || echo "")
+          fi
+          if [ -z "$MERGED_MANIFEST" ] || [ ! -f "$MERGED_MANIFEST" ]; then
+            echo "⚠️  Merged manifest not found — skipping verification (build may have failed)"
             exit 0
           fi
-          # Extract versionCode and versionName from the AAB manifest using aapt2 or unzip+grep
-          AAPT2=$(find "$ANDROID_HOME" -name "aapt2" -type f 2>/dev/null | head -n 1 || echo "")
-          if [ -n "$AAPT2" ]; then
-            MANIFEST_DUMP=$("$AAPT2" dump manifest "$RELEASE_AAB" 2>/dev/null || echo "")
-            ACTUAL_CODE=$(echo "$MANIFEST_DUMP" | grep -oP 'versionCode=\K[0-9]+' | head -1 || echo "unknown")
-            ACTUAL_NAME=$(echo "$MANIFEST_DUMP" | grep -oP "versionName='\K[^']+" | head -1 || echo "unknown")
-          else
-            # Fallback: unzip base manifest and grep
-            TMPDIR_AAB=$(mktemp -d)
-            unzip -p "$RELEASE_AAB" "base/manifest/AndroidManifest.xml" > "$TMPDIR_AAB/manifest.bin" 2>/dev/null || true
-            ACTUAL_CODE=$(strings "$TMPDIR_AAB/manifest.bin" 2>/dev/null | grep -oP '(?<=versionCode=)[0-9]+' | head -1 || echo "unknown")
-            ACTUAL_NAME=$(strings "$TMPDIR_AAB/manifest.bin" 2>/dev/null | grep -oP '(?<=versionName=)[0-9.]+' | head -1 || echo "unknown")
-            rm -rf "$TMPDIR_AAB"
-          fi
+          ACTUAL_CODE=$(grep -oP 'android:versionCode="\K[0-9]+' "$MERGED_MANIFEST" | head -1 || echo "unknown")
+          ACTUAL_NAME=$(grep -oP 'android:versionName="\K[^"]+' "$MERGED_MANIFEST" | head -1 || echo "unknown")
           echo "Expected versionCode : $VERSION_CODE"
           echo "Expected versionName : $VERSION_NAME"
           echo "Actual   versionCode : $ACTUAL_CODE"
           echo "Actual   versionName : $ACTUAL_NAME"
-          if [ "$ACTUAL_CODE" != "unknown" ] && [ "$ACTUAL_CODE" != "$VERSION_CODE" ]; then
+          if [ "$ACTUAL_CODE" = "unknown" ]; then
+            echo "⚠️  Could not read versionCode from merged manifest — skipping mismatch check"
+            exit 0
+          fi
+          if [ "$ACTUAL_CODE" != "$VERSION_CODE" ]; then
             echo "❌ VERSION CODE MISMATCH — AAB has $ACTUAL_CODE but expected $VERSION_CODE"
-            echo "   Play Console WILL reject this upload. Fix -PVERSION_CODE or build.gradle."
+            echo "   This means android/build.gradle subprojects block is overriding app/build.gradle."
+            echo "   Check android/build.gradle afterEvaluate block for hardcoded versionCode."
             exit 1
           fi
-          echo "✅ Version code verified: $ACTUAL_CODE"
+          echo "✅ Version verified: $ACTUAL_NAME ($ACTUAL_CODE)"
 
       - name: Collect Build Outputs
         if: always()

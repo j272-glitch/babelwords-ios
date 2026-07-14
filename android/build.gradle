@@ -48,9 +48,9 @@ subprojects {
                     minSdk rootProject.ext.min_sdk
                     targetSdk rootProject.ext.target_sdk
 
-                    // Add version info
-                    versionCode 53
-                    versionName "53.1.0"
+                    // NOTE: versionCode and versionName are intentionally NOT set here.
+                    // They are set only in android/app/build.gradle so CI can control
+                    // them via -PVERSION_CODE and -PVERSION_NAME without being overridden.
 
                     // Multimethod support
                     multiDexEnabled true
