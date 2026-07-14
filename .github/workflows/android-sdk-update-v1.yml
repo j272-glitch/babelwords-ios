@@ -921,8 +921,13 @@ jobs:
           body: |
             **BabelWords v${{ env.VERSION_NAME }}**
 
-            - Version code: ${{ env.VERSION_CODE }}
-            - Includes AAB (Play Store) + APK (sideload)
+            Real-time voice translation in a native Android wrapper.
+
+            - 36-language speech translation via WebView
+            - Interstitial + App Open ads (AdMob, GDPR-compliant)
+            - Microphone access with safety watchdog
+            - Google Play billing for premium features
+            - Android App Links (deep links from linguagt.com)
           files: |
             ${{ steps.build_outputs.outputs.release_aab }}
             ${{ steps.build_outputs.outputs.release_apk }}
