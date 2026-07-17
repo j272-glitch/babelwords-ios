@@ -2,6 +2,7 @@ package com.babelwords.com
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.view.View
 import android.webkit.*
 import com.babelwords.com.bridge.AdBridge
 import com.babelwords.com.bridge.SubscriptionBridge
@@ -14,6 +15,9 @@ object WebViewConfig {
         activity: Activity,
         adBridge: AdBridge,
         subscriptionBridge: SubscriptionBridge,
+        loadingView: View,
+        errorView: View,
+        onRetry: () -> Unit,
     ) {
         webView.settings.apply {
             javaScriptEnabled = true
@@ -32,6 +36,10 @@ object WebViewConfig {
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                // Show loading overlay at start of every navigation
+                loadingView.visibility = View.VISIBLE
+                errorView.visibility = View.GONE
+
                 // Mic safety: reset mic on navigation (stale lock from crashed renderer)
                 (activity as? MainActivity)?.let {
                     if (it.isMicActive) {
@@ -44,6 +52,11 @@ object WebViewConfig {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
+                // Page loaded successfully: hide loading, show webview
+                if (url != "about:blank") {
+                    loadingView.visibility = View.GONE
+                    errorView.visibility = View.GONE
+                }
                 view.evaluateJavascript("window.__androidWebChromeClient = true;", null)
             }
 
@@ -51,8 +64,11 @@ object WebViewConfig {
                 view: WebView, request: WebResourceRequest, error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
-                    view.loadUrl("about:blank")
-                    view.loadUrl(view.url ?: "about:blank")
+                    android.util.Log.e("WebViewError",
+                        "Main-frame error: ${error.description} (code=${error.errorCode}) on ${request.url}")
+                    // Show error UI instead of infinite reload loop
+                    loadingView.visibility = View.GONE
+                    errorView.visibility = View.VISIBLE
                 }
             }
 
@@ -69,6 +85,13 @@ object WebViewConfig {
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                // Keep loading visible until page is at least 80% loaded
+                if (newProgress < 80) {
+                    loadingView.visibility = View.VISIBLE
+                }
+            }
+
             override fun onPermissionRequest(request: PermissionRequest) {
                 val allowed = request.resources.filter { resource ->
                     when (resource) {

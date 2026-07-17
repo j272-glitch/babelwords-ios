@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline – BabelWords</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            padding: 24px;
+        }
+        .icon { font-size: 64px; margin-bottom: 16px; }
+        h1 { font-size: 22px; color: #1a1a2e; margin-bottom: 8px; }
+        p { font-size: 15px; color: #666; line-height: 1.5; max-width: 300px; margin-bottom: 24px; }
+        .retry-btn {
+            background: #4361ee;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .retry-btn:active { opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="icon">🔌</div>
+    <h1>You are offline</h1>
+    <p>BabelWords needs an internet connection to translate speech in real time.</p>
+    <button class="retry-btn" onclick="window.location.reload()">Retry</button>
+</body>
+</html>

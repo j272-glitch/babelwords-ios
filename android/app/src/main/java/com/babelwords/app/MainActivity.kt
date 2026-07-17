@@ -5,8 +5,10 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebView
+import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
@@ -68,8 +70,25 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.webview)
+        val loadingContainer = findViewById<View>(R.id.loading_container)
+        val errorContainer = findViewById<View>(R.id.error_container)
+        val retryButton = findViewById<Button>(R.id.retry_button)
+        val offlineButton = findViewById<Button>(R.id.offline_mode_button)
 
         consentManager = ConsentManager(this)
+
+        // Retry handler: reload the web app when the user taps Retry
+        val onRetry = {
+            errorContainer.visibility = View.GONE
+            loadingContainer.visibility = View.VISIBLE
+            webView.loadUrl(WEB_APP_URL)
+        }
+        retryButton.setOnClickListener { onRetry() }
+        offlineButton.setOnClickListener {
+            // Offline mode: load a local fallback or show a simplified UI
+            errorContainer.visibility = View.GONE
+            webView.loadUrl("file:///android_asset/offline.html")
+        }
 
         lifecycleScope.launch {
             MobileAds.initialize(this@MainActivity)
@@ -112,7 +131,12 @@ class MainActivity : AppCompatActivity() {
         )
         subscriptionBridge = SubscriptionBridge(this, webView)
 
-        WebViewConfig.configure(webView, this, adBridge, subscriptionBridge)
+        WebViewConfig.configure(
+            webView, this, adBridge, subscriptionBridge,
+            loadingView = loadingContainer,
+            errorView = errorContainer,
+            onRetry = onRetry
+        )
 
         // Keep cookies so the production access gate only needs the code once
         CookieManager.getInstance().setAcceptCookie(true)
