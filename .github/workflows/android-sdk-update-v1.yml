@@ -921,21 +921,23 @@ jobs:
 
       - name: Upload Release AAB
         if: always() && steps.build_outputs.outputs.release_aab != ''
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: babelwords-bundle-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          name: babelwords-aab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
           path: ${{ steps.build_outputs.outputs.release_aab }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 3 }}
 
       - name: Upload Release APK
         if: always() && steps.build_outputs.outputs.release_apk != ''
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: babelwords-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
           path: ${{ steps.build_outputs.outputs.release_apk }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 3 }}
 
       - name: Upload Build Logs (On Failure)
         if: failure()
@@ -950,10 +952,13 @@ jobs:
           retention-days: 7
 
       - name: Create GitHub Release
-        if: env.CREATE_RELEASE == 'true' && steps.build_outputs.outputs.release_aab != '' && github.event_name == 'workflow_dispatch'
+        # Always try to publish binaries — this is the fallback when artifact storage quota is full.
+        if: always() && env.CREATE_RELEASE == 'true' && steps.build_outputs.outputs.release_aab != ''
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ env.VERSION_NAME }}
+          # Official manual releases use the clean tag (e.g., v2.0.0).
+          # Push/PR builds get a unique CI tag so they never collide.
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', env.VERSION_NAME) || format('ci-v{0}-{1}-{2}', env.VERSION_NAME, github.run_number, github.sha) }}
           name: BabelWords v${{ env.VERSION_NAME }} - Build ${{ github.run_number }}
           body: |
             **BabelWords v${{ env.VERSION_NAME }}**
@@ -969,7 +974,7 @@ jobs:
             ${{ steps.build_outputs.outputs.release_aab }}
             ${{ steps.build_outputs.outputs.release_apk }}
           draft: false
-          prerelease: false
+          prerelease: ${{ github.event_name != 'workflow_dispatch' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
