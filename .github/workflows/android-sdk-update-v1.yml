@@ -1049,7 +1049,9 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Download Release AAB
+      - name: Download Release AAB (best-effort — build job may have failed upload)
+        id: download_aab
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: babelwords-aab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
