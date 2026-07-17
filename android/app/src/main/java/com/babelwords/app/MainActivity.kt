@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.ads.MobileAds
+import com.babelwords.com.analytics.AnalyticsManager
 import com.babelwords.com.ads.AdMobManager
 import com.babelwords.com.ads.AppOpenAdManager
 import com.babelwords.com.ads.ConsentManager
@@ -135,6 +136,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         webView.onResume()
         adMobManager?.onActivityResumed(this)
+        AnalyticsManager.logScreenView("main", "MainActivity")
     }
 
     override fun onPause() {

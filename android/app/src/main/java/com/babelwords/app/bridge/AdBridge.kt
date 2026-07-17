@@ -3,6 +3,7 @@ package com.babelwords.com.bridge
 import android.app.Activity
 import android.webkit.JavascriptInterface
 import android.util.Log
+import com.babelwords.com.analytics.AnalyticsManager
 import com.babelwords.com.ads.AdMobManager
 import com.babelwords.com.ads.ConsentManager
 import org.json.JSONObject
@@ -127,6 +128,7 @@ class AdBridge(
     @JavascriptInterface
     fun logEvent(eventName: String) {
         Log.d(TAG, "JS logEvent: $eventName")
+        AnalyticsManager.logEvent(eventName)
     }
 
     // ==================== 1-step load-and-show (new) ====================

@@ -3,6 +3,7 @@ package com.babelwords.com
 import android.app.Application
 import android.provider.Settings
 import android.util.Log
+import com.babelwords.com.analytics.AnalyticsManager
 import com.google.android.gms.ads.AdRequest
 import com.google.android.gms.ads.MobileAds
 import com.google.android.gms.ads.RequestConfiguration
@@ -33,6 +34,10 @@ class BabelWordsApplication : Application() {
         try {
             super.onCreate()
             Log.d(TAG, "Application initialized")
+
+            // Initialise Firebase Analytics (gracefully degrades if not configured)
+            AnalyticsManager.init(this)
+            AnalyticsManager.logAppOpen()
 
             // Must run BEFORE the first ad load; preload manager initializes later
             configureAdMobTestDeviceForTestLab()

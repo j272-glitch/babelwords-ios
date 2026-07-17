@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.util.Log
 import com.google.android.gms.ads.AdError
 import com.google.android.gms.ads.AdRequest
+import com.babelwords.com.analytics.AnalyticsManager
 import com.babelwords.com.BabelWordsApplication
 import com.google.android.gms.ads.FullScreenContentCallback
 import com.google.android.gms.ads.interstitial.InterstitialAd
@@ -318,6 +319,7 @@ class AdMobManager(
             if (isTestLab) hasAutoShownInterstitial = true
             interstitialAd = null
             eventCallback("interstitialShown", null)
+            AnalyticsManager.logAdImpression(interstitialAdUnitId, "interstitial")
         }
         override fun onAdDismissedFullScreenContent() {
             if (sessionId.get() != expectedSession) return
@@ -336,6 +338,7 @@ class AdMobManager(
             restoreAudioMode(context as? Activity)
             interstitialAd = null
             eventCallback("interstitialFailed", error.message)
+            AnalyticsManager.logAdFailed(interstitialAdUnitId, error.message ?: "unknown")
             load(null)
         }
     }
