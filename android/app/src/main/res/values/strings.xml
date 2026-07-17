@@ -12,7 +12,7 @@
     <string name="admob_app_open_id">ca-app-pub-9991891515643313/3733157606</string>
     <!-- Rewarded ad unit removed — all ad triggers now use interstitials -->
     <!-- Loading Messages -->
-    <string name="loading_translation_app">Loading Translation App…</string>
+    <string name="loading_translation_app">Loading Puzzle App…</string>
 
     <!-- Permission Dialogs -->
     <string name="permission_audio_rationale">Allow LinguaWonder to record audio</string>
