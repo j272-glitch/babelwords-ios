@@ -58,6 +58,8 @@ class AppOpenAdManager(
     private var isShowingAd = false
     private var loadStartTime = 0L
     private var lastBackgroundTime = 0L
+    @Volatile
+    private var hasEnteredBackground = false
 
     private val handler = Handler(Looper.getMainLooper())
     private var loadTimeoutRunnable: Runnable? = null
@@ -81,11 +83,18 @@ class AppOpenAdManager(
     // ==================== Lifecycle ====================
     override fun onStop(owner: LifecycleOwner) {
         lastBackgroundTime = System.currentTimeMillis()
+        hasEnteredBackground = true
         Log.d(TAG, "App went to background at $lastBackgroundTime")
     }
 
     override fun onStart(owner: LifecycleOwner) {
         if (isDestroyed) return
+        // Do NOT show App Open ad on cold start (first launch). Only after the
+        // user has actually backgrounded the app once (hasEnteredBackground).
+        if (!hasEnteredBackground) {
+            Log.d(TAG, "Cold start — skipping App Open ad")
+            return
+        }
         val now = System.currentTimeMillis()
         val inBackground = now - lastBackgroundTime
         if (inBackground >= BACKGROUND_THRESHOLD_MS) {

@@ -19,11 +19,20 @@ object WebViewConfig {
         errorView: View,
         onRetry: () -> Unit,
     ) {
+        // Redirect-loop detection: count repeated onPageStarted without onPageFinished
+        // for the same base URL. If threshold exceeded, stop and show error UI.
+        var pageStartCount = 0
+        var lastBaseUrl: String? = null
+        val REDIRECT_LOOP_THRESHOLD = 3
+
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
-            allowFileAccess = false
+            // allowFileAccess=false is the secure default, but we need file:// access
+            // for the offline fallback page (offline.html in assets). We only load our
+            // own asset files, not arbitrary user files.
+            allowFileAccess = true
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             mediaPlaybackRequiresUserGesture = false
@@ -35,7 +44,32 @@ object WebViewConfig {
         webView.addJavascriptInterface(subscriptionBridge, "AndroidSubscriptionBridge")
 
         webView.webViewClient = object : WebViewClient() {
+            /** Extract base URL (scheme+host+path, no query) for redirect-loop detection. */
+            private fun baseUrl(url: String?): String? {
+                if (url == null) return null
+                return try {
+                    val u = java.net.URI(url)
+                    "${u.scheme}://${u.host}${u.path}"
+                } catch (_: Exception) { url }
+            }
+
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                val base = baseUrl(url)
+                if (base == lastBaseUrl) {
+                    pageStartCount++
+                } else {
+                    lastBaseUrl = base
+                    pageStartCount = 1
+                }
+                if (pageStartCount >= REDIRECT_LOOP_THRESHOLD) {
+                    android.util.Log.e("WebViewError",
+                        "Redirect loop detected ($pageStartCount starts for $base). Halting.")
+                    view?.stopLoading()
+                    loadingView.visibility = View.GONE
+                    errorView.visibility = View.VISIBLE
+                    return  // Skip super call to avoid further processing
+                }
+
                 // Show loading overlay at start of every navigation
                 loadingView.visibility = View.VISIBLE
                 errorView.visibility = View.GONE
@@ -52,6 +86,8 @@ object WebViewConfig {
 
             override fun onPageFinished(view: WebView, url: String) {
                 super.onPageFinished(view, url)
+                // Reset redirect counter on successful load
+                pageStartCount = 0
                 // Page loaded successfully: hide loading, show webview
                 if (url != "about:blank") {
                     loadingView.visibility = View.GONE
@@ -72,6 +108,17 @@ object WebViewConfig {
                 }
             }
 
+            override fun onReceivedSslError(
+                view: WebView, handler: SslErrorHandler, error: android.net.http.SslError
+            ) {
+                android.util.Log.e("WebViewError",
+                    "SSL error on ${error.url}: ${error.primaryError}")
+                // Cancel the load and show error UI instead of silently failing
+                handler.cancel()
+                loadingView.visibility = View.GONE
+                errorView.visibility = View.VISIBLE
+            }
+
             override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
                 // Mic safety: reset mic on renderer crash
                 (activity as? MainActivity)?.let {
@@ -80,17 +127,17 @@ object WebViewConfig {
                         android.util.Log.w("Mic", "Reset on renderer crash")
                     }
                 }
-                return super.onRenderProcessGone(view, detail)
+                // Return true to indicate we handled it; WebView will be recreated on next loadUrl
+                return true
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
-            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                // Keep loading visible until page is at least 80% loaded
-                if (newProgress < 80) {
-                    loadingView.visibility = View.VISIBLE
-                }
-            }
+            // NOTE: do NOT override onProgressChanged to toggle loadingView visibility.
+            // Page-load progress can reset on redirects, which would re-show the overlay
+            // after onPageFinished already hid it. Only main-frame lifecycle callbacks
+            // (onPageStarted / onPageFinished / onReceivedError) should control the
+            // overlay to prevent the spinner re-sticking after successful load.
 
             override fun onPermissionRequest(request: PermissionRequest) {
                 val allowed = request.resources.filter { resource ->

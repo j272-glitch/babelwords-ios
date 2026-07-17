@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
     private var adMobManager: AdMobManager? = null
     private lateinit var adBridge: AdBridge
     private lateinit var consentManager: ConsentManager
-    private lateinit var appOpenAdManager: AppOpenAdManager
+    private var appOpenAdManager: AppOpenAdManager? = null
     private lateinit var subscriptionBridge: SubscriptionBridge
 
     private val WEB_APP_URL = "https://linguagt.com"
@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
             )
 
             appOpenAdManager = AppOpenAdManager(this@MainActivity) { consentManager }
-            ProcessLifecycleOwner.get().lifecycle.addObserver(appOpenAdManager)
+            appOpenAdManager?.let { ProcessLifecycleOwner.get().lifecycle.addObserver(it) }
 
             // Wire network callback for auto-reload on connectivity return
             adMobManager?.registerNetworkCallback()
@@ -120,7 +120,7 @@ class MainActivity : AppCompatActivity() {
             // Show consent form if needed, then load ads
             consentManager.requestConsent(this@MainActivity) { canRequestAds ->
                 adMobManager?.preloadInterstitial()
-                appOpenAdManager.loadAd()
+                appOpenAdManager?.loadAd()
             }
         }
 
@@ -173,8 +173,10 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         adMobManager?.unregisterNetworkCallback()
         adMobManager?.destroy()
-        ProcessLifecycleOwner.get().lifecycle.removeObserver(appOpenAdManager)
-        appOpenAdManager.cleanup()
+        appOpenAdManager?.let {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(it)
+            it.cleanup()
+        }
         // Cancel mic watchdog
         micWatchdogRunnable?.let { micWatchdogHandler.removeCallbacks(it) }
         micWatchdogRunnable = null

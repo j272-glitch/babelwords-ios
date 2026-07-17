@@ -1,24 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic for development -->
-    <base-config cleartextTrafficPermitted="true">
+    <!-- Production: cleartext disabled. Only HTTPS traffic is permitted. -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <!-- Trust system certificates -->
+            <!-- Trust only system certificates (no user-added CAs) -->
             <certificates src="system" />
-            <!-- Trust user-added certificates (for debugging) -->
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 
-    <!-- Domain-specific configurations -->
-    <domain-config cleartextTrafficPermitted="true">
+    <!-- Domain-specific: still enforce HTTPS -->
+    <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">linguagt.com</domain>
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">10.0.2.2</domain> <!-- Android emulator -->
-        <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
 
-    <!-- Debug overrides (will be ignored in release builds) -->
+    <!-- Debug overrides: allow cleartext + user CAs ONLY in debug builds.
+         Android automatically ignores this block in release builds. -->
     <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
