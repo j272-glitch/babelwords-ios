@@ -89,8 +89,10 @@ class MainActivityTest {
     @Test
     fun appContextHasCorrectPackage() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assert(appContext.packageName == "com.babelwords.com") {
-            "Package mismatch: expected com.babelwords.com, got ${appContext.packageName}"
-        }
+        org.junit.Assert.assertEquals(
+            "Package mismatch: expected com.babelwords.com",
+            "com.babelwords.com",
+            appContext.packageName
+        )
     }
 }

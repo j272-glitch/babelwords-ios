@@ -1089,8 +1089,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            cd android
-            ./gradlew connectedDebugAndroidTest --no-daemon -x lint
+            cd android && ./gradlew connectedDebugAndroidTest --no-daemon -x lint
 
       - name: Upload test results
         if: always()
