@@ -1057,6 +1057,17 @@ jobs:
           name: babelwords-aab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
           path: aab-artifact
 
+      - name: Generate debug keystore for CI
+        run: |
+          # GitHub Actions runners don't have the Android default debug.keystore
+          # Generate one so the debug build can sign successfully
+          cd android/app
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -storepass android -keypass android
+          ls -la debug.keystore
+
       - name: Build debug APK for instrumentation
         run: |
           cd android
