@@ -976,7 +976,7 @@ jobs:
           draft: false
           prerelease: ${{ github.event_name != 'workflow_dispatch' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_CLASSIC_TOKEN }}
 
       - name: Final Build Summary
         if: always()

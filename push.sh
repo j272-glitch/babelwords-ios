@@ -7,8 +7,8 @@
 #   ./push.sh "your message"  # commits with a custom message
 #
 # ENVIRONMENT
-#   GITHUB_TOKEN — a GitHub Personal Access Token with 'repo' scope.
-#                  Set it in Replit Secrets or your shell environment.
+#   GITHUB_CLASSIC_TOKEN — a GitHub Personal Access Token with 'repo' + 'workflow' scope.
+#                          Set it in Replit Secrets or your shell environment.
 #
 # REPLIT MAIN-AGENT RESTRICTION
 #   The Replit main agent (this environment) blocks destructive git operations
@@ -65,8 +65,8 @@ if ! git config --local core.autocrlf >/dev/null 2>&1; then
 fi
 
 # ── Pre-flight checks ────────────────────────────────────────────────────────────────────────────────────
-if [ -z "${GITHUB_TOKEN:-}" ]; then
-  echo "❌ GITHUB_TOKEN is not set. Add it to your Replit Secrets or shell env and try again."
+if [ -z "${GITHUB_CLASSIC_TOKEN:-}" ]; then
+  echo "❌ GITHUB_CLASSIC_TOKEN is not set. Add it to your Replit Secrets or shell env and try again."
   exit 1
 fi
 
@@ -86,7 +86,7 @@ else
 fi
 
 # ── Push ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-REMOTE_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+REMOTE_URL="https://x-access-token:${GITHUB_CLASSIC_TOKEN}@github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
 
 echo "⬆️  Pushing ${BRANCH} → ${GITHUB_OWNER}/${GITHUB_REPO}..."
 git push "$REMOTE_URL" "HEAD:${BRANCH}" 2>&1 | sed -E 's#x-access-token:[^@]*@#x-access-token:***@#g'
