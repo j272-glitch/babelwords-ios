@@ -1,0 +1,1868 @@
+# BabelWords Android — Complete Guide
+
+  > **Combined single-file reference** covering the full BabelWords Android ad system.
+  >
+  > **Source:** LinguaVibe v50.0.0 through v56.0.0 production ad system  
+  > **Date:** 2026-07-17
+  >
+  > **Architecture note:** BabelWords is a native Kotlin WebView wrapper, same as LinguaVibe. It builds **only in GitHub Actions** — there is no local Android SDK/Gradle in this environment. Plan carefully; the first real signal is the CI build.
+
+  ---
+
+  ## Table of Contents
+
+  ### Part 1 — Ad System Guide
+  1. [Prerequisites & Toolchain](#part-1--prerequisites--toolchain)
+  2. [Version Bumping](#part-1--version-bumping)
+  3. [v50 — App Open Ads, ANR Prevention, Lifecycle Guards, Mic Safety](#part-1--v50)
+  4. [v53 — Unified Interstitial Pipeline](#part-1--v53)
+  5. [v54 — Mediation, Rewarded Telemetry, Test Lab Fixes](#part-1--v54)
+  6. [v55.1 — Show-Path Hardening](#part-1--v551)
+  7. [v56 — AdExperimentConfig Crash Fix, Compile-Check Removal](#part-1--v56)
+  8. [Bridge Contract (Web App Integration)](#part-1--bridge-contract)
+  9. [Firebase Test Lab Instrumentation Gates](#part-1--firebase-test-lab)
+  10. [Standard Release Flow](#part-1--standard-release-flow)
+  11. [Post-Migration Checklist](#part-1--post-migration-checklist)
+  12. [Troubleshooting](#part-1--troubleshooting)
+
+  ### Part 2 — Update Playbook
+  13. [Toolchain](#part-2--toolchain)
+  14. [How to Bump the App Version](#part-2--version-bump)
+  15. [AdMob / ANR Fixes](#part-2--admob-anr)
+  16. [AD_ID Permission Missing](#part-2--ad_id)
+  17. [Standard Release Flow](#part-2--release-flow)
+  18. [Firebase Test Lab Instrumentation Gates](#part-2--test-lab)
+  19. [Gotchas / Red Herrings](#part-2--gotchas)
+  20. [Quick Reference](#part-2--quick-reference)
+
+  ### Part 3 — Configuration Checklist
+  21. [AdMob SDK Initialization](#part-3--admob-sdk-init)
+  22. [Ad Unit IDs](#part-3--ad-unit-ids)
+  23. [AndroidManifest Configuration](#part-3--manifest)
+  24. [Native Ad Preloading](#part-3--preloading)
+  25. [Ad Audio Routing](#part-3--audio)
+  26. [UMP Consent Flow](#part-3--ump)
+  27. [Bridge Registration](#part-3--bridge)
+  28. [Activity Resumed Flag](#part-3--resumed)
+  29. [Foreground Tracking](#part-3--foreground)
+  30. [Ad Expiration](#part-3--expiration)
+  31. [Concurrent Show Guard](#part-3--show-guard)
+  32. [Failure Callbacks](#part-3--callbacks)
+  33. [Impression Counters](#part-3--impressions)
+  34. [Subscription Gating](#part-3--subscription)
+  35. [Build Version](#part-3--version)
+  36. [Test Lab Safety](#part-3--test-lab-safety)
+  37. [CI-Only Build](#part-3--ci-only)
+  38. [Pre-Release Checklist](#part-3--pre-release)
+  39. [On-Device Verification](#part-3--on-device)
+
+  ---
+
+  # Part 1 — Ad System Guide
+
+  **Source:** LinguaVibe v50.0.0 through v56.0.0 production ad system
+**Date:** 2026-07-17
+**Scope:** Complete playbook for porting the LinguaVibe ad stack — App Open, unified interstitials, ANR prevention, lifecycle guards, mic safety, mediation (Unity/Vungle), rewarded telemetry, Test Lab instrumentation gates, and bridge contract — to the BabelWords Android app.
+
+> **Architecture note:** BabelWords is a native Kotlin WebView wrapper, same as LinguaVibe. It builds **only in GitHub Actions** — there is no local Android SDK/Gradle in this environment. Plan carefully; the first real signal is the CI build.
+
+---
+
+## Table of Contents
+
+1. [Prerequisites & Toolchain](#1-prerequisites--toolchain)
+2. [Version Bumping (every release)](#2-version-bumping-every-release)
+3. [v50 — App Open Ads, ANR Prevention, Lifecycle Guards, Mic Safety](#3-v50--app-open-ads-anr-prevention-lifecycle-guards-mic-safety)
+4. [v53 — Unified Interstitial Pipeline](#4-v53--unified-interstitial-pipeline)
+5. [v54 — Mediation (Unity + Vungle), Rewarded Telemetry, Test Lab Fixes](#5-v54--mediation-unity--vungle-rewarded-telemetry-test-lab-fixes)
+6. [v55.1 — Show-Path Hardening](#6-v551--show-path-hardening)
+7. [v56 — AdExperimentConfig Crash Fix, Compile-Check Removal](#7-v56--adexperimentconfig-crash-fix-compile-check-removal)
+8. [Bridge Contract (Web App Integration)](#8-bridge-contract-web-app-integration)
+9. [Firebase Test Lab Instrumentation Gates](#9-firebase-test-lab-instrumentation-gates)
+10. [Standard Release Flow](#10-standard-release-flow)
+11. [Post-Migration Checklist](#11-post-migration-checklist)
+12. [Troubleshooting](#12-troubleshooting)
+
+---
+
+## 1. Prerequisites & Toolchain
+
+| Component | Version | Notes |
+|---|---|---|
+| Android Gradle Plugin (AGP) | **8.5.1** | Higher versions have historically caused manifest corruption in CI. |
+| Gradle | **8.9** | `android/gradle/wrapper/gradle-wrapper.properties` |
+| Kotlin | **2.2.0** | Required by play-services-ads 24.x (see §1.1). |
+| JDK | **17** | Required for Gradle 8.x. |
+| compileSdk / targetSdk | **35** | Don't raise to 36 unless you also move the ads SDK to 25.x. |
+| minSdk | **24** | |
+| build-tools | **35.0.0** | |
+| play-services-ads | **24.9.0** | Core AdMob SDK. |
+
+All toolchain versions live in **`android/build.gradle`** (plugins + ext block). `android/app/build.gradle` inherits them via `rootProject.ext.*`.
+
+### 1.1 ⚠️ play-services-ads ↔ Kotlin version coupling (critical trap)
+
+- **play-services-ads 24.x is compiled with Kotlin 2.x.** The 24.9.0 jars carry Kotlin **metadata 2.2.0** and transitively pull **kotlin-stdlib 2.1.0**.
+- A **Kotlin 1.9.x** compiler can only read metadata up to 2.0.0, so the build fails at `:app:compileReleaseKotlin` with cascading errors (e.g. `Unresolved reference: mapOf`) — those are *symptoms* of the compiler failing to load stdlib, not real code bugs.
+
+**Rule:** the project's Kotlin version must be **>=** the Kotlin version the ads SDK was built with. Use **Kotlin 2.2.0** to match play-services-ads 24.9.0.
+
+**compileSdk ceiling:** stay on the **24.x** ads line while `compileSdk = 35`. The **25.x** line targets Android 16 / API 36 and can force `compileSdk 36`.
+
+---
+
+## 2. Version Bumping (every release)
+
+Change the version in **two places** — Gradle files and the primary CI workflow. The CI build overrides Gradle defaults with `-Pandroid.injected.version.code/name`, so workflow inputs/env take precedence. Keep them synchronized or CI will ship a stale/duplicate number.
+
+1. **Gradle files** (the fallbacks when CI inputs are absent):
+   - `android/app/build.gradle` → `versionCode` and `versionName`
+   - `android/build.gradle` → the `versionCode` / `versionName` in the `subprojects { ... defaultConfig { ... } }` block
+2. **CI workflow** (`.github/workflows/android-sdk-update-v25.yml`) → three spots:
+   - the `version_name` input **description**
+   - the `version_name` input **default**
+   - the `env:` fallbacks `VERSION_CODE` and `VERSION_NAME`
+
+**Precedence rule:** `workflow_dispatch` input → env fallback → Gradle default.
+
+**Rules**
+- `versionCode` must be a **higher integer** than any artifact ever uploaded to Play (across ALL tracks). Play rejects re-used or lower codes.
+- A version number, once used in a build, is "burned" — bump again for the next attempt even if the previous build failed and produced nothing.
+- After editing, verify there are no stragglers:
+  ```bash
+  rg --color never -n "<OLD_VERSION>" android/ .github/workflows/android-sdk-update-v25.yml
+  ```
+
+---
+
+## 3. v50 — App Open Ads, ANR Prevention, Lifecycle Guards, Mic Safety
+
+### 3.1 What v50 Adds (vs the Pre-v50 Interstitial-Only Setup)
+
+| Feature | Pre-v50 | v50 | Revenue Impact |
+|---------|---------|-----|----------------|
+| Interstitial | Static image only | Same | Baseline |
+| Rewarded | Removed (alias to interstitial) | Same alias | No change |
+| App Open | None / foreground interstitial alias | Real AppOpenAd with warm-resume | **+12–17 impressions/day** |
+| ANR prevention | None | `OPTIMIZE_INITIALIZATION` + `OPTIMIZE_AD_LOADING` | Fewer crashes = more impressions |
+| Lifecycle guards | Basic | `isDestroyed` flag on all ad managers | No leaked Activities or stray callbacks |
+| Mic safety | None | JS heartbeat + 45s watchdog | No blocked ads during recording |
+| Speed-aware preload | Always preload | Skip on slow cellular | Better UX on 2G/3G |
+| Frequency cap | In-memory only | SharedPreferences (survives process death) | Consistent 4h cap |
+
+### 3.2 Placeholder Map
+
+| Placeholder | What to put | LinguaVibe example |
+|---|---|---|
+| `«BW_DOMAIN»` | BabelWords web domain | `gtlingua.com` |
+| `«BW_PACKAGE»` | Android package name | `com.lingualink.linguagt` |
+| `«BW_SCHEME»` | Custom deep-link scheme | `gtlingua` |
+| `«BW_ADMOB_APP_ID»` | AdMob App ID | `ca-app-pub-9991891515643313~7514450861` |
+| `«BW_INTERSTITIAL_UNIT»` | Interstitial ad unit | `/5076005693` |
+| `«BW_REWARDED_UNIT»` | Rewarded ad unit | `/6313049833` |
+| `«BW_APPOPEN_UNIT»` | App Open ad unit | `/3278416949` |
+
+> **Never copy LinguaVibe's ad unit IDs.** Create your own in the AdMob console.
+
+### 3.3 Android Manifest
+
+Inside `<application>`, add these three entries:
+
+```xml
+<!-- AdMob App ID -->
+<meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="«BW_ADMOB_APP_ID»"/>
+
+<!-- ANR prevention flags (REQUIRED for play-services-ads 24.x) -->
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+```
+
+Also keep the existing permissions:
+```xml
+<uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+```
+
+> **Critical:** The flag values must be `"true"` (string), not `"1"`. `play-services-ads-api:24.9.0` defines these flags internally with `android:value="true"`, and the manifest merger will fail if your value doesn't match exactly.
+
+### 3.4 Gradle Dependencies
+
+```groovy
+dependencies {
+    // Google Mobile Ads — 24.x requires Kotlin 2.x (see §1.1)
+    implementation 'com.google.android.gms:play-services-ads:24.9.0'
+
+    // UMP (consent) SDK
+    implementation 'com.google.android.ump:user-messaging-platform:3.1.0'
+
+    // Lifecycle components (for AppOpenAdManager DefaultLifecycleObserver)
+    implementation 'androidx.lifecycle:lifecycle-process:2.8.7'
+}
+```
+
+### 3.5 AppOpenAdManager.kt — The New File
+
+Create at `android/app/src/main/java/«BW_PACKAGE»/ads/AppOpenAdManager.kt`.
+
+**Key behaviors to preserve:**
+
+| Behavior | How it works |
+|----------|--------------|
+| **Warm-resume** | `onStop` records timestamp; `onResume` checks if ≥5s passed → shows ad |
+| **4h frequency cap** | Reads/writes `SharedPreferences` key `app_open_last_show_ms` |
+| **15s timeout** | `handler.postDelayed` with `LOAD_TIMEOUT_MS` → nulls stale ad |
+| **Error backoff** | No-fill → 60s, timeout → 20s, network → 15s |
+| **Destroyed guard** | Every `loadAd()`, `showAd()`, and callback body checks `if (isDestroyed) return` |
+| **Thread confinement** | All SDK callbacks are wrapped in `handler.post {}` so they run on the main Looper, serialized with `cleanup()` |
+
+**Lifecycle wiring in MainActivity.kt:**
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var appOpenAdManager: AppOpenAdManager
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // ... existing setup ...
+        appOpenAdManager = AppOpenAdManager(this)
+        ProcessLifecycleOwner.get().lifecycle.addObserver(appOpenAdManager)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        appOpenAdManager.cleanup()
+    }
+}
+```
+
+### 3.6 Interstitial/Rewarded — Add Destroyed-Flag Guards
+
+**AdMobBridge.kt:** In every `InterstitialAd.load()` callback:
+
+```kotlin
+InterstitialAd.load(activity, INTERSTITIAL_AD_UNIT, request,
+    object : InterstitialAdLoadCallback() {
+        override fun onAdLoaded(ad: InterstitialAd) {
+            if (isDestroyed) {  // ← ADD THIS
+                ad.fullScreenContentCallback = null
+                return
+            }
+            // ... existing logic ...
+        }
+        override fun onAdFailedToLoad(error: LoadAdError) {
+            if (isDestroyed) return  // ← ADD THIS
+            // ... existing logic ...
+        }
+    })
+```
+
+**AdPreloadManager.kt:**
+
+```kotlin
+@Volatile
+private var isDestroyed = false
+
+fun clearCallbacks() {
+    isDestroyed = true  // ← set FIRST, before nulling references
+    // ... null callbacks ...
+}
+
+// In onAdLoaded / onAdFailedToLoad:
+if (isDestroyed) {
+    ad?.fullScreenContentCallback = null
+    return
+}
+```
+
+### 3.7 Speed-Aware Preload
+
+In `AdPreloadManager.preloadIfNeeded()`:
+
+```kotlin
+val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+val network = cm.activeNetwork ?: return
+val capabilities = cm.getNetworkCapabilities(network) ?: return
+val isWifi = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+val isUnmetered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED).not()
+if (!isWifi && !isUnmetered) {
+    Log.d("AdPreload", "Skipping preload on slow/metered network")
+    return
+}
+```
+
+### 3.8 Mic Safety (if BabelWords has speech/audio features)
+
+**Add the flag and watchdog in MainActivity.kt:**
+
+```kotlin
+@Volatile
+var isMicActive: Boolean = false  // Do NOT assign directly — use setMicState()
+
+private val micWatchdogHandler = Handler(Looper.getMainLooper())
+private var micWatchdogRunnable: Runnable? = null
+private const val MIC_WATCHDOG_MS = 45_000L
+
+fun setMicState(active: Boolean) {
+    isMicActive = active
+    if (active) {
+        micWatchdogRunnable?.let { micWatchdogHandler.removeCallbacks(it) }
+        val watchdog = Runnable {
+            if (isMicActive) {
+                isMicActive = false
+                Log.w("MicWatchdog", "isMicActive reset after ${MIC_WATCHDOG_MS / 1000}s (stale lock cleared)")
+            }
+        }
+        micWatchdogRunnable = watchdog
+        micWatchdogHandler.postDelayed(watchdog, MIC_WATCHDOG_MS)
+    } else {
+        micWatchdogRunnable?.let {
+            micWatchdogHandler.removeCallbacks(it)
+            micWatchdogRunnable = null
+        }
+    }
+}
+```
+
+> **Critical:** Name the method `setMicState`, NOT `setMicActive`, or you'll get a "platform declaration clash" build error (Kotlin auto-generates a setter for the `var`).
+
+**JS heartbeat:** While any audio track is `live`, re-call `window.AndroidBridge.notifyMicActive(true)` every 15 seconds. Each call routes through `setMicState(true)`, which re-arms the 45s watchdog.
+
+**Block App Open ad during recording:** In `AppOpenAdManager.showAdIfAvailable()`:
+
+```kotlin
+if (activity.isMicActive) {
+    Log.d("AppOpen", "Blocked — mic is active")
+    return
+}
+```
+
+### 3.9 Audio Routing Symmetry
+
+Ads need `AudioManager.MODE_NORMAL` while on screen. Toggle audio mode on every show/dismiss/fail edge:
+
+```kotlin
+private fun setAudioModeForAd() {
+    val am = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    am.mode = AudioManager.MODE_NORMAL
+}
+
+private fun restoreAudioMode() {
+    val am = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    am.mode = AudioManager.MODE_IN_COMMUNICATION
+}
+```
+
+---
+
+## 4. v53 — Unified Interstitial Pipeline
+
+### 4.1 What v53.1 Changes (vs v50/v51 Dual-Pipeline Setup)
+
+| Area | Pre-v53.1 (v50/v51) | v53.1 | Why |
+|------|----------------------|-------|-----|
+| Interstitial load ownership | **Two independent pipelines** — `AdPreloadManager` and `AdMobBridge` each call `InterstitialAd.load()` with separate `isInterstitialLoading` flags | **One pipeline** — `InterstitialAdManager` owns all load/show state | Prevents duplicate `InterstitialAd.load()` calls on cold start / Test Lab |
+| `isInterstitialReady()` bridge poll | Checked only bridge-local state; never consulted `AdPreloadManager` cache | Checks `InterstitialAdManager.isReady() ‖‖ AdPreloadManager.isInterstitialReady()` | Web app "ad ready" polls were wrong when preload had a cached ad |
+| Load throttle (`lastLoadTime`) | Stamped on every `load()` call, even pre-resume cold-start loads | Only advances when `isActivityResumed=true` | Pre-resume loads no longer consume throttle budget |
+| `isLoading` guard | `@Volatile Boolean` (not actually atomic) | `AtomicBoolean` with `compareAndSet(false, true)` | Race-safe single-flight guard |
+| `show()` -> stale/missing ad | Called `load()` but **did not** set `pendingShow`; show request was dropped | Sets `pendingShow=true` before `load()`; `onAdLoaded` auto-shows | Test Lab / user show-on-cold-start now works |
+| Network callback | Existed but **never registered** | Registered in `AdMobBridge.init()` | Auto-reload when connectivity returns after offline period |
+
+### 4.2 New File: InterstitialAdManager.kt
+
+Create at `android/app/src/main/java/«BW_PACKAGE»/ads/InterstitialAdManager.kt`.
+
+This is a **new class** (not a rename). It replaces the interstitial portions of both `AdPreloadManager` and `AdMobBridge`. Copy LinguaVibe's `InterstitialAdManager.kt` **verbatim** (it is domain/ad-unit agnostic — those are constructor parameters). The file is ~770 lines and contains:
+
+- **Constants:** expiry (45 min), refresh-before-expiry (40 min), load timeout (15s), retry backoff (5–60s), frequency cap (30s), load throttle (30s)
+- **State:** `AtomicBoolean isLoading`, `@Volatile isShowingAd`, `interstitialAd`, `loadTime`, `lastLoadTime`, `lastShowTime`
+- **Session token:** `AtomicLong sessionId` for stale-callback safety (destroy increments it, callbacks check it)
+- **Lifecycle:** `LifecycleEventObserver` with `ON_START` auto-reload if stale
+- **Network callback:** `registerNetworkCallback()` / `unregisterNetworkCallback()` for auto-reload on connectivity return
+- **Public API:** `load()`, `show(activity)`, `isReady()`, `isCurrentlyShowingAd`, `setActivityResumed(Boolean)`, `setActivity(Activity)`, `registerNetworkCallback()`, `unregisterNetworkCallback()`, `destroy()`
+- **Callbacks:** `onEvent`, `onAdPresented`, `onAdDismissed`, `subscriptionChecker`
+- **Telemetry:** `emit(type, subtype, code, error)` — fires `onEvent` callback for bridge/web consumption
+
+### 4.3 The 3 v53.1.1 Architect-Review Fixes
+
+If copying from a **pre-v53.1.1** snapshot, apply these 3 patches:
+
+**Fix 1: `pendingShow` in `show()` for stale/missing ad**
+
+In `show()`, both the "ad stale" and "no cached ad" branches must set `pendingShow = true` before calling `load()`:
+
+```kotlin
+// Staleness guard
+if (!isFresh()) {
+    log("Ad stale — reloading with auto-show", "W")
+    emit("showSuppressed", code = -15, error = "ad_stale_reloading")
+    emit("loading")
+    pendingShow = true   // ← ADD THIS
+    load(activity)
+    return false
+}
+
+val ad = interstitialAd ?: run {
+    log("No cached ad — triggering load", "W")
+    emit("showSuppressed", code = -16, error = "no_cached_ad")
+    emit("loading")
+    pendingShow = true   // ← ADD THIS
+    load(activity)
+    return false
+}
+```
+
+**Fix 2: `registerNetworkCallback()` wiring**
+
+In `AdMobBridge.init()`, add after manager creation:
+
+```kotlin
+interstitialManager = InterstitialAdManager(activity, currentInterstitialId)
+// ... set callbacks, wire to AdPreloadManager ...
+interstitialManager?.registerNetworkCallback()   // ← ADD THIS
+ProcessLifecycleOwner.get().lifecycle.addObserver(interstitialManager!!)
+```
+
+**Fix 3: `isLoading` as `AtomicBoolean` with CAS**
+
+Change field declaration:
+
+```kotlin
+// BEFORE (volatile boolean, not actually atomic)
+@Volatile
+private var isLoading = false
+
+// AFTER (true CAS guard)
+private val isLoading = AtomicBoolean(false)
+```
+
+Change the guard:
+```kotlin
+if (!isLoading.compareAndSet(false, true)) {
+    log("Already loading — skipping duplicate request")
+    return
+}
+```
+
+### 4.4 Modify AdPreloadManager.kt — Delegate Bridge
+
+The interstitial-specific load/show/ready/retry code in `AdPreloadManager` is now a **delegate** to `InterstitialAdManager`. Do not delete `AdPreloadManager` — it still handles SDK init, UMP consent, rewarded preloading, and the Test Lab auto-show wiring.
+
+**Add the delegate bridge:**
+
+```kotlin
+// v53.1: Delegate bridge to unified InterstitialAdManager
+private var interstitialManagerRef: WeakReference<InterstitialAdManager>? = null
+
+fun setInterstitialManager(manager: InterstitialAdManager?) {
+    interstitialManagerRef = manager?.let { WeakReference(it) }
+    log("InterstitialAdManager ref ${if (manager == null) "cleared" else "set"}")
+}
+
+private fun getInterstitialManager(): InterstitialAdManager? =
+    interstitialManagerRef?.get()?.takeIf { !it.isCurrentlyShowingAd }
+```
+
+**Delegate interstitial methods:**
+
+```kotlin
+fun preloadInterstitial(context: Context, requiredSession: Long = -1L) {
+    getInterstitialManager()?.let { mgr ->
+        log("Delegating preloadInterstitial to InterstitialAdManager")
+        mgr.load()
+        return
+    }
+    // ... existing fallback logic stays ...
+}
+
+fun isInterstitialReady(): Boolean {
+    getInterstitialManager()?.let { return it.isReady() }
+    return isInterstitialFresh()
+}
+
+fun showInterstitial(activity: Activity): Boolean {
+    getInterstitialManager()?.let { mgr ->
+        log("Delegating showInterstitial to InterstitialAdManager")
+        val shown = mgr.show(activity)
+        return shown
+    }
+    // ... existing fallback logic stays ...
+}
+```
+
+**Keep the Test Lab callback wiring.** Do not change `onInterstitialReady`, `onAdImpression`, `onAdShown`, `onAdDismissed`. The `AdMobBridge` forwards manager events back into these callbacks, so `MainActivity`'s Test Lab auto-show still works unchanged.
+
+### 4.5 Modify AdMobBridge.kt — Remove Interstitial State
+
+**Delete from AdMobBridge:**
+- `interstitialAd: InterstitialAd?`
+- `isInterstitialReady: Boolean`
+- `isInterstitialLoading: Boolean` / `interstitialIsLoadingAtomic: AtomicBoolean`
+- `interstitialLoadTime`, `interstitialRetryDelay`, `interstitialRetryCount`
+- `interstitialRetryRunnable`, `interstitialRefreshRunnable`, `showWatchdogRunnable`
+- `interstitialImpressionFired`, `lastInterstitialLoadTime`
+- `pendingShowInterstitial`
+- `loadInterstitialAd()` method
+- Interstitial-specific `FullScreenContentCallback`
+- Interstitial-specific retry/refresh/watchdog scheduling
+
+> **Keep:** The JS-exposed methods `loadInterstitialAndShow()`, `showInterstitial()`, `preloadInterstitial()`, `isInterstitialReady()`, `isInterstitialLoaded()`, plus all telemetry formatting (`notifyAdEvent`, `notifyJs`), banner handling, consent, and recovery.
+
+**Add `interstitialManager` field and init wiring:**
+
+```kotlin
+// v53.1: Unified interstitial manager (replaces bridge-local interstitial state)
+internal var interstitialManager: InterstitialAdManager? = null
+
+init {
+    interstitialManager = InterstitialAdManager(activity, currentInterstitialId)
+    interstitialManager?.setActivity(activity)
+    interstitialManager?.onAdPresented = { notifyAdPresented() }
+    interstitialManager?.onAdDismissed = { notifyAdDismissed() }
+
+    interstitialManager?.let { mgr ->
+        AdPreloadManager.setInterstitialManager(mgr)
+        mgr.onEvent = { type, subtype, code, error ->
+            if (type == "interstitial") {
+                when (subtype) {
+                    "ready"      -> AdPreloadManager.onInterstitialReady?.invoke()
+                    "impression" -> AdPreloadManager.onAdImpression?.invoke("interstitial")
+                    "loaded"     -> AdPreloadManager.onInterstitialReady?.invoke()
+                }
+            }
+            if (subtype == "impression") {
+                totalImpressions++
+                interstitialImpressions++
+            }
+            notifyAdEvent(type, subtype, code, error)
+        }
+    }
+
+    interstitialManager?.registerNetworkCallback()
+    ProcessLifecycleOwner.get().lifecycle.addObserver(interstitialManager!!)
+}
+```
+
+**Delegate JS interstitial methods to manager:**
+
+```kotlin
+@JavascriptInterface
+fun loadInterstitialAndShow() {
+    log("JS → loadInterstitialAndShow()")
+    mainHandler.post {
+        val mgr = interstitialManager ?: return@post
+        mgr.autoShow = true
+        mgr.load()
+    }
+}
+
+@JavascriptInterface
+fun showInterstitial() {
+    log("JS → showInterstitial()")
+    mainHandler.post {
+        val mgr = interstitialManager ?: return@post
+        val act = activityRef.get() ?: return@post
+        mgr.show(act)
+    }
+}
+
+@JavascriptInterface
+fun preloadInterstitial() {
+    log("JS → preloadInterstitial() [preload only]")
+    mainHandler.post {
+        interstitialManager?.load()
+    }
+}
+
+@JavascriptInterface
+fun isInterstitialReady(): Boolean {
+    return interstitialManager?.isReady()
+        ?: AdPreloadManager.isInterstitialReady()
+}
+
+@JavascriptInterface
+fun isInterstitialLoaded(): Boolean = isInterstitialReady()
+```
+
+---
+
+## 5. v54 — Mediation (Unity + Vungle), Rewarded Telemetry, Test Lab Fixes
+
+### 5.1 Unity Ads + Liftoff/Vungle Mediation
+
+> **Critical: use BIDDING, not waterfall.** Google ended Unity Ads waterfall mediation on January 31, 2026. Waterfall groups for Unity no longer serve. Configure Unity as **bidding** in the AdMob dashboard.
+
+**Step 1 — Match the adapter to your SDK**
+
+The Unity mediation adapter version **must** match your Google Mobile Ads SDK. A mismatch makes Unity **silently fail to fill — no error in logs.**
+
+This app is on **GMA SDK 24.9.0**, so use:
+
+```gradle
+dependencies {
+    // Google Mobile Ads SDK (already present)
+    implementation 'com.google.android.gms:play-services-ads:24.9.0'
+
+    // Unity Ads mediation — adapter + SDK (versions must match GMA 24.9.0)
+    implementation 'com.google.ads.mediation:unity:4.16.6.0'
+    implementation 'com.unity3d.ads:unity-ads:4.16.6'
+
+    // Liftoff / Vungle — co-verified with GMA 24.9.0 (adapter pulls Vungle SDK 7.7.0 transitively)
+    implementation 'com.google.ads.mediation:vungle:7.7.0.0'
+}
+```
+
+**Version-coupling rule:** whenever you bump `play-services-ads`, you must re-check the matching adapter version from Google's table — they move in lockstep.
+
+**Step 2 — ProGuard / R8 keep rules**
+
+Add to `android/app/proguard-rules.pro` (or create it):
+
+```proguard
+# Unity Ads mediation
+-keep class com.unity3d.ads.** { *; }
+-keep class com.unity3d.services.** { *; }
+-keepclassmembers class com.unity3d.ads.** { *; }
+
+# Vungle / Liftoff mediation
+-keep class com.vungle.warren.** { *; }
+-keep class com.vungle.ads.** { *; }
+-keepclassmembers class com.vungle.warren.** { *; }
+```
+
+**Step 3 — Manifest meta-data for adapter initialization**
+
+In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<!-- Unity Ads adapter initialization -->
+<meta-data
+    android:name="com.google.android.gms.ads.unity.UnityAdapter"
+    android:value="true"/>
+
+<!-- Vungle / Liftoff adapter initialization -->
+<meta-data
+    android:name="com.google.android.gms.ads.vungle.VungleAdapter"
+    android:value="true"/>
+```
+
+### 5.2 Rewarded Ad Telemetry Markers (v54)
+
+Four deterministic logcat markers were added for CI verification of rewarded ad flow:
+
+| Marker | Emitted When | Source File |
+|--------|-----------|-------------|
+| `REWARDED_SHOW_ATTEMPT` | `AdMobBridge.showRewarded()` called | `AdMobBridge.kt` |
+| `REWARDED_SHOWN` | Rewarded ad is on screen (cached or deferred path) | `AdPreloadManager.kt` |
+| `REWARDED_EARNED` | User earned reward (`onUserEarnedReward` callback) | `AdPreloadManager.kt` |
+| `REWARDED_FAILED` | Show aborted (isDestroyed=true, no activity, etc.) | `AdPreloadManager.kt` |
+
+**Example wiring in AdPreloadManager.kt:**
+
+```kotlin
+fun loadRewardedAndShow(activity: Activity) {
+    AppLogger.logAdEvent("REWARDED_SHOW_ATTEMPT: loadRewardedAndShow() called")
+    val ad = rewardedAd ?: return
+    AppLogger.logAdEvent("REWARDED_SHOWN: loadRewardedAndShow() cached path, ad on screen")
+    ad.show(activity) { rewardItem ->
+        AppLogger.logAdEvent("REWARDED_EARNED: load-and-show path, amount=${rewardItem.amount} type=${rewardItem.type}")
+        onRewardedReady?.invoke()
+    }
+}
+```
+
+### 5.3 Test Lab Fix — TestHostActivity Export (v54)
+
+**Root cause:** `TestHostActivity` was marked `android:exported="false"` in `androidTest/AndroidManifest.xml`. On API 33+ emulators in Firebase Test Lab, `ActivityScenario.launch()` crashes with:
+
+```
+java.lang.IllegalStateException: Activity ...TestHostActivity could not be started
+```
+
+**Fix:** Set `exported="true"`:
+
+```xml
+<!-- android/app/src/androidTest/AndroidManifest.xml -->
+<activity
+    android:name="com.lingualink.linguagt.ads.TestHostActivity"
+    android:theme="@android:style/Theme.Translucent.NoTitleBar"
+    android:exported="true" />
+```
+
+**Also:** Move `MobileAds.initialize()` to the **very start** of `LinguaLinkApplication.onCreate()`, before any other initialization:
+
+```kotlin
+override fun onCreate() {
+    super.onCreate()
+    MobileAds.initialize(this) { /* ... */ }  // FIRST
+    // ... other init ...
+}
+```
+
+### 5.4 Test Lab — RewardedAdIntegrationTest
+
+A new test class verifies rewarded ad telemetry markers end-to-end:
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class RewardedAdIntegrationTest {
+    @get:Rule val activityRule = ActivityScenarioRule(TestHostActivity::class.java)
+
+    @Test
+    fun showRewarded_emitsShowAttemptAndShownMarkers() {
+        // Arrange: load a rewarded ad (or use skipSdkInit mock)
+        // Act: call AdMobBridge.showRewarded()
+        // Assert: logcat contains REWARDED_SHOW_ATTEMPT and REWARDED_SHOWN
+    }
+
+    @Test
+    fun rewardedEarned_emitsEarnedMarker() {
+        // Arrange: show a rewarded ad
+        // Act: simulate onUserEarnedReward callback
+        // Assert: logcat contains REWARDED_EARNED with amount and type
+    }
+}
+```
+
+**CI logcat verification step** (add to workflow):
+
+```yaml
+- name: Verify rewarded telemetry markers
+  run: |
+    adb logcat -d | grep -q "REWARDED_SHOW_ATTEMPT" || exit 1
+    adb logcat -d | grep -q "REWARDED_SHOWN" || exit 1
+    adb logcat -d | grep -q "REWARDED_EARNED" || exit 1
+```
+
+---
+
+## 6. v55.1 — Show-Path Hardening
+
+### 6.1 What v55.1 Fixes (10 critical show-path bugs)
+
+| # | Bug | Impact | Fix |
+|---|---|---|---|
+| 1 | Frequency cap consumed at `show()` call, not at actual impression | Failed shows burned the cap, reducing real impressions by ~10-20% | Cap consumed only in `onAdShowedFullScreenContent`; failed shows do NOT burn cap |
+| 2 | Aggressive retry policy on every failure | Inflated request count, hurting I/R ratio | Non-retryable errors (`not_resumed`, `already_showing`, `background`, `null_activity`) skip retry; only `ad_stale_reloading` and `no_cached_ad` auto-retry |
+| 3 | App Open cold-start used blind 2s delay | If SDK not init'd by delay → no ad for entire session | Explicit state machine: `SDK_WAIT`(500ms) → `SHOW_WINDOW`(1200ms) → `SHOWN` or `SKIPPED` |
+| 4 | `shouldPreload(false)` used `LOW_INTENT=0.15` | Inflates request denominator, hurting I/R | Changed to `MEDIUM_INTENT=0.35` for both cached and uncached preloads |
+| 5 | No session-level impression budget | Interstitial + App Open + Rewarded could stack | Added 45s global cooldown across ALL formats; code `-20` |
+| 6 | AppOpen pending show survived indefinitely | Stale show could fire on unrelated future load | 8s expiry on `pendingShow`; auto-cleared if load settles after deadline |
+| 7 | Rewarded preload completely removed | 2-5s tap-to-show delay → user abandonment | Restored on WiFi only; negligible data cost, significant fill gain |
+| 8 | `isShowingAd` stuck true after exception | Blocks ALL future shows with code `-4` | Try/catch + watchdog around `.show()`; auto-clear on stall or throw |
+| 9 | No `showRequested` / `showSuppressed` telemetry | Web Promise hangs, "0 impressions" mystery | `showRequested` fires on entry; `showSuppressed` fires on every guard block with code + reason |
+| 10 | Post-cleanup callbacks trigger reload | `clearCallbacks()` then SDK callback fires → unexpected load | `@Volatile isDestroyed` guard at top of every load entry point |
+
+### 6.2 New Files (v55.1)
+
+| File | Purpose |
+|---|---|
+| `AdIntentScorer.kt` | Scores user interaction intent (0.0–1.0). Warm-resume preloads gated by `MEDIUM_INTENT=0.35`. MainActivity `onStop` resets the scorer session. |
+| `AdExperimentConfig.kt` | A/B frequency-cap bucketing by install ID. Buckets 34/33/33 into CONTROL (30s) / VARIANT_A (20s) / VARIANT_B (45s). SharedPreferences override for emergency rollback. |
+| `InterstitialAdManager.kt` | Unified owner of interstitial load/show state. Delegated from `AdPreloadManager`. |
+| `RewardedAdManager.kt` | Mirrors interstitial architecture for rewarded ads. Frequency cap, pending-show, telemetry, intent scorer, experiment config. |
+
+### 6.3 Telemetry Funnel (v55.1)
+
+Every ad show now produces a complete event sequence:
+
+```
+showRequested → [guards may emit showSuppressed(code, reason)] → showStarted → onAdShowed → onAdImpression → onAdDismissed
+```
+
+| Event | Emitted When | Formats |
+|---|---|---|
+| `showRequested` | Entry of `show()` | Interstitial, Rewarded, App Open |
+| `showSuppressed` | Any guard blocks show (with code + reason) | All |
+| `showStarted` | Right before calling `ad.show()` | Interstitial, Rewarded |
+| `failedToShow` | Show threw or stalled past watchdog | All |
+
+---
+
+## 7. v56 — AdExperimentConfig Crash Fix, Compile-Check Removal
+
+### 7.1 The Crash
+
+`AdExperimentConfig.computeVariant()` crashed with `NumberFormatException: For input string: "97d62620"` because Kotlin's `toInt(16)` is a **signed** parse — any hex value above `0x7fffffff` overflows.
+
+**Chain reaction:**
+1. `AdMobBridge.<init>` constructs `AdExperimentConfig`
+2. `computeVariant` throws on certain install IDs
+3. `AdMobBridge` never registers with the WebView
+4. Entire ad stack (preload, App Open, interstitial, rewarded) never initializes
+5. Robo test produces **zero ad impressions**; CI fails
+
+### 7.2 The Fix
+
+```kotlin
+// BEFORE (crashes on 97d62620, aaf51aba, ...)
+val bucket = hash.take(8).toInt(16) % 100
+
+// AFTER (v56)
+val bucket = try {
+    ((hash.take(8).toLong(16) and 0xffffffffL) % 100).toInt()
+} catch (e: NumberFormatException) {
+    0 // fallback to CONTROL
+}
+```
+
+Also: `computeVariant` and `md5` changed from `private` to `internal` so the regression test can reach them.
+
+### 7.3 Regression Test
+
+`AdExperimentConfigTest` (androidTest) added to the CI Firebase Test Lab suite:
+
+| Test | Validates |
+|---|---|
+| `computeVariant_highHexPrefix_doesNotThrow` | `97d62620` computes without exception |
+| `computeVariant_secondHighHexPrefix_doesNotThrow` | `aaf51aba` computes without exception |
+| `md5_returnsConsistentHash` | MD5 is deterministic and 32 chars |
+| `computeVariant_producesValidBucket` | 100 random inputs all return valid variants |
+
+### 7.4 Compile-Check Removal
+
+The standalone `Kotlin Compile Check` workflow (`compile-check.yml`) and the internal compile-check step inside the main build workflow were both removed:
+- `compile-check.yml`: auto-trigger on push/PR disabled; now `workflow_dispatch` only
+- `android-sdk-update-v25.yml`: compile-check job and "Quick Compile Check" step removed
+- Build goes straight to `bundleRelease`; real compile errors caught by Gradle itself
+
+---
+
+## 8. Bridge Contract (Web App Integration)
+
+### 6.1 Bridge Registration Summary
+
+The Android app registers four bridges on the WebView:
+
+```kotlin
+webView.addJavascriptInterface(adMobBridge,         "AndroidAdBridge")           // Ads + app info
+webView.addJavascriptInterface(subscriptionBridge,  "AndroidSubscriptionBridge") // Billing / premium
+webView.addJavascriptInterface(webAppBridge,        "AndroidBridge")            // Core utilities
+webView.addJavascriptInterface(adBridge,            "adBridgeFallback")         // Consent / diagnostics (legacy)
+```
+
+### 6.2 AndroidAdBridge — Ads & App Info
+
+| Method | Signature | Description | Returns |
+|--------|-----------|-------------|---------|
+| `loadInterstitialAndShow` | `loadInterstitialAndShow(placementId?: string)` | **Primary API (v3.0):** One-step load-and-show. Cached ad → shows immediately. No cache → loads then auto-shows when ready. | `void` |
+| `preloadInterstitial` | `preloadInterstitial()` | Preload only — no show. Used by MainActivity for background refresh. | `void` |
+| `isInterstitialReady` | `isInterstitialReady(): boolean` | Check if interstitial is ready (cached + not expired). | `boolean` |
+| `isInterstitialLoaded` | `isInterstitialLoaded(): boolean` | **Alias** for `isInterstitialReady()`. | `boolean` |
+| `showInterstitial` | `showInterstitial()` | Clean-path show. Emits `showRequested` telemetry before guards. | `void` |
+| `isRewardedReady` | `isRewardedReady(): boolean` | Check if rewarded ad is ready. | `boolean` |
+| `showRewarded` | `showRewarded()` | Show cached rewarded ad. Not cached → triggers load-with-auto-show. On completion, `window.onRewardEarned(amount, type)` fires. | `void` |
+| `getAppVersion` | `getAppVersion(): string` | Android app version name (e.g. "54.0.0"). | `string` |
+| `getInstallerPackageName` | `getInstallerPackageName(): string` | Package name of the installing app store. | `string` |
+| `openPlayStoreForUpdate` | `openPlayStoreForUpdate(): boolean` | Opens Play Store listing. | `boolean` |
+
+### 6.3 Native-to-Web Callbacks
+
+| Callback | Emitted By | Status | Payload |
+|----------|-----------|--------|---------|
+| `window.onAdEvent` | `AdMobBridge` | **Active** | JSON string: `{ type, subtype, code?, error? }` |
+| `window.onRewardEarned` | `AdMobBridge` | **Active** | `amount: number, type: string` |
+| `window.onNativeAdReady` | `MainActivity` (via AdPreloadManager) | **Active** | `adType: string` |
+| `window.onAdImpression` | `MainActivity` (via AdPreloadManager) | **Active** | `adType: string` |
+| `window.onSubscriptionEvent` | `SubscriptionBridge` | **Active** | JSON object: `{ event, purchaseToken?, productId?, isPremium?, errorCode?, message? }` |
+| `CustomEvent: subscription_event` | `SubscriptionBridge` | **Active** | `detail` = same as above |
+| `CustomEvent: premium_status_changed` | `SubscriptionBridge` | **Active** | `detail = { isPremium, source }` |
+| `CustomEvent: premium_expired` | `SubscriptionBridge` | **Active** | No detail |
+
+### 6.4 Telemetry Codes (v53.1+)
+
+| Code | Name | Emitted When | Terminal? |
+|------|------|-------------|-----------|
+| `-1` | `not_resumed` | Activity not resumed | No — auto-retry when resumed |
+| `-3` | `background` | App is backgrounded | **Yes** — no retry |
+| `-4` | `already_showing` | Another ad is on screen | **Yes** — no retry |
+| `-11` | `null_activity` | Activity reference is null | **Yes** — no retry |
+| `-13` | `show_threw` | `ad.show()` threw an exception | **Yes** — no retry |
+| `-14` | `show_watchdog` | Show stalled, watchdog fired | **Yes** — no retry |
+| `-15` | `ad_stale_reloading` | Ad expired, reloading with auto-show | No — auto-show when loaded |
+| `-16` | `no_cached_ad` | No cached ad, triggering load | No — auto-show when loaded |
+| `-18` | `frequency_capped` | Frequency cap active | **Yes** — no retry |
+
+### 6.5 Change Log (Android → Web Impact)
+
+| Android Version | Web App Impact |
+|-----------------|----------------|
+| v56.0 | **Fix:** `AdExperimentConfig.computeVariant()` signed-Int overflow crash killed ad stack on certain install IDs. Fixed with unsigned Long parse + try/catch fallback. Compile-check jobs removed from CI. No web API changes. |
+| v55.1 | **New:** 10 show-path hardening fixes: frequency cap timing, retry policy, App Open cold-start state machine, global 45s impression cooldown, `isShowingAd` stuck-flag watchdog, `showRequested`/`showSuppressed` telemetry, rewarded preload restored on WiFi, `AdIntentScorer` + `AdExperimentConfig` A/B framework. No web API changes. |
+| v54.0 | **New:** Rewarded ad telemetry markers (`REWARDED_SHOW_ATTEMPT`, `REWARDED_SHOWN`, `REWARDED_EARNED`, `REWARDED_FAILED`). Unity/Vungle mediation enabled — no web API changes. `TestHostActivity` export fix — no web impact. |
+| v53.1 | **New:** Unified `window.onAdEvent` handler with complete telemetry (`showRequested`, `showSuppressed`, `failedToShow`, `loadFailed`). `isRewardedReady()`/`showRewarded()`. Interstitial logic moved to `InterstitialAdManager` — no web API changes. |
+| v52.x | Consent-only `AdBridge` — interstitial logic removed. `adBridgeFallback` becomes consent-only. No web API changes. |
+| v51.x | Added `loadInterstitialAndShow()` 1-step API. Deprecated `loadInterstitial()` + `showInterstitial()` split. |
+| v50.x | Static interstitial strategy. Banner disabled. `window.onNativeAdReady` and `window.onAdImpression` added via MainActivity. |
+
+---
+
+## 9. Firebase Test Lab Instrumentation Gates
+
+The CI workflow runs **instrumentation tests on real cloud devices** as release gates. These are not optional — they hard-fail the build on `push` to `main` if logcat markers are missing or assertions fail.
+
+| Test class | What it protects | CI hard-fail marker |
+|---|---|---|
+| `AudioFocusLossInstrumentedTest` | OS mic/audio focus revocation fast path | `MicWatchdog: audio focus lost` + `isMicActive reset` |
+| `AppOpenAdManagerRotationTest` | Activity destroyed mid-rotation while ad callback in flight → no crash, no reload | `TestRunner: finished: .*AppOpenAdManagerRotationTest` |
+| `MicResumeReconciliationTest` | `MIC_RESUME_RECONCILIATION_MS` ceiling ≤ 10 s; stale mic lock cleared within timeout | `TestRunner: finished: .*MicResumeReconciliationTest` |
+| `AdPreloadManagerColdStartTest` | Race-guard invariants (no-inflight + interstitial + rewarded) on fresh process | `COLD_START_RACE_GUARD: all 3 invariants` + `NO_INFLIGHT_RACE_GUARD` |
+| `AdMobBridgeShowTelemetryTest` | `showRequested` + `showSuppressed` telemetry deterministically emitted by guards | `TestRunner: finished: .*AdMobBridgeShowTelemetryTest` |
+| `RewardedAdIntegrationTest` | Rewarded ad telemetry markers (v54) | `REWARDED_SHOW_ATTEMPT` + `REWARDED_SHOWN` + `REWARDED_EARNED` |
+| `AdExperimentConfigTest` | `computeVariant` never throws on high hex prefixes (v56) | `TestRunner: finished: .*AdExperimentConfigTest` |
+
+> **Note:** The `coldStart_onFreshProcess_firesPreloadAndDeliversReadyCallback()` test is `@Ignore` (requires real AdMob SDK + network; crashes on Test Lab emulators). CI only validates the **deterministic race-guard** subset — not full cold-start fill.
+>
+> **Ad serving verification (Robo test):** On `push` to `main`, zero ad impressions is a **hard fail** (safety gate). On `workflow_dispatch` / PR, zero impressions is a **warning only** — instrumentation tests already validate the code deterministically.
+
+**Required secrets:** `GCP_SA_KEY` and `GCP_PROJECT_ID` must be present in GitHub Secrets for Test Lab runs. Without them, the build skips instrumentation gates on `workflow_dispatch` but **hard-fails on `push` to `main`**.
+
+### 9.1 AndroidTest Host Activity Invariant
+
+Instrumentation tests that need a real Activity instance use `TestHostActivity`:
+- **Must extend `ComponentActivity`** (not plain `Activity`). ActivityScenario from `androidx.test:core` has intermittent launch failures on Firebase Test Lab emulators with plain `Activity` subclasses.
+- **Must NOT extend `AppCompatActivity`**. A platform translucent theme (`@android:style/Theme.Translucent.NoTitleBar`) is used in `androidTest/AndroidManifest.xml` to avoid build-time resource resolution errors.
+- **Must be `exported="true"`** in `androidTest/AndroidManifest.xml` (v54 fix).
+
+```kotlin
+class TestHostActivity : ComponentActivity()
+```
+
+### 9.2 Cold-Start Testing — Two-Stage CI Approach
+
+You cannot simulate cold start (process death) inside a single instrumentation test because the test runner and target app share the **same process**. Calling `am force-stop` from within the test kills the instrumentation runner along with the app.
+
+**The CI workaround:** Two separate `gcloud firebase test android run` invocations:
+1. **Robo test** — exercises the app, then Test Lab kills the process
+2. **Instrumentation test** — runs on a **fresh device** with JVM singleton fields at defaults
+
+### 9.3 Same-Process Test Isolation — @BeforeClass Reset
+
+When Test Lab runs multiple test classes, they may execute in the **same process**. AdPreloadManager is a JVM singleton; stale state from a prior test can silently corrupt assertions.
+
+**Pattern:**
+```kotlin
+@BeforeClass
+fun classSetup() {
+    AdPreloadManager.setDestroyedForTest(false)
+    AdPreloadManager.setInterstitialLoadingForTest(false)
+    AdPreloadManager.setRewardedLoadingForTest(false)
+    AdPreloadManager.onInterstitialReady = null
+    AdPreloadManager.onRewardedReady = null
+}
+```
+
+> **Critical:** the cold-start integration test (`@Ignore`) calls `clearCallbacks()` in its `finally` block, leaving `isDestroyed=true`. If a race-guard test runs in the same process without resetting, `isDestroyed=true` causes the `isDestroyed` guard to absorb the stale call instead of exercising the `isInterstitialLoading.compareAndSet` race path — the test passes for the wrong reason.
+
+### 9.4 Real Ads on Test Lab — NEVER in CI
+
+The workflow has a `real_ads_on_test_lab` input (default `false`). Enabling it:
+- Removes test-creative registration from AdMob
+- Sends **billable/invalid traffic** on production ad units
+- Should only be used for **one-off manual verification**, never automated CI
+
+**Rule:** keep `real_ads_on_test_lab=false` in all automated workflows.
+
+---
+
+## 10. Standard Release Flow
+
+1. Make code/config changes.
+2. Bump the version in both places (§2) — Gradle files + primary workflow defaults.
+3. Verify signing secrets are present in GitHub (keystore base64 + passwords).
+4. Push to GitHub (the repo's `main`) — that's what CI builds from. Replit checkpoints alone do **not** reach CI.
+5. Trigger the workflow (`android-sdk-update-v25.yml`, via `workflow_dispatch`). Confirm the version inputs match what you just bumped.
+6. After it goes green, verify the produced AAB:
+   - AD_ID present (`unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a AD_ID`)
+   - both OPTIMIZE meta-data entries present
+   - `versionName` in the AAB matches what you intended (`aapt dump badging`)
+   - Unity/Vungle adapter classes present (if mediation enabled)
+7. Upload to Play, then **supersede old artifacts** in all tracks.
+8. Monitor **Play Vitals ANR trend for 7–14 days** before any further SDK/UMP work.
+
+### 10.1 Bridge Contract Deliverable Check
+
+If the release includes any change to ad loading, showing, or callback behavior (guard branches, new telemetry codes, new `window.on*` callbacks), update `WEB_APP_BRIDGE_GUIDE.md` **before** the release. The web app team relies on this document as the source of truth for the JS bridge contract.
+
+---
+
+## 11. Post-Migration Checklist
+
+### v50 Base
+- [ ] `AppOpenAdManager.kt` added with `«BW_APPOPEN_UNIT»`
+- [ ] `OPTIMIZE_INITIALIZATION` + `OPTIMIZE_AD_LOADING` in manifest (value `"true"`)
+- [ ] `AD_ID` permission in manifest
+- [ ] Kotlin ≥2.2.0 in both plugin and `ext.kotlin_version`
+- [ ] `isDestroyed` guard added to `AdMobBridge.kt` interstitial callbacks
+- [ ] `isDestroyed` guard added to `AdPreloadManager.kt` callbacks
+- [ ] Speed-aware preload gate in `AdPreloadManager.kt`
+- [ ] Mic watchdog + `setMicState()` in `MainActivity.kt` (if audio features exist)
+- [ ] JS heartbeat calling `notifyMicActive(true)` every 15s during recording
+- [ ] `isMicActive` check blocking App Open ad show
+- [ ] Audio mode toggle (MODE_NORMAL on show, restore on dismiss/fail)
+- [ ] Version bumped in all 3 files
+
+### v53 Unified Pipeline
+- [ ] `InterstitialAdManager.kt` created (verbatim from LinguaVibe, placeholders substituted)
+- [ ] 3 architect-review fixes applied (`pendingShow` in `show()`, `registerNetworkCallback()` wiring, `AtomicBoolean` CAS)
+- [ ] `AdPreloadManager.kt` delegates interstitial methods to `InterstitialAdManager`
+- [ ] `AdMobBridge.kt` removes interstitial state, delegates to `InterstitialAdManager`
+- [ ] `MainActivity.kt` wires `InterstitialAdManager` into lifecycle and `AdPreloadManager`
+- [ ] Test Lab callback wiring (`onInterstitialReady`, `onAdImpression`) preserved
+
+### v54 Mediation + Telemetry + Test Lab
+- [ ] Unity adapter `4.16.6.0` + Unity Ads SDK `4.16.6` in `app/build.gradle`
+- [ ] Liftoff/Vungle adapter `7.7.0.0` in `app/build.gradle`
+- [ ] ProGuard keep rules for Unity + Vungle added
+- [ ] Manifest meta-data for Unity + Vungle adapter initialization
+- [ ] Rewarded telemetry markers (`REWARDED_SHOW_ATTEMPT`, `REWARDED_SHOWN`, `REWARDED_EARNED`, `REWARDED_FAILED`) in `AdMobBridge.kt` and `AdPreloadManager.kt`
+- [ ] `TestHostActivity` `exported="true"` in `androidTest/AndroidManifest.xml`
+- [ ] `MobileAds.initialize()` at start of `LinguaLinkApplication.onCreate()`
+- [ ] `RewardedAdIntegrationTest` created with CI logcat verification
+- [ ] CI workflow includes rewarded telemetry marker verification step
+- [ ] Version bumped in all 3 files
+
+### Release Verification
+- [ ] GitHub Secrets present: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+- [ ] Build passes in CI (`:app:compileReleaseKotlin` → `:app:bundleRelease` → green)
+- [ ] AAB inspected: `unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a 'OPTIMIZE'`
+- [ ] AAB inspected: `unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a 'AD_ID'`
+- [ ] Test Lab instrumentation gates pass (all test classes finish green)
+- [ ] `WEB_APP_BRIDGE_GUIDE.md` updated if any bridge contract changed
+
+---
+
+## 12. Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `Manifest merger failed` on OPTIMIZE flags | Value is `"1"` instead of `"true"` | Change to `android:value="true"` |
+| `incompatible version of Kotlin` | Kotlin 1.9.x trying to read ads SDK 2.2.0 metadata | Bump Kotlin to 2.2.0 |
+| `Platform declaration clash: setMicActive(Z)V` | Explicit `fun setMicActive` collides with Kotlin property setter | Rename to `setMicState` |
+| Zero Unity fill, no error | Adapter ≠ SDK version (e.g. 4.12.x with SDK 24.9.0) | Use `unity:4.16.6.0` + `unity-ads:4.16.6` |
+| Zero Unity fill, no error | Group is **waterfall** (ended Jan 31 2026) | Reconfigure Unity source as **bidding** |
+| Adapter not initializing in logcat | Adapter/SDK lines missing from Gradle | Add both lines, re-run CI build |
+| Activity leak in LeakCanary | Old ad manager instance still receiving callbacks | Ensure `cleanup()` calls `handler.removeCallbacksAndMessages(null)` and sets `isDestroyed = true` |
+| App Open ad never shows | `isMicActive` stuck true after crash | Check mic watchdog + JS heartbeat are wired |
+| Ad shows but no impression | `isShowingAd` stuck true after exception | Add try/catch around `ad.show()` with `isShowingAd = false` in catch |
+| `ActivityScenario.launch` crash on Test Lab | `TestHostActivity` not exported (API 33+) | Set `android:exported="true"` in androidTest manifest |
+| `ActivityScenario.launch` hang on Test Lab | `TestHostActivity` extends plain `Activity` | Change to extend `ComponentActivity` |
+| Test passes for wrong reason (cold start) | Stale `isDestroyed=true` from prior test | Add `@BeforeClass` reset of singleton state |
+| Rewarded promise hangs | `onRewardEarned` not set before `showRewarded()` | Set callback before calling show |
+| Wrong/typo placement, or iOS Game ID used | Mapping uses iOS Game ID | Re-check mapping uses the **Android** Game ID + exact placement |
+| Play upload rejected | Reused version code | Bump `versionCode` (all 3 places) |
+| `Syntax error: Label must be named` + cascading missing-brace errors | `return@try` used inside a `try` block (`try` is a reserved keyword, not a valid label) | Wrap the body in `run testBody@{ ... }` and use `return@testBody`; keep `try/finally` outside the `run` wrapper |
+| `NumberFormatException` in `AdExperimentConfig` on cold start | `toInt(16)` overflows signed Int for hex > 0x7fffffff | Use `toLong(16) and 0xffffffffL` with try/catch fallback |
+| Ad stack never initializes; zero impressions in Test Lab | `AdExperimentConfig` crash kills `AdMobBridge` construction before ad managers start | Fix computeVariant parse; add `AdExperimentConfigTest` to CI |
+
+---
+
+**Version:** LinguaVibe v50.0.0 → v56.0.0 ad system consolidation
+**Companion guides:** `BABELWORDS_ANDROID_UPDATE_GUIDE.md` (toolchain & release flow), `WEB_APP_BRIDGE_GUIDE.md` (JS bridge contract)
+**Last updated:** 2026-07-17
+
+  ---
+
+  # Part 2 — Update Playbook
+
+  A practical playbook for updating the BabelWords Android app (a native WebView
+wrapper, same architecture as LinguaGT/LinguaVibe). It captures the hard-won
+lessons from recent releases so future updates go smoothly the first time.
+
+> **Read this first:** the Android app builds **only in GitHub Actions** — there
+> is no local Android SDK/Gradle in this environment. You cannot compile-test a
+> change here; the first real signal is the CI build. Plan changes carefully and
+> verify the merged manifest and the produced AAB after every build.
+
+---
+
+## 1. Toolchain (current, known-good)
+
+| Component | Version | Notes |
+|---|---|---|
+| Android Gradle Plugin (AGP) | **8.5.1** | Higher versions have historically caused manifest corruption in CI. |
+| Gradle | **8.9** | `android/gradle/wrapper/gradle-wrapper.properties` (`gradle-8.9-all.zip`). |
+| Kotlin | **2.2.0** | Required by play-services-ads 24.x (see §4). Bumped up from 1.9.25. |
+| JDK | **17** | Required for Gradle 8.x. |
+| compileSdk / targetSdk | **35** | Don't raise to 36 unless you also move the ads SDK to 25.x. |
+| minSdk | **24** | |
+| build-tools | **35.0.0** | |
+
+All of the above live in **`android/build.gradle`** under the `plugins {}` block
+and the `ext {}` block. `android/app/build.gradle` inherits them via
+`rootProject.ext.*`.
+
+---
+
+## 2. How to bump the app version (every release)
+
+Change the version in **two places** — Gradle files and the primary CI workflow. The CI build overrides Gradle defaults with `-Pandroid.injected.version.code/name`, so workflow inputs/env take precedence. Keep them synchronized or CI will ship a stale/duplicate number.
+
+1. **Gradle files** (the fallbacks when CI inputs are absent):
+   - `android/app/build.gradle` → `versionCode` and `versionName`
+   - `android/build.gradle` → the `versionCode` / `versionName` in the
+     `subprojects { ... defaultConfig { ... } }` block
+2. **CI workflow** (`.github/workflows/android-sdk-update-v25.yml`) → three spots:
+   - the `version_name` input **description** (e.g. `'Version Name (e.g., 54.0.0)'`)
+   - the `version_name` input **default**
+   - the `env:` fallbacks `VERSION_CODE` and `VERSION_NAME`
+
+**Precedence rule:** `workflow_dispatch` input → env fallback → Gradle default. If you forget to bump the workflow defaults, the next manual CI run can silently reuse an old version even though Gradle files look correct.
+
+> **Backup workflow files** (`.github/workflows/sed8zU4od`, `.github/workflows/sedNhpMCX`) are stale `sed` in-place edit backups. They are **not** authoritative CI config. If they are ever restored to active use, update them then; do not treat them as a required release checklist item.
+
+**Rules**
+- `versionCode` must be a **higher integer** than any artifact ever uploaded to
+  Play (across ALL tracks). Play rejects re-used or lower codes.
+- A version number, once used in a build, is "burned" — bump again for the next
+  attempt even if the previous build failed and produced nothing.
+- After editing, verify there are no stragglers:
+  ```bash
+  rg --color never -n "<OLD_VERSION>" android/ .github/workflows/android-sdk-update-v25.yml
+  ```
+  (Ignore `127.0.0.1` in `network_security_config.xml` — that's an IP, not a version.)
+
+---
+
+## 3. AdMob / ANR — the real fixes
+
+### 3a. ANR mitigation (the important one for revenue)
+ANRs reported in Play Vitals as `MessageQueue.nativePollOnce` and/or
+`AdMobBridge.loadInterstitialAd` ("Input dispatching timed out") are caused by
+the Google Mobile Ads SDK doing synchronous work on the **main thread** during
+init and ad loading.
+
+**Fix — add these two `<meta-data>` flags inside `<application>`** in
+`android/app/src/main/AndroidManifest.xml`:
+```xml
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+```
+These move SDK init + ad loading off the main thread. They work on any recent
+ads SDK and require **no web-app / JS-bridge changes** — the
+`window.AndroidAdBridge` contract is untouched.
+
+**Also keep the ads SDK reasonably current.** Newer play-services-ads releases
+ship additional off-main-thread/ANR fixes, so `flags + current SDK` is the
+strongest combination — not just the flags alone.
+
+### 3b. No web-app changes for native ad/ANR work
+The JS bridge contract (`loadInterstitial()`, `showInterstitial()`,
+`isInterstitialReady()`, and the `window.on*` callbacks) is stable. Native SDK
+bumps, OPTIMIZE flags, and version bumps never require touching the web app.
+
+---
+
+## 4. ⚠️ play-services-ads ↔ Kotlin version coupling (critical)
+
+This is the trap that broke a recent build.
+
+- **play-services-ads 24.x is compiled with Kotlin 2.x.** The 24.9.0 jars carry
+  Kotlin **metadata 2.2.0** and transitively pull **kotlin-stdlib 2.1.0**.
+- A **Kotlin 1.9.x** compiler can only read metadata up to 2.0.0, so the build
+  fails at `:app:compileReleaseKotlin` with:
+  ```
+  e: ... play-services-ads-24.9.0 ... was compiled with an incompatible
+     version of Kotlin. The binary version of its metadata is 2.2.0,
+     expected version is 1.9.0.
+  ```
+  …plus **cascading** errors in your own `.kt` files (e.g. `Unresolved
+  reference: mapOf` / `to`) — those are *symptoms* of the compiler failing to
+  load stdlib, not real code bugs.
+
+**Rule:** the project's Kotlin version (`org.jetbrains.kotlin.android` plugin
+version **and** `ext.kotlin_version` in `android/build.gradle`) must be **>=**
+the Kotlin version the ads SDK was built with. We are on **Kotlin 2.2.0** to
+match play-services-ads 24.9.0.
+
+**compileSdk ceiling:** stay on the **24.x** ads line while `compileSdk = 35`.
+The **25.x** line targets Android 16 / API 36 and can force `compileSdk 36`.
+
+**Check the latest ads version:**
+`https://dl.google.com/dl/android/maven2/com/google/android/gms/play-services-ads/maven-metadata.xml`
+
+### Kotlin upgrade risk
+Kotlin 2.x uses the stricter **K2** compiler. This project is a *good* candidate
+(no Jetpack Compose, no kapt/annotation processing — the two usual pain points),
+so risk is low. But K2 can still surface latent strictness issues (nullability,
+type inference, smart-cast edge cases) that are **only visible in the CI build**.
+If they appear, fix them as small targeted changes — don't revert Kotlin.
+
+---
+
+## 5. Google Play "AD_ID permission missing" — it's OPERATIONAL, not a bug
+
+When Play warns that AD_ID is missing "in an active artifact":
+
+- The source manifest **does** declare it:
+  ```xml
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+  ```
+  and play-services-ads merges it again. The compiled AAB verifiably contains it.
+- The warning persists because Play validates **every active artifact across all
+  tracks**. Old AABs built *before* AD_ID existed stay active and trigger it.
+  **Rewriting the manifest does nothing.**
+
+**What actually fixes it:**
+1. Verify the AAB you're uploading really has it:
+   ```bash
+   unzip -p app-release.aab base/manifest/AndroidManifest.xml | grep -a AD_ID
+   ```
+   (The permission string is readable inside the protobuf.)
+2. In Play Console, **supersede/deactivate the old releases** in every track
+   (Internal / Closed / Open / Production).
+3. Complete **App content → Advertising ID** declaration.
+4. **NEVER click "Release without permission"** — that zeroes the advertising ID
+   and kills ad revenue.
+
+A **CI gate** in the workflow already fails the build if AD_ID is absent from the
+compiled merged manifest (it runs `aapt dump permissions` after the AdMob App ID
+check). Keep that gate.
+
+---
+
+## 6. Standard release flow
+
+1. Make code/config changes.
+2. Bump the version in both places (§2) — Gradle files + primary workflow defaults.
+3. Verify signing secrets are present in GitHub (keystore base64 + passwords).
+4. Push to GitHub (the repo's `main`) — that's what CI builds from. Replit
+   checkpoints alone do **not** reach CI.
+5. Trigger the workflow (`android-sdk-update-v25.yml`, via `workflow_dispatch`).
+   Confirm the version inputs match what you just bumped.
+6. After it goes green, verify the produced AAB:
+   - AD_ID present (§5 step 1)
+   - both OPTIMIZE meta-data entries present
+   - `versionName` in the AAB matches what you intended (ci: `aapt dump badging`)
+7. Upload to Play, then **supersede old artifacts** in all tracks.
+8. Monitor **Play Vitals ANR trend for 7–14 days** before any further SDK/UMP work.
+
+### 6.1 Bridge contract deliverable check
+If the release includes any change to ad loading, showing, or callback behavior (guard branches, new telemetry codes, new `window.on*` callbacks), update `WEB_APP_BRIDGE_GUIDE.md` **before** the release. The web app team at gtlingua.com relies on this document as the source of truth for the JS bridge contract. A release with bridge changes but no guide update breaks the web app integration.
+
+Cross-check:
+- Are all `window.AndroidAdBridge` methods still documented with correct signatures?
+- Are telemetry codes (`showSuppressed`, `failedToShow`) in the guide matching the Kotlin source?
+- Are any new `window.on*` callbacks documented for the web app to implement?
+
+---
+
+## 7. Firebase Test Lab instrumentation gates
+
+The CI workflow runs **instrumentation tests on real cloud devices** as release gates. These are not optional — they hard-fail the build on `push` to `main` if logcat markers are missing or assertions fail.
+
+| Test class | What it protects | CI hard-fail marker |
+|---|---|---|
+| `AudioFocusLossInstrumentedTest` | OS mic/audio focus revocation fast path (call / other app) | `MicWatchdog: audio focus lost` + `isMicActive reset` |
+| `AppOpenAdManagerRotationTest` | Activity destroyed mid-rotation while ad callback in flight → no crash, no reload | `TestRunner: finished: .*AppOpenAdManagerRotationTest` |
+| `MicResumeReconciliationTest` | `MIC_RESUME_RECONCILIATION_MS` ceiling ≤ 10 s; stale mic lock cleared within timeout | `TestRunner: finished: .*MicResumeReconciliationTest` |
+| `AdPreloadManagerColdStartTest` | Race-guard invariants (no-inflight + interstitial + rewarded) on fresh process | `COLD_START_RACE_GUARD: all 3 invariants` + `NO_INFLIGHT_RACE_GUARD` |
+| `AdMobBridgeShowTelemetryTest` | `showRequested` + `showSuppressed` telemetry deterministically emitted by guards | `TestRunner: finished: .*AdMobBridgeShowTelemetryTest` |
+
+> **Note:** The `coldStart_onFreshProcess_firesPreloadAndDeliversReadyCallback()` test is `@Ignore` (requires real AdMob SDK + network; crashes on Test Lab emulators). CI only validates the **deterministic race-guard** subset — not full cold-start fill. Do not over-interpret a green CI as proving real-network preload works.
+
+**Required secrets:** `GCP_SA_KEY` and `GCP_PROJECT_ID` must be present in GitHub Secrets for Test Lab runs. Without them, the build skips instrumentation gates, which is allowed on `workflow_dispatch` but **hard-fails on `push` to `main`**.
+
+### 7.1 AndroidTest host activity invariant
+
+Instrumentation tests that need a real Activity instance use `TestHostActivity`:
+- **Must extend `ComponentActivity`** (not plain `Activity`). ActivityScenario from `androidx.test:core` has intermittent launch failures on Firebase Test Lab emulators with plain `Activity` subclasses. `ComponentActivity` provides the androidx lifecycle hooks ActivityScenario needs.
+- **Must NOT extend `AppCompatActivity`**. A platform translucent theme (`@android:style/Theme.Translucent.NoTitleBar`) is used in `androidTest/AndroidManifest.xml` to avoid build-time resource resolution errors. AppCompatActivity with a platform theme throws `IllegalStateException` at runtime.
+- **Never change the theme** in `androidTest/AndroidManifest.xml` to an AppCompat theme — the CI build does not package AppCompat resources for the androidTest variant.
+
+```kotlin
+// android/app/src/androidTest/java/com/lingualink/linguagt/ads/TestHostActivity.kt
+class TestHostActivity : ComponentActivity()
+```
+
+**Failure symptom if regressed:** `ActivityScenario.launch(TestHostActivity::class.java)` hangs or crashes with `androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity` launch failure on Test Lab.
+
+### 7.2 Cold-start testing — two-stage CI approach
+
+You cannot simulate cold start (process death) inside a single instrumentation test because the test runner and target app share the **same process** (`com.lingualink.linguagt`). Calling `am force-stop` from within the test kills the instrumentation runner along with the app, so the assertion never runs.
+
+**The CI workaround:** Two separate `gcloud firebase test android run` invocations:
+1. **Robo test** — exercises the app, then Test Lab kills the process
+2. **Instrumentation test** — runs on a **fresh device** with JVM singleton fields at defaults
+
+This boundary achieves genuine OS-level process death without the same-process limitation. The cold-start test asserts `isDestroyed==false` (JVM default) at entry, confirming the fresh-process guarantee.
+
+### 7.3 Same-process test isolation — `@BeforeClass` reset
+
+When Test Lab runs multiple test classes, they may execute in the **same process**. AdPreloadManager is a JVM singleton; stale state from a prior test can silently corrupt assertions.
+
+**Pattern:** `@BeforeClass` + `@Before` methods reset singleton state:
+```kotlin
+@BeforeClass
+fun classSetup() {
+    AdPreloadManager.setDestroyedForTest(false)
+    AdPreloadManager.setInterstitialLoadingForTest(false)
+    AdPreloadManager.setRewardedLoadingForTest(false)
+    AdPreloadManager.onInterstitialReady = null
+    AdPreloadManager.onRewardedReady = null
+}
+```
+
+> **Critical:** the cold-start integration test (`@Ignore`) calls `clearCallbacks()` in its `finally` block, leaving `isDestroyed=true`. If a race-guard test runs in the same process without resetting, `isDestroyed=true` causes the `isDestroyed` guard to absorb the stale call instead of exercising the `isInterstitialLoading.compareAndSet` race path — the test passes for the wrong reason.
+
+### 7.4 In-process bridge telemetry testing — no network
+
+`AdMobBridgeShowTelemetryTest` verifies telemetry without real AdMob SDK or network:
+- **Test-mode constructor:** `AdMobBridge(skipSdkInit=true)` bypasses `MobileAds.initialize()` and real ad loading
+- **CapturingWebView:** A `WebView` subclass that records every `evaluateJavascript()` call into a `mutableList<String>`. Tests assert on captured JSON payloads — pure in-process, deterministic, zero flakiness
+- **No Test Lab device needed** — runs in any instrumentation process, but CI also runs it on Test Lab for cross-device validation
+
+### 7.5 Test Lab reliability settings
+
+CI uses `--num-flaky-test-attempts 2` for the cold-start suite and show-telemetry tests. This retries the entire test class on transient emulator provisioning failures (e.g., `InstrumentationResultParser` crash, device disconnect). The retry is at the **gcloud** level, not JUnit level — individual test methods still fail hard.
+
+### 7.6 Real ads on Test Lab — NEVER in CI
+
+The workflow has a `real_ads_on_test_lab` input (default `false`). Enabling it:
+- Removes test-creative registration from AdMob
+- Sends **billable/invalid traffic** on production ad units
+- Should only be used for **one-off manual verification**, never automated CI
+
+**Rule:** keep `real_ads_on_test_lab=false` in all automated workflows. The deterministic tests (`CapturingWebView`, `skipSdkInit`) validate telemetry and guards without touching real ad traffic.
+
+---
+
+## 8. Gotchas / red herrings
+
+- **ripgrep ANSI color glitch:** captured `rg` output can make a manifest line
+  like `...AD_ID"` *look* mangled (e.g. `.n`). It's purely a terminal color-code
+  display artifact — the file bytes are fine. Verify with `od -c` or `grep -c`,
+  not colored `rg` output.
+- **A failed build still "uses up" a version number** — bump again next attempt.
+- **Primary workflow:** the only active CI build file is
+  `.github/workflows/android-sdk-update-v25.yml`. Other files in `.github/workflows/`
+  (`compile-check.yml`, stale `sed*` backups, any `archive/` directory) are not
+  part of the release build — do not edit them for version bumps.
+- **Compile check disabled:** The standalone `compile-check.yml` and the internal
+  "Quick Compile Check" step were both removed. The build goes straight to
+  `bundleRelease`; Gradle catches real errors during the actual build.
+- **AdMob IDs** (reference): App ID `ca-app-pub-9991891515643313~7514450861`;
+  Interstitial `/5076005693`; Rewarded `/6313049833`. Only Interstitial and
+  Rewarded are enabled (Banner disabled by policy).
+- **`AdExperimentConfig` crash trap:** `computeVariant` must use unsigned Long
+  parse (`toLong(16) and 0xffffffffL`) — signed `toInt(16)` crashes on hex
+  prefixes above `0x7fffffff` (e.g., `97d62620`), killing the entire ad stack.
+
+---
+
+## 9. Quick reference — files you'll touch most
+
+| File | What it controls |
+|---|---|
+| `android/build.gradle` | AGP, Kotlin, SDK versions; global version defaults |
+| `android/app/build.gradle` | App version, dependencies (incl. play-services-ads) |
+| `android/app/src/main/AndroidManifest.xml` | Permissions (AD_ID), AdMob App ID, OPTIMIZE flags |
+| `.github/workflows/android-sdk-update-v25.yml` | CI build, version defaults, AD_ID gate |
+
+  ---
+
+  # Part 3 — Configuration Checklist
+
+  Step-by-step guide to verify the Android app is configured for maximum AdMob impressions.
+
+---
+
+## 1. AdMob SDK Initialization
+
+**Check:** The AdMob SDK is initialized before any ad requests are made.
+
+**Where to look:** `LinguaLinkApplication.kt` and `MainActivity.kt`
+
+**What should be present:**
+```kotlin
+// In LinguaLinkApplication.onCreate()
+MobileAds.initialize(this) {
+    // SDK initialized
+}
+
+// In MainActivity.onCreate() (deferred until WebView page finishes)
+Handler(Looper.getMainLooper()).postDelayed({
+    initializeNativeAdPreload()
+}, 1000)
+```
+
+**Verify:** In `logcat`, look for:
+```
+✓ AdMob SDK initialized
+✓ App is in foreground
+```
+
+---
+
+## 2. Ad Unit IDs Are Correct
+
+**Check:** Production ad unit IDs are configured and correct.
+
+**Where to look:** `AdMobBridge.kt`, `AdPreloadManager.kt`, `AdBridge.kt`
+
+**Current IDs:**
+| Type | Ad Unit ID |
+|---|---|
+| App ID | `ca-app-pub-9991891515643313~7514450861` |
+| Interstitial | `ca-app-pub-9991891515643313/5076005693` |
+| Rewarded | `ca-app-pub-9991891515643313/6313049833` |
+| Banner | `ca-app-pub-9991891515643313/6878126239` (disabled) |
+
+**Verify:** Search for the string `"ca-app-pub-9991891515643313"` in all three files. All three interstitial IDs and all three rewarded IDs must match exactly.
+
+---
+
+## 3. AndroidManifest Ad Configuration
+
+**Check:** The AndroidManifest.xml has all required entries.
+
+**Where to look:** `android/app/src/main/AndroidManifest.xml`
+
+**What must be present:**
+```xml
+<!-- AdMob Application ID -->
+<meta-data
+    android:name="com.google.android.gms.ads.APPLICATION_ID"
+    android:value="ca-app-pub-9991891515643313~7514450861"/>
+
+<!-- AdMob Ad Activity (hardware-accelerated) -->
+<activity
+    android:name="com.google.android.gms.ads.AdActivity"
+    android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+    android:theme="@android:style/Theme.Translucent"
+    android:exported="false"
+    android:hardwareAccelerated="true"/>
+
+<!-- ANR mitigation flags (Google official fix) -->
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
+    android:value="true"/>
+<meta-data
+    android:name="com.google.android.gms.ads.flag.OPTIMIZE_AD_LOADING"
+    android:value="true"/>
+
+<!-- Required permissions -->
+<uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+```
+
+---
+
+## 4. Native Ad Preloading Is Active
+
+**Check:** `AdPreloadManager` preloads ads in parallel with the WebView.
+
+**Where to look:** `MainActivity.kt` (inside `initializeNativeAdPreload()`)
+
+**What should be present:**
+```kotlin
+AdPreloadManager.initialize(this)
+AdPreloadManager.onInterstitialReady = {
+    maybeAutoShowInterstitialForTestLab()
+}
+AdPreloadManager.onRewardedReady = {
+    // Only notify WebView, do NOT auto-show
+    notifyWebViewAdReady("rewarded")
+}
+```
+
+**Verify:** In `logcat`, look for:
+```
+Native Ad Preload Manager initialized
+Native preload: Interstitial ready
+Native preload: Rewarded ready
+```
+
+---
+
+## 5. Ad Audio Routing Works
+
+Ads need `MODE_NORMAL` (full media volume) while on screen. The app must switch to this mode when an ad is shown and restore the speech-translation mode after the ad dismisses.
+
+**Check:** Audio mode toggles correctly.
+
+**Where to look:** `MainActivity.kt` and `AdPreloadManager.kt`
+
+**What should be present:**
+```kotlin
+// When ad is shown
+setAdAudioActive(true)  // MODE_NORMAL
+
+// When ad is dismissed
+setAdAudioActive(false) // MODE_IN_COMMUNICATION
+```
+
+**Verify:** In `logcat`, look for:
+```
+Ad on screen → AudioManager MODE_NORMAL (full ad volume)
+Ad dismissed → AudioManager mode restored
+```
+
+---
+
+## 6. UMP Consent Flow Is Wired
+
+The UMP (User Messaging Platform) consent flow must be present and the consent callback must propagate to both `AdMobBridge` and `AdPreloadManager`.
+
+**Check:** The consent flow is initialized and callbacks are wired.
+
+**Where to look:** `MainActivity.kt` and `AdBridge.kt`
+
+**What should be present:**
+```kotlin
+adBridge = AdBridge(this, webView)
+webView.addJavascriptInterface(adBridge, "adBridgeFallback")
+
+adBridge.onConsentObtained = { gdprConsent ->
+    adMobBridge.onConsentObtained(gdprConsent)
+    AdPreloadManager.onConsentObtained(gdprConsent)
+}
+```
+
+**Verify:** In `logcat`, look for:
+```
+Consent obtained (gdpr=...) - notifying ad bridges
+```
+
+---
+
+## 7. Bridge Is Registered with the WebView
+
+**Check:** The JavaScript bridge is injected into the WebView.
+
+**Where to look:** `MainActivity.kt`
+
+**What should be present:**
+```kotlin
+val adMobBridge = AdMobBridge(this, webView)
+webView.addJavascriptInterface(adMobBridge, "AndroidAdBridge")
+```
+
+**Verify:** In `logcat`, look for:
+```
+AdMobBridge registered as window.AndroidAdBridge
+```
+
+---
+
+## 8. Activity Resumed Flag Is Synced
+
+**Check:** The `isActivityResumed` flag is set correctly (Fix #1 for the 0-impression bug).
+
+**Where to look:** `MainActivity.kt` and `AdMobBridge.kt`
+
+**What should be present:**
+```kotlin
+// In MainActivity.onCreate()
+adMobBridge.setActivityResumed(activityResumed)
+
+// In MainActivity.onResume()
+override fun onResume() {
+    super.onResume()
+    activityResumed = true
+    if (::adMobBridge.isInitialized) {
+        adMobBridge.setActivityResumed(true)
+    }
+}
+```
+
+**Verify:** In `logcat`, look for:
+```
+Activity resumed state: true
+```
+
+---
+
+## 9. Foreground State Is Tracked
+
+**Check:** The app tracks foreground/background state and blocks ads when in background.
+
+**Where to look:** `AdPreloadManager.kt`, `AdMobBridge.kt`, `AdBridge.kt`
+
+**What should be present:**
+```kotlin
+@Volatile
+private var isAppInForeground = true
+
+// In lifecycle observer
+Lifecycle.Event.ON_STOP -> {
+    isAppInForeground = false
+}
+Lifecycle.Event.ON_START -> {
+    isAppInForeground = true
+}
+```
+
+**Verify:** In `logcat`, look for:
+```
+App entered foreground
+App entered background
+```
+
+---
+
+## 10. Ad Expiration Is Checked
+
+AdMob ads expire after 45 minutes. Stale ads must not be shown.
+
+**Check:** Expiration checks are present.
+
+**Where to look:** `AdPreloadManager.kt` and `AdMobBridge.kt`
+
+**What should be present:**
+```kotlin
+private const val AD_EXPIRY_MS = 45 * 60 * 1000L
+
+private fun isInterstitialFresh(): Boolean {
+    if (interstitialAd == null) return false
+    return System.currentTimeMillis() - interstitialLoadTime < AD_EXPIRY_MS
+}
+```
+
+---
+
+## 11. Concurrent Show Guard Is Active
+
+Only one ad can show at a time. The `isShowingAd` flag prevents double-shows.
+
+**Check:** The guard is present and has a watchdog for stuck flags.
+
+**Where to look:** `AdMobBridge.kt`
+
+**What should be present:**
+```kotlin
+@Volatile
+private var isShowingAd = false
+
+// Show watchdog
+private val SHOW_WATCHDOG_MS = 10000L
+private var showWatchdogRunnable: Runnable? = null
+
+fun showInterstitial(activity: Activity) {
+    if (isShowingAd) return
+    isShowingAd = true
+    // Show the ad
+    // Arm watchdog
+    showWatchdogRunnable = Runnable {
+        if (isShowingAd) {
+            isShowingAd = false
+            // Log stuck flag
+        }
+    }
+    handler.postDelayed(showWatchdogRunnable, SHOW_WATCHDOG_MS)
+}
+```
+
+---
+
+## 12. All Failure Callbacks Are Emitted
+
+The native side must emit a failure callback for every show attempt that fails, so the web Promise never hangs.
+
+**Check:** All failure paths emit callbacks.
+
+**Where to look:** `AdMobBridge.kt`
+
+**What should be present:**
+```kotlin
+// In showInterstitial():
+if (isShowingAd) {
+    emitFailedToShow("Already showing an ad", -4)
+    return
+}
+
+if (!isActivityResumed) {
+    emitFailedToShow("Activity not resumed", -2)
+    return
+}
+
+if (!isAppInForeground) {
+    emitFailedToShow("App not in foreground", -3)
+    return
+}
+
+// Show stalled
+showWatchdogRunnable = Runnable {
+    emitFailedToShow("Show stalled", -12)
+    isShowingAd = false
+}
+
+// Show threw
+try {
+    ad.show()
+} catch (e: Exception) {
+    emitFailedToShow("Show threw: ${e.message}", -13)
+    isShowingAd = false
+}
+```
+
+---
+
+## 13. Ad Impression Counters Are Logged
+
+**Check:** Ad impressions are logged for debugging and analytics.
+
+**Where to look:** `AdPreloadManager.kt` and `AdMobBridge.kt`
+
+**What should be present:**
+```kotlin
+// In onAdImpression:
+interstitialImpressions++
+AppLogger.logAdEvent("\u2605\u2605\u2605 INTERSTITIAL IMPRESSION \u2605\u2605\u2605")
+```
+
+**Verify:** In `logcat`, look for:
+```
+INTERSTITIAL IMPRESSION
+REWARDED IMPRESSION
+```
+
+---
+
+## 14. Subscription Gating Is Present
+
+If the user is a premium subscriber, ads should not be shown.
+
+**Check:** The subscription checker is wired.
+
+**Where to look:** `AdMobBridge.kt` and `MainActivity.kt`
+
+**What should be present:**
+```kotlin
+// In AdMobBridge
+var subscriptionChecker: (() -> Boolean)? = null
+
+// In MainActivity
+adMobBridge.subscriptionChecker = { subscriptionManager.isSubscribed() }
+
+// In AdMobBridge.showInterstitial()
+if (subscriptionChecker?.invoke() == true) {
+    emitFailedToShow("User is premium", -14)
+    return
+}
+```
+
+---
+
+## 15. Build Version Is Correct
+
+All version fields must be in sync across the three files.
+
+**Check:** `versionCode` and `versionName` match in all three files.
+
+**Files to check:**
+1. `android/app/build.gradle`
+2. `android/build.gradle`
+3. `.github/workflows/android-sdk-update-v25.yml`
+
+**Verify:**
+```
+versionCode 40
+versionName "40.0.0"
+```
+
+---
+
+## 16. Test Lab Safety Is Active
+
+When running on Firebase Test Lab, the app must register as a test device and show test creatives (not real ones).
+
+**Check:** Test Lab detection and test-device registration are present.
+
+**Where to look:** `LinguaLinkApplication.kt` and `MainActivity.kt`
+
+**What should be present:**
+```kotlin
+// In LinguaLinkApplication
+if (isFirebaseTestLab()) {
+    val requestConfiguration = RequestConfiguration.Builder()
+        .setTestDeviceIds(listOf(deviceId))
+        .build()
+    MobileAds.setRequestConfiguration(requestConfiguration)
+    isTestDeviceRegistrationActive = true
+}
+
+// In MainActivity
+val isTestLabAutoShow = isFirebaseTestLab() && LinguaLinkApplication.isTestDeviceRegistrationActive
+```
+
+**Verify:** In `logcat`, look for:
+```
+Firebase Test Lab detected — registered as AdMob test device
+```
+
+---
+
+## 17. Build Is CI-Only
+
+The APK/AAB must be built exclusively via GitHub Actions. Never build locally with a debug signing config.
+
+**Check:** The workflow is configured and the keystore is from GitHub Secrets.
+
+**Where to look:** `.github/workflows/android-sdk-update-v25.yml`
+
+**What should be present:**
+```yaml
+ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+```
+
+---
+
+## Pre-Release Verification Checklist
+
+Before releasing a new version, verify every item:
+
+- [ ] AdMob SDK initializes successfully (logcat shows "AdMob SDK initialized").
+- [ ] Ad unit IDs are correct and match in all files.
+- [ ] AndroidManifest has the AdMob App ID and `AdActivity`.
+- [ ] `OPTIMIZE_INITIALIZATION` and `OPTIMIZE_AD_LOADING` manifest flags are present.
+- [ ] `AD_ID` permission is declared.
+- [ ] Native ad preloading is active (logcat shows "Interstitial ready" and "Rewarded ready").
+- [ ] Audio routing toggles correctly (logcat shows MODE_NORMAL and mode restored).
+- [ ] UMP consent flow is wired and callbacks propagate to both bridges.
+- [ ] `AndroidAdBridge` is registered as the JS interface.
+- [ ] Activity resumed flag is synced (logcat shows "Activity resumed state: true").
+- [ ] Foreground tracking is active (logcat shows foreground/background events).
+- [ ] Ad expiration checks are present.
+- [ ] Concurrent show guard (`isShowingAd`) is active with a watchdog.
+- [ ] All failure paths emit callbacks (no hung Promises).
+- [ ] Ad impression counters are logged (logcat shows "INTERSTITIAL IMPRESSION").
+- [ ] Subscription gating is wired.
+- [ ] Version is bumped in all three files.
+- [ ] Test Lab safety is active (logcat shows test-device registration).
+- [ ] Build is CI-only (no local debug signing).
+- [ ] **v55.1+:** Frequency cap consumed in `onAdShowedFullScreenContent`, not in `show()` guard.
+- [ ] **v55.1+:** Non-retryable errors skip retry; only `ad_stale_reloading` and `no_cached_ad` auto-retry.
+- [ ] **v55.1+:** 45s global impression cooldown across all formats.
+- [ ] **v55.1+:** `AdExperimentConfig.computeVariant()` uses unsigned Long parse (`toLong(16) and 0xffffffffL`) with try/catch.
+- [ ] **v56+:** `AdExperimentConfigTest` passes in CI Firebase Test Lab.
+- [ ] **v56+:** Compile-check jobs removed from main CI workflow.
+
+---
+
+## On-Device Verification Steps
+
+After installing a CI-built APK:
+
+1. **Open the app** — check logcat for "AdMob SDK initialized" and "Interstitial ready".
+2. **Tap the interstitial button** — ad should show with full volume. Logcat shows "MODE_NORMAL".
+3. **Dismiss the ad** — logcat shows "Ad dismissed" and "AudioManager mode restored".
+4. **Tap the rewarded button** — ad should show. Logcat shows "REWARDED IMPRESSION".
+5. **Earn the reward** — logcat shows "Reward earned" and the web app grants the reward.
+6. **Background the app mid-ad** — app returns to background. Logcat shows "App entered background".
+7. **Foreground the app** — ad resumes or closes. Logcat shows "App entered foreground".
+
+If all seven steps pass, the Android app is fully configured for maximum impressions.
+  

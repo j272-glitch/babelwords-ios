@@ -247,8 +247,9 @@ class AppOpenAdManager(
 
     private fun restoreAudioMode() {
         val am = activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        // Return to normal mode; the WebView app handles its own audio needs
-        am.mode = AudioManager.MODE_NORMAL
+        // Restore to IN_COMMUNICATION so the mic stays in VoIP-tier priority
+        // after an App Open ad closes — critical for a conversation/translation app.
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
     }
 
     // ==================== Cleanup ====================

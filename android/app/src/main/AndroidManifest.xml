@@ -50,7 +50,7 @@
         android:enableOnBackInvokedCallback="false"
         tools:targetApi="35">
 
-        <!-- AdMob Application ID — replace with your real LinguaWonder AdMob App ID -->
+        <!-- AdMob Application ID — BabelWords (com.babelwords.com) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="@string/admob_app_id"/>

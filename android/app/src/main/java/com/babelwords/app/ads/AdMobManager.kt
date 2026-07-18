@@ -74,7 +74,9 @@ class AdMobManager(
     private var interstitialAd: InterstitialAd? = null
     private var loadTime = 0L
     private var lastLoadTime = 0L
-    private var lastShowTime = 0L
+    private var lastShowTime: Long
+        get() = prefs.getLong(PREFS_LAST_SHOW_TIME, 0L)
+        set(value) = prefs.edit().putLong(PREFS_LAST_SHOW_TIME, value).apply()
 
     // v53: AtomicBoolean CAS guard prevents duplicate InterstitialAd.load() calls
     private val isLoading = AtomicBoolean(false)
@@ -93,6 +95,10 @@ class AdMobManager(
     private val handler = Handler(Looper.getMainLooper())
     private var retryRunnable: Runnable? = null
     private var loadTimeoutRunnable: Runnable? = null
+
+    // ==================== Frequency Cap (SharedPreferences — survives process death) ====================
+    private val prefs by lazy { context.getSharedPreferences("ad_prefs", Context.MODE_PRIVATE) }
+    private val PREFS_LAST_SHOW_TIME = "interstitial_last_show_time"
 
     // ==================== Foreground ====================
     private var lastForegroundAdTime = 0L
@@ -235,6 +241,13 @@ class AdMobManager(
 
         if (isActivityResumed) {
             lastLoadTime = now
+        }
+
+        // Speed-aware preload: skip on slow/metered cellular (guide §3.7)
+        if (isPreload && isSlowOrMeteredNetwork()) {
+            Log.d(TAG, "Skipping preload — slow or metered network")
+            isLoading.set(false)
+            return
         }
 
         Log.d(TAG, "Loading interstitial…")
@@ -426,6 +439,22 @@ class AdMobManager(
         }
     }
 
+    /**
+     * Returns true if the current network is slow (cellular without WiFi/unmetered).
+     * Used by speed-aware preload to skip ad loading on 2G/3G/metered connections.
+     */
+    private fun isSlowOrMeteredNetwork(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val activeNetwork = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(activeNetwork) ?: return false
+        // If we have validated internet and are NOT on WiFi and NOT unmetered → treat as slow
+        val hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        val isWifi = caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)
+        val isUnmetered = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+        return hasInternet && !isWifi && !isUnmetered
+    }
+
     // ==================== Test Lab Auto-show ====================
     private fun maybeAutoShowInterstitial() {
         if (!isTestLab) return
@@ -456,7 +485,9 @@ class AdMobManager(
 
     private fun restoreAudioMode(activity: Activity?) {
         val am = activity?.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
-        am.mode = AudioManager.MODE_NORMAL
+        // Restore to IN_COMMUNICATION so the mic stays in VoIP-tier priority
+        // after an ad closes — critical for a conversation/translation app.
+        am.mode = AudioManager.MODE_IN_COMMUNICATION
     }
 
     // ==================== Destroy ====================
