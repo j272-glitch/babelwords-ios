@@ -86,9 +86,23 @@ else
 fi
 
 # ── Push ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-REMOTE_URL="https://x-access-token:${GITHUB_CLASSIC_TOKEN}@github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+# Save the original remote URL so we can restore it afterward
+ORIGIN_URL=$(git remote get-url origin 2>/dev/null || echo "")
+TOKEN_URL="https://x-access-token:${GITHUB_CLASSIC_TOKEN}@github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+
+# Temporarily swap origin to the token URL for this push
+git remote set-url origin "$TOKEN_URL"
 
 echo "⬆️  Pushing ${BRANCH} → ${GITHUB_OWNER}/${GITHUB_REPO}..."
-git push "$REMOTE_URL" "HEAD:${BRANCH}" 2>&1 | sed -E 's#x-access-token:[^@]*@#x-access-token:***@#g'
+if git push origin "HEAD:${BRANCH}" 2>&1 | sed -E 's#x-access-token:[^@]*@#x-access-token:***@#g'; then
+  echo "✅ Push complete: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
+else
+  echo "❌ Push failed."
+fi
 
-echo "✅ Push complete: https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}"
+# Restore the original remote URL (or the HTTPS one if there was none)
+if [ -n "$ORIGIN_URL" ]; then
+  git remote set-url origin "$ORIGIN_URL"
+else
+  git remote set-url origin "https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}.git"
+fi
