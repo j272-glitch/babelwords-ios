@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private var adMobManager: AdMobManager? = null
-    private lateinit var adBridge: AdBridge
+    internal lateinit var adBridge: AdBridge
     private lateinit var consentManager: ConsentManager
     private var appOpenAdManager: AppOpenAdManager? = null
     private lateinit var subscriptionBridge: SubscriptionBridge

@@ -1,0 +1,1972 @@
+﻿2026-07-19T01:22:26.4655314Z Current runner version: '2.335.1'
+2026-07-19T01:22:26.4704055Z ##[group]Runner Image Provisioner
+2026-07-19T01:22:26.4706240Z Hosted Compute Agent
+2026-07-19T01:22:26.4707877Z Version: 20260707.563
+2026-07-19T01:22:26.4709580Z Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+2026-07-19T01:22:26.4711866Z Build Date: 2026-07-07T19:33:50Z
+2026-07-19T01:22:26.4713957Z Worker ID: ***a8a7892e-f13f-49b7-a785-edc88eb77055***
+2026-07-19T01:22:26.4715846Z Azure Region: eastus2
+2026-07-19T01:22:26.4717345Z ##[endgroup]
+2026-07-19T01:22:26.4720132Z ##[group]Operating System
+2026-07-19T01:22:26.4721984Z Ubuntu
+2026-07-19T01:22:26.4723492Z 24.04.4
+2026-07-19T01:22:26.4724990Z LTS
+2026-07-19T01:22:26.4726280Z ##[endgroup]
+2026-07-19T01:22:26.4727779Z ##[group]Runner Image
+2026-07-19T01:22:26.4729514Z Image: ubuntu-24.04
+2026-07-19T01:22:26.4730915Z Version: 20260714.240.1
+2026-07-19T01:22:26.4733894Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260714.240/images/ubuntu/Ubuntu2404-Readme.md
+2026-07-19T01:22:26.4737198Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260714.240
+2026-07-19T01:22:26.4739424Z ##[endgroup]
+2026-07-19T01:22:26.4743017Z ##[group]GITHUB_TOKEN Permissions
+2026-07-19T01:22:26.4747655Z Actions: read
+2026-07-19T01:22:26.4749182Z Checks: read
+2026-07-19T01:22:26.4750699Z Contents: write
+2026-07-19T01:22:26.4752454Z Metadata: read
+2026-07-19T01:22:26.4753986Z Packages: write
+2026-07-19T01:22:26.4755413Z ##[endgroup]
+2026-07-19T01:22:26.4760152Z Secret source: Actions
+2026-07-19T01:22:26.4763166Z Prepare workflow directory
+2026-07-19T01:22:26.5580114Z Prepare all required actions
+2026-07-19T01:22:26.5638932Z Getting action download info
+2026-07-19T01:22:26.7615141Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-07-19T01:22:26.8900753Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2026-07-19T01:22:27.1134721Z Download action repository 'google-github-actions/auth@v2' (SHA:c200f3691d83b41bf9bbd8638997a462592937ed)
+2026-07-19T01:22:27.2681561Z Download action repository 'google-github-actions/setup-gcloud@v2' (SHA:e427ad8a34f8676edf47cf7d7925499adf3eb74f)
+2026-07-19T01:22:27.4165092Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-07-19T01:22:27.6793075Z Complete job name: Firebase Test Lab (Robo + Logcat + Video)
+2026-07-19T01:22:27.7779967Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:22:27.7790319Z ##[group]Run actions/checkout@v4
+2026-07-19T01:22:27.7791477Z with:
+2026-07-19T01:22:27.7792228Z   repository: j272-glitch/lingualink-android2
+2026-07-19T01:22:27.7796903Z   token: ***
+2026-07-19T01:22:27.7797666Z   ssh-strict: true
+2026-07-19T01:22:27.7798366Z   ssh-user: git
+2026-07-19T01:22:27.7799066Z   persist-credentials: true
+2026-07-19T01:22:27.7799809Z   clean: true
+2026-07-19T01:22:27.7800530Z   sparse-checkout-cone-mode: true
+2026-07-19T01:22:27.7801412Z   fetch-depth: 1
+2026-07-19T01:22:27.7802114Z   fetch-tags: false
+2026-07-19T01:22:27.7802817Z   show-progress: true
+2026-07-19T01:22:27.7803510Z   lfs: false
+2026-07-19T01:22:27.7804246Z   submodules: false
+2026-07-19T01:22:27.7804939Z   set-safe-directory: true
+2026-07-19T01:22:27.7805964Z env:
+2026-07-19T01:22:27.7806736Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:22:27.7807675Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:22:27.7808588Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:22:27.7809371Z   VERSION_CODE: 56
+2026-07-19T01:22:27.7810069Z   VERSION_NAME: 56.0.0
+2026-07-19T01:22:27.7810790Z   TEST_LOCALE: en_IN
+2026-07-19T01:22:27.7811649Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:22:27.7812872Z   CREATE_RELEASE: true
+2026-07-19T01:22:27.7813575Z   DEBUG_MODE: true
+2026-07-19T01:22:27.7814286Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:22:27.7845360Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:22:27.7846228Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:22:27.7847056Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:22:27.7847843Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:22:27.7851300Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:22:27.7852132Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:22:27.7853051Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:22:27.7853882Z   GCP_PROJECT_ID: ***
+2026-07-19T01:22:27.7854584Z ##[endgroup]
+2026-07-19T01:22:27.9100226Z Syncing repository: j272-glitch/lingualink-android2
+2026-07-19T01:22:27.9103531Z ##[group]Getting Git version info
+2026-07-19T01:22:27.9104921Z Working directory is '/home/runner/work/lingualink-android2/lingualink-android2'
+2026-07-19T01:22:27.9109205Z [command]/usr/bin/git version
+2026-07-19T01:22:27.9160328Z git version 2.54.0
+2026-07-19T01:22:27.9186273Z ##[endgroup]
+2026-07-19T01:22:27.9203542Z Temporarily overriding HOME='/home/runner/work/_temp/e4f6f412-88f2-47bf-858f-5bdf0db9be26' before making global git config changes
+2026-07-19T01:22:27.9210107Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-19T01:22:27.9216528Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/lingualink-android2/lingualink-android2
+2026-07-19T01:22:27.9270555Z Deleting the contents of '/home/runner/work/lingualink-android2/lingualink-android2'
+2026-07-19T01:22:27.9276397Z ##[group]Initializing the repository
+2026-07-19T01:22:27.9284595Z [command]/usr/bin/git init /home/runner/work/lingualink-android2/lingualink-android2
+2026-07-19T01:22:27.9399824Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-07-19T01:22:27.9404907Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-07-19T01:22:27.9407369Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-07-19T01:22:27.9409629Z hint: call:
+2026-07-19T01:22:27.9410907Z hint:
+2026-07-19T01:22:27.9413201Z hint: 	git config --global init.defaultBranch <name>
+2026-07-19T01:22:27.9414927Z hint:
+2026-07-19T01:22:27.9416634Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-07-19T01:22:27.9418856Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-07-19T01:22:27.9421714Z hint:
+2026-07-19T01:22:27.9423356Z hint: 	git branch -m <name>
+2026-07-19T01:22:27.9425267Z hint:
+2026-07-19T01:22:27.9427233Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-07-19T01:22:27.9430363Z Initialized empty Git repository in /home/runner/work/lingualink-android2/lingualink-android2/.git/
+2026-07-19T01:22:27.9435970Z [command]/usr/bin/git remote add origin https://github.com/j272-glitch/lingualink-android2
+2026-07-19T01:22:27.9467867Z ##[endgroup]
+2026-07-19T01:22:27.9472903Z ##[group]Disabling automatic garbage collection
+2026-07-19T01:22:27.9474867Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-19T01:22:27.9519640Z ##[endgroup]
+2026-07-19T01:22:27.9525365Z ##[group]Setting up auth
+2026-07-19T01:22:27.9528124Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-19T01:22:27.9574132Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-19T01:22:28.0005082Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-19T01:22:28.0015249Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-19T01:22:28.0295898Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-19T01:22:28.0327718Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-19T01:22:28.0593045Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-19T01:22:28.0638166Z ##[endgroup]
+2026-07-19T01:22:28.0640728Z ##[group]Fetching the repository
+2026-07-19T01:22:28.0650938Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +db7c9efcc30a68640accaac31810fe576c8ec727:refs/remotes/origin/main
+2026-07-19T01:22:51.4976071Z From https://github.com/j272-glitch/lingualink-android2
+2026-07-19T01:22:51.4978052Z  * [new ref]         db7c9efcc30a68640accaac31810fe576c8ec727 -> origin/main
+2026-07-19T01:22:51.5014615Z ##[endgroup]
+2026-07-19T01:22:51.5016057Z ##[group]Determining the checkout info
+2026-07-19T01:22:51.5017109Z ##[endgroup]
+2026-07-19T01:22:51.5017953Z [command]/usr/bin/git sparse-checkout disable
+2026-07-19T01:22:51.5092593Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-19T01:22:51.5113955Z ##[group]Checking out the ref
+2026-07-19T01:22:51.5115124Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-19T01:22:52.5596495Z Updating files:  87% (492/562)
+2026-07-19T01:22:52.5607543Z Updating files:  88% (495/562)
+2026-07-19T01:22:52.5620741Z Updating files:  89% (501/562)
+2026-07-19T01:22:52.6677569Z Updating files:  90% (506/562)
+2026-07-19T01:22:52.6679834Z Updating files:  91% (512/562)
+2026-07-19T01:22:52.6735361Z Updating files:  92% (518/562)
+2026-07-19T01:22:52.6823498Z Updating files:  93% (523/562)
+2026-07-19T01:22:52.6855297Z Updating files:  94% (529/562)
+2026-07-19T01:22:52.7044829Z Updating files:  95% (534/562)
+2026-07-19T01:22:52.7045834Z Updating files:  96% (540/562)
+2026-07-19T01:22:52.7807613Z Updating files:  97% (546/562)
+2026-07-19T01:22:52.8774221Z Updating files:  98% (551/562)
+2026-07-19T01:22:52.9008443Z Updating files:  99% (557/562)
+2026-07-19T01:22:52.9023669Z Updating files: 100% (562/562)
+2026-07-19T01:22:52.9038726Z Updating files: 100% (562/562), done.
+2026-07-19T01:22:52.9855642Z Switched to a new branch 'main'
+2026-07-19T01:22:52.9859184Z branch 'main' set up to track 'origin/main'.
+2026-07-19T01:22:53.0488847Z ##[endgroup]
+2026-07-19T01:22:53.2886723Z [command]/usr/bin/git log -1 --format=%H
+2026-07-19T01:22:53.2905389Z db7c9efcc30a68640accaac31810fe576c8ec727
+2026-07-19T01:22:53.5432222Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:22:53.5434276Z ##[group]Run actions/download-artifact@v4
+2026-07-19T01:22:53.5434694Z with:
+2026-07-19T01:22:53.5435054Z   name: linguagt-release-apk-v56.0.0-56
+2026-07-19T01:22:53.5435462Z   path: apk
+2026-07-19T01:22:53.5435817Z   merge-multiple: false
+2026-07-19T01:22:53.5436215Z   repository: j272-glitch/lingualink-android2
+2026-07-19T01:22:53.5436635Z   run-id: 29668190953
+2026-07-19T01:22:53.5436971Z env:
+2026-07-19T01:22:53.5437322Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:22:53.5437787Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:22:53.5438243Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:22:53.5438730Z   VERSION_CODE: 56
+2026-07-19T01:22:53.5439069Z   VERSION_NAME: 56.0.0
+2026-07-19T01:22:53.5439419Z   TEST_LOCALE: en_IN
+2026-07-19T01:22:53.5439787Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:22:53.5440176Z   CREATE_RELEASE: true
+2026-07-19T01:22:53.5440520Z   DEBUG_MODE: true
+2026-07-19T01:22:53.5440858Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:22:53.5459574Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:22:53.5460019Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:22:53.5460427Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:22:53.5460804Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:22:53.5463329Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:22:53.5463722Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:22:53.5464128Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:22:53.5464545Z   GCP_PROJECT_ID: ***
+2026-07-19T01:22:53.5464897Z ##[endgroup]
+2026-07-19T01:22:53.7196235Z Downloading single artifact
+2026-07-19T01:22:53.7402969Z (node:2066) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-19T01:22:53.7404928Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-19T01:22:53.8218779Z Preparing to download the following artifacts:
+2026-07-19T01:22:53.8220589Z - linguagt-release-apk-v56.0.0-56 (ID: 8436481041, Size: 24248536, Expected Digest: sha256:33793449c8180159403b2cdfa63534199deab18abebcd44d9517dff2f9de4e6f)
+2026-07-19T01:22:53.9141809Z Redirecting to blob download url: https://productionresultssa3.blob.core.windows.net/actions-results/6e90a799-2b30-4fe8-8009-050254c7d92f/workflow-job-run-d6ae2a9f-4a33-5b88-be23-a94b2cec515a/artifacts/94ef15ee89af77c4728e2426f9a4a87c43332dbaf49341c2212a2a789ca2fb8a.zip
+2026-07-19T01:22:53.9144216Z Starting download of artifact to: /home/runner/work/lingualink-android2/lingualink-android2/apk
+2026-07-19T01:22:54.0394149Z (node:2066) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+2026-07-19T01:22:54.4963556Z SHA256 digest of downloaded artifact is 33793449c8180159403b2cdfa63534199deab18abebcd44d9517dff2f9de4e6f
+2026-07-19T01:22:54.4965024Z Artifact download completed successfully.
+2026-07-19T01:22:54.4966059Z Total of 1 artifact(s) downloaded
+2026-07-19T01:22:54.4970570Z Download artifact has finished successfully
+2026-07-19T01:22:54.5147044Z ##[group]Run APK=$(find apk -name "*.apk" 2>/dev/null | head -1)
+2026-07-19T01:22:54.5147766Z [36;1mAPK=$(find apk -name "*.apk" 2>/dev/null | head -1)[0m
+2026-07-19T01:22:54.5148285Z [36;1mif [ -z "$APK" ]; then[0m
+2026-07-19T01:22:54.5148927Z [36;1m  echo "⚠️ No release APK artifact found — assembleRelease may have been skipped or failed."[0m
+2026-07-19T01:22:54.5149712Z [36;1m  echo "Skipping Firebase Test Lab. (The AAB build itself is unaffected.)"[0m
+2026-07-19T01:22:54.5150284Z [36;1m  echo "found=false" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:22:54.5150700Z [36;1melse[0m
+2026-07-19T01:22:54.5151057Z [36;1m  echo "found=true" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:22:54.5151889Z [36;1m  echo "apk=$APK" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:22:54.5152310Z [36;1m  echo "Found APK: $APK"[0m
+2026-07-19T01:22:54.5152674Z [36;1mfi[0m
+2026-07-19T01:22:54.5241620Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:22:54.5242054Z env:
+2026-07-19T01:22:54.5242522Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:22:54.5243021Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:22:54.5243495Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:22:54.5243940Z   VERSION_CODE: 56
+2026-07-19T01:22:54.5244287Z   VERSION_NAME: 56.0.0
+2026-07-19T01:22:54.5244625Z   TEST_LOCALE: en_IN
+2026-07-19T01:22:54.5244974Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:22:54.5245363Z   CREATE_RELEASE: true
+2026-07-19T01:22:54.5245708Z   DEBUG_MODE: true
+2026-07-19T01:22:54.5246044Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:22:54.5264964Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:22:54.5265415Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:22:54.5265845Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:22:54.5266228Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:22:54.5268121Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:22:54.5268510Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:22:54.5268904Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:22:54.5269308Z   GCP_PROJECT_ID: ***
+2026-07-19T01:22:54.5269689Z ##[endgroup]
+2026-07-19T01:22:54.5412272Z Found APK: apk/app-release.apk
+2026-07-19T01:22:54.5560015Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:22:54.5561762Z ##[group]Run google-github-actions/auth@v2
+2026-07-19T01:22:54.5562171Z with:
+2026-07-19T01:22:54.5571483Z   credentials_json: ***
+
+2026-07-19T01:22:54.5571878Z   create_credentials_file: true
+2026-07-19T01:22:54.5572276Z   export_environment_variables: true
+2026-07-19T01:22:54.5572689Z   universe: googleapis.com
+2026-07-19T01:22:54.5573061Z   cleanup_credentials: true
+2026-07-19T01:22:54.5573442Z   access_token_lifetime: 3600s
+2026-07-19T01:22:54.5573944Z   access_token_scopes: https://www.googleapis.com/auth/cloud-platform
+2026-07-19T01:22:54.5574457Z   id_token_include_email: false
+2026-07-19T01:22:54.5574824Z env:
+2026-07-19T01:22:54.5575243Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:22:54.5575721Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:22:54.5576196Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:22:54.5576591Z   VERSION_CODE: 56
+2026-07-19T01:22:54.5576943Z   VERSION_NAME: 56.0.0
+2026-07-19T01:22:54.5577291Z   TEST_LOCALE: en_IN
+2026-07-19T01:22:54.5577644Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:22:54.5578034Z   CREATE_RELEASE: true
+2026-07-19T01:22:54.5578387Z   DEBUG_MODE: true
+2026-07-19T01:22:54.5578724Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:22:54.5597462Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:22:54.5597908Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:22:54.5598340Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:22:54.5598732Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:22:54.5600622Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:22:54.5601002Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:22:54.5601610Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:22:54.5602068Z   GCP_PROJECT_ID: ***
+2026-07-19T01:22:54.5602419Z ##[endgroup]
+2026-07-19T01:22:54.6693690Z Created credentials file at "/home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json"
+2026-07-19T01:22:54.6889718Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:22:54.6891708Z ##[group]Run google-github-actions/setup-gcloud@v2
+2026-07-19T01:22:54.6892409Z with:
+2026-07-19T01:22:54.6893052Z   project_id: ***
+2026-07-19T01:22:54.6893642Z   version: latest
+2026-07-19T01:22:54.6894309Z   skip_install: false
+2026-07-19T01:22:54.6894928Z   skip_tool_cache: false
+2026-07-19T01:22:54.6895529Z env:
+2026-07-19T01:22:54.6913700Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:22:54.6914401Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:22:54.6914940Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:22:54.6915385Z   VERSION_CODE: 56
+2026-07-19T01:22:54.6915723Z   VERSION_NAME: 56.0.0
+2026-07-19T01:22:54.6916139Z   TEST_LOCALE: en_IN
+2026-07-19T01:22:54.6916498Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:22:54.6916900Z   CREATE_RELEASE: true
+2026-07-19T01:22:54.6917241Z   DEBUG_MODE: true
+2026-07-19T01:22:54.6917583Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:22:54.6936564Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:22:54.6937022Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:22:54.6937452Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:22:54.6937849Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:22:54.6939768Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:22:54.6940204Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:22:54.6940648Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:22:54.6941270Z   GCP_PROJECT_ID: ***
+2026-07-19T01:22:54.6942050Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:22:54.6943456Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:22:54.6944435Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:22:54.6945167Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:22:54.6945599Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:22:54.6946005Z   GCLOUD_PROJECT: ***
+2026-07-19T01:22:54.6946417Z   GCP_PROJECT: ***
+2026-07-19T01:22:54.6946820Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:22:54.6947227Z ##[endgroup]
+2026-07-19T01:22:55.9952538Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/9d35da98-b03c-46f7-be91-a464047a7c96 -f /home/runner/work/_temp/abacab6d-15e8-48cf-8494-e1adffd3fc58
+2026-07-19T01:23:19.2679241Z Successfully authenticated
+2026-07-19T01:23:20.4772837Z Successfully set default project
+2026-07-19T01:23:20.5042347Z ##[group]Run echo "Running Robo test on Firebase Test Lab (auto-launches app → triggers startup interstitial; records video + Logcat)"
+2026-07-19T01:23:20.5043565Z [36;1mecho "Running Robo test on Firebase Test Lab (auto-launches app → triggers startup interstitial; records video + Logcat)"[0m
+2026-07-19T01:23:20.5044462Z [36;1m# No --results-bucket: Test Lab auto-creates a writable default bucket (test-lab-*),[0m
+2026-07-19T01:23:20.5045208Z [36;1m# avoiding the need for Storage Admin / bucket-creation rights on the service account.[0m
+2026-07-19T01:23:20.5045861Z [36;1mecho "Locale: $TEST_LOCALE | Device: $TEST_DEVICE_MODEL"[0m
+2026-07-19T01:23:20.5046367Z [36;1mgcloud firebase test android run \[0m
+2026-07-19T01:23:20.5046793Z [36;1m  --type robo \[0m
+2026-07-19T01:23:20.5047193Z [36;1m  --app "apk/app-release.apk" \[0m
+2026-07-19T01:23:20.5047799Z [36;1m  --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \[0m
+2026-07-19T01:23:20.5048442Z [36;1m  --timeout 120s \[0m
+2026-07-19T01:23:20.5048822Z [36;1m  --record-video \[0m
+2026-07-19T01:23:20.5049289Z [36;1m  --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run.log[0m
+2026-07-19T01:23:20.5115227Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:23:20.5115639Z env:
+2026-07-19T01:23:20.5116025Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:23:20.5116534Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:23:20.5117004Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:23:20.5117411Z   VERSION_CODE: 56
+2026-07-19T01:23:20.5117757Z   VERSION_NAME: 56.0.0
+2026-07-19T01:23:20.5118113Z   TEST_LOCALE: en_IN
+2026-07-19T01:23:20.5118480Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:23:20.5118877Z   CREATE_RELEASE: true
+2026-07-19T01:23:20.5119226Z   DEBUG_MODE: true
+2026-07-19T01:23:20.5119572Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:23:20.5138531Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:23:20.5138975Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:23:20.5139409Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:23:20.5139806Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:23:20.5141900Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:23:20.5142307Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:23:20.5142721Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:23:20.5143134Z   GCP_PROJECT_ID: ***
+2026-07-19T01:23:20.5143832Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:23:20.5144875Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:23:20.5145845Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:23:20.5146522Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:23:20.5146914Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:23:20.5147283Z   GCLOUD_PROJECT: ***
+2026-07-19T01:23:20.5147653Z   GCP_PROJECT: ***
+2026-07-19T01:23:20.5148044Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:23:20.5148488Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:23:20.5149261Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:23:20.5149732Z ##[endgroup]
+2026-07-19T01:23:20.5241773Z Running Robo test on Firebase Test Lab (auto-launches app → triggers startup interstitial; records video + Logcat)
+2026-07-19T01:23:20.5243180Z Locale: en_IN | Device: MediumPhone.arm
+2026-07-19T01:23:21.2626193Z 
+2026-07-19T01:23:21.2627447Z Have questions, feedback, or issues? Get support by visiting:
+2026-07-19T01:23:21.2628567Z   https://firebase.google.com/support/
+2026-07-19T01:23:21.2629304Z 
+2026-07-19T01:23:22.3013454Z Uploading [apk/app-release.apk] to Firebase Test Lab...
+2026-07-19T01:23:23.2768424Z Raw results will be stored in your GCS bucket at [https://console.developers.google.com/storage/browser/test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/]
+2026-07-19T01:23:23.2770221Z 
+2026-07-19T01:23:23.7632215Z Test [matrix-1tjea22yt9nf0] has been created in the Google Cloud.
+2026-07-19T01:23:23.7654787Z Creating individual test executions...
+2026-07-19T01:23:30.0858177Z ...............................done.
+2026-07-19T01:23:30.2533050Z Firebase Test Lab will execute your robo test on 1 device(s). More devices may be added later if flaky test attempts are specified.
+2026-07-19T01:23:30.2542608Z 
+2026-07-19T01:23:30.2544028Z Test results will be streamed to [ https://console.firebase.google.com/project/***/testlab/histories/bh.42401e3ca7aaabd6/matrices/7883989697831311407 ].
+2026-07-19T01:23:30.3100054Z 01:23:30 Test is Pending
+2026-07-19T01:23:54.5550440Z 01:23:54 Starting attempt 1.
+2026-07-19T01:23:54.5551354Z 01:23:54 Test is Running
+2026-07-19T01:26:55.7932865Z 01:26:55 Done. Test time = 130 (secs)
+2026-07-19T01:26:55.7933559Z 01:26:55 Starting results processing. Attempt: 1
+2026-07-19T01:27:19.9492868Z 01:27:19 Completed results processing. Time taken = 18 (secs)
+2026-07-19T01:27:19.9497423Z 01:27:19 Test is Finished
+2026-07-19T01:27:20.0042453Z 
+2026-07-19T01:27:20.0043955Z Robo testing complete.
+2026-07-19T01:27:20.0045136Z 
+2026-07-19T01:27:20.0046568Z More details are available at [ https://console.firebase.google.com/project/***/testlab/histories/bh.42401e3ca7aaabd6/matrices/7883989697831311407 ].
+2026-07-19T01:27:20.5292776Z ┌─────────┬───────────────────────────────────┬──────────────┐
+2026-07-19T01:27:20.5293743Z │ OUTCOME │          TEST_AXIS_VALUE          │ TEST_DETAILS │
+2026-07-19T01:27:20.5294534Z ├─────────┼───────────────────────────────────┼──────────────┤
+2026-07-19T01:27:20.5295656Z │ Passed  │ MediumPhone.arm-33-en_IN-portrait │ --           │
+2026-07-19T01:27:20.5296275Z └─────────┴───────────────────────────────────┴──────────────┘
+2026-07-19T01:27:20.7467416Z ##[group]Run mkdir -p firebase-results
+2026-07-19T01:27:20.7467962Z [36;1mmkdir -p firebase-results[0m
+2026-07-19T01:27:20.7468569Z [36;1m# gcloud prints the raw-results browser URL; convert it to a gs:// path and copy it down.[0m
+2026-07-19T01:27:20.7469406Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run.log | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:20.7470148Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:20.7470558Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:20.7471338Z [36;1m  echo "⚠️ Could not determine results bucket path from gcloud output (test may not have started)."[0m
+2026-07-19T01:27:20.7471970Z [36;1melse[0m
+2026-07-19T01:27:20.7472333Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:20.7472958Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:20.7473546Z [36;1mfi[0m
+2026-07-19T01:27:20.7474142Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:20.7475059Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run.log | head -1)[0m
+2026-07-19T01:27:20.7475767Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:20.7476493Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:20.7476980Z [36;1mfi[0m
+2026-07-19T01:27:20.7477320Z [36;1mecho "=== Collected files ==="[0m
+2026-07-19T01:27:20.7477789Z [36;1mfind firebase-results -type f | head -50 || true[0m
+2026-07-19T01:27:20.7478408Z [36;1m# upload-artifact@v4 REJECTS any path containing ':' — and Test Lab names its[0m
+2026-07-19T01:27:20.7479106Z [36;1m# results folder with a timestamp like '2026-06-22_21:12:16...'. Flatten the key[0m
+2026-07-19T01:27:20.7479761Z [36;1m# files into a colon-free folder so the artifact upload succeeds.[0m
+2026-07-19T01:27:20.7480292Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:20.7480779Z [36;1mcp firebase-run.log firebase-artifact/ 2>/dev/null || true[0m
+2026-07-19T01:27:20.7481514Z [36;1mLOGCAT_SRC=$(find firebase-results -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:20.7482165Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat.txt; fi[0m
+2026-07-19T01:27:20.7482810Z [36;1mVIDEO_SRC=$(find firebase-results -iname "video.mp4" | head -1)[0m
+2026-07-19T01:27:20.7483435Z [36;1mif [ -n "$VIDEO_SRC" ]; then cp "$VIDEO_SRC" firebase-artifact/video.mp4; fi[0m
+2026-07-19T01:27:20.7484005Z [36;1mecho "=== Sanitized artifact files ==="[0m
+2026-07-19T01:27:20.7484483Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:20.7547161Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:20.7547871Z env:
+2026-07-19T01:27:20.7565556Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:20.7566223Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:20.7566867Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:20.7567367Z   VERSION_CODE: 56
+2026-07-19T01:27:20.7567814Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:20.7568264Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:20.7568722Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:20.7569228Z   CREATE_RELEASE: true
+2026-07-19T01:27:20.7569687Z   DEBUG_MODE: true
+2026-07-19T01:27:20.7570190Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:20.7592024Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:20.7592499Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:20.7592936Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:20.7593329Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:20.7595217Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:20.7595596Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:20.7595983Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:20.7596408Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:20.7597555Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:20.7598587Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:20.7599517Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:20.7600193Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:20.7600590Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:20.7600950Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:20.7601504Z   GCP_PROJECT: ***
+2026-07-19T01:27:20.7601859Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:20.7602288Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:20.7602782Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:20.7603199Z ##[endgroup]
+2026-07-19T01:27:20.7765588Z Results path: gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM
+2026-07-19T01:27:22.5363899Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/actions.json to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/actions.json
+2026-07-19T01:27:22.5367570Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/0.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/0.png
+2026-07-19T01:27:22.5486401Z   
+2026-07-19T01:27:22.5533754Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/1.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/1.png
+2026-07-19T01:27:22.5563147Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/10.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/10.png
+2026-07-19T01:27:22.5600695Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/11.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/11.png
+2026-07-19T01:27:22.5604612Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/12.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/12.png
+2026-07-19T01:27:22.5623687Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/13.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/13.png
+2026-07-19T01:27:22.5653326Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/14.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/14.png
+2026-07-19T01:27:22.5673846Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/15.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/15.png
+2026-07-19T01:27:22.5694981Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/16.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/16.png
+2026-07-19T01:27:22.5713208Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/17.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/17.png
+2026-07-19T01:27:22.5740412Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/18.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/18.png
+2026-07-19T01:27:22.5763558Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/2.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/2.png
+2026-07-19T01:27:22.5780371Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/3.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/3.png
+2026-07-19T01:27:22.5813229Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/4.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/4.png
+2026-07-19T01:27:22.5833171Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/5.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/5.png
+2026-07-19T01:27:22.5852717Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/6.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/6.png
+2026-07-19T01:27:22.5872645Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/7.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/7.png
+2026-07-19T01:27:22.5883506Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/8.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/8.png
+2026-07-19T01:27:22.5902758Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/9.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/9.png
+2026-07-19T01:27:22.5922853Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/output/sitemap.png to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/output/sitemap.png
+2026-07-19T01:27:22.5934225Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/crawlscript.json to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/crawlscript.json
+2026-07-19T01:27:22.5952773Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/logcat to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/logcat
+2026-07-19T01:27:22.5972682Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/robo_results.pb to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/robo_results.pb
+2026-07-19T01:27:22.5992556Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/video.mp4 to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/video.mp4
+2026-07-19T01:27:22.6012304Z Copying gs://test-lab-zsb1tq1vzp05w-w6y8nz4hhdk9z/2026-07-19_01:23:21.801216_DxhM/app-release.apk to file://firebase-results/2026-07-19_01:23:21.801216_DxhM/app-release.apk
+2026-07-19T01:27:25.7048564Z ...............
+2026-07-19T01:27:25.7544237Z 
+2026-07-19T01:27:25.7545460Z Average throughput: 45.0MiB/s
+2026-07-19T01:27:26.0649288Z 🔗 Firebase Console (view results online): https://console.firebase.google.com/project/***/testlab/histories/bh.42401e3ca7aaabd6/matrices/7883989697831311407
+2026-07-19T01:27:26.0653299Z === Collected files ===
+2026-07-19T01:27:26.0653989Z firebase-results/2026-07-19_01:23:21.801216_DxhM/app-release.apk
+2026-07-19T01:27:26.0655000Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/robo_results.pb
+2026-07-19T01:27:26.0656082Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/logcat
+2026-07-19T01:27:26.0657130Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/actions.json
+2026-07-19T01:27:26.0658098Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/video.mp4
+2026-07-19T01:27:26.0659091Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/crawlscript.json
+2026-07-19T01:27:26.0660121Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/13.png
+2026-07-19T01:27:26.0661692Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/12.png
+2026-07-19T01:27:26.0662827Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/10.png
+2026-07-19T01:27:26.0664066Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/output/sitemap.png
+2026-07-19T01:27:26.0665321Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/18.png
+2026-07-19T01:27:26.0666869Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/3.png
+2026-07-19T01:27:26.0668063Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/15.png
+2026-07-19T01:27:26.0669183Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/6.png
+2026-07-19T01:27:26.0669930Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/11.png
+2026-07-19T01:27:26.0670657Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/7.png
+2026-07-19T01:27:26.0674816Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/8.png
+2026-07-19T01:27:26.0675962Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/0.png
+2026-07-19T01:27:26.0677149Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/16.png
+2026-07-19T01:27:26.0678330Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/9.png
+2026-07-19T01:27:26.0679628Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/1.png
+2026-07-19T01:27:26.0680796Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/17.png
+2026-07-19T01:27:26.0682492Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/14.png
+2026-07-19T01:27:26.0683614Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/5.png
+2026-07-19T01:27:26.0684704Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/4.png
+2026-07-19T01:27:26.0685818Z firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/artifacts/2.png
+2026-07-19T01:27:26.0878242Z === Sanitized artifact files ===
+2026-07-19T01:27:26.0895153Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.0896037Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.0896833Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.0983197Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:27:26.0985577Z ##[group]Run actions/download-artifact@v4
+2026-07-19T01:27:26.0986224Z with:
+2026-07-19T01:27:26.0986757Z   name: linguagt-debug-apk-v56.0.0-56
+2026-07-19T01:27:26.0987377Z   path: apk-debug
+2026-07-19T01:27:26.0987889Z   merge-multiple: false
+2026-07-19T01:27:26.0988482Z   repository: j272-glitch/lingualink-android2
+2026-07-19T01:27:26.0989132Z   run-id: 29668190953
+2026-07-19T01:27:26.0989639Z env:
+2026-07-19T01:27:26.0990165Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.0990931Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.0991879Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.0992547Z   VERSION_CODE: 56
+2026-07-19T01:27:26.0993055Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.0993574Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.0994125Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.0994741Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.0995262Z   DEBUG_MODE: true
+2026-07-19T01:27:26.0995780Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.1029560Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.1030300Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.1030954Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.1031777Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.1034929Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.1035525Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.1036122Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.1036691Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.1037785Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.1038794Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.1039724Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.1040387Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.1040779Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.1041490Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.1041859Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.1042228Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.1042670Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.1043171Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.1043582Z ##[endgroup]
+2026-07-19T01:27:26.2732786Z Downloading single artifact
+2026-07-19T01:27:26.2943362Z (node:2306) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-19T01:27:26.2945096Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-19T01:27:26.3716091Z ##[error]Unable to download artifact(s): Artifact not found for name: linguagt-debug-apk-v56.0.0-56
+        Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact.
+        For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+2026-07-19T01:27:26.3865366Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:27:26.3866762Z ##[group]Run actions/download-artifact@v4
+2026-07-19T01:27:26.3867206Z with:
+2026-07-19T01:27:26.3867596Z   name: linguagt-debug-androidtest-apk-v56.0.0-56
+2026-07-19T01:27:26.3868039Z   path: apk-test
+2026-07-19T01:27:26.3868392Z   merge-multiple: false
+2026-07-19T01:27:26.3868784Z   repository: j272-glitch/lingualink-android2
+2026-07-19T01:27:26.3869204Z   run-id: 29668190953
+2026-07-19T01:27:26.3869540Z env:
+2026-07-19T01:27:26.3869897Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.3870369Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.3870836Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.3871414Z   VERSION_CODE: 56
+2026-07-19T01:27:26.3871757Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.3872115Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.3872490Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.3872885Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.3873232Z   DEBUG_MODE: true
+2026-07-19T01:27:26.3873590Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.3892543Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.3892988Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.3893410Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.3893795Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.3895654Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.3896034Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.3896443Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.3896860Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.3897555Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.3898573Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.3899509Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.3900172Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.3900568Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.3901305Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.3901667Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.3902049Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.3902478Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.3902979Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.3903402Z ##[endgroup]
+2026-07-19T01:27:26.5633808Z Downloading single artifact
+2026-07-19T01:27:26.5855968Z (node:2318) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-19T01:27:26.5884415Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-19T01:27:26.6546181Z ##[error]Unable to download artifact(s): Artifact not found for name: linguagt-debug-androidtest-apk-v56.0.0-56
+        Please ensure that your artifact is not expired and the artifact was uploaded using a compatible version of toolkit/upload-artifact.
+        For more information, visit the GitHub Artifacts FAQ: https://github.com/actions/toolkit/blob/main/packages/artifact/docs/faq.md
+2026-07-19T01:27:26.6691358Z ##[group]Run APP=$(find apk-debug -name "*.apk" 2>/dev/null | head -1)
+2026-07-19T01:27:26.6692571Z [36;1mAPP=$(find apk-debug -name "*.apk" 2>/dev/null | head -1)[0m
+2026-07-19T01:27:26.6693554Z [36;1mTEST=$(find apk-test -name "*.apk" 2>/dev/null | head -1)[0m
+2026-07-19T01:27:26.6694409Z [36;1mif [ -n "$APP" ] && [ -n "$TEST" ]; then[0m
+2026-07-19T01:27:26.6695164Z [36;1m  echo "app=$APP" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:27:26.6695907Z [36;1m  echo "test=$TEST" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:27:26.6696638Z [36;1m  echo "found=true" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:27:26.6697351Z [36;1m  echo "✅ Found app APK: $APP"[0m
+2026-07-19T01:27:26.6698048Z [36;1m  echo "✅ Found test APK: $TEST"[0m
+2026-07-19T01:27:26.6698699Z [36;1melse[0m
+2026-07-19T01:27:26.6699556Z [36;1m  echo "⚠️ Missing instrumentation APKs — skipping Test Lab instrumentation runs"[0m
+2026-07-19T01:27:26.6700557Z [36;1m  echo "found=false" >> $GITHUB_OUTPUT[0m
+2026-07-19T01:27:26.6701759Z [36;1mfi[0m
+2026-07-19T01:27:26.6774206Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.6774702Z env:
+2026-07-19T01:27:26.6775137Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.6775700Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.6776229Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.6776697Z   VERSION_CODE: 56
+2026-07-19T01:27:26.6777096Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.6777497Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.6777916Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.6778357Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.6778751Z   DEBUG_MODE: true
+2026-07-19T01:27:26.6779143Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.6798271Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.6798774Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.6799253Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.6799700Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.6801774Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.6802225Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.6802668Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.6803130Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.6803867Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.6804916Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.6805895Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.6806600Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.6807032Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.6807455Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.6807878Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.6808299Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.6808788Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.6810163Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.6810822Z ##[endgroup]
+2026-07-19T01:27:26.6999575Z ⚠️ Missing instrumentation APKs — skipping Test Lab instrumentation runs
+2026-07-19T01:27:26.7158367Z ##[group]Run mkdir -p firebase-results-statemachine
+2026-07-19T01:27:26.7159292Z [36;1mmkdir -p firebase-results-statemachine[0m
+2026-07-19T01:27:26.7160542Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-statemachine.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.7162035Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.7162628Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.7163635Z [36;1m  echo "⚠️ Could not determine results bucket path for the state-machine run (test may not have started)."[0m
+2026-07-19T01:27:26.7164618Z [36;1melse[0m
+2026-07-19T01:27:26.7165150Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.7166251Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-statemachine/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.7167358Z [36;1mfi[0m
+2026-07-19T01:27:26.7168560Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-statemachine.log | head -1)[0m
+2026-07-19T01:27:26.7169809Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.7170575Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.7171655Z [36;1mfi[0m
+2026-07-19T01:27:26.7172176Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:26.7173034Z [36;1mLOGCAT_SRC=$(find firebase-results-statemachine -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.7174218Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-statemachine.txt; fi[0m
+2026-07-19T01:27:26.7175134Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.7268975Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.7269715Z env:
+2026-07-19T01:27:26.7270282Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.7271059Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.7272053Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.7272668Z   VERSION_CODE: 56
+2026-07-19T01:27:26.7273179Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.7273741Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.7274305Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.7274907Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.7275460Z   DEBUG_MODE: true
+2026-07-19T01:27:26.7276004Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.7311924Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.7312716Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.7313373Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.7313954Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.7317114Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.7317690Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.7318241Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.7318899Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.7320041Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7322007Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7323447Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7324406Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.7324936Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.7325456Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.7325988Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.7326497Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.7327117Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.7327870Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.7328444Z ##[endgroup]
+2026-07-19T01:27:26.7597334Z ⚠️ Could not determine results bucket path for the state-machine run (test may not have started).
+2026-07-19T01:27:26.7628297Z grep: firebase-run-statemachine.log: No such file or directory
+2026-07-19T01:27:26.7712522Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.7713875Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.7715122Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.7775285Z ##[group]Run mkdir -p firebase-results-audiofocus
+2026-07-19T01:27:26.7775912Z [36;1mmkdir -p firebase-results-audiofocus[0m
+2026-07-19T01:27:26.7776777Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-audiofocus.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.7777605Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.7778053Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.7778778Z [36;1m  echo "⚠️ Could not determine results bucket path for the audio-focus-loss run (test may not have started)."[0m
+2026-07-19T01:27:26.7779476Z [36;1melse[0m
+2026-07-19T01:27:26.7779902Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.7780634Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-audiofocus/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.7781562Z [36;1mfi[0m
+2026-07-19T01:27:26.7782229Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:26.7783257Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-audiofocus.log | head -1)[0m
+2026-07-19T01:27:26.7784045Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.7784601Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.7785121Z [36;1mfi[0m
+2026-07-19T01:27:26.7785628Z [36;1mLOGCAT_SRC=$(find firebase-results-audiofocus -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.7786394Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-audiofocus.txt; fi[0m
+2026-07-19T01:27:26.7787045Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.7854654Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.7855136Z env:
+2026-07-19T01:27:26.7855555Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.7856131Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.7856666Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.7857112Z   VERSION_CODE: 56
+2026-07-19T01:27:26.7857498Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.7857884Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.7858247Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.7858661Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.7859042Z   DEBUG_MODE: true
+2026-07-19T01:27:26.7859435Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.7878515Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.7878956Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.7879418Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.7879876Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.7882030Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.7882436Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.7882879Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.7883338Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.7884060Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7885072Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7886027Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.7886726Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.7887153Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.7887574Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.7887969Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.7888370Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.7888815Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.7889699Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.7890142Z ##[endgroup]
+2026-07-19T01:27:26.8047771Z ⚠️ Could not determine results bucket path for the audio-focus-loss run (test may not have started).
+2026-07-19T01:27:26.8067924Z grep: firebase-run-audiofocus.log: No such file or directory
+2026-07-19T01:27:26.8116324Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.8119544Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.8120300Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.8168741Z ##[group]Run mkdir -p firebase-results-adrotation
+2026-07-19T01:27:26.8169313Z [36;1mmkdir -p firebase-results-adrotation[0m
+2026-07-19T01:27:26.8170133Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-adrotation.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.8170966Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.8171680Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.8172407Z [36;1m  echo "⚠️ Could not determine results bucket path for the ad-rotation regression run (test may not have started)."[0m
+2026-07-19T01:27:26.8173077Z [36;1melse[0m
+2026-07-19T01:27:26.8173431Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.8174106Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-adrotation/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.8174729Z [36;1mfi[0m
+2026-07-19T01:27:26.8175325Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:26.8176281Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-adrotation.log | head -1)[0m
+2026-07-19T01:27:26.8177027Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.8177557Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.8178036Z [36;1mfi[0m
+2026-07-19T01:27:26.8178386Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:26.8178923Z [36;1mLOGCAT_SRC=$(find firebase-results-adrotation -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.8179637Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-adrotation.txt; fi[0m
+2026-07-19T01:27:26.8180232Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.8250144Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.8250750Z env:
+2026-07-19T01:27:26.8251472Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.8252244Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.8252984Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.8253587Z   VERSION_CODE: 56
+2026-07-19T01:27:26.8254105Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.8254651Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.8255215Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.8255816Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.8256330Z   DEBUG_MODE: true
+2026-07-19T01:27:26.8256891Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.8284873Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.8285374Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.8285809Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.8286205Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.8288086Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.8288473Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.8288869Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.8289274Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.8289994Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8291013Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8292132Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8292822Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.8293659Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.8294034Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.8294395Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.8294761Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.8295205Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.8295712Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.8296127Z ##[endgroup]
+2026-07-19T01:27:26.8467906Z ⚠️ Could not determine results bucket path for the ad-rotation regression run (test may not have started).
+2026-07-19T01:27:26.8488215Z grep: firebase-run-adrotation.log: No such file or directory
+2026-07-19T01:27:26.8549456Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.8550338Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.8551564Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.8599937Z ##[group]Run mkdir -p firebase-results-coldstart-suite
+2026-07-19T01:27:26.8600848Z [36;1mmkdir -p firebase-results-coldstart-suite[0m
+2026-07-19T01:27:26.8602483Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-coldstart-suite.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.8603787Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.8604386Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.8605427Z [36;1m  echo "⚠️ Could not determine results bucket path for the cold-start suite run (test may not have started)."[0m
+2026-07-19T01:27:26.8606455Z [36;1melse[0m
+2026-07-19T01:27:26.8606989Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.8608133Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-coldstart-suite/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.8609186Z [36;1mfi[0m
+2026-07-19T01:27:26.8610098Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:26.8612003Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-coldstart-suite.log | head -1)[0m
+2026-07-19T01:27:26.8613311Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.8614107Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.8614860Z [36;1mfi[0m
+2026-07-19T01:27:26.8615369Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:26.8616268Z [36;1mLOGCAT_SRC=$(find firebase-results-coldstart-suite -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.8617477Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-coldstart-suite.txt; fi[0m
+2026-07-19T01:27:26.8618461Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.8729595Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.8730202Z env:
+2026-07-19T01:27:26.8730762Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.8732279Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.8732985Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.8733600Z   VERSION_CODE: 56
+2026-07-19T01:27:26.8734107Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.8734621Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.8735151Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.8735706Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.8736214Z   DEBUG_MODE: true
+2026-07-19T01:27:26.8736717Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.8772248Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.8772972Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.8773609Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.8774203Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.8777333Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.8777902Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.8778505Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.8779127Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.8780228Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8782104Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8784147Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.8785239Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.8785817Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.8786371Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.8786908Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.8787433Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.8788108Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.8788891Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.8789523Z ##[endgroup]
+2026-07-19T01:27:26.9012684Z ⚠️ Could not determine results bucket path for the cold-start suite run (test may not have started).
+2026-07-19T01:27:26.9055217Z grep: firebase-run-coldstart-suite.log: No such file or directory
+2026-07-19T01:27:26.9132335Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.9138920Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.9142617Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.9216281Z ##[group]Run mkdir -p firebase-results-showtelemetry
+2026-07-19T01:27:26.9217144Z [36;1mmkdir -p firebase-results-showtelemetry[0m
+2026-07-19T01:27:26.9218443Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-showtelemetry.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.9219737Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.9220330Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.9221774Z [36;1m  echo "⚠️ Could not determine results bucket path for the show-telemetry run (test may not have started)."[0m
+2026-07-19T01:27:26.9222809Z [36;1melse[0m
+2026-07-19T01:27:26.9223336Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.9224391Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-showtelemetry/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.9225452Z [36;1mfi[0m
+2026-07-19T01:27:26.9226369Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:26.9227900Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-showtelemetry.log | head -1)[0m
+2026-07-19T01:27:26.9229146Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.9229930Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.9230659Z [36;1mfi[0m
+2026-07-19T01:27:26.9231430Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:26.9232296Z [36;1mLOGCAT_SRC=$(find firebase-results-showtelemetry -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.9233469Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-showtelemetry.txt; fi[0m
+2026-07-19T01:27:26.9234411Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.9324698Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.9325323Z env:
+2026-07-19T01:27:26.9325888Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.9326654Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.9327391Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.9327971Z   VERSION_CODE: 56
+2026-07-19T01:27:26.9328472Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.9329008Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.9329566Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.9330218Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.9330737Z   DEBUG_MODE: true
+2026-07-19T01:27:26.9331436Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:26.9386390Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:26.9387164Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:26.9387820Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:26.9388394Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:26.9391841Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:26.9392448Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:26.9393487Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:26.9394125Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:26.9395206Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.9396888Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.9398401Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:26.9399485Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:26.9400089Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:26.9400643Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:26.9403240Z   GCP_PROJECT: ***
+2026-07-19T01:27:26.9403870Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:26.9404571Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:26.9405325Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:26.9405961Z ##[endgroup]
+2026-07-19T01:27:26.9675762Z ⚠️ Could not determine results bucket path for the show-telemetry run (test may not have started).
+2026-07-19T01:27:26.9730763Z grep: firebase-run-showtelemetry.log: No such file or directory
+2026-07-19T01:27:26.9826408Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:26.9829265Z firebase-artifact/logcat.txt
+2026-07-19T01:27:26.9829889Z firebase-artifact/video.mp4
+2026-07-19T01:27:26.9885069Z ##[group]Run mkdir -p firebase-results-experimentconfig
+2026-07-19T01:27:26.9886006Z [36;1mmkdir -p firebase-results-experimentconfig[0m
+2026-07-19T01:27:26.9887366Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-experimentconfig.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:26.9888667Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:26.9889282Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:26.9890310Z [36;1m  echo "⚠️ Could not determine results bucket path for the experiment-config run (test may not have started)."[0m
+2026-07-19T01:27:26.9891689Z [36;1melse[0m
+2026-07-19T01:27:26.9892221Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:26.9893339Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-experimentconfig/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:26.9894366Z [36;1mfi[0m
+2026-07-19T01:27:26.9895570Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-experimentconfig.log | head -1)[0m
+2026-07-19T01:27:26.9896809Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:26.9897579Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:26.9898370Z [36;1mfi[0m
+2026-07-19T01:27:26.9898875Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:26.9899756Z [36;1mLOGCAT_SRC=$(find firebase-results-experimentconfig -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:26.9900995Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-experimentconfig.txt; fi[0m
+2026-07-19T01:27:26.9902376Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:26.9991866Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:26.9992488Z env:
+2026-07-19T01:27:26.9993030Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:26.9993758Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:26.9994497Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:26.9995111Z   VERSION_CODE: 56
+2026-07-19T01:27:26.9995614Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:26.9996132Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:26.9996662Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:26.9997239Z   CREATE_RELEASE: true
+2026-07-19T01:27:26.9997749Z   DEBUG_MODE: true
+2026-07-19T01:27:26.9998251Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.0033726Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.0034472Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.0035136Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.0035712Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.0038952Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.0039438Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.0039943Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.0040484Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.0041709Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0043172Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0044478Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0045415Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.0045940Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.0046430Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.0046925Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.0047448Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.0048080Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.0048877Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.0049512Z ##[endgroup]
+2026-07-19T01:27:27.0277846Z ⚠️ Could not determine results bucket path for the experiment-config run (test may not have started).
+2026-07-19T01:27:27.0299681Z grep: firebase-run-experimentconfig.log: No such file or directory
+2026-07-19T01:27:27.0360774Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:27.0362581Z firebase-artifact/logcat.txt
+2026-07-19T01:27:27.0366616Z firebase-artifact/video.mp4
+2026-07-19T01:27:27.0403654Z ##[group]Run mkdir -p firebase-results-rewarded-integration
+2026-07-19T01:27:27.0404301Z [36;1mmkdir -p firebase-results-rewarded-integration[0m
+2026-07-19T01:27:27.0405173Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-rewarded-integration.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:27.0406011Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:27.0406432Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:27.0407110Z [36;1m  echo "⚠️ Could not determine results bucket path for the rewarded-integration run (test may not have started)."[0m
+2026-07-19T01:27:27.0407777Z [36;1melse[0m
+2026-07-19T01:27:27.0408135Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:27.0408862Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-rewarded-integration/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:27.0409556Z [36;1mfi[0m
+2026-07-19T01:27:27.0410428Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-rewarded-integration.log | head -1)[0m
+2026-07-19T01:27:27.0411837Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:27.0412383Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:27.0412878Z [36;1mfi[0m
+2026-07-19T01:27:27.0413223Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:27.0413818Z [36;1mLOGCAT_SRC=$(find firebase-results-rewarded-integration -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.0414613Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-rewarded-integration.txt; fi[0m
+2026-07-19T01:27:27.0415247Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:27.0478376Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.0478793Z env:
+2026-07-19T01:27:27.0479186Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.0479699Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.0480251Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.0480773Z   VERSION_CODE: 56
+2026-07-19T01:27:27.0481507Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.0481956Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.0482411Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.0482923Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.0483358Z   DEBUG_MODE: true
+2026-07-19T01:27:27.0483808Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.0509998Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.0510500Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.0510927Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.0511880Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.0513926Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.0514321Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.0514720Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.0515130Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.0515854Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0516858Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0517807Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.0518476Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.0518861Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.0519265Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.0519634Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.0520006Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.0520456Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.0520968Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.0521612Z ##[endgroup]
+2026-07-19T01:27:27.0730950Z ⚠️ Could not determine results bucket path for the rewarded-integration run (test may not have started).
+2026-07-19T01:27:27.0773893Z grep: firebase-run-rewarded-integration.log: No such file or directory
+2026-07-19T01:27:27.0869772Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:27.0877371Z firebase-artifact/logcat.txt
+2026-07-19T01:27:27.0879289Z firebase-artifact/video.mp4
+2026-07-19T01:27:27.0937033Z ##[group]Run mkdir -p firebase-results-micreconciliation
+2026-07-19T01:27:27.0938056Z [36;1mmkdir -p firebase-results-micreconciliation[0m
+2026-07-19T01:27:27.0939431Z [36;1mGS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-micreconciliation.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#' | sed 's/\]$//')[0m
+2026-07-19T01:27:27.0940744Z [36;1mGS_PATH="$***GS_PATH%/***"[0m
+2026-07-19T01:27:27.0941867Z [36;1mif [ -z "$GS_PATH" ]; then[0m
+2026-07-19T01:27:27.0942994Z [36;1m  echo "⚠️ Could not determine results bucket path for the mic-resume-reconciliation run (test may not have started)."[0m
+2026-07-19T01:27:27.0944088Z [36;1melse[0m
+2026-07-19T01:27:27.0944620Z [36;1m  echo "Results path: $GS_PATH"[0m
+2026-07-19T01:27:27.0945753Z [36;1m  gcloud storage cp -r "$GS_PATH" firebase-results-micreconciliation/ || echo "⚠️ Could not copy results from $GS_PATH"[0m
+2026-07-19T01:27:27.0946821Z [36;1mfi[0m
+2026-07-19T01:27:27.0947765Z [36;1m# Fallback: print the Firebase console URL so results are accessible even when GCS download fails.[0m
+2026-07-19T01:27:27.0949386Z [36;1mCONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-micreconciliation.log | head -1)[0m
+2026-07-19T01:27:27.0950698Z [36;1mif [ -n "$CONSOLE_URL" ]; then[0m
+2026-07-19T01:27:27.0951875Z [36;1m  echo "🔗 Firebase Console (view results online): $CONSOLE_URL"[0m
+2026-07-19T01:27:27.0952646Z [36;1mfi[0m
+2026-07-19T01:27:27.0953165Z [36;1mmkdir -p firebase-artifact[0m
+2026-07-19T01:27:27.0954051Z [36;1mLOGCAT_SRC=$(find firebase-results-micreconciliation -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.0955261Z [36;1mif [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-micreconciliation.txt; fi[0m
+2026-07-19T01:27:27.0956272Z [36;1mfind firebase-artifact -type f || true[0m
+2026-07-19T01:27:27.1050179Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.1050797Z env:
+2026-07-19T01:27:27.1051596Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.1052363Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.1053081Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.1053662Z   VERSION_CODE: 56
+2026-07-19T01:27:27.1054594Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.1055083Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.1055619Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.1056225Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.1056752Z   DEBUG_MODE: true
+2026-07-19T01:27:27.1057260Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.1092659Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.1093435Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.1094075Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.1094685Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.1097859Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.1098446Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.1099046Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.1099714Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.1100833Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1102917Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1104499Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1105612Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.1106209Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.1106763Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.1107291Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.1107820Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.1108501Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.1109294Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.1109933Z ##[endgroup]
+2026-07-19T01:27:27.1385791Z ⚠️ Could not determine results bucket path for the mic-resume-reconciliation run (test may not have started).
+2026-07-19T01:27:27.1422404Z grep: firebase-run-micreconciliation.log: No such file or directory
+2026-07-19T01:27:27.1537940Z firebase-artifact/firebase-run.log
+2026-07-19T01:27:27.1547216Z firebase-artifact/logcat.txt
+2026-07-19T01:27:27.1548078Z firebase-artifact/video.mp4
+2026-07-19T01:27:27.1601894Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.1602878Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.1603799Z [36;1mecho "  APP OPEN AD ROTATION REGRESSION TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.1604631Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.1605532Z [36;1mLOGCAT=$(find firebase-results-adrotation -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.1606436Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.1607466Z [36;1m  echo "::error::No logcat file found for the ad-rotation regression run — the test did not execute."[0m
+2026-07-19T01:27:27.1608451Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.1609007Z [36;1mfi[0m
+2026-07-19T01:27:27.1609547Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.1610255Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.1611861Z [36;1mgrep -E "AppOpenAdManagerRotationTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.1613135Z [36;1m[0m
+2026-07-19T01:27:27.1613814Z [36;1m# Real Test Lab logcat uses AndroidJUnitRunner format:[0m
+2026-07-19T01:27:27.1614946Z [36;1m#   TestRunner: started:  <method>(com.lingualink.linguagt.ads.AppOpenAdManagerRotationTest)[0m
+2026-07-19T01:27:27.1616043Z [36;1m#   TestRunner: finished: <method>(...)[0m
+2026-07-19T01:27:27.1616758Z [36;1m# A FAIL is marked by:[0m
+2026-07-19T01:27:27.1617389Z [36;1m#   TestRunner: failed:   <method>(...)[0m
+2026-07-19T01:27:27.1618231Z [36;1m# There is NO "OK (1 test)" string in the device logcat — that only[0m
+2026-07-19T01:27:27.1619199Z [36;1m# appears in the local `am instrument -w` console output.[0m
+2026-07-19T01:27:27.1620298Z [36;1mif grep -qE "TestRunner: failed: .*AppOpenAdManagerRotationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.1622637Z [36;1m  echo "::error::AppOpenAdManagerRotationTest FAILED on Firebase Test Lab — see logcat-adrotation.txt in the uploaded artifact."[0m
+2026-07-19T01:27:27.1623775Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.1624319Z [36;1mfi[0m
+2026-07-19T01:27:27.1625081Z [36;1mif grep -qE "TestRunner: finished: .*AppOpenAdManagerRotationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.1626219Z [36;1m  echo "✅ AppOpenAdManagerRotationTest PASSED on a real cloud device."[0m
+2026-07-19T01:27:27.1627082Z [36;1melse[0m
+2026-07-19T01:27:27.1628153Z [36;1m  echo "::error::Could not confirm AppOpenAdManagerRotationTest passed (no 'TestRunner: finished' marker found) — treating as failed."[0m
+2026-07-19T01:27:27.1629374Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.1629890Z [36;1mfi[0m
+2026-07-19T01:27:27.1630446Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.1725127Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.1725820Z env:
+2026-07-19T01:27:27.1726407Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.1727202Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.1727907Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.1728492Z   VERSION_CODE: 56
+2026-07-19T01:27:27.1728997Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.1729497Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.1730032Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.1731657Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.1732200Z   DEBUG_MODE: true
+2026-07-19T01:27:27.1732689Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.1766408Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.1767173Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.1767776Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.1768370Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.1771866Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.1772562Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.1773177Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.1773814Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.1775622Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1777343Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1778891Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.1779993Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.1780594Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.1781495Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.1782076Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.1782626Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.1783298Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.1784084Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.1784691Z ##[endgroup]
+2026-07-19T01:27:27.1942558Z =========================================
+2026-07-19T01:27:27.1956769Z   APP OPEN AD ROTATION REGRESSION TEST (from device Logcat)
+2026-07-19T01:27:27.1957988Z =========================================
+2026-07-19T01:27:27.1960883Z ##[error]No logcat file found for the ad-rotation regression run — the test did not execute.
+2026-07-19T01:27:27.1966712Z ##[error]Process completed with exit code 1.
+2026-07-19T01:27:27.2017956Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.2018584Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2019148Z [36;1mecho "  MIC-WATCHDOG AUDIO-FOCUS-LOSS TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.2019694Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2020277Z [36;1mLOGCAT=$(find firebase-results-audiofocus -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.2020813Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.2021629Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.2022995Z [36;1m    echo "::error::No logcat-audiofocus.txt found. On push to main the audio-focus-loss test is a required CI gate. Ensure GCP_SA_KEY and GCP_PROJECT_ID are set so the Firebase Test Lab run (and APK build) complete successfully."[0m
+2026-07-19T01:27:27.2024854Z [36;1m    exit 1[0m
+2026-07-19T01:27:27.2025343Z [36;1m  else[0m
+2026-07-19T01:27:27.2026352Z [36;1m    echo "::warning::No logcat-audiofocus.txt found — audio-focus-loss test was skipped (non-push trigger or APK not built). Skipping verification."[0m
+2026-07-19T01:27:27.2027491Z [36;1m    exit 0[0m
+2026-07-19T01:27:27.2027985Z [36;1m  fi[0m
+2026-07-19T01:27:27.2028396Z [36;1mfi[0m
+2026-07-19T01:27:27.2028882Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.2029483Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.2030604Z [36;1mgrep -E "AudioFocusLossInstrumentedTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.2032709Z [36;1mecho "--- Focus lost event ---"; grep -E "MicWatchdog: audio focus lost" "$LOGCAT" || echo "(none — audio focus loss was not triggered/observed)"[0m
+2026-07-19T01:27:27.2034097Z [36;1mecho "--- isMicActive reset ---"; grep -E "isMicActive reset" "$LOGCAT" || echo "(none — fast-path clear was not observed)"[0m
+2026-07-19T01:27:27.2035011Z [36;1m[0m
+2026-07-19T01:27:27.2035576Z [36;1m# Real Test Lab logcat uses AndroidJUnitRunner format:[0m
+2026-07-19T01:27:27.2036504Z [36;1m#   TestRunner: started:  <method>(com.lingualink.linguagt.AudioFocusLossInstrumentedTest)[0m
+2026-07-19T01:27:27.2037396Z [36;1m#   TestRunner: finished: <method>(...)[0m
+2026-07-19T01:27:27.2037980Z [36;1m# A FAIL is marked by:[0m
+2026-07-19T01:27:27.2038548Z [36;1m#   TestRunner: failed:   <method>(...)[0m
+2026-07-19T01:27:27.2039442Z [36;1mif grep -qE "TestRunner: failed: .*AudioFocusLossInstrumentedTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2040882Z [36;1m  echo "::error::AudioFocusLossInstrumentedTest FAILED on Firebase Test Lab — see logcat-audiofocus.txt in the uploaded artifact."[0m
+2026-07-19T01:27:27.2042323Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2042774Z [36;1mfi[0m
+2026-07-19T01:27:27.2043309Z [36;1mif grep -qE "TestRunner: finished: .*AudioFocusLossInstrumentedTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2044108Z [36;1m  if grep -qE "MicWatchdog: audio focus lost" "$LOGCAT" && grep -qE "isMicActive reset" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2045001Z [36;1m    echo "✅ AudioFocusLossInstrumentedTest PASSED and mic-watchdog fast path CONFIRMED on a real cloud device."[0m
+2026-07-19T01:27:27.2045668Z [36;1m  else[0m
+2026-07-19T01:27:27.2046190Z [36;1m    echo "✅ AudioFocusLossInstrumentedTest PASSED (in-process assertions passed)."[0m
+2026-07-19T01:27:27.2047096Z [36;1m    echo "::warning::Audio-focus-loss fast path Logcat markers not both found — mic watchdog path may not have emitted expected log lines."[0m
+2026-07-19T01:27:27.2047817Z [36;1m  fi[0m
+2026-07-19T01:27:27.2048137Z [36;1melse[0m
+2026-07-19T01:27:27.2048801Z [36;1m  echo "::error::Could not confirm AudioFocusLossInstrumentedTest passed (no 'TestRunner: finished' marker found) — treating as failed."[0m
+2026-07-19T01:27:27.2049538Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2049870Z [36;1mfi[0m
+2026-07-19T01:27:27.2050599Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2115871Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.2116299Z env:
+2026-07-19T01:27:27.2116687Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.2117216Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.2117702Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.2118109Z   VERSION_CODE: 56
+2026-07-19T01:27:27.2144020Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.2144532Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.2145022Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.2145443Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.2145783Z   DEBUG_MODE: true
+2026-07-19T01:27:27.2146121Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.2165627Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.2166086Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.2166508Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.2166906Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.2170142Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.2170691Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.2171449Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.2171998Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.2172918Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2174483Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2175794Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2176724Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.2177287Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.2177823Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.2178336Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.2178877Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.2179528Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.2180295Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.2180905Z ##[endgroup]
+2026-07-19T01:27:27.2277510Z =========================================
+2026-07-19T01:27:27.2278529Z   MIC-WATCHDOG AUDIO-FOCUS-LOSS TEST (from device Logcat)
+2026-07-19T01:27:27.2279484Z =========================================
+2026-07-19T01:27:27.2313706Z ##[warning]No logcat-audiofocus.txt found — audio-focus-loss test was skipped (non-push trigger or APK not built). Skipping verification.
+2026-07-19T01:27:27.2350905Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.2351821Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2352339Z [36;1mecho "  COLD-START SUITE TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.2352971Z [36;1mecho "  Verifies: no-inflight + interstitial race-guard + rewarded race-guard"[0m
+2026-07-19T01:27:27.2353728Z [36;1mecho "  NOTE: cold-start integration test (@Ignore) skipped — requires real AdMob SDK + network."[0m
+2026-07-19T01:27:27.2354353Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2354963Z [36;1mLOGCAT=$(find firebase-results-coldstart-suite -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.2355524Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.2355958Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.2356708Z [36;1m    echo "::error::No logcat-coldstart-suite.txt found. On push to main the cold-start suite test is a required CI gate."[0m
+2026-07-19T01:27:27.2357365Z [36;1m    exit 1[0m
+2026-07-19T01:27:27.2357703Z [36;1m  else[0m
+2026-07-19T01:27:27.2358226Z [36;1m    echo "::warning::No logcat-coldstart-suite.txt found — cold-start suite was skipped."[0m
+2026-07-19T01:27:27.2358785Z [36;1m    exit 0[0m
+2026-07-19T01:27:27.2359113Z [36;1m  fi[0m
+2026-07-19T01:27:27.2359433Z [36;1mfi[0m
+2026-07-19T01:27:27.2359767Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.2360182Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.2360976Z [36;1mgrep -E "AdPreloadManagerColdStartTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.2362410Z [36;1mecho "--- Cold-start invariant markers ---"[0m
+2026-07-19T01:27:27.2363246Z [36;1mgrep -E "COLD_START_PRELOAD_FIRED: invariant [123]|COLD_START_PRELOAD_FIRED: all 3 invariants" "$LOGCAT" || echo "(none — cold-start markers not found)"[0m
+2026-07-19T01:27:27.2364076Z [36;1mecho "--- NO_INFLIGHT_RACE_GUARD markers ---"[0m
+2026-07-19T01:27:27.2364702Z [36;1mgrep -E "NO_INFLIGHT_RACE_GUARD:" "$LOGCAT" || echo "(none — no-inflight markers not found)"[0m
+2026-07-19T01:27:27.2365316Z [36;1mecho "--- Race-guard invariant markers ---"[0m
+2026-07-19T01:27:27.2366378Z [36;1mgrep -E "COLD_START_RACE_GUARD: invariant [123]|COLD_START_RACE_GUARD: all 3 invariants" "$LOGCAT" || echo "(none — race-guard markers not found)"[0m
+2026-07-19T01:27:27.2367207Z [36;1mecho "--- Rewarded race-guard invariant markers ---"[0m
+2026-07-19T01:27:27.2368051Z [36;1mgrep -E "REWARDED_RACE_GUARD: invariant [123]|REWARDED_RACE_GUARD: all 3 invariants" "$LOGCAT" || echo "(none — rewarded race-guard markers not found)"[0m
+2026-07-19T01:27:27.2368814Z [36;1m[0m
+2026-07-19T01:27:27.2369304Z [36;1mif grep -qE "TestRunner: failed: .*AdPreloadManagerColdStartTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2370143Z [36;1m  echo "::error::AdPreloadManagerColdStartTest FAILED on Firebase Test Lab — see logcat-coldstart-suite.txt."[0m
+2026-07-19T01:27:27.2370790Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2371371Z [36;1mfi[0m
+2026-07-19T01:27:27.2371900Z [36;1mif grep -qE "TestRunner: finished: .*AdPreloadManagerColdStartTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2372709Z [36;1m  echo "✅ Cold-start suite PASSED — all deterministic race-guard tests confirmed on a real cloud device."[0m
+2026-07-19T01:27:27.2373322Z [36;1melse[0m
+2026-07-19T01:27:27.2373855Z [36;1m  echo "::error::Could not confirm cold-start suite passed (no 'TestRunner: finished' marker)."[0m
+2026-07-19T01:27:27.2374434Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2374758Z [36;1mfi[0m
+2026-07-19T01:27:27.2375126Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2446376Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.2446784Z env:
+2026-07-19T01:27:27.2447174Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.2447674Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.2448461Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.2448861Z   VERSION_CODE: 56
+2026-07-19T01:27:27.2449199Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.2449551Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.2449909Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.2450318Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.2450655Z   DEBUG_MODE: true
+2026-07-19T01:27:27.2450988Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.2470050Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.2470503Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.2470927Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.2471593Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.2473460Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.2473839Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.2474237Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.2474650Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.2475356Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2476371Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2478106Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2478817Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.2479529Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.2479899Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.2480434Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.2480803Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.2481722Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.2482368Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.2482789Z ##[endgroup]
+2026-07-19T01:27:27.2580053Z =========================================
+2026-07-19T01:27:27.2581046Z   COLD-START SUITE TEST (from device Logcat)
+2026-07-19T01:27:27.2582503Z   Verifies: no-inflight + interstitial race-guard + rewarded race-guard
+2026-07-19T01:27:27.2584122Z   NOTE: cold-start integration test (@Ignore) skipped — requires real AdMob SDK + network.
+2026-07-19T01:27:27.2585195Z =========================================
+2026-07-19T01:27:27.2622813Z ##[warning]No logcat-coldstart-suite.txt found — cold-start suite was skipped.
+2026-07-19T01:27:27.2662946Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.2663559Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2664125Z [36;1mecho "  MIC-RESUME RECONCILIATION WINDOW TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.2664676Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2665264Z [36;1mLOGCAT=$(find firebase-results-micreconciliation -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.2665837Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.2666265Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.2667362Z [36;1m    echo "::error::No logcat-micreconciliation.txt found. On push to main the mic-resume-reconciliation test is a required CI gate. Ensure GCP_SA_KEY and GCP_PROJECT_ID are set so the Firebase Test Lab run (and APK build) complete successfully."[0m
+2026-07-19T01:27:27.2668388Z [36;1m    exit 1[0m
+2026-07-19T01:27:27.2668794Z [36;1m  else[0m
+2026-07-19T01:27:27.2669577Z [36;1m    echo "::warning::No logcat-micreconciliation.txt found — mic-resume-reconciliation test was skipped (non-push trigger or APK not built). Skipping verification."[0m
+2026-07-19T01:27:27.2670394Z [36;1m    exit 0[0m
+2026-07-19T01:27:27.2670745Z [36;1m  fi[0m
+2026-07-19T01:27:27.2671069Z [36;1mfi[0m
+2026-07-19T01:27:27.2671687Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.2672112Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.2672905Z [36;1mgrep -E "MicResumeReconciliationTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.2673668Z [36;1mecho "--- Reconciliation window log ---"[0m
+2026-07-19T01:27:27.2674367Z [36;1mgrep -E "MicWatchdog: resumed after foreground return" "$LOGCAT" || echo "(none — reconciliation window was not armed)"[0m
+2026-07-19T01:27:27.2675043Z [36;1mecho "--- isMicActive cleared ---"[0m
+2026-07-19T01:27:27.2675687Z [36;1mgrep -E "isMicActive reset" "$LOGCAT" || echo "(none — stale lock clear was not observed in Logcat)"[0m
+2026-07-19T01:27:27.2676258Z [36;1m[0m
+2026-07-19T01:27:27.2676637Z [36;1m# AndroidJUnitRunner format in device Logcat:[0m
+2026-07-19T01:27:27.2677268Z [36;1m#   TestRunner: started:  <method>(com.lingualink.linguagt.MicResumeReconciliationTest)[0m
+2026-07-19T01:27:27.2677869Z [36;1m#   TestRunner: finished: <method>(...)[0m
+2026-07-19T01:27:27.2678312Z [36;1m# A failed assertion is marked by:[0m
+2026-07-19T01:27:27.2678744Z [36;1m#   TestRunner: failed:   <method>(...)[0m
+2026-07-19T01:27:27.2679316Z [36;1mif grep -qE "TestRunner: failed: .*MicResumeReconciliationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2680213Z [36;1m  echo "::error::MicResumeReconciliationTest FAILED on Firebase Test Lab — see logcat-micreconciliation.txt in the uploaded artifact."[0m
+2026-07-19T01:27:27.2681373Z [36;1m  echo "::error::Either MIC_RESUME_RECONCILIATION_MS exceeds 10 000 ms (constant rollback) or"[0m
+2026-07-19T01:27:27.2682272Z [36;1m  echo "::error::the reconciliation watchdog did not clear isMicActive within the window (behavioral regression)."[0m
+2026-07-19T01:27:27.2682926Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2683257Z [36;1mfi[0m
+2026-07-19T01:27:27.2683744Z [36;1mif grep -qE "TestRunner: finished: .*MicResumeReconciliationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2684698Z [36;1m  echo "✅ MicResumeReconciliationTest PASSED — constant ceiling confirmed and stale lock cleared within the reconciliation window on a real cloud device."[0m
+2026-07-19T01:27:27.2685473Z [36;1melse[0m
+2026-07-19T01:27:27.2686126Z [36;1m  echo "::error::Could not confirm MicResumeReconciliationTest passed (no 'TestRunner: finished' marker found) — treating as failed."[0m
+2026-07-19T01:27:27.2686818Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2687133Z [36;1mfi[0m
+2026-07-19T01:27:27.2687494Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2750954Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.2751985Z env:
+2026-07-19T01:27:27.2752368Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.2752866Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.2753341Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.2754392Z   VERSION_CODE: 56
+2026-07-19T01:27:27.2754857Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.2755301Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.2755755Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.2756269Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.2756707Z   DEBUG_MODE: true
+2026-07-19T01:27:27.2757155Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.2780002Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.2780490Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.2780915Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.2781573Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.2783440Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.2783821Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.2784252Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.2784665Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.2785361Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2786365Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2787289Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.2787965Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.2788353Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.2788718Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.2789076Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.2789432Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.2789880Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.2790387Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.2790813Z ##[endgroup]
+2026-07-19T01:27:27.2884994Z =========================================
+2026-07-19T01:27:27.2885974Z   MIC-RESUME RECONCILIATION WINDOW TEST (from device Logcat)
+2026-07-19T01:27:27.2886801Z =========================================
+2026-07-19T01:27:27.2915762Z ##[warning]No logcat-micreconciliation.txt found — mic-resume-reconciliation test was skipped (non-push trigger or APK not built). Skipping verification.
+2026-07-19T01:27:27.2981061Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.2981995Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2982552Z [36;1mecho "  ADMOB BRIDGE SHOW TELEMETRY TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.2983192Z [36;1mecho "  Verifies: showRequested + showSuppressed markers (Task #97)"[0m
+2026-07-19T01:27:27.2983745Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.2984336Z [36;1mLOGCAT=$(find firebase-results-showtelemetry -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.2984928Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.2985371Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.2986378Z [36;1m    echo "::error::No logcat-showtelemetry.txt found. On push to main the show-telemetry test is a required CI gate. Ensure GCP_SA_KEY and GCP_PROJECT_ID are set so the Firebase Test Lab run completes successfully."[0m
+2026-07-19T01:27:27.2987372Z [36;1m    exit 1[0m
+2026-07-19T01:27:27.2987721Z [36;1m  else[0m
+2026-07-19T01:27:27.2988472Z [36;1m    echo "::warning::No logcat-showtelemetry.txt found — show-telemetry test was skipped (non-push trigger or APK not built). Skipping verification."[0m
+2026-07-19T01:27:27.2989259Z [36;1m    exit 0[0m
+2026-07-19T01:27:27.2989595Z [36;1m  fi[0m
+2026-07-19T01:27:27.2989916Z [36;1mfi[0m
+2026-07-19T01:27:27.2990249Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.2990676Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.2992106Z [36;1mgrep -E "AdMobBridgeShowTelemetryTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.2992908Z [36;1mecho "--- showRequested markers ---"[0m
+2026-07-19T01:27:27.2993481Z [36;1mgrep -E "showRequested" "$LOGCAT" || echo "(none — showRequested not emitted)"[0m
+2026-07-19T01:27:27.2994053Z [36;1mecho "--- showSuppressed markers ---"[0m
+2026-07-19T01:27:27.2994639Z [36;1mgrep -E "showSuppressed" "$LOGCAT" || echo "(none — showSuppressed not emitted)"[0m
+2026-07-19T01:27:27.2995170Z [36;1m[0m
+2026-07-19T01:27:27.2995550Z [36;1m# AndroidJUnitRunner format in device Logcat:[0m
+2026-07-19T01:27:27.2996210Z [36;1m#   TestRunner: started:  <method>(com.lingualink.linguagt.ads.AdMobBridgeShowTelemetryTest)[0m
+2026-07-19T01:27:27.2996849Z [36;1m#   TestRunner: finished: <method>(...)[0m
+2026-07-19T01:27:27.2997293Z [36;1m#   TestRunner: failed:   <method>(...)[0m
+2026-07-19T01:27:27.2997847Z [36;1mif grep -qE "TestRunner: failed: .*AdMobBridgeShowTelemetryTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.2998736Z [36;1m  echo "::error::AdMobBridgeShowTelemetryTest FAILED on Firebase Test Lab — see logcat-showtelemetry.txt in the uploaded artifact."[0m
+2026-07-19T01:27:27.2999634Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.2999958Z [36;1mfi[0m
+2026-07-19T01:27:27.3000446Z [36;1mif grep -qE "TestRunner: finished: .*AdMobBridgeShowTelemetryTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3001545Z [36;1m  echo "✅ AdMobBridgeShowTelemetryTest PASSED — showRequested and showSuppressed telemetry confirmed on a real cloud device."[0m
+2026-07-19T01:27:27.3002247Z [36;1melse[0m
+2026-07-19T01:27:27.3002904Z [36;1m  echo "::error::Could not confirm AdMobBridgeShowTelemetryTest passed (no 'TestRunner: finished' marker found) — treating as failed."[0m
+2026-07-19T01:27:27.3003611Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.3003930Z [36;1mfi[0m
+2026-07-19T01:27:27.3004311Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3066788Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.3067211Z env:
+2026-07-19T01:27:27.3067591Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.3068099Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.3068577Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.3068984Z   VERSION_CODE: 56
+2026-07-19T01:27:27.3069338Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.3070119Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.3070495Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.3070891Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.3071474Z   DEBUG_MODE: true
+2026-07-19T01:27:27.3071819Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.3090508Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.3090955Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.3091632Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.3092023Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.3093945Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.3094363Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.3094789Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.3095206Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.3095910Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3096949Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3097896Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3098575Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.3098961Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.3099327Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.3099695Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.3100050Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.3100488Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.3101000Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.3101881Z ##[endgroup]
+2026-07-19T01:27:27.3195995Z =========================================
+2026-07-19T01:27:27.3196924Z   ADMOB BRIDGE SHOW TELEMETRY TEST (from device Logcat)
+2026-07-19T01:27:27.3197816Z   Verifies: showRequested + showSuppressed markers (Task #97)
+2026-07-19T01:27:27.3198609Z =========================================
+2026-07-19T01:27:27.3226974Z ##[warning]No logcat-showtelemetry.txt found — show-telemetry test was skipped (non-push trigger or APK not built). Skipping verification.
+2026-07-19T01:27:27.3264123Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.3264714Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3265223Z [36;1mecho "  AD EXPERIMENT CONFIG REGRESSION TEST"[0m
+2026-07-19T01:27:27.3265813Z [36;1mecho "  Verifies: computeVariant never throws NumberFormatException for"[0m
+2026-07-19T01:27:27.3266470Z [36;1mecho "  high hex prefixes (97d62620, aaf51aba) — v56 fix"[0m
+2026-07-19T01:27:27.3267002Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3267602Z [36;1mLOGCAT=$(find firebase-results-experimentconfig -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.3268175Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.3268615Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.3269314Z [36;1m    echo "::error::No logcat-experimentconfig.txt found. On push to main the regression test is a required CI gate."[0m
+2026-07-19T01:27:27.3270022Z [36;1m    exit 1[0m
+2026-07-19T01:27:27.3270365Z [36;1m  else[0m
+2026-07-19T01:27:27.3270969Z [36;1m    echo "::warning::No logcat-experimentconfig.txt found — regression test was skipped. Skipping verification."[0m
+2026-07-19T01:27:27.3272012Z [36;1m    exit 0[0m
+2026-07-19T01:27:27.3272355Z [36;1m  fi[0m
+2026-07-19T01:27:27.3272677Z [36;1mfi[0m
+2026-07-19T01:27:27.3273003Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.3273441Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.3274273Z [36;1mgrep -E "AdExperimentConfigTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.3274994Z [36;1m[0m
+2026-07-19T01:27:27.3275458Z [36;1mif grep -qE "TestRunner: failed: .*AdExperimentConfigTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3276307Z [36;1m  echo "::error::AdExperimentConfigTest FAILED on Firebase Test Lab — see logcat-experimentconfig.txt in the uploaded artifact."[0m
+2026-07-19T01:27:27.3277024Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.3277359Z [36;1mfi[0m
+2026-07-19T01:27:27.3277826Z [36;1mif grep -qE "TestRunner: finished: .*AdExperimentConfigTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3278605Z [36;1m  echo "✅ AdExperimentConfigTest PASSED — computeVariant handles high hex prefixes without exception."[0m
+2026-07-19T01:27:27.3279233Z [36;1melse[0m
+2026-07-19T01:27:27.3279864Z [36;1m  echo "::error::Could not confirm AdExperimentConfigTest passed (no 'TestRunner: finished' marker found) — treating as failed."[0m
+2026-07-19T01:27:27.3280560Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.3280889Z [36;1mfi[0m
+2026-07-19T01:27:27.3281458Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3343905Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.3344322Z env:
+2026-07-19T01:27:27.3344709Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.3345216Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.3345725Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.3346131Z   VERSION_CODE: 56
+2026-07-19T01:27:27.3346476Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.3346829Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.3347191Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.3347584Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.3347924Z   DEBUG_MODE: true
+2026-07-19T01:27:27.3348280Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.3367447Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.3367889Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.3368652Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.3369038Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.3370913Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.3371558Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.3371951Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.3372371Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.3373063Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3374326Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3375277Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3375943Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.3376320Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.3376706Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.3377060Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.3377427Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.3377856Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.3378357Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.3378780Z ##[endgroup]
+2026-07-19T01:27:27.3470683Z =========================================
+2026-07-19T01:27:27.3471794Z   AD EXPERIMENT CONFIG REGRESSION TEST
+2026-07-19T01:27:27.3472547Z   Verifies: computeVariant never throws NumberFormatException for
+2026-07-19T01:27:27.3473442Z   high hex prefixes (97d62620, aaf51aba) — v56 fix
+2026-07-19T01:27:27.3473897Z =========================================
+2026-07-19T01:27:27.3517348Z ##[warning]No logcat-experimentconfig.txt found — regression test was skipped. Skipping verification.
+2026-07-19T01:27:27.3554155Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.3554758Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3555296Z [36;1mecho "  REWARDED AD INTEGRATION TEST (from device Logcat)"[0m
+2026-07-19T01:27:27.3555832Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3556442Z [36;1mLOGCAT=$(find firebase-results-rewarded-integration -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.3557035Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.3557754Z [36;1m  echo "⚠️ No logcat-rewarded-integration.txt found. Rewarded integration test was not run or results were not pulled."[0m
+2026-07-19T01:27:27.3558471Z [36;1m  exit 0[0m
+2026-07-19T01:27:27.3558811Z [36;1mfi[0m
+2026-07-19T01:27:27.3559146Z [36;1mecho "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.3559581Z [36;1mecho "--- Instrumentation test result ---"[0m
+2026-07-19T01:27:27.3560401Z [36;1mgrep -E "RewardedAdIntegrationTest|TestRunner.*started:|TestRunner.*finished:|TestRunner.*failed:" "$LOGCAT" || echo "(none found)"[0m
+2026-07-19T01:27:27.3561412Z [36;1mecho "--- Rewarded show markers ---"[0m
+2026-07-19T01:27:27.3562100Z [36;1mgrep -E "REWARDED_SHOW_ATTEMPT|REWARDED_SHOWN" "$LOGCAT" || echo "(none — rewarded show never attempted)"[0m
+2026-07-19T01:27:27.3562767Z [36;1mecho "--- Rewarded earned markers ---"[0m
+2026-07-19T01:27:27.3563350Z [36;1mgrep -E "REWARDED_EARNED" "$LOGCAT" || echo "(none — reward callback never fired)"[0m
+2026-07-19T01:27:27.3564052Z [36;1mecho "--- Rewarded failed markers ---"[0m
+2026-07-19T01:27:27.3564654Z [36;1mgrep -E "REWARDED_FAILED" "$LOGCAT" || echo "(none — no failure path taken)"[0m
+2026-07-19T01:27:27.3565182Z [36;1m[0m
+2026-07-19T01:27:27.3565657Z [36;1mif grep -qE "TestRunner: failed: .*RewardedAdIntegrationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3566441Z [36;1m  echo "❌ RewardedAdIntegrationTest FAILED on Firebase Test Lab — see logcat-rewarded-integration.txt."[0m
+2026-07-19T01:27:27.3567347Z [36;1m  echo "   This is currently non-blocking (continue-on-error: true). Promote to blocking after 5+ green runs."[0m
+2026-07-19T01:27:27.3567962Z [36;1mfi[0m
+2026-07-19T01:27:27.3568456Z [36;1mif grep -qE "TestRunner: finished: .*RewardedAdIntegrationTest" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3569395Z [36;1m  if grep -qE "REWARDED_EARNED" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.3570101Z [36;1m    echo "✅ RewardedAdIntegrationTest PASSED — full rewarded show + earn flow confirmed on a real cloud device."[0m
+2026-07-19T01:27:27.3570744Z [36;1m  else[0m
+2026-07-19T01:27:27.3571614Z [36;1m    echo "⚠️ RewardedAdIntegrationTest finished but no REWARDED_EARNED marker found. Check REWARDED_FAILED markers."[0m
+2026-07-19T01:27:27.3572274Z [36;1m  fi[0m
+2026-07-19T01:27:27.3572592Z [36;1mfi[0m
+2026-07-19T01:27:27.3572966Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3637569Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.3638018Z env:
+2026-07-19T01:27:27.3638413Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.3638910Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.3639391Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.3639839Z   VERSION_CODE: 56
+2026-07-19T01:27:27.3640199Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.3640551Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.3640941Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.3641665Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.3642021Z   DEBUG_MODE: true
+2026-07-19T01:27:27.3642371Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.3661409Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.3661871Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.3662299Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.3662699Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.3664580Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.3664969Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.3665358Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.3666202Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.3666910Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3667976Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3668914Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.3669589Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.3669979Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.3670362Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.3670730Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.3671204Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.3671667Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.3672217Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.3672644Z ##[endgroup]
+2026-07-19T01:27:27.3774077Z =========================================
+2026-07-19T01:27:27.3775081Z   REWARDED AD INTEGRATION TEST (from device Logcat)
+2026-07-19T01:27:27.3776012Z =========================================
+2026-07-19T01:27:27.3846884Z ⚠️ No logcat-rewarded-integration.txt found. Rewarded integration test was not run or results were not pulled.
+2026-07-19T01:27:27.3885121Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.3885773Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3886324Z [36;1mecho "  AD FUNNEL SIGNATURE (from device Logcat)"[0m
+2026-07-19T01:27:27.3886808Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3887347Z [36;1mLOGCAT=$(find firebase-results -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.3887863Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.3888343Z [36;1m  echo "No logcat file found in results."[0m
+2026-07-19T01:27:27.3888799Z [36;1melse[0m
+2026-07-19T01:27:27.3889178Z [36;1m  echo "Logcat: $LOGCAT"[0m
+2026-07-19T01:27:27.3889703Z [36;1m  echo "--- LOADED events ---";       grep -E "LOADED" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3890536Z [36;1m  echo "--- IMPRESSION events (all ad types) ---"; grep -E "IMPRESSION" "$LOGCAT" || echo "(none — ads never rendered)"[0m
+2026-07-19T01:27:27.3892008Z [36;1m  echo "--- App Open Ad events ---";  grep -E "App Open Ad" "$LOGCAT" || echo "(none — App Open ad never fired)"[0m
+2026-07-19T01:27:27.3892931Z [36;1m  echo "--- App Open Ad load result ---"; grep -E "App Open Ad loaded|App Open Ad load failed" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3893934Z [36;1m  echo "--- App Open Ad show result ---"; grep -E "App Open Ad IMPRESSION|App Open Ad failed to show|App Open Ad show exception" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3894879Z [36;1m  echo "--- App Open Ad dismissed ---"; grep -E "App Open Ad dismissed" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3895710Z [36;1m  echo "--- Show attempts ---";       grep -E "Attempting to show|Auto-show" "$LOGCAT" || echo "(none — show was never called)"[0m
+2026-07-19T01:27:27.3897273Z [36;1m  echo "--- Guard rejections (why show was blocked) ---"; grep -E "cannot show|Activity not resumed|App in background|Already showing|Activity reference lost|Activity finishing|stale - reloading|show\(\) threw|Show watchdog fired|Using PRELOADED|show\(\) called successfully|Skip show" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3898836Z [36;1m  echo "--- FailedToShow / codes ---";grep -E "FailedToShow|onInterstitialFailed|FAILED|watchdog" "$LOGCAT" || echo "(none)"[0m
+2026-07-19T01:27:27.3899786Z [36;1m  echo "--- Full context after first show attempt ---"; grep -A40 "Attempting to show" "$LOGCAT" | head -60 || echo "(none)"[0m
+2026-07-19T01:27:27.3900570Z [36;1m  echo "--- Guard State Histogram (which guard blocked the show) ---"[0m
+2026-07-19T01:27:27.3901519Z [36;1m  echo "Format: each GUARD_STATE line logs all guard values at show attempt time"[0m
+2026-07-19T01:27:27.3902186Z [36;1m  grep -E "GUARD_STATE" "$LOGCAT" | while read line; do[0m
+2026-07-19T01:27:27.3902763Z [36;1m    # Extract the guard name and the reason it was blocked[0m
+2026-07-19T01:27:27.3903494Z [36;1m    if echo "$line" | grep -q "isActivityResumed=false"; then echo "  BLOCKED_BY: isActivityResumed"; fi[0m
+2026-07-19T01:27:27.3904365Z [36;1m    if echo "$line" | grep -q "isAppInForeground=false"; then echo "  BLOCKED_BY: isAppInForeground"; fi[0m
+2026-07-19T01:27:27.3905135Z [36;1m    if echo "$line" | grep -q "isShowingAd=true"; then echo "  BLOCKED_BY: isShowingAd"; fi[0m
+2026-07-19T01:27:27.3905920Z [36;1m    if echo "$line" | grep -q "subscriptionBlocked=true"; then echo "  BLOCKED_BY: subscription"; fi[0m
+2026-07-19T01:27:27.3906686Z [36;1m    if echo "$line" | grep -q "act=false"; then echo "  BLOCKED_BY: activity_null"; fi[0m
+2026-07-19T01:27:27.3907425Z [36;1m    if echo "$line" | grep -q "actFinishing=true"; then echo "  BLOCKED_BY: activity_finishing"; fi[0m
+2026-07-19T01:27:27.3908172Z [36;1m    if echo "$line" | grep -q "actDestroyed=true"; then echo "  BLOCKED_BY: activity_destroyed"; fi[0m
+2026-07-19T01:27:27.3908874Z [36;1m  done | sort | uniq -c | sort -rn | head -20 || echo "(no GUARD_STATE lines found)"[0m
+2026-07-19T01:27:27.3909425Z [36;1mfi[0m
+2026-07-19T01:27:27.3910083Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.3976496Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.3976952Z env:
+2026-07-19T01:27:27.3977389Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.3977893Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.3978368Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.3978772Z   VERSION_CODE: 56
+2026-07-19T01:27:27.3979128Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.3979517Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.3979878Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.3980279Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.3980625Z   DEBUG_MODE: true
+2026-07-19T01:27:27.3980996Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.4000464Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.4001018Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.4001758Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.4002790Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.4005593Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.4006163Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.4006705Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.4007286Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.4008265Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.4009766Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.4011356Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.4012456Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.4013016Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.4013531Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.4014119Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.4014654Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.4015270Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.4015984Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.4016595Z ##[endgroup]
+2026-07-19T01:27:27.4161550Z =========================================
+2026-07-19T01:27:27.4190031Z   AD FUNNEL SIGNATURE (from device Logcat)
+2026-07-19T01:27:27.4191018Z =========================================
+2026-07-19T01:27:27.4205756Z Logcat: firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/logcat
+2026-07-19T01:27:27.4210279Z --- LOADED events ---
+2026-07-19T01:27:27.4259470Z 07-18 18:25:51.175 10156 10156 D RewardedAdManager: [RewardedAdManager] ✓ Rewarded LOADED
+2026-07-19T01:27:27.4261037Z 07-18 18:25:51.402 10156 10156 D InterstitialAdManager: [InterstitialAdManager] ✓ Interstitial LOADED
+2026-07-19T01:27:27.4262672Z --- IMPRESSION events (all ad types) ---
+2026-07-19T01:27:27.4306378Z 07-18 18:25:49.773 10156 10156 I LinguaVibe: AD: AppOpenAd IMPRESSION — shown successfully
+2026-07-19T01:27:27.4308020Z 07-18 18:25:49.773 10156 10156 I LinguaVibe: AD: AppOpenAd IMPRESSION (SDK onAdImpression) — forwarding to web
+2026-07-19T01:27:27.4309570Z 07-18 18:25:56.738 10156 10156 D InterstitialAdManager: [InterstitialAdManager] ★★★ INTERSTITIAL IMPRESSION ★★★
+2026-07-19T01:27:27.4310799Z 07-18 18:25:56.738 10156 10156 D AdMobBridge: [18:25:56.738] ★★★ INTERSTITIAL IMPRESSION #1 ★★★
+2026-07-19T01:27:27.4312521Z 07-18 18:25:56.739 10156 10156 I LinguaVibe: AD: Interstitial IMPRESSION #1 — via InterstitialAdManager
+2026-07-19T01:27:27.4313614Z --- App Open Ad events ---
+2026-07-19T01:27:27.4372994Z 07-18 18:25:49.773 10156 10156 I LinguaVibe: AD: App Open Ad shown — notifying web
+2026-07-19T01:27:27.4392801Z 07-18 18:25:56.556 10156 10156 I LinguaVibe: AD: App Open Ad closed — notifying web
+2026-07-19T01:27:27.4412227Z --- App Open Ad load result ---
+2026-07-19T01:27:27.4443031Z (none)
+2026-07-19T01:27:27.4469607Z --- App Open Ad show result ---
+2026-07-19T01:27:27.4512295Z (none)
+2026-07-19T01:27:27.4527972Z --- App Open Ad dismissed ---
+2026-07-19T01:27:27.4562226Z (none)
+2026-07-19T01:27:27.4572555Z --- Show attempts ---
+2026-07-19T01:27:27.4602989Z 07-18 18:25:51.405 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.4622974Z 07-18 18:25:51.411 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.4624566Z 07-18 18:25:51.416 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.4626124Z 07-18 18:25:56.671 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.4627194Z --- Guard rejections (why show was blocked) ---
+2026-07-19T01:27:27.4773803Z 07-18 18:25:51.406 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.4793655Z 07-18 18:25:51.411 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.4813046Z 07-18 18:25:51.416 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.4832983Z 07-18 18:25:56.677 10156 10156 D InterstitialAdManager: [InterstitialAdManager] ✓ show() called successfully
+2026-07-19T01:27:27.4853119Z 07-18 18:26:06.683 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⚠️ Show watchdog fired — resetting stuck isShowingAd (impressionFired=true)
+2026-07-19T01:27:27.4872310Z --- FailedToShow / codes ---
+2026-07-19T01:27:27.4874129Z 07-18 18:23:55.106   505   558 D PackageInstallerSession: Marking session 1545440754 as failed: INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package com.google.android.apps.auth.test.support signatures do not match newer version; ignoring!
+2026-07-19T01:27:27.4876765Z 07-18 18:23:55.279   505   558 D PackageInstallerSession: Marking session 971709962 as failed: INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package com.google.android.apps.auth.test.support signatures do not match newer version; ignoring!
+2026-07-19T01:27:27.4878604Z 07-18 18:24:00.932  4219  4500 E JavaBinder: !!! FAILED BINDER TRANSACTION !!!  (parcel size = 344672)
+2026-07-19T01:27:27.4880706Z 07-18 18:24:12.634   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4883518Z 07-18 18:24:13.605   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4885291Z 07-18 18:24:13.668  4219  9208 E JavaBinder: !!! FAILED BINDER TRANSACTION !!!  (parcel size = 344672)
+2026-07-19T01:27:27.4887134Z 07-18 18:24:13.825   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4889896Z 07-18 18:24:13.927   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4898678Z 07-18 18:24:13.967   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4901702Z 07-18 18:24:14.001   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4938126Z 07-18 18:24:14.002   505  7810 E SettingsToPropertiesMapper: adservices/disable_sdk_sandbox,adservices/enforce_broadcast_receiver_restrictions,adservices/fledge_ad_selection_enforce_foreground_status_custom_audience,adservices/fledge_custom_audience_max_count,adservices/fledge_custom_audience_max_num_ads,adservices/fledge_custom_audience_max_owner_count,adservices/fledge_custom_audience_per_app_max_count,adservices/fledge_js_isolate_enforce_max_heap_size,adservices/fledge_js_isolate_max_heap_size_bytes,adservices/sdk_request_permits_per_second,adservices/sdksandbox_customized_sdk_context_enabled,configuration/namespace_to_package_mapping,constrain_display_apis/always_constrain_display_apis,constrain_display_apis/never_constrain_display_apis,constrain_display_apis/never_constrain_display_apis_all_packages,device_policy_manager/disable_resources_updatability,flipendo/default_savings_mode_launch,flipendo/essential_apps,flipendo/flipendo_enabled_launch,flipendo/grayscale_enabled_launch,flipendo/lever_ble_scanning_enabled_launch,flipendo/lever_hotspot_enabled_launch,flipendo/lever_work_profile_enabled_launch,flipendo/resuspend_delay_minutes,namespace/key,namespace1/key1,namespace1/key2,namespace2/key1,namespace2/key2,package_manager_service/incfs_default_timeouts,package_manager_service/known_digesters_list,privacy/location_access_check_periodic_interval_millis,rollback/enable_rollback_timeout,rollback/watchdog_explicit_health_check_enabled,rollback/watchdog_request_timeout_millis,rollback/watchdog_trigger_failure_count,rollback/watchdog_trigger_failure_duration_millis,rollback_boot/rollback_lifetime_in_millis,systemui/nas_generate_actions,systemui/nas_generate_replies,systemui/nas_max_messages_to_extract,systemui/nas_max_suggestions,testspace/another,testspace/flagname,textclassifier/config_updater_model_enabled,textclassifier/key,textclassifier/key2,textclassifier/manifest_url_annotator_en,textclassifier/manifest_url_annotator_ru,textclassifier/model_download_backoff_delay_in_millis,textclassifier/model_download_manager_enabled,textclassifier/multi_language_support_enabled,textclassifier/testing_locale_list_override,textclassifier/textclassifier_service_package_override,window_manager/enable_default_rescind_bal_privileges_from_pending_intent_sender,wrong/nas_generate_replies, exceeds system property max length.
+2026-07-19T01:27:27.4974781Z 07-18 18:24:14.111   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4977330Z 07-18 18:24:14.440   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4979842Z 07-18 18:24:14.566   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4982699Z 07-18 18:24:14.604   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.4985275Z 07-18 18:24:14.742   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5034559Z 07-18 18:24:14.766   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5037406Z 07-18 18:24:15.128   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5040151Z 07-18 18:24:15.152   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5043475Z 07-18 18:24:15.701   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5046140Z 07-18 18:24:16.226   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5048614Z 07-18 18:24:16.269   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5074824Z 07-18 18:24:16.867   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5078468Z 07-18 18:24:17.003   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5081337Z 07-18 18:24:17.026   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5084006Z 07-18 18:24:17.263   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5086604Z 07-18 18:24:17.674   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5089454Z 07-18 18:24:17.754   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5112842Z 07-18 18:24:17.998   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5115693Z 07-18 18:24:18.118   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5118256Z 07-18 18:24:18.296   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5120950Z 07-18 18:24:18.452   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5123850Z 07-18 18:24:18.505   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5126458Z 07-18 18:24:18.918   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5129024Z 07-18 18:24:18.952   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5152788Z 07-18 18:24:19.060   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5155564Z 07-18 18:24:19.108   505   505 I ExplicitHealthCheckController: Explicit health check service is connected ComponentInfo***com.google.android.ext.services/android.ext.services.watchdog.ExplicitHealthCheckServiceImpl***
+2026-07-19T01:27:27.5158256Z 07-18 18:24:23.734 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5160581Z 07-18 18:24:23.734 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5162870Z 07-18 18:24:23.759 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5165262Z 07-18 18:24:23.759 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5193797Z 07-18 18:24:28.582   168  8572 I keystore2: keystore2::watchdog: Watchdog thread idle -> terminating. Have a great day.
+2026-07-19T01:27:27.5195808Z 07-18 18:24:29.944 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5198178Z 07-18 18:24:29.944 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5200270Z 07-18 18:24:29.978 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5202423Z 07-18 18:24:29.978 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5204493Z 07-18 18:24:31.736 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5206714Z 07-18 18:24:31.736 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5208710Z 07-18 18:24:31.761 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5210552Z 07-18 18:24:31.761 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5233610Z 07-18 18:25:05.908 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5236004Z 07-18 18:25:05.908 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5237924Z 07-18 18:25:05.924 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5239856Z 07-18 18:25:05.924 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5242220Z 07-18 18:25:06.629 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5244953Z 07-18 18:25:06.629 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5246982Z 07-18 18:25:06.654 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5248849Z 07-18 18:25:06.654 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5250880Z 07-18 18:25:10.879 10156 10156 D LinguaVibe: Console: ❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')
+2026-07-19T01:27:27.5274230Z 07-18 18:25:10.879 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [LowLatencyTTS] UNLOCK FAILED: TypeError: Cannot read properties of null (reading 'state')", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5276318Z 07-18 18:25:10.900 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5278674Z 07-18 18:25:10.900 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5280498Z 07-18 18:25:22.080 10156 10156 D LinguaVibe: Console: ❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]
+2026-07-19T01:27:27.5282543Z 07-18 18:25:22.080 10156 10156 I chromium: [INFO:CONSOLE(36)] "❌❌❌ [IOSAudioPlayback] UNLOCK FAILED: [object DOMException]", source: https://gtlingua.com/assets/sse-conversation-E_Ofs9lm.js (36)
+2026-07-19T01:27:27.5284706Z 07-18 18:26:06.683 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⚠️ Show watchdog fired — resetting stuck isShowingAd (impressionFired=true)
+2026-07-19T01:27:27.5285933Z --- Full context after first show attempt ---
+2026-07-19T01:27:27.5286690Z grep: write error: Broken pipe
+2026-07-19T01:27:27.5287695Z 07-18 18:25:51.405 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.5289082Z 07-18 18:25:51.405 10156 10156 D InterstitialAdManager: [InterstitialAdManager]   ready=true ad=true fresh=true
+2026-07-19T01:27:27.5290721Z 07-18 18:25:51.405 10156 10156 D AdMobBridge: [18:25:51.405] → Notifying JS onAdEvent: type=interstitial subtype=showRequested
+2026-07-19T01:27:27.5312849Z 07-18 18:25:51.405 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showRequested code=null error=null
+2026-07-19T01:27:27.5314807Z 07-18 18:25:51.405 10156 10156 D InterstitialAdManager: [InterstitialAdManager] GUARD_STATE resumed=false foreground=true showing=false act=true finishing=false destroyed=false ready=true subscription=null
+2026-07-19T01:27:27.5317124Z 07-18 18:25:51.406 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.5318370Z 07-18 18:25:51.406 10156 10156 I LinguaVibe: AD: Interstitial showSuppressed: activity_not_resumed
+2026-07-19T01:27:27.5319871Z 07-18 18:25:51.410 10156 10156 D AdMobBridge: [18:25:51.410] → Notifying JS onAdEvent: type=interstitial subtype=showSuppressed
+2026-07-19T01:27:27.5321638Z 07-18 18:25:51.410 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showSuppressed code=-1 error=activity_not_resumed
+2026-07-19T01:27:27.5323244Z 07-18 18:25:51.411 10156 10156 D AdMobBridge: [18:25:51.410] → Notifying JS onAdEvent: type=interstitial subtype=loaded
+2026-07-19T01:27:27.5324542Z 07-18 18:25:51.411 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=loaded code=null error=null
+2026-07-19T01:27:27.5325683Z 07-18 18:25:51.411 10156 10156 I LinguaVibe: AD: Native preload: Interstitial ready
+2026-07-19T01:27:27.5326887Z 07-18 18:25:51.411 10156 10156 I LinguaVibe: AD: 🧪 Test Lab: auto-showing interstitial (attempt 2)
+2026-07-19T01:27:27.5328181Z 07-18 18:25:51.411 10156 10156 D AdPreloadManager: [AdPreloadManager] Delegating showInterstitial to InterstitialAdManager
+2026-07-19T01:27:27.5330214Z 07-18 18:25:51.411 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.5352300Z 07-18 18:25:51.411 10156 10156 D InterstitialAdManager: [InterstitialAdManager]   ready=true ad=true fresh=true
+2026-07-19T01:27:27.5354059Z 07-18 18:25:51.411 10156 10156 D AdMobBridge: [18:25:51.411] → Notifying JS onAdEvent: type=interstitial subtype=showRequested
+2026-07-19T01:27:27.5355452Z 07-18 18:25:51.411 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showRequested code=null error=null
+2026-07-19T01:27:27.5357307Z 07-18 18:25:51.411 10156 10156 D InterstitialAdManager: [InterstitialAdManager] GUARD_STATE resumed=false foreground=true showing=false act=true finishing=false destroyed=false ready=true subscription=null
+2026-07-19T01:27:27.5359401Z 07-18 18:25:51.411 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.5361339Z 07-18 18:25:51.412 10156 10156 I LinguaVibe: AD: Interstitial showSuppressed: activity_not_resumed
+2026-07-19T01:27:27.5362644Z 07-18 18:25:51.412 10156 10156 D AdMobBridge: [18:25:51.412] → Notifying JS onAdEvent: type=interstitial subtype=showSuppressed
+2026-07-19T01:27:27.5364110Z 07-18 18:25:51.413 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showSuppressed code=-1 error=activity_not_resumed
+2026-07-19T01:27:27.5365796Z 07-18 18:25:51.416 10156 10156 D AdMobBridge: [18:25:51.416] → Notifying JS onAdEvent: type=interstitial subtype=ready
+2026-07-19T01:27:27.5367022Z 07-18 18:25:51.416 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=ready code=null error=null
+2026-07-19T01:27:27.5368554Z 07-18 18:25:51.416 10156 10156 D InterstitialAdManager: [InterstitialAdManager]   Pending show detected — showing interstitial now
+2026-07-19T01:27:27.5370065Z 07-18 18:25:51.416 10156 10156 D InterstitialAdManager: [InterstitialAdManager] → Attempting to show interstitial...
+2026-07-19T01:27:27.5392206Z 07-18 18:25:51.416 10156 10156 D InterstitialAdManager: [InterstitialAdManager]   ready=true ad=true fresh=true
+2026-07-19T01:27:27.5394052Z 07-18 18:25:51.416 10156 10156 D AdMobBridge: [18:25:51.416] → Notifying JS onAdEvent: type=interstitial subtype=showRequested
+2026-07-19T01:27:27.5395430Z 07-18 18:25:51.416 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showRequested code=null error=null
+2026-07-19T01:27:27.5397298Z 07-18 18:25:51.416 10156 10156 D InterstitialAdManager: [InterstitialAdManager] GUARD_STATE resumed=false foreground=true showing=false act=true finishing=false destroyed=false ready=true subscription=null
+2026-07-19T01:27:27.5399371Z 07-18 18:25:51.416 10156 10156 W InterstitialAdManager: [InterstitialAdManager] ⏳ Activity not resumed — deferring show
+2026-07-19T01:27:27.5400655Z 07-18 18:25:51.416 10156 10156 I LinguaVibe: AD: Interstitial showSuppressed: activity_not_resumed
+2026-07-19T01:27:27.5402316Z 07-18 18:25:51.416 10156 10156 D AdMobBridge: [18:25:51.416] → Notifying JS onAdEvent: type=interstitial subtype=showSuppressed
+2026-07-19T01:27:27.5403769Z 07-18 18:25:51.418 10156 10156 I LinguaVibe: AD: BRIDGE_EVENT: type=interstitial subtype=showSuppressed code=-1 error=activity_not_resumed
+2026-07-19T01:27:27.5405137Z 07-18 18:25:51.434 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_loaded format=INTERSTITIAL subtype=loaded
+2026-07-19T01:27:27.5406488Z 07-18 18:25:51.435 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5407901Z 07-18 18:25:51.435 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5409246Z 07-18 18:25:51.437 10156 10590 D AdMobBridge: [18:25:51.437] JS → getAppVersion() = 56.0.0
+2026-07-19T01:27:27.5410516Z 07-18 18:25:51.438 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5423090Z 07-18 18:25:51.438 10156 10156 D LinguaVibe: Console: [01:25:51.435] [AdManager] onNativeAdReady: interstitial
+2026-07-19T01:27:27.5424734Z 07-18 18:25:51.438 10156 10156 I chromium: [INFO:CONSOLE(47)] "[01:25:51.435] [AdManager] onNativeAdReady: interstitial", source: https://gtlingua.com/assets/index-Ci1hc4Ju.js (47)
+2026-07-19T01:27:27.5426187Z 07-18 18:25:51.438 10156 10156 D LinguaVibe: Console: [AdContext] Ad ready: interstitial
+2026-07-19T01:27:27.5427538Z 07-18 18:25:51.438 10156 10156 I chromium: [INFO:CONSOLE(47)] "[AdContext] Ad ready: interstitial", source: https://gtlingua.com/assets/index-Ci1hc4Ju.js (47)
+2026-07-19T01:27:27.5429419Z 07-18 18:25:51.439 10156 10590 D AdMobBridge: [18:25:51.439] JS → isInterstitialReady() [original] = true (manager=true preload=true)
+2026-07-19T01:27:27.5430899Z 07-18 18:25:51.442 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5432615Z 07-18 18:25:51.442 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5434435Z 07-18 18:25:51.442 10156 10156 I LinguaVibe: AD: FirebaseAnalytics: ad_show_suppressed format=INTERSTITIAL subtype=show_suppressed
+2026-07-19T01:27:27.5436002Z 07-18 18:25:51.443 10156 10590 D AdMobBridge: [18:25:51.442] JS → isRewardedReady() = true (manager=true preload=false)
+2026-07-19T01:27:27.5437497Z 07-18 18:25:51.449 10156 10590 D AdMobBridge: [18:25:51.449] JS → isInterstitialReady() [original] = true (manager=true preload=true)
+2026-07-19T01:27:27.5438965Z 07-18 18:25:51.451 10156 10590 D AdMobBridge: [18:25:51.451] JS → isInterstitialReady() [original] = true (manager=true preload=true)
+2026-07-19T01:27:27.5440542Z 07-18 18:25:51.453 10156 10590 D AdMobBridge: [18:25:51.453] JS → isInterstitialReady() [original] = true (manager=true preload=true)
+2026-07-19T01:27:27.5442503Z 07-18 18:25:51.459 10156 10590 D AdMobBridge: [18:25:51.459] JS → isRewardedReady() = true (manager=true preload=false)
+2026-07-19T01:27:27.5443911Z 07-18 18:25:51.465 10156 10156 D LinguaVibe: Console: [01:25:51.451] [AdManager] Ad event: showRequested ***
+2026-07-19T01:27:27.5444914Z 07-18 18:25:51.465 10156 10156 D LinguaVibe:   "type": "interstitial",
+2026-07-19T01:27:27.5445740Z 07-18 18:25:51.465 10156 10156 D LinguaVibe:   "subtype": "showRequested"
+2026-07-19T01:27:27.5446517Z 07-18 18:25:51.465 10156 10156 D LinguaVibe: ***
+2026-07-19T01:27:27.5447471Z 07-18 18:25:51.465 10156 10156 I chromium: [INFO:CONSOLE(47)] "[01:25:51.451] [AdManager] Ad event: showRequested ***
+2026-07-19T01:27:27.5448496Z 07-18 18:25:51.465 10156 10156 I chromium:   "type": "interstitial",
+2026-07-19T01:27:27.5449318Z 07-18 18:25:51.465 10156 10156 I chromium:   "subtype": "showRequested"
+2026-07-19T01:27:27.5450164Z --- Guard State Histogram (which guard blocked the show) ---
+2026-07-19T01:27:27.5451039Z Format: each GUARD_STATE line logs all guard values at show attempt time
+2026-07-19T01:27:27.5678933Z =========================================
+2026-07-19T01:27:27.5716693Z ##[group]Run echo "========================================="
+2026-07-19T01:27:27.5717308Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.5717836Z [36;1mecho "  AD SERVING VERIFICATION (#5 — automated)"[0m
+2026-07-19T01:27:27.5718348Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.5718901Z [36;1mLOGCAT=$(find firebase-results -iname "logcat*" | head -1)[0m
+2026-07-19T01:27:27.5719413Z [36;1mif [ -z "$LOGCAT" ]; then[0m
+2026-07-19T01:27:27.5719907Z [36;1m  echo "::error::No logcat file found — cannot verify ad serving."[0m
+2026-07-19T01:27:27.5720398Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.5720733Z [36;1mfi[0m
+2026-07-19T01:27:27.5721071Z [36;1mecho "Verifying: $LOGCAT"[0m
+2026-07-19T01:27:27.5721766Z [36;1mPASS=1[0m
+2026-07-19T01:27:27.5722245Z [36;1m# 0) Hard fail if the real-ad override was active — this run is NOT a safe test[0m
+2026-07-19T01:27:27.5722894Z [36;1m#    and must NOT pass the CI safety gate.[0m
+2026-07-19T01:27:27.5723402Z [36;1mif grep -qE "REAL_ADS_ON_TEST_LAB is true" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5724022Z [36;1m  echo "::error::Real-ad override was ACTIVE on Test Lab — this run is NOT safe."[0m
+2026-07-19T01:27:27.5724547Z [36;1m  PASS=0[0m
+2026-07-19T01:27:27.5724873Z [36;1mfi[0m
+2026-07-19T01:27:27.5725328Z [36;1m# 1) SAFETY GATE (hard fail): the test-device registration MUST have applied.[0m
+2026-07-19T01:27:27.5725976Z [36;1m#    This log is the only proof that real ad units served TEST creatives. If it[0m
+2026-07-19T01:27:27.5726633Z [36;1m#    is missing, auto-show may have rendered REAL creatives = invalid traffic, so[0m
+2026-07-19T01:27:27.5727322Z [36;1m#    we fail BEFORE validating the impression (safety precedes the impression check).[0m
+2026-07-19T01:27:27.5727973Z [36;1mif grep -qE "test-device registration FAILED" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5728796Z [36;1m  echo "::error::Test-device registration FAILED at runtime — auto-show was suppressed (fail-safe). No ad should have rendered."[0m
+2026-07-19T01:27:27.5729738Z [36;1m  PASS=0[0m
+2026-07-19T01:27:27.5730181Z [36;1melif grep -qE "Firebase Test Lab detected" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5730857Z [36;1m  echo "✅ Test Lab test-device registration applied (real units, TEST creatives)."[0m
+2026-07-19T01:27:27.5731633Z [36;1melse[0m
+2026-07-19T01:27:27.5732302Z [36;1m  echo "::error::Test Lab detection log NOT found — registration did not apply; ads may have used REAL creatives (invalid-traffic risk)."[0m
+2026-07-19T01:27:27.5733006Z [36;1m  PASS=0[0m
+2026-07-19T01:27:27.5733330Z [36;1mfi[0m
+2026-07-19T01:27:27.5733794Z [36;1m# 2) Ad impression check: required on push (production gate), advisory on[0m
+2026-07-19T01:27:27.5734445Z [36;1m#    workflow_dispatch / PR so nondeterministic Robo fill doesn't block[0m
+2026-07-19T01:27:27.5735089Z [36;1m#    manual test runs. All instrumentation tests already validated the code.[0m
+2026-07-19T01:27:27.5735677Z [36;1mif grep -qE "IMPRESSION" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5736134Z [36;1m  echo "✅ Ad impression rendered:"[0m
+2026-07-19T01:27:27.5736579Z [36;1m  grep -E "IMPRESSION" "$LOGCAT" | head[0m
+2026-07-19T01:27:27.5736988Z [36;1melse[0m
+2026-07-19T01:27:27.5737440Z [36;1m  echo "::warning::No ad IMPRESSION found — no ad rendered during the run."[0m
+2026-07-19T01:27:27.5737986Z [36;1m  if [ "$GITHUB_EVENT_NAME" = "push" ]; then[0m
+2026-07-19T01:27:27.5738511Z [36;1m    echo "::error::Zero impressions on push — blocking release gate."[0m
+2026-07-19T01:27:27.5760054Z [36;1m    PASS=0[0m
+2026-07-19T01:27:27.5760716Z [36;1m  fi[0m
+2026-07-19T01:27:27.5761490Z [36;1mfi[0m
+2026-07-19T01:27:27.5762190Z [36;1m# 3) Informational: App Open ad cold-start impression.[0m
+2026-07-19T01:27:27.5763027Z [36;1mif grep -qE "App Open Ad IMPRESSION" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5763790Z [36;1m  echo "✅ App Open Ad fired on cold start."[0m
+2026-07-19T01:27:27.5764987Z [36;1m  grep -E "App Open Ad IMPRESSION" "$LOGCAT" | head -3[0m
+2026-07-19T01:27:27.5765799Z [36;1melif grep -qE "App Open Ad loaded" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5766958Z [36;1m  echo "::warning::App Open Ad loaded but IMPRESSION not found — ad may have been blocked by a guard or failed to show."[0m
+2026-07-19T01:27:27.5768047Z [36;1m  grep -E "App Open Ad" "$LOGCAT" | head -10[0m
+2026-07-19T01:27:27.5768676Z [36;1melse[0m
+2026-07-19T01:27:27.5769606Z [36;1m  echo "::warning::App Open Ad never loaded — check unit ID or AdMob fill (unit: ca-app-pub-9991891515643313/3278416949)."[0m
+2026-07-19T01:27:27.5770589Z [36;1mfi[0m
+2026-07-19T01:27:27.5771543Z [36;1m# 5) Informational: interstitial completion latch (replaces previous interstitial latch).[0m
+2026-07-19T01:27:27.5772588Z [36;1mif grep -qE "Interstitial dismissed" "$LOGCAT"; then[0m
+2026-07-19T01:27:27.5773471Z [36;1m  echo "✅ Interstitial dismissed cleanly (single-shot confirmed)."[0m
+2026-07-19T01:27:27.5774230Z [36;1melse[0m
+2026-07-19T01:27:27.5775046Z [36;1m  echo "::warning::Interstitial dismiss marker not found (may have failed or retry was needed)."[0m
+2026-07-19T01:27:27.5775979Z [36;1mfi[0m
+2026-07-19T01:27:27.5776483Z [36;1mif [ "$PASS" -ne 1 ]; then[0m
+2026-07-19T01:27:27.5777145Z [36;1m  echo "❌ Ad serving verification FAILED."[0m
+2026-07-19T01:27:27.5777800Z [36;1m  exit 1[0m
+2026-07-19T01:27:27.5778284Z [36;1mfi[0m
+2026-07-19T01:27:27.5778815Z [36;1mecho "✅ Ad serving verification PASSED."[0m
+2026-07-19T01:27:27.5779543Z [36;1mecho "========================================="[0m
+2026-07-19T01:27:27.5858123Z shell: /usr/bin/bash -e ***0***
+2026-07-19T01:27:27.5858553Z env:
+2026-07-19T01:27:27.5858934Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.5859431Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.5859906Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.5860319Z   VERSION_CODE: 56
+2026-07-19T01:27:27.5860656Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.5861612Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.5861991Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.5862394Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.5862744Z   DEBUG_MODE: true
+2026-07-19T01:27:27.5863096Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.5882112Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.5882566Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.5882989Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.5883390Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.5885282Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.5885656Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.5886056Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.5886469Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.5887158Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.5888151Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.5889090Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.5889741Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.5890130Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.5890515Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.5890874Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.5891347Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.5891809Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.5892318Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.5892733Z ##[endgroup]
+2026-07-19T01:27:27.5987483Z =========================================
+2026-07-19T01:27:27.5988837Z   AD SERVING VERIFICATION (#5 — automated)
+2026-07-19T01:27:27.5989772Z =========================================
+2026-07-19T01:27:27.6018915Z Verifying: firebase-results/2026-07-19_01:23:21.801216_DxhM/MediumPhone.arm-33-en_IN-portrait/logcat
+2026-07-19T01:27:27.6117106Z ✅ Test Lab test-device registration applied (real units, TEST creatives).
+2026-07-19T01:27:27.6149449Z ✅ Ad impression rendered:
+2026-07-19T01:27:27.6190652Z 07-18 18:25:49.773 10156 10156 I LinguaVibe: AD: AppOpenAd IMPRESSION — shown successfully
+2026-07-19T01:27:27.6213277Z 07-18 18:25:49.773 10156 10156 I LinguaVibe: AD: AppOpenAd IMPRESSION (SDK onAdImpression) — forwarding to web
+2026-07-19T01:27:27.6214963Z 07-18 18:25:56.738 10156 10156 D InterstitialAdManager: [InterstitialAdManager] ★★★ INTERSTITIAL IMPRESSION ★★★
+2026-07-19T01:27:27.6216382Z 07-18 18:25:56.738 10156 10156 D AdMobBridge: [18:25:56.738] ★★★ INTERSTITIAL IMPRESSION #1 ★★★
+2026-07-19T01:27:27.6217768Z 07-18 18:25:56.739 10156 10156 I LinguaVibe: AD: Interstitial IMPRESSION #1 — via InterstitialAdManager
+2026-07-19T01:27:27.6283207Z ##[warning]App Open Ad never loaded — check unit ID or AdMob fill (unit: ca-app-pub-9991891515643313/3278416949).
+2026-07-19T01:27:27.6325802Z ##[warning]Interstitial dismiss marker not found (may have failed or retry was needed).
+2026-07-19T01:27:27.6328524Z ✅ Ad serving verification PASSED.
+2026-07-19T01:27:27.6329883Z =========================================
+2026-07-19T01:27:27.6386603Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:27:27.6387959Z ##[group]Run actions/upload-artifact@v4
+2026-07-19T01:27:27.6388362Z with:
+2026-07-19T01:27:27.6388714Z   name: firebase-testlab-v56.0.0-56
+2026-07-19T01:27:27.6389128Z   path: firebase-artifact/**
+
+2026-07-19T01:27:27.6389520Z   if-no-files-found: warn
+2026-07-19T01:27:27.6389879Z   retention-days: 30
+2026-07-19T01:27:27.6390231Z   compression-level: 6
+2026-07-19T01:27:27.6390587Z   overwrite: false
+2026-07-19T01:27:27.6390942Z   include-hidden-files: false
+2026-07-19T01:27:27.6391552Z env:
+2026-07-19T01:27:27.6391923Z   GRADLE_OPTS: -Xmx8192m -Dfile.encoding=UTF-8
+2026-07-19T01:27:27.6392442Z   ORG_GRADLE_PROJECT_android_useLegacyPackaging: true
+2026-07-19T01:27:27.6392903Z   WEBVIEW_URL: https://gtlingua.com
+2026-07-19T01:27:27.6393320Z   VERSION_CODE: 56
+2026-07-19T01:27:27.6393658Z   VERSION_NAME: 56.0.0
+2026-07-19T01:27:27.6393999Z   TEST_LOCALE: en_IN
+2026-07-19T01:27:27.6394353Z   TEST_DEVICE_MODEL: MediumPhone.arm
+2026-07-19T01:27:27.6394742Z   CREATE_RELEASE: true
+2026-07-19T01:27:27.6395083Z   DEBUG_MODE: true
+2026-07-19T01:27:27.6395420Z   REAL_ADS_ON_TEST_LAB: true
+2026-07-19T01:27:27.6414323Z   ANDROID_KEYSTORE_BASE64: ***
+2026-07-19T01:27:27.6414765Z   ANDROID_KEYSTORE_PASSWORD: ***
+2026-07-19T01:27:27.6415181Z   ANDROID_KEY_ALIAS: ***
+2026-07-19T01:27:27.6415576Z   ANDROID_KEY_PASSWORD: ***
+2026-07-19T01:27:27.6417413Z   GOOGLE_SERVICES_JSON: ***
+2026-07-19T01:27:27.6417796Z   ANDROID_HOME: /tmp/android-sdk
+2026-07-19T01:27:27.6418191Z   ANDROID_SDK_ROOT: /tmp/android-sdk
+2026-07-19T01:27:27.6418611Z   GCP_PROJECT_ID: ***
+2026-07-19T01:27:27.6419314Z   CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.6420318Z   GOOGLE_APPLICATION_CREDENTIALS: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.6421433Z   GOOGLE_GHA_CREDS_PATH: /home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json
+2026-07-19T01:27:27.6422260Z   CLOUDSDK_CORE_PROJECT: ***
+2026-07-19T01:27:27.6422707Z   CLOUDSDK_PROJECT: ***
+2026-07-19T01:27:27.6423073Z   GCLOUD_PROJECT: ***
+2026-07-19T01:27:27.6423433Z   GCP_PROJECT: ***
+2026-07-19T01:27:27.6423793Z   GOOGLE_CLOUD_PROJECT: ***
+2026-07-19T01:27:27.6424224Z   CLOUDSDK_METRICS_ENVIRONMENT: github-actions-setup-gcloud
+2026-07-19T01:27:27.6424730Z   CLOUDSDK_METRICS_ENVIRONMENT_VERSION: 2.2.1
+2026-07-19T01:27:27.6425141Z ##[endgroup]
+2026-07-19T01:27:27.8877683Z (node:2575) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-07-19T01:27:27.8892425Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-07-19T01:27:27.9052078Z With the provided path, there will be 3 files uploaded
+2026-07-19T01:27:27.9091979Z Artifact name is valid!
+2026-07-19T01:27:27.9092876Z Root directory input is valid!
+2026-07-19T01:27:28.0612075Z Beginning upload of artifact content to blob storage
+2026-07-19T01:27:28.5179396Z (node:2575) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-07-19T01:27:28.7442073Z Uploaded bytes 8388608
+2026-07-19T01:27:29.0367486Z Uploaded bytes 16777216
+2026-07-19T01:27:29.1302771Z Uploaded bytes 20733980
+2026-07-19T01:27:29.1488513Z Finished uploading artifact content to blob storage!
+2026-07-19T01:27:29.1490841Z SHA256 digest of uploaded artifact zip is cbc8a7d15ccad84aa0386bb0bfef3995c5e205f23ec3d1182cddc4362606fdce
+2026-07-19T01:27:29.1492454Z Finalizing artifact upload
+2026-07-19T01:27:29.3075149Z Artifact firebase-testlab-v56.0.0-56.zip successfully finalized. Artifact ID 8436544443
+2026-07-19T01:27:29.3076902Z Artifact firebase-testlab-v56.0.0-56 has been successfully uploaded! Final size is 20733980 bytes. Artifact ID is 8436544443
+2026-07-19T01:27:29.3088289Z Artifact download URL: https://github.com/j272-glitch/lingualink-android2/actions/runs/29668190953/artifacts/8436544443
+2026-07-19T01:27:29.3350078Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:27:29.3351715Z Post job cleanup.
+2026-07-19T01:27:29.4373856Z Removed exported credentials at "/home/runner/work/lingualink-android2/lingualink-android2/gha-creds-b51d4928a5fb4fd0.json".
+2026-07-19T01:27:29.4514846Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-19T01:27:29.4516157Z Post job cleanup.
+2026-07-19T01:27:29.5621635Z [command]/usr/bin/git version
+2026-07-19T01:27:29.5677590Z git version 2.54.0
+2026-07-19T01:27:29.5727192Z Temporarily overriding HOME='/home/runner/work/_temp/c04d1eb6-1573-4ab1-80be-96fe877c74f8' before making global git config changes
+2026-07-19T01:27:29.5728828Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-19T01:27:29.5737287Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/lingualink-android2/lingualink-android2
+2026-07-19T01:27:29.5792093Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-19T01:27:29.5839191Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-19T01:27:29.6123500Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-19T01:27:29.6158917Z http.https://github.com/.extraheader
+2026-07-19T01:27:29.6176961Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-19T01:27:29.6217840Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-19T01:27:29.6492326Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-19T01:27:29.6534659Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-19T01:27:29.6964820Z Cleaning up orphan processes
+2026-07-19T01:27:29.7250227Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/upload-artifact@v4, google-github-actions/auth@v2, google-github-actions/setup-gcloud@v2. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

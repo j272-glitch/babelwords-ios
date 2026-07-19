@@ -8,6 +8,7 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeUnit
@@ -100,7 +101,7 @@ class MainActivityErrorHandlingTest {
             Thread.sleep(500)
         }
 
-        assert(loadingGone) { "loading_container should be gone within 20s" }
+        assertTrue("loading_container should be gone within 20s", loadingGone)
 
         scenario.close()
     }

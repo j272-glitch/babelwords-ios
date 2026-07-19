@@ -1,6 +1,7 @@
 package com.babelwords.com.ads
 
 import android.app.Activity
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
@@ -63,8 +64,8 @@ class AdMobManagerStateMachineTest {
     @Test
     fun frequencyCapPreventsImmediateReshow() {
         // Seed SharedPreferences with a recent lastShowTime
-        val prefs = ApplicationProvider.getApplicationContext<android.content.Context>()
-            .getSharedPreferences("ad_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = ApplicationProvider.getApplicationContext<Context>()
+            .getSharedPreferences("ad_prefs", Context.MODE_PRIVATE)
         prefs.edit().putLong("interstitial_last_show_time", System.currentTimeMillis()).apply()
 
         // Create fresh manager (reads the seeded pref)
@@ -73,15 +74,18 @@ class AdMobManagerStateMachineTest {
             ::eventCallback
         )
 
-        // Try to show on a stub activity — frequency cap should block before ad-null check
-        val activity = androidx.test.core.app.ActivityScenario.launch(android.app.Activity::class.java).getResult()
-        // Can't easily get Activity from scenario; we'll use the manager directly
-        // and verify the frequency cap logic via event emission
-        // In practice, showInterstitial checks frequency cap before anything else
+        // Try to show on a stub activity — frequency cap should emit "frequency_capped"
+        val activity = Activity()
+        freshManager.showInterstitial(activity)
 
-        // Cleanup
+        // Verify the guard emitted the correct event
+        assertTrue(
+            "Frequency cap should block and emit 'frequency_capped'",
+            events.any { it.first == "interstitialFailed" && it.second == "frequency_capped" }
+        )
+
         freshManager.destroy()
-        assertTrue("Frequency cap guard exists and is checked before show", true)
+        prefs.edit().remove("interstitial_last_show_time").apply()
     }
 
     @Test
@@ -95,48 +99,64 @@ class AdMobManagerStateMachineTest {
         )
 
         // showInterstitial should return immediately with "already_showing"
-        // (can't call it without a real Activity, but we verify the guard path)
+        val activity = Activity()
+        freshManager.showInterstitial(activity)
+
+        assertTrue(
+            "Concurrent show guard should emit 'already_showing'",
+            events.any { it.first == "interstitialFailed" && it.second == "already_showing" }
+        )
 
         AdMobManager.isAnyFullscreenAdShowing = false
         freshManager.destroy()
-        assertTrue("Concurrent show guard checks isAnyFullscreenAdShowing", true)
     }
 
     @Test
     fun pendingShowAutoTriggersLoad() {
-        // When show() finds no ad, pendingShow=true triggers load
-        // We verify by checking isInterstitialReady is false (no cached ad)
-        // and that preloadInterstitial doesn't crash (starts the load chain)
+        // No ad cached initially
         assertFalse("No ad cached initially", manager.isInterstitialReady())
-        manager.preloadInterstitial() // triggers load; may skip on metered network
-        assertTrue("preloadInterstitial should not crash", true)
+
+        // Simulate a show request with no ad — triggers pendingShow + load chain
+        manager.preloadInterstitial()
+        // preloadInterstitial does not crash and starts the load chain
+        // (actual load may skip on metered network, but method call succeeds)
+
+        // Verify the manager is still initialized after the call
+        assertTrue("Manager should remain initialized after preload", manager.isInitialized())
     }
 
     @Test
     fun onActivityResumedDoesNotCrash() {
-        manager.onActivityResumed(android.app.Activity())
-        assertTrue("onActivityResumed should survive with null/empty activity", true)
+        val activity = Activity()
+        manager.onActivityResumed(activity)
+        // If there was no pendingShow, nothing crashes and state is stable
+        assertTrue("Manager should survive onActivityResumed", manager.isInitialized())
     }
 
     @Test
     fun onActivityPausedDoesNotCrash() {
         manager.onActivityPaused()
-        assertTrue("onActivityPaused should not crash", true)
+        assertTrue("Manager should survive onActivityPaused", manager.isInitialized())
     }
 
     @Test
     fun loadInterstitialAndShowWithNoAdSetsPendingShow() {
         assertFalse("No ad initially", manager.isInterstitialReady())
-        // loadInterstitialAndShow sets pendingShow when no cached ad
-        // We verify the method doesn't crash and state is consistent
-        assertTrue("loadInterstitialAndShow should not crash when no ad cached", true)
+
+        val activity = Activity()
+        manager.loadInterstitialAndShow(activity)
+
+        // Without a cached ad, loadInterstitialAndShow sets pendingShow and calls load()
+        // We verify it does not crash and manager stays initialized
+        assertTrue("Manager should survive loadInterstitialAndShow with no ad", manager.isInitialized())
     }
 
     @Test
     fun networkCallbackRegisterUnregister() {
         manager.registerNetworkCallback()
         manager.unregisterNetworkCallback()
-        assertTrue("Network callback lifecycle should not crash", true)
+        // Verify no crash and manager is still initialized
+        assertTrue("Manager should survive network callback lifecycle", manager.isInitialized())
     }
 
     @Test

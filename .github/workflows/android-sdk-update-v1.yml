@@ -1262,43 +1262,43 @@ jobs:
           # Run 1: AdMobManager state-machine guards
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AdMobManagerStateMachineTest" \
+            --test-targets "class com.babelwords.com.ads.AdMobManagerStateMachineTest" \
             --device "$DEVICE" --project "$PROJECT" 2>&1 | tee firebase-run-statemachine.log
 
           # Run 2: AppOpenAdManager state-machine guards
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AppOpenAdManagerStateMachineTest" \
+            --test-targets "class com.babelwords.com.ads.AppOpenAdManagerStateMachineTest" \
             --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-statemachine.log
 
           # Run 3: Show telemetry markers
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AdMobBridgeShowTelemetryTest" \
+            --test-targets "class com.babelwords.com.ads.AdMobBridgeShowTelemetryTest" \
             --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
 
           # Run 4: isReady guards
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AdMobBridgeIsReadyTest" \
+            --test-targets "class com.babelwords.com.ads.AdMobBridgeIsReadyTest" \
             --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
 
           # Run 5: Analytics events
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AnalyticsEventTest" \
+            --test-targets "class com.babelwords.com.ads.AnalyticsEventTest" \
             --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
 
           # Run 6: All ad state-machine tests together (advisory)
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AdMobManagerStateMachineTest,class com.babelwords.app.ads.AppOpenAdManagerStateMachineTest" \
+            --test-targets "class com.babelwords.com.ads.AdMobManagerStateMachineTest,class com.babelwords.com.ads.AppOpenAdManagerStateMachineTest" \
             --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
 
           # Run 7: All telemetry tests together (advisory)
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.app.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.app.ads.AdMobBridgeIsReadyTest,class com.babelwords.app.ads.AnalyticsEventTest" \
+            --test-targets "class com.babelwords.com.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.com.ads.AdMobBridgeIsReadyTest,class com.babelwords.com.ads.AnalyticsEventTest" \
             --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
 
           echo "=== All instrumentation runs complete ==="

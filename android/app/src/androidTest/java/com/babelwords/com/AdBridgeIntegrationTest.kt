@@ -6,6 +6,7 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -70,9 +71,9 @@ class AdBridgeIntegrationTest {
             }
         }
 
-        assert(diagnostics != null) { "getDiagnostics returned null" }
-        assert(diagnostics!!.isNotEmpty()) { "getDiagnostics returned empty string" }
-        assert(diagnostics!!.contains("timestamp")) { "Diagnostics missing timestamp field" }
+        assertTrue("getDiagnostics returned null", diagnostics != null)
+        assertTrue("getDiagnostics returned empty string", diagnostics!!.isNotEmpty())
+        assertTrue("Diagnostics missing timestamp field", diagnostics!!.contains("timestamp"))
 
         scenario.close()
     }

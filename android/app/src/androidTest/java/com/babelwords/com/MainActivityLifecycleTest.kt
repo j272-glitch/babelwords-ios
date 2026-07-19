@@ -7,6 +7,7 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.concurrent.TimeUnit
@@ -49,9 +50,10 @@ class MainActivityLifecycleTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "After rotation, neither webview nor error_container is visible — blank screen detected"
-        }
+        assertTrue(
+            "After rotation, neither webview nor error_container is visible — blank screen detected",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -80,9 +82,10 @@ class MainActivityLifecycleTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "After rapid pause/resume, app is in an unrecoverable state"
-        }
+        assertTrue(
+            "After rapid pause/resume, app is in an unrecoverable state",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -113,9 +116,10 @@ class MainActivityLifecycleTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "After background → foreground, app is stuck"
-        }
+        assertTrue(
+            "After background → foreground, app is stuck",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -142,9 +146,10 @@ class MainActivityLifecycleTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "After destroy + recreate, app failed to recover"
-        }
+        assertTrue(
+            "After destroy + recreate, app failed to recover",
+            webViewVisible || errorVisible
+        )
 
         newScenario.close()
     }

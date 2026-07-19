@@ -8,6 +8,7 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -43,9 +44,10 @@ class MainActivityDeepLinkTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "HTTPS deep link did not open app correctly"
-        }
+        assertTrue(
+            "HTTPS deep link did not open app correctly",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -68,9 +70,10 @@ class MainActivityDeepLinkTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "Custom scheme deep link did not open app correctly"
-        }
+        assertTrue(
+            "Custom scheme deep link did not open app correctly",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -99,9 +102,10 @@ class MainActivityDeepLinkTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "Malformed intent caused blank screen"
-        }
+        assertTrue(
+            "Malformed intent caused blank screen",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
@@ -129,9 +133,10 @@ class MainActivityDeepLinkTest {
             true
         }.getOrDefault(false)
 
-        assert(webViewVisible || errorVisible) {
-            "Access-token launch failed"
-        }
+        assertTrue(
+            "Access-token launch failed",
+            webViewVisible || errorVisible
+        )
 
         scenario.close()
     }
