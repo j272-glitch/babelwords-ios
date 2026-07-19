@@ -247,6 +247,8 @@ android {
             returnDefaultValues = true
         }
         animationsDisabled = true
+        // Orchestrator: isolates crashes so one failing test doesn't kill the entire suite
+        execution 'ANDROIDX_TEST_ORCHESTRATOR'
     }
 }
 
@@ -353,10 +355,23 @@ dependencies {
         implementation 'com.google.firebase:firebase-crashlytics'  // crash + ANR reporting
     }
 
-    // Testing
+    // Testing — Unit tests (JVM / Robolectric)
     testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.12.2'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testImplementation 'org.mockito:mockito-android:5.12.0'
+    testImplementation 'androidx.test:core:1.5.0'
+
+    // Testing — Instrumentation (on-device / Espresso)
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:3.5.1'
+    debugImplementation 'androidx.fragment:fragment-testing:1.6.2'
+
+    // Test orchestrator — isolates crashes per test so one failure doesn't kill the suite
+    androidTestUtil 'androidx.test:orchestrator:1.4.2'
 }
 
 // Task to check APK after build

@@ -939,6 +939,24 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 3 }}
 
+      # Run Robolectric unit tests (JVM, fast, no device needed)
+      - name: Run unit tests (Robolectric)
+        if: success()
+        run: |
+          cd android
+          ./gradlew testDebugUnitTest --no-daemon -x lint
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: |
+            android/app/build/reports/tests/testDebugUnitTest/
+            android/app/build/test-results/testDebugUnitTest/
+          if-no-files-found: warn
+          retention-days: 14
+
       # v58: Build debug + androidTest APKs for Firebase Test Lab instrumentation
       - name: Build Debug + AndroidTest APKs for Test Lab
         if: success()
@@ -1106,7 +1124,7 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Run instrumentation tests on emulator
+      - name: Run instrumentation tests on emulator (Orchestrator + Coverage)
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
@@ -1116,14 +1134,20 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: |
-            cd android && ./gradlew connectedDebugAndroidTest --no-daemon -x lint
+            cd android
+            # Orchestrator isolates crashes per test so one failure doesn't kill the suite
+            ./gradlew connectedDebugAndroidTest --no-daemon -x lint \
+              -Pandroid.testInstrumentationRunnerArguments.clearPackageData=true \
+              -Pandroid.testInstrumentationRunnerArguments.useTestStorageService=true
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: espresso-results-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
-          path: android/app/build/outputs/androidTest-results/connected/
+          path: |
+            android/app/build/outputs/androidTest-results/connected/
+            android/app/build/reports/androidTests/connected/
           if-no-files-found: warn
           retention-days: 14
 
