@@ -24,41 +24,42 @@ class ConsentManagerUnitTest {
 
     @Test
     fun constructionDoesNotCrash() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
+        val request = mgr.buildAdRequest()
         assertTrue(
-            "ConsentManager should construct without crash",
-            mgr.buildAdRequest() != null
+            "ConsentManager should construct and buildAdRequest should return an AdRequest",
+            request.javaClass.name.contains("AdRequest")
         )
     }
 
     @Test
     fun isConsentAvailableReturnsBoolean() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
         // Returns whatever the UMP SDK says; we just verify it doesn't crash
         val available = mgr.isConsentAvailable()
         // Result depends on UMP initialization state in test environment
         assertTrue(
             "isConsentAvailable should return a boolean without crash",
-            available || !available
+            available == true || available == false
         )
     }
 
     @Test
     fun buildAdRequestDoesNotCrash() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
         val request = mgr.buildAdRequest()
         assertTrue(
             "buildAdRequest should return an AdRequest",
-            request != null
+            request.javaClass.name.contains("AdRequest")
         )
     }
 
     @Test
     fun requestConsentDoesNotCrashWhenActivityValid() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
 
@@ -79,18 +80,19 @@ class ConsentManagerUnitTest {
 
     @Test
     fun resetConsentDoesNotCrash() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
         mgr.resetConsent()
+        val request = mgr.buildAdRequest()
         assertTrue(
-            "resetConsent should complete without crash",
-            mgr.buildAdRequest() != null
+            "resetConsent should complete and buildAdRequest should return an AdRequest",
+            request.javaClass.name.contains("AdRequest")
         )
     }
 
     @Test
     fun doubleRequestConsentIsIgnored() {
-        val context = ApplicationProvider.getApplicationContext()
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val mgr = ConsentManager(context)
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
 

@@ -57,12 +57,12 @@ class AppOpenAdManagerUnitTest {
         // We verify by calling showAdIfAvailable directly — it won't show because
         // hasEnteredBackground is false inside onStart, but showAdIfAvailable
         // itself doesn't check hasEnteredBackground.
-        // Instead we verify the onStart logic directly:
-        val owner = androidx.lifecycle.LifecycleOwner { androidx.lifecycle.LifecycleRegistry(this) }
+        // Instead we verify the onStart logic directly using MainActivity as LifecycleOwner:
+        val owner: androidx.lifecycle.LifecycleOwner = activity
         mgr.onStart(owner)
         assertTrue(
             "Cold start should skip App Open ad without crash",
-            mgr.isDestroyed || !mgr.isShowingAd
+            !mgr.isShowingAd
         )
         mgr.cleanup()
     }
@@ -154,8 +154,7 @@ class AppOpenAdManagerUnitTest {
     @Test
     fun lifecycleCallbacksDoNotCrash() {
         val mgr = AppOpenAdManager(activity) { null }
-        val registry = androidx.lifecycle.LifecycleRegistry(androidx.lifecycle.LifecycleOwner { androidx.lifecycle.LifecycleRegistry(this) })
-        val owner = androidx.lifecycle.LifecycleOwner { registry }
+        val owner: androidx.lifecycle.LifecycleOwner = activity
 
         mgr.onStop(owner)
         mgr.onStart(owner)
