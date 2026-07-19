@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "screenWidth": 1080,
+  "screenHeight": 1920,
+  "orientation": "portrait",
+  "steps": [
+    {
+      "description": "Wait for app to load",
+      "delay": 5000
+    },
+    {
+      "description": "Tap center of screen (placeholder for web-team calibrated flow)",
+      "tap": {
+        "x": 540,
+        "y": 960
+      }
+    },
+    {
+      "description": "Wait for rewarded ad to appear",
+      "delay": 3000
+    }
+  ]
+}

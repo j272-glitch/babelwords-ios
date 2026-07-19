@@ -939,6 +939,33 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 3 }}
 
+      # v58: Build debug + androidTest APKs for Firebase Test Lab instrumentation
+      - name: Build Debug + AndroidTest APKs for Test Lab
+        if: success()
+        run: |
+          cd android
+          ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon -x lint
+
+      - name: Upload Debug APK for Test Lab
+        if: success()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-debug-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 3
+
+      - name: Upload AndroidTest APK for Test Lab
+        if: success()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-androidtest-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 3
+
       - name: Upload Build Logs (On Failure)
         if: failure()
         uses: actions/upload-artifact@v4
@@ -1154,11 +1181,103 @@ jobs:
           gcloud firebase test android run \
             --type robo \
             --app "$APK" \
-            --device model=MediumPhone.arm,version=33,locale=en_US,orientation=portrait \
+            --device model=MediumPhone.arm,version=33,locale=en_IN,orientation=portrait \
             --timeout 180s \
             --record-video \
             --project "${{ secrets.GCP_PROJECT_ID }}" 2>&1 | tee firebase-run.log
           echo "gcloud exit handled; results parsed in next step."
+
+      # v58: Download debug + androidTest APKs (uploaded by build-android-aab job)
+      - name: Download Debug APK artifact
+        id: download_debug_apk
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-debug-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: debug-apk
+
+      - name: Download AndroidTest APK artifact
+        id: download_test_apk
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-androidtest-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: androidtest-apk
+
+      - name: Locate instrumentation APKs
+        id: download_instr
+        if: always()
+        run: |
+          DEBUG_APK=$(find debug-apk -name "*.apk" -type f 2>/dev/null | head -1 || echo "")
+          TEST_APK=$(find androidtest-apk -name "*.apk" -type f 2>/dev/null | head -1 || echo "")
+          if [ -n "$DEBUG_APK" ] && [ -n "$TEST_APK" ]; then
+            echo "✅ Debug APK: $DEBUG_APK"
+            echo "✅ Test APK: $TEST_APK"
+            echo "debug_apk=$DEBUG_APK" >> "$GITHUB_OUTPUT"
+            echo "test_apk=$TEST_APK" >> "$GITHUB_OUTPUT"
+          else
+            echo "⚠️ Instrumentation APKs missing — skipping gcloud --type instrumentation runs."
+            echo "debug_apk=" >> "$GITHUB_OUTPUT"
+            echo "test_apk=" >> "$GITHUB_OUTPUT"
+          fi
+
+      # v58: 7 gcloud instrumentation runs (deterministic, no network dependency)
+      - name: Run gcloud instrumentation tests
+        if: steps.download_instr.outputs.debug_apk != '' && steps.download_instr.outputs.test_apk != ''
+        continue-on-error: true
+        run: |
+          APP="${{ steps.download_instr.outputs.debug_apk }}"
+          TEST="${{ steps.download_instr.outputs.test_apk }}"
+          DEVICE="model=MediumPhone.arm,version=33,locale=en_IN,orientation=portrait"
+          PROJECT="${{ secrets.GCP_PROJECT_ID }}"
+
+          echo "=== Running 7 gcloud instrumentation runs ==="
+
+          # Run 1: AdMobManager state-machine guards
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AdMobManagerStateMachineTest" \
+            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee firebase-run-statemachine.log
+
+          # Run 2: AppOpenAdManager state-machine guards
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AppOpenAdManagerStateMachineTest" \
+            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-statemachine.log
+
+          # Run 3: Show telemetry markers
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AdMobBridgeShowTelemetryTest" \
+            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
+
+          # Run 4: isReady guards
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AdMobBridgeIsReadyTest" \
+            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
+
+          # Run 5: Analytics events
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AnalyticsEventTest" \
+            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
+
+          # Run 6: All ad state-machine tests together (advisory)
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AdMobManagerStateMachineTest,class com.babelwords.app.ads.AppOpenAdManagerStateMachineTest" \
+            --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
+
+          # Run 7: All telemetry tests together (advisory)
+          gcloud firebase test android run --type instrumentation \
+            --app "$APP" --test "$TEST" \
+            --test-targets "class com.babelwords.app.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.app.ads.AdMobBridgeIsReadyTest,class com.babelwords.app.ads.AnalyticsEventTest" \
+            --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
+
+          echo "=== All instrumentation runs complete ==="
 
       - name: Pull Logcat + video from results bucket
         if: always() && steps.locate_apk.outputs.apk != ''
