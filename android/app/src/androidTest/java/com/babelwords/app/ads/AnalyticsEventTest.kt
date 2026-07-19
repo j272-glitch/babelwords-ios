@@ -31,7 +31,10 @@ class AnalyticsEventTest {
         AnalyticsManager.logEvent("test_event")
         // If AnalyticsManager is not initialized, it logs a warning and returns
         // Either way, the call should not throw
-        assertTrue("logEvent should not crash", true)
+        assertTrue(
+            "logEvent should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -39,7 +42,10 @@ class AnalyticsEventTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         AnalyticsManager.init(context)
         AnalyticsManager.logScreenView("test_screen", "TestActivity")
-        assertTrue("logScreenView should not crash", true)
+        assertTrue(
+            "logScreenView should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -47,7 +53,10 @@ class AnalyticsEventTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         AnalyticsManager.init(context)
         AnalyticsManager.logAdImpression("ca-app-pub-test/123", "interstitial")
-        assertTrue("logAdImpression should not crash", true)
+        assertTrue(
+            "logAdImpression should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -55,7 +64,10 @@ class AnalyticsEventTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         AnalyticsManager.init(context)
         AnalyticsManager.logAdFailed("ca-app-pub-test/123", "timeout")
-        assertTrue("logAdFailed should not crash", true)
+        assertTrue(
+            "logAdFailed should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -67,7 +79,10 @@ class AnalyticsEventTest {
             consentManagerProvider = { null }
         )
         bridge.logEvent("bridge_test_event")
-        assertTrue("AdBridge.logEvent should delegate to AnalyticsManager without crash", true)
+        assertTrue(
+            "AdBridge.logEvent should delegate to AnalyticsManager without crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -75,7 +90,10 @@ class AnalyticsEventTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         AnalyticsManager.init(context)
         AnalyticsManager.logEvent("")
-        assertTrue("Empty event name should not crash", true)
+        assertTrue(
+            "Empty event name should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test
@@ -84,7 +102,10 @@ class AnalyticsEventTest {
         AnalyticsManager.init(context)
         val longEvent = "a".repeat(500)
         AnalyticsManager.logEvent(longEvent)
-        assertTrue("Long event name should not crash", true)
+        assertTrue(
+            "Long event name should not crash",
+            AnalyticsManager.isInitialized
+        )
     }
 
     @Test

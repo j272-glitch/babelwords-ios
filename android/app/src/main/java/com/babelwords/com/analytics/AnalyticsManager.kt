@@ -21,7 +21,7 @@ object AnalyticsManager {
     private var firebaseAnalytics: FirebaseAnalytics? = null
 
     @Volatile
-    private var isInitialized = false
+    internal var isInitialized = false
 
     /**
      * Initialise Firebase Analytics and Crashlytics.

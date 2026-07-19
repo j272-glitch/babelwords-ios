@@ -53,7 +53,13 @@ class AppOpenAdManagerStateMachineTest {
             // After cleanup, calling loadAd should be a no-op (isDestroyed=true)
             mgr.loadAd()
             // If loadAd silently returns (doesn't crash), cleanup worked
-            assertTrue("cleanup() should set isDestroyed and make loadAd a safe no-op", true)
+            // After cleanup, loadAd should return immediately (isDestroyed=true)
+            // If it didn't, it would try to start an ad load and potentially crash
+            mgr.loadAd()
+            assertTrue(
+                "cleanup() should make loadAd a safe no-op",
+                mgr.isDestroyed
+            )
         }
         scenario.close()
     }
@@ -68,7 +74,10 @@ class AppOpenAdManagerStateMachineTest {
             // Simulate cold start — should skip ad (hasEnteredBackground = false)
             mgr.loadAd()
             // loadAd returns early for cold start — no crash means guard works
-            assertTrue("Warm-resume gate (<5s) should not crash or hang", true)
+            assertTrue(
+                "Warm-resume gate (<5s) should not crash or hang",
+                !mgr.isShowingAd
+            )
             mgr.cleanup()
         }
         scenario.close()
@@ -86,7 +95,11 @@ class AppOpenAdManagerStateMachineTest {
             mgr.loadAd()
 
             // Frequency cap is active → loadAd should return early (no crash)
-            assertTrue("4h frequency cap should make loadAd a safe no-op", true)
+            // Verify the pref is still there (loadAd didn't clear it)
+            assertTrue(
+                "4h frequency cap should make loadAd a safe no-op",
+                prefs.getLong("app_open_last_show_ms", 0) > 0
+            )
             mgr.cleanup()
             prefs.edit().remove("app_open_last_show_ms").apply()
         }
@@ -99,15 +112,18 @@ class AppOpenAdManagerStateMachineTest {
         scenario.onActivity { activity ->
             val mgr = AppOpenAdManager(activity)
 
-            // Set mic active flag
-            activity.isMicActive = true
+            // Set mic active flag via public setter
+            activity.setMicState(true)
 
             // showAdIfAvailable should return early when mic is active
             mgr.showAdIfAvailable()
 
             // Verify the method does not crash (guard catches mic-active state)
-            assertTrue("Mic-active guard should make showAdIfAvailable a safe no-op", true)
-            activity.isMicActive = false
+            assertTrue(
+                "Mic-active guard should make showAdIfAvailable a safe no-op",
+                activity.isMicActive
+            )
+            activity.setMicState(false)
             mgr.cleanup()
         }
         scenario.close()
@@ -125,7 +141,11 @@ class AppOpenAdManagerStateMachineTest {
             // showAdIfAvailable should return early
             mgr.showAdIfAvailable()
 
-            assertTrue("Cross-manager guard should make showAdIfAvailable a safe no-op", true)
+            // Global flag should still be true because guard returned early before clearing it
+            assertTrue(
+                "Cross-manager guard should make showAdIfAvailable a safe no-op",
+                AdMobManager.isAnyFullscreenAdShowing
+            )
             AdMobManager.isAnyFullscreenAdShowing = false
             mgr.cleanup()
         }
@@ -143,7 +163,11 @@ class AppOpenAdManagerStateMachineTest {
             val mgr = AppOpenAdManager(activity)
             mgr.loadAd()
 
-            assertTrue("loadAd with active frequency cap should not crash", true)
+            // Pref should still exist because loadAd returned early under the cap
+            assertTrue(
+                "loadAd with active frequency cap should not crash",
+                prefs.getLong("app_open_last_show_ms", 0) > 0
+            )
             mgr.cleanup()
             prefs.edit().clear().apply()
         }
@@ -157,7 +181,11 @@ class AppOpenAdManagerStateMachineTest {
             val mgr = AppOpenAdManager(activity)
             // Exercise lifecycle via ProcessLifecycleOwner (cold-start skips, background/foreground)
             // Just verify construction and cleanup don't crash
-            assertTrue("Lifecycle callbacks should not crash", true)
+            // mgr.isShowingAd should be false initially
+            assertTrue(
+                "Lifecycle callbacks should not crash",
+                !mgr.isShowingAd
+            )
             mgr.cleanup()
         }
         scenario.close()
@@ -170,7 +198,10 @@ class AppOpenAdManagerStateMachineTest {
             val mgr = AppOpenAdManager(activity)
             // cleanup() calls restoreAudioMode() which sets MODE_IN_COMMUNICATION
             mgr.cleanup()
-            assertTrue("cleanup() should call restoreAudioMode safely", true)
+            assertTrue(
+                "cleanup() should call restoreAudioMode safely",
+                mgr.isDestroyed
+            )
         }
         scenario.close()
     }

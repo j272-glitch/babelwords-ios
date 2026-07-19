@@ -30,7 +30,10 @@ class AdBridgeUnitTest {
             adMobManagerProvider = { null },
             consentManagerProvider = { null }
         )
-        assertTrue("AdBridge should construct with null providers", true)
+        assertTrue(
+            "AdBridge should construct with null providers",
+            bridge.isInitialized() == false
+        )
     }
 
     @Test
@@ -43,7 +46,10 @@ class AdBridgeUnitTest {
         )
         // Should not crash even with null manager
         bridge.initialize()
-        assertTrue("initialize with null manager should not crash", true)
+        assertTrue(
+            "initialize with null manager should not crash",
+            bridge.isInitialized() == false
+        )
     }
 
     @Test
@@ -56,7 +62,10 @@ class AdBridgeUnitTest {
         )
         bridge.showInterstitial()
         // The bridge fires "interstitialFailed" with "manager_not_ready" when manager is null
-        assertTrue("showInterstitial with null manager should signal failure", true)
+        assertTrue(
+            "showInterstitial with null manager should signal failure",
+            bridge.isInterstitialReady() == false
+        )
     }
 
     @Test
@@ -107,12 +116,20 @@ class AdBridgeUnitTest {
     }
 
     @Test
-    fun notifyMicActiveDelegatesToActivity() {
-        val context = ApplicationProvider.getApplicationContext()
-        // We need a MainActivity for mic state delegation
-        // In a pure unit test, we can't easily construct MainActivity without its layout
-        // This test documents the contract
-        assertTrue("notifyMicActive should delegate to MainActivity.setMicState", true)
+    fun notifyMicActiveDoesNotCrash() {
+        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
+        val bridge = AdBridge(
+            activity = activity,
+            adMobManagerProvider = { null },
+            consentManagerProvider = { null }
+        )
+        // notifyMicActive casts activity to MainActivity; with plain Activity it returns silently
+        bridge.notifyMicActive(true)
+        bridge.notifyMicActive(false)
+        assertTrue(
+            "notifyMicActive should not crash even with plain Activity",
+            bridge.isInitialized() == false
+        )
     }
 
     @Test
@@ -124,7 +141,10 @@ class AdBridgeUnitTest {
             consentManagerProvider = { null }
         )
         bridge.loadInterstitialAndShow()
-        assertTrue("loadInterstitialAndShow with null manager should signal failure", true)
+        assertTrue(
+            "loadInterstitialAndShow with null manager should signal failure",
+            bridge.isInterstitialReady() == false
+        )
     }
 
     @Test
@@ -136,7 +156,10 @@ class AdBridgeUnitTest {
             consentManagerProvider = { null }
         )
         bridge.showRewarded()
-        assertTrue("showRewarded with null manager should signal failure", true)
+        assertTrue(
+            "showRewarded with null manager should signal failure",
+            bridge.isRewardedReady() == false
+        )
     }
 
     @Test
@@ -148,7 +171,10 @@ class AdBridgeUnitTest {
             consentManagerProvider = { null }
         )
         bridge.logEvent("test_event")
-        assertTrue("logEvent should not crash", true)
+        assertTrue(
+            "logEvent should not crash",
+            bridge.isInitialized() == false
+        )
     }
 
     @Test
@@ -178,6 +204,9 @@ class AdBridgeUnitTest {
         bridge.notifyMicActive(true)
         bridge.notifyMicActive(false)
 
-        assertTrue("All public methods should be callable without crash", true)
+        assertTrue(
+            "All public methods should be callable without crash",
+            bridge.isInitialized() == false
+        )
     }
 }

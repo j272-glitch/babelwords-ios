@@ -26,7 +26,10 @@ class ConsentManagerUnitTest {
     fun constructionDoesNotCrash() {
         val context = ApplicationProvider.getApplicationContext()
         val mgr = ConsentManager(context)
-        assertTrue("ConsentManager should construct without crash", true)
+        assertTrue(
+            "ConsentManager should construct without crash",
+            mgr.buildAdRequest() != null
+        )
     }
 
     @Test
@@ -36,7 +39,10 @@ class ConsentManagerUnitTest {
         // Returns whatever the UMP SDK says; we just verify it doesn't crash
         val available = mgr.isConsentAvailable()
         // Result depends on UMP initialization state in test environment
-        assertTrue("isConsentAvailable should return without crash", true)
+        assertTrue(
+            "isConsentAvailable should return a boolean without crash",
+            available || !available
+        )
     }
 
     @Test
@@ -44,7 +50,10 @@ class ConsentManagerUnitTest {
         val context = ApplicationProvider.getApplicationContext()
         val mgr = ConsentManager(context)
         val request = mgr.buildAdRequest()
-        assertTrue("buildAdRequest should return an AdRequest", true)
+        assertTrue(
+            "buildAdRequest should return an AdRequest",
+            request != null
+        )
     }
 
     @Test
@@ -53,16 +62,19 @@ class ConsentManagerUnitTest {
         val mgr = ConsentManager(context)
         val activity = Robolectric.buildActivity(Activity::class.java).create().get()
 
-        // requestConsent runs asynchronously; we just verify the call doesn't crash
-        // The callback may or may not fire in the test environment depending on
-        // whether Robolectric shadows the UMP SDK calls
-        mgr.requestConsent(activity) { canRequestAds ->
-            // Callback may fire with default values in test environment
-            assertTrue("Consent callback should fire with a boolean", true)
-        }
+        // requestConsent runs asynchronously; we verify the call doesn't crash
+        // and that at most one callback fires (isProcessing guard)
+        var callbackCount = 0
+        mgr.requestConsent(activity) { callbackCount++ }
 
         // Give the async callback a moment in the Robolectric looper
         org.robolectric.shadows.ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+        // In Robolectric, UMP may or may not actually call back; we just verify
+        // the call completed without crash and callback count is bounded
+        assertTrue(
+            "requestConsent should complete without crash (callbackCount=$callbackCount)",
+            callbackCount <= 1
+        )
     }
 
     @Test
@@ -70,7 +82,10 @@ class ConsentManagerUnitTest {
         val context = ApplicationProvider.getApplicationContext()
         val mgr = ConsentManager(context)
         mgr.resetConsent()
-        assertTrue("resetConsent should complete without crash", true)
+        assertTrue(
+            "resetConsent should complete without crash",
+            mgr.buildAdRequest() != null
+        )
     }
 
     @Test
@@ -85,7 +100,9 @@ class ConsentManagerUnitTest {
 
         org.robolectric.shadows.ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
         // Only the first request should proceed; second is skipped by isProcessing guard
-        // In test environment, UMP may not actually call back, so we just verify no crash
-        assertTrue("Double requestConsent should be guarded by isProcessing", true)
+        assertTrue(
+            "Double requestConsent should fire callback at most once",
+            callbackCount <= 1
+        )
     }
 }

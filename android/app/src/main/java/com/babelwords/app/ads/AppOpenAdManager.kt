@@ -51,11 +51,11 @@ class AppOpenAdManager(
     }
 
     @Volatile
-    private var isDestroyed = false
+    internal var isDestroyed = false
 
     private var appOpenAd: AppOpenAd? = null
     private var isLoading = false
-    private var isShowingAd = false
+    internal var isShowingAd = false
     private var loadStartTime = 0L
     private var lastBackgroundTime = 0L
     @Volatile

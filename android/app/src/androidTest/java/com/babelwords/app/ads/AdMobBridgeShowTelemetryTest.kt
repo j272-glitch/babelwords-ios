@@ -67,7 +67,12 @@ class AdMobBridgeShowTelemetryTest {
 
         // showInterstitial should not crash with null manager
         bridge.showInterstitial()
-        assertTrue("showInterstitial with null manager should not crash", true)
+        // Verify diagnostics JSON captured the call attempt
+        val postJson = bridge.getDiagnostics()
+        assertTrue(
+            "showInterstitial with null manager should log in diagnostics",
+            postJson.contains("interstitialReady")
+        )
     }
 
     @Test
@@ -89,7 +94,11 @@ class AdMobBridgeShowTelemetryTest {
 
         // loadInterstitialAndShow should not crash with null manager
         bridge.loadInterstitialAndShow()
-        assertTrue("loadInterstitialAndShow with null manager should not crash", true)
+        val postJson = bridge.getDiagnostics()
+        assertTrue(
+            "loadInterstitialAndShow with null manager should log in diagnostics",
+            postJson.contains("interstitialReady")
+        )
     }
 
     @Test
@@ -111,7 +120,11 @@ class AdMobBridgeShowTelemetryTest {
 
         // showRewarded should not crash with null manager
         bridge.showRewarded()
-        assertTrue("showRewarded with null manager should not crash", true)
+        val postJson = bridge.getDiagnostics()
+        assertTrue(
+            "showRewarded with null manager should log in diagnostics",
+            postJson.contains("rewardedReady")
+        )
     }
 
     @Test

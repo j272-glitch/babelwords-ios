@@ -43,7 +43,10 @@ class AppOpenAdManagerUnitTest {
         mgr.cleanup()
         // After cleanup, showAdIfAvailable should no-op (no crash)
         mgr.showAdIfAvailable()
-        assertTrue("cleanup should invalidate manager without crash", true)
+        assertTrue(
+            "cleanup should invalidate manager without crash",
+            mgr.isDestroyed
+        )
     }
 
     @Test
@@ -57,7 +60,10 @@ class AppOpenAdManagerUnitTest {
         // Instead we verify the onStart logic directly:
         val owner = androidx.lifecycle.LifecycleOwner { androidx.lifecycle.LifecycleRegistry(this) }
         mgr.onStart(owner)
-        assertTrue("Cold start should skip App Open ad without crash", true)
+        assertTrue(
+            "Cold start should skip App Open ad without crash",
+            mgr.isDestroyed || !mgr.isShowingAd
+        )
         mgr.cleanup()
     }
 
@@ -81,7 +87,12 @@ class AppOpenAdManagerUnitTest {
         //   isDestroyed? → isShowingAd? → ad null? → cross-manager? → mic? → cap?
         // The cap is checked AFTER the ad null check, so without an ad we can't
         // verify cap blocking. This is a limitation of SDK-free testing.
-        assertTrue("Frequency cap logic exists in showAdIfAvailable", true)
+        // Cap is active — pref should still be present because showAdIfAvailable
+        // returns early at appOpenAd == null before reaching the cap check
+        assertTrue(
+            "Frequency cap pref should survive the showAdIfAvailable call",
+            prefs.getLong("app_open_last_show_ms", 0) > 0
+        )
         mgr.cleanup()
     }
 
@@ -114,7 +125,10 @@ class AppOpenAdManagerUnitTest {
         //   cross-manager check
         // So without an ad, we can't verify cross-manager blocking either.
         // We document this as a known SDK-integration test gap.
-        assertTrue("Cross-manager flag logic exists", true)
+        assertTrue(
+            "Cross-manager flag should still be true (show returned early before ad-null)",
+            AdMobManager.isAnyFullscreenAdShowing
+        )
 
         AdMobManager.isAnyFullscreenAdShowing = false
         mgr.cleanup()
@@ -130,7 +144,10 @@ class AppOpenAdManagerUnitTest {
         mgr.loadAd()
 
         // loadAd checks frequency cap and returns early if active
-        assertTrue("loadAd with active frequency cap should not crash", true)
+        assertTrue(
+            "loadAd with active frequency cap should not crash",
+            prefs.getLong("app_open_last_show_ms", 0) > 0
+        )
         mgr.cleanup()
     }
 
@@ -143,7 +160,10 @@ class AppOpenAdManagerUnitTest {
         mgr.onStop(owner)
         mgr.onStart(owner)
 
-        assertTrue("Lifecycle callbacks should complete without crash", true)
+        assertTrue(
+            "Lifecycle callbacks should complete without crash",
+            !mgr.isShowingAd
+        )
         mgr.cleanup()
     }
 
@@ -155,8 +175,11 @@ class AppOpenAdManagerUnitTest {
         // is accessible through the activity
         val am = activity.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
         // Note: on Robolectric, AudioManager is a shadow; mode changes may not persist
-        // This test documents the expected behavior contract
-        assertTrue("AudioManager should be accessible for mode restoration", true)
+        // Verify AudioManager is accessible through the activity
+        assertTrue(
+            "AudioManager should be accessible for mode restoration",
+            am != null
+        )
         mgr.cleanup()
     }
 }

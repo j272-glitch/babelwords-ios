@@ -121,7 +121,10 @@ class AdMobManagerUnitTest {
 
         // Should not throw even when pendingShow is false and wasBackgrounded is false
         mgr.onActivityResumed(activity)
-        assertTrue("onActivityResumed should complete without crash", true)
+        assertTrue(
+            "onActivityResumed should complete without crash",
+            mgr.isInitialized()
+        )
 
         mgr.destroy()
     }
@@ -130,7 +133,10 @@ class AdMobManagerUnitTest {
     fun onActivityPausedDoesNotCrash() {
         val mgr = AdMobManager(context, ::eventCallback)
         mgr.onActivityPaused()
-        assertTrue("onActivityPaused should complete without crash", true)
+        assertTrue(
+            "onActivityPaused should complete without crash",
+            mgr.isInitialized()
+        )
         mgr.destroy()
     }
 
@@ -166,7 +172,10 @@ class AdMobManagerUnitTest {
         val mgr = AdMobManager(context, ::eventCallback)
         mgr.registerNetworkCallback()
         mgr.unregisterNetworkCallback()
-        assertTrue("Network callback register/unregister should complete", true)
+        assertTrue(
+            "Network callback register/unregister should complete",
+            mgr.isInitialized()
+        )
         mgr.destroy()
     }
 }
