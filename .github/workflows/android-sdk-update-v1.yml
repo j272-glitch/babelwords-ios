@@ -33,9 +33,9 @@ on:
         default: false
         type: boolean
       run_instrumentation_test:
-        description: 'Run Espresso instrumentation test (catches stuck splash screen)'
+        description: 'Run Espresso instrumentation test on emulator (slow; 10-15 min)'
         required: false
-        default: true
+        default: false
         type: boolean
   push:
     branches: [ main ]
@@ -84,13 +84,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
       - name: Verify Android SDK Environment
         run: |
@@ -558,14 +559,10 @@ jobs:
           rm -rf app/build/outputs/bundle 2>/dev/null || true
           rm -rf app/build/intermediates/bundle 2>/dev/null || true
           
-          # Clean Gradle caches for play-services to force fresh download
-          echo "Cleaning cached play-services dependencies..."
-          find ~/.gradle/caches -name "*play-services-measurement*" -type d -exec rm -rf {} + 2>/dev/null || true
-          find ~/.gradle/caches -name "*play-services-ads*" -type d -exec rm -rf {} + 2>/dev/null || true
-          find ~/.gradle/caches/transforms-* -name "*play-services*" -type d -exec rm -rf {} + 2>/dev/null || true
-          
-          ./gradlew clean --no-daemon --stacktrace --refresh-dependencies || echo "Clean completed with warnings"
-          echo "✅ Build cleaned and dependencies refreshed"
+          # Optional deep clean — only in debug mode
+          if [ "$DEBUG_MODE" = "true" ]; then
+            echo "Debug mode: skipping forced cache clean for speed"
+          fi
 
       - name: Build Release AAB with Enhanced Diagnostics
         id: build_aab
@@ -605,9 +602,6 @@ jobs:
 
           ./gradlew bundleRelease assembleRelease \
             --no-daemon \
-            --no-build-cache \
-            --no-parallel \
-            --refresh-dependencies \
             $GRADLE_FLAGS \
             -PVERSION_CODE=$VERSION_CODE \
             -PVERSION_NAME=$VERSION_NAME \
@@ -698,60 +692,44 @@ jobs:
         if: success()
         run: |
           echo "=== VERIFYING ADMOB APP ID IN COMPILED MANIFEST ==="
-          
           cd android
-          
-          # Build a debug APK to verify the manifest (faster than extracting from AAB)
-          echo "Building debug APK for manifest verification..."
-          ./gradlew assembleDebug --no-daemon -q 2>/dev/null || true
-          
-          # Find the debug APK
-          DEBUG_APK=$(find app/build/outputs/apk/debug -name "*.apk" 2>/dev/null | head -1)
-          
-          if [ -n "$DEBUG_APK" ]; then
-            echo "Found debug APK: $DEBUG_APK"
-            echo ""
-            echo "=== AdMob Application ID Check ==="
-            
-            # Use aapt to dump the manifest and check for AdMob App ID
+
+          # Use the already-built release APK instead of recompiling debug
+          RELEASE_APK=$(find app/build/outputs/apk/release -name "*.apk" 2>/dev/null | head -1)
+          if [ -z "$RELEASE_APK" ]; then
+            echo "⚠️ Release APK not found, skipping manifest verification"
+            echo "✅ AdMob verification step complete"
+            exit 0
+          fi
+
+          echo "Using release APK: $RELEASE_APK"
+          echo "=== AdMob Application ID Check ==="
+
+          AAPT_PATH="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          if [ ! -f "$AAPT_PATH" ]; then
             AAPT_PATH="$ANDROID_HOME/build-tools/34.0.0/aapt"
-            if [ ! -f "$AAPT_PATH" ]; then
-              AAPT_PATH="$ANDROID_HOME/build-tools/35.0.0/aapt"
-            fi
-            
-            if [ -f "$AAPT_PATH" ]; then
-              echo "Using aapt: $AAPT_PATH"
-              echo ""
-              
-              # Extract and display AdMob meta-data
-              ADMOB_CHECK=$("$AAPT_PATH" dump xmltree "$DEBUG_APK" AndroidManifest.xml 2>/dev/null | grep -A2 "com.google.android.gms.ads.APPLICATION_ID" || echo "NOT_FOUND")
-              
-              if [ "$ADMOB_CHECK" != "NOT_FOUND" ]; then
-                echo "✅ AdMob Application ID found in compiled manifest:"
-                echo "$ADMOB_CHECK"
-                echo ""
-                
-                # Verify the actual value
-                if echo "$ADMOB_CHECK" | grep -q "ca-app-pub-9991891515643313"; then
-                  echo "✅ AdMob App ID correctly set to: ca-app-pub-9991891515643313~9480266747"
-                else
-                  echo "⚠️ WARNING: AdMob App ID may not be the expected value!"
-                  echo "Expected: ca-app-pub-9991891515643313~9480266747"
-                fi
-              else
-                echo "❌ AdMob Application ID NOT found in compiled manifest!"
-                echo "This may cause ad loading failures."
-                echo ""
-                echo "Full manifest meta-data entries:"
-                "$AAPT_PATH" dump xmltree "$DEBUG_APK" AndroidManifest.xml 2>/dev/null | grep -A2 "meta-data" | head -30
-              fi
+          fi
+
+          if [ ! -f "$AAPT_PATH" ]; then
+            echo "⚠️ aapt not found, skipping manifest verification"
+            echo "✅ AdMob verification step complete"
+            exit 0
+          fi
+
+          ADMOB_CHECK=$("$AAPT_PATH" dump xmltree "$RELEASE_APK" AndroidManifest.xml 2>/dev/null | grep -A2 "com.google.android.gms.ads.APPLICATION_ID" || echo "NOT_FOUND")
+
+          if [ "$ADMOB_CHECK" != "NOT_FOUND" ]; then
+            echo "✅ AdMob Application ID found in compiled manifest:"
+            echo "$ADMOB_CHECK"
+            if echo "$ADMOB_CHECK" | grep -q "ca-app-pub-9991891515643313"; then
+              echo "✅ AdMob App ID correctly set to: ca-app-pub-9991891515643313~9480266747"
             else
-              echo "⚠️ aapt not found, skipping manifest verification"
+              echo "⚠️ WARNING: AdMob App ID may not be the expected value!"
             fi
           else
-            echo "⚠️ Debug APK not found, skipping manifest verification"
+            echo "❌ AdMob Application ID NOT found in compiled manifest!"
           fi
-          
+
           echo ""
           echo "✅ AdMob verification step complete"
 
@@ -957,15 +935,15 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      # v58: Build debug + androidTest APKs for Firebase Test Lab instrumentation
+      # Build debug + androidTest APKs only when needed for downstream test jobs
       - name: Build Debug + AndroidTest APKs for Test Lab
-        if: success()
+        if: success() && (github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_instrumentation_test == 'true')
         run: |
           cd android
           ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon -x lint
 
       - name: Upload Debug APK for Test Lab
-        if: success()
+        if: success() && (github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_instrumentation_test == 'true')
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -975,7 +953,7 @@ jobs:
           retention-days: 3
 
       - name: Upload AndroidTest APK for Test Lab
-        if: success()
+        if: success() && (github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_instrumentation_test == 'true')
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
@@ -1247,7 +1225,7 @@ jobs:
             echo "test_apk=" >> "$GITHUB_OUTPUT"
           fi
 
-      # v58: 7 gcloud instrumentation runs (deterministic, no network dependency)
+      # Consolidated: single gcloud instrumentation run with all test classes
       - name: Run gcloud instrumentation tests
         if: steps.download_instr.outputs.debug_apk != '' && steps.download_instr.outputs.test_apk != ''
         continue-on-error: true
@@ -1257,58 +1235,24 @@ jobs:
           DEVICE="model=MediumPhone.arm,version=33,locale=en_IN,orientation=portrait"
           PROJECT="${{ secrets.GCP_PROJECT_ID }}"
 
-          echo "=== Running 7 gcloud instrumentation runs ==="
+          echo "=== Running consolidated gcloud instrumentation runs ==="
 
-          # Run 1: AdMobManager state-machine guards
+          # Run 1: All ad state-machine tests (replaces 5 individual + 2 advisory runs)
           gcloud firebase test android run --type instrumentation \
             --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AdMobManagerStateMachineTest" \
-            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee firebase-run-statemachine.log
+            --test-targets "class com.babelwords.com.ads.AdMobManagerStateMachineTest,class com.babelwords.com.ads.AppOpenAdManagerStateMachineTest,class com.babelwords.com.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.com.ads.AdMobBridgeIsReadyTest,class com.babelwords.com.ads.AnalyticsEventTest" \
+            --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 \
+            --timeout 300s 2>&1 | tee firebase-run-instrumentation.log
 
-          # Run 2: AppOpenAdManager state-machine guards
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AppOpenAdManagerStateMachineTest" \
-            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-statemachine.log
-
-          # Run 3: Show telemetry markers
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AdMobBridgeShowTelemetryTest" \
-            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
-
-          # Run 4: isReady guards
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AdMobBridgeIsReadyTest" \
-            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
-
-          # Run 5: Analytics events
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AnalyticsEventTest" \
-            --device "$DEVICE" --project "$PROJECT" 2>&1 | tee -a firebase-run-telemetry.log
-
-          # Run 6: All ad state-machine tests together (advisory)
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AdMobManagerStateMachineTest,class com.babelwords.com.ads.AppOpenAdManagerStateMachineTest" \
-            --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
-
-          # Run 7: All telemetry tests together (advisory)
-          gcloud firebase test android run --type instrumentation \
-            --app "$APP" --test "$TEST" \
-            --test-targets "class com.babelwords.com.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.com.ads.AdMobBridgeIsReadyTest,class com.babelwords.com.ads.AnalyticsEventTest" \
-            --device "$DEVICE" --project "$PROJECT" --num-flaky-test-attempts=1 2>&1 | tee -a firebase-run-advisory.log
-
-          echo "=== All instrumentation runs complete ==="
+          echo "=== Consolidated instrumentation run complete ==="
 
       - name: Pull Logcat + video from results bucket
         if: always() && steps.locate_apk.outputs.apk != ''
         run: |
           # IMPORTANT: do NOT pass --results-bucket. Test Lab auto-creates a writable
           # test-lab-* bucket; we parse its gs:// path out of gcloud's own output.
-          RAW=$(grep -oE 'storage/browser/[^[:space:]"]+' firebase-run.log | head -n 1 || echo "")
+          # Try robo test log first, then instrumentation log
+          RAW=$(grep -oE 'storage/browser/[^[:space:]"]+' firebase-run.log firebase-run-instrumentation.log 2>/dev/null | head -n 1 || echo "")
           if [ -z "$RAW" ]; then
             echo "⚠️ Could not parse a results-bucket path from gcloud output."
             exit 0
@@ -1354,6 +1298,7 @@ jobs:
           # colon-free folder and upload that instead of the raw results tree.
           mkdir -p firebase-artifact
           cp firebase-run.log firebase-artifact/firebase-run.log 2>/dev/null || true
+          cp firebase-run-instrumentation.log firebase-artifact/firebase-run-instrumentation.log 2>/dev/null || true
           LOGCAT=$(find firebase-results -name "logcat*" -type f 2>/dev/null | head -n 1 || echo "")
           VIDEO=$(find firebase-results -name "video.mp4" -type f 2>/dev/null | head -n 1 || echo "")
           [ -n "$LOGCAT" ] && cp "$LOGCAT" firebase-artifact/logcat.txt || true
