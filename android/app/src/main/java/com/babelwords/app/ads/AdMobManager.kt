@@ -58,6 +58,8 @@ class AdMobManager(
         // Retry backoff: 5s → 60s
         private const val RETRY_INITIAL_MS = 5_000L
         private const val RETRY_MAX_MS = 60_000L
+        // v55: Max retry attempts to prevent infinite loops (especially in Robolectric tests)
+        private const val RETRY_MAX_COUNT = 10
 
         // Cross-manager: shared flag so AppOpenAdManager can avoid showing
         // when interstitial is already showing (and vice versa).
@@ -91,6 +93,7 @@ class AdMobManager(
     private var isActivityResumed = false
 
     // ==================== Retry / Timeout ====================
+    @Volatile
     private var retryCount = 0
     private val handler = Handler(Looper.getMainLooper())
     private var retryRunnable: Runnable? = null
@@ -279,7 +282,7 @@ class AdMobManager(
                     interstitialAd = ad
                     loadTime = System.currentTimeMillis()
                     isLoading.set(false)
-                    retryCount = 0
+                    retryCount = 0  // Reset on success
                     ad.fullScreenContentCallback = buildCallback(expectedSession)
                     eventCallback("interstitialLoaded", null)
 
@@ -358,6 +361,13 @@ class AdMobManager(
 
     // ==================== Retry ====================
     private fun scheduleRetry(delayMs: Long, expectedSession: Long) {
+        retryCount++
+        if (retryCount > RETRY_MAX_COUNT) {
+            Log.w(TAG, "Retry limit reached ($RETRY_MAX_COUNT) — giving up")
+            eventCallback("interstitialFailed", "retry_limit_reached")
+            isLoading.set(false)
+            return
+        }
         retryRunnable?.let { handler.removeCallbacks(it) }
         val runnable = Runnable {
             if (!isDestroyed && sessionId.get() == expectedSession) {
@@ -366,7 +376,7 @@ class AdMobManager(
         }
         retryRunnable = runnable
         handler.postDelayed(runnable, delayMs)
-        Log.d(TAG, "Retrying interstitial load in ${delayMs}ms (attempt $retryCount)")
+        Log.d(TAG, "Retrying interstitial load in ${delayMs}ms (attempt $retryCount/$RETRY_MAX_COUNT)")
     }
 
     fun cancelRetries() {

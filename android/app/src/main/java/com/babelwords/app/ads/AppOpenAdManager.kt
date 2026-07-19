@@ -48,6 +48,8 @@ class AppOpenAdManager(
         private const val RETRY_NO_FILL_MS = 60_000L
         private const val RETRY_TIMEOUT_MS = 20_000L
         private const val RETRY_NETWORK_MS = 15_000L
+        // v55: Max retry attempts to prevent infinite loops (especially in Robolectric tests)
+        private const val RETRY_MAX_COUNT = 10
     }
 
     @Volatile
@@ -56,6 +58,7 @@ class AppOpenAdManager(
     private var appOpenAd: AppOpenAd? = null
     private var isLoading = false
     internal var isShowingAd = false
+    private var retryCount = 0
     private var loadStartTime = 0L
     private var lastBackgroundTime = 0L
     @Volatile
@@ -146,6 +149,7 @@ class AppOpenAdManager(
                     Log.d(TAG, "✅ App Open ad loaded")
                     appOpenAd = ad
                     isLoading = false
+                    retryCount = 0  // Reset on success
                     ad.fullScreenContentCallback = buildCallback()
                 }
                 override fun onAdFailedToLoad(error: LoadAdError) {
@@ -232,11 +236,16 @@ class AppOpenAdManager(
 
     // ==================== Retry ====================
     private fun scheduleRetry(delayMs: Long) {
+        retryCount++
+        if (retryCount > RETRY_MAX_COUNT) {
+            Log.w(TAG, "Retry limit reached ($RETRY_MAX_COUNT) — giving up")
+            return
+        }
         retryRunnable?.let { handler.removeCallbacks(it) }
         val runnable = Runnable { loadAd() }
         retryRunnable = runnable
         handler.postDelayed(runnable, delayMs)
-        Log.d(TAG, "Retrying App Open load in ${delayMs}ms")
+        Log.d(TAG, "Retrying App Open load in ${delayMs}ms (attempt $retryCount/$RETRY_MAX_COUNT)")
     }
 
     // ==================== Audio ====================
