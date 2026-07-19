@@ -314,12 +314,6 @@ class AdMobManager(
                         error.code == 3 -> 30_000L
                         else -> RETRY_INITIAL_MS
                     }
-                    retryCount++
-                    if (retryCount > 5) {
-                        retryCount = 0
-                        Log.w(TAG, "Retry exhausted after 5 attempts")
-                        return
-                    }
                     scheduleRetry(delay, expectedSession)
                 }
             }

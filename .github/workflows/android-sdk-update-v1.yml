@@ -858,30 +858,35 @@ jobs:
         id: build_outputs
         run: |
           echo "=== COLLECTING BUILD OUTPUTS ==="
-          
+
+          # Use actual job outcome for status (not just AAB existence)
+          JOB_STATUS="${{ job.status }}"
+          if [ "$JOB_STATUS" = "failure" ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT
+            # Try to extract error summary from build log
+            if [ -f android/build-output.log ]; then
+              ERROR_SUMMARY=$(grep -i "error\|failed" android/build-output.log | grep -v "Error Prone" | head -1 || echo "Unknown build error")
+              echo "error_summary=$ERROR_SUMMARY" >> $GITHUB_OUTPUT
+            else
+              echo "error_summary=Build failed - see job logs" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "error_summary=Build successful" >> $GITHUB_OUTPUT
+          fi
+
           # Search for AAB in android/app/build/outputs
           RELEASE_AAB=$(find android/app/build/outputs -name "*.aab" -type f 2>/dev/null | head -n 1 || echo "")
-          
+
           if [ -n "$RELEASE_AAB" ]; then
               # Copy AAB to a standardized BabelWords name and publish that path
               STD_AAB="android/app/build/outputs/bundle/release/babelwords-v${VERSION_NAME}-${VERSION_CODE}.aab"
               cp "$RELEASE_AAB" "$STD_AAB" 2>/dev/null || STD_AAB="$RELEASE_AAB"
               echo "✅ Found AAB: $STD_AAB"
               echo "release_aab=$STD_AAB" >> $GITHUB_OUTPUT
-              echo "status=success" >> $GITHUB_OUTPUT
-              echo "error_summary=Build successful" >> $GITHUB_OUTPUT
           else
               echo "❌ No AAB found"
               echo "release_aab=" >> $GITHUB_OUTPUT
-              echo "status=failed" >> $GITHUB_OUTPUT
-              
-              # Try to extract error summary
-              if [ -f android/build-output.log ]; then
-                ERROR_SUMMARY=$(grep -i "error\|failed" android/build-output.log | head -1 || echo "Unknown build error")
-                echo "error_summary=$ERROR_SUMMARY" >> $GITHUB_OUTPUT
-              else
-                echo "error_summary=Build failed - no output captured" >> $GITHUB_OUTPUT
-              fi
           fi
 
           # Search for release APK and publish a standardized BabelWords name
@@ -936,9 +941,16 @@ jobs:
           retention-days: 14
 
       # Build debug + androidTest APKs only when needed for downstream test jobs
-      - name: Build Debug + AndroidTest APKs for Test Lab
+      - name: Generate debug keystore + Build Debug + AndroidTest APKs for Test Lab
         if: success() && (github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_instrumentation_test == 'true')
         run: |
+          # GitHub Actions runners don't have the Android default debug.keystore.
+          # Gradle's default debug signing config looks for it at ~/.android/debug.keystore.
+          mkdir -p ~/.android
+          keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -storepass android -keypass android
           cd android
           ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon -x lint
 
