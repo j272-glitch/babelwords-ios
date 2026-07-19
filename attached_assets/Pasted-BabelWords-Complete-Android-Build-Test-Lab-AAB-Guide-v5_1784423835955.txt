@@ -1,0 +1,1180 @@
+BabelWords — Complete Android Build, Test Lab & AAB Guide (v58)
+
+**Based on:** LinguaVibe Android v58.0.0 production setup  
+**Date:** 2026-07-19  
+**Scope:** Everything needed to build, sign, test, and release a BabelWords Android app — from Gradle config through Firebase Test Lab instrumentation to Play Store AAB.
+
+---
+
+## Table of Contents
+
+1. [What This Gives You](#what-this-gives-you)
+2. [Prerequisites](#prerequisites)
+3. [Build Setup](#build-setup)
+4. [Step 1 — GitHub Secrets](#step-1--github-secrets)
+5. [Step 2 — GCP / Firebase Project Setup](#step-2--gcp--firebase-project-setup)
+6. [Step 3 — Register Test Device in AdMob](#step-3--register-test-device-in-admob)
+7. [Step 4 — Android Code Setup](#step-4--android-code-setup)
+8. [Step 5 — GitHub Actions Workflow](#step-5--github-actions-workflow)
+9. [Step 6 — Locale & Device Options](#step-6--locale--device-options)
+10. [Step 7 — Running the Workflow](#step-7--running-the-workflow)
+11. [Step 8 — Reading the Results](#step-8--reading-the-results)
+12. [Step 9 — Cost Estimate](#step-9--cost-estimate)
+13. [Troubleshooting](#troubleshooting)
+14. [Verification Checklist](#verification-checklist)
+15. [One-Time Keystore Generation](#one-time-keystore-generation)
+
+---
+
+## What This Gives You
+
+| Feature | Detail |
+|---------|--------|
+| Automated APK/AAB build | On every push, PR, or manual trigger |
+| Firebase Robo test | Auto-launches the app, records video + Logcat |
+| **Instrumentation tests** | **8 gcloud runs: 6 blocking gates + 2 advisory** |
+| **State-machine regression tests** | **Deterministic ad-manager guard coverage (no network)** |
+| Ad impression verification | CI fails if no ad impression found in Logcat |
+| Locale/device targeting | Configurable — default `en_IN` (Indian English) |
+| Signed release builds | Uses keystore stored in GitHub Secrets |
+| GitHub Releases | Auto-creates a release with APK/AAB attached |
+| **Debug + AndroidTest APKs** | **v58:** Uploaded as artifacts for instrumentation runs |
+| **Robo Script Template** | **v58:** Placeholder for web-team-calibrated rewarded-ad flow |
+
+**6 layers working together:**
+
+| Layer | File | What It Does |
+|---|---|---|
+| **Application** | `BabelWordsApplication.kt` | Detects Test Lab device → registers as AdMob test device → sets `isTestDeviceRegistrationActive` |
+| **Activity** | `MainActivity.kt` | Detects Test Lab + registration success → auto-shows interstitial when ready (bounded, 3 max attempts) |
+| **Preload Manager** | `AdPreloadManager.kt` | Preloads interstitial ad **only on Test Lab** (skip on real devices) |
+| **Ad Manager State Machines** | `InterstitialAdManager`, `RewardedAdManager`, `AppOpenAdManager` | Deterministic guard tests (no network); validates show/destroy/pendingShow/frequency-cap logic |
+| **CI Workflow** | `.github/workflows/babelwords-android-build.yml` | Builds release APK → runs Firebase Robo test + 8 gcloud instrumentation runs → scans Logcat for `IMPRESSION` → fails CI if missing |
+| **Robo Script Template** | `android/testlab/rewarded-ad-robo-script.json` | Placeholder for web-team-calibrated Robo script to reach rewarded ad flow |
+
+**Key safety principle:** Auto-show is gated on **TWO** conditions:
+1. `firebase.test.lab == "true"` (Test Lab device only — never real users)
+2. `isTestDeviceRegistrationActive == true` (test-device registration actually succeeded)
+
+If either is false, auto-show is suppressed. This prevents real ads from rendering on a Test Lab device (which would generate invalid traffic).
+
+---
+
+## Prerequisites
+
+| Item | Requirement |
+|------|-------------|
+| Android project | Must live inside an `android/` subdirectory at repo root |
+| AGP version | 8.0.2 (stable — do **not** use 8.1.x or higher without testing) |
+| Gradle | 8.x (wrapper in `android/gradle/wrapper/`) |
+| JDK | 17 |
+| Kotlin | **2.2.0** (required by play-services-ads 24.x, which ships Kotlin 2.x metadata) |
+| compileSdk / targetSdk | **34** (pre-installed on GitHub runners — avoids `android.jar` load failure) |
+| build-tools | 34.0.0 |
+
+---
+
+## Build Setup
+
+### gradle.properties — Safe Baseline
+
+```properties
+org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8
+org.gradle.daemon=true
+org.gradle.parallel=false
+org.gradle.caching=false
+
+android.useAndroidX=true
+android.enableJetifier=true
+android.nonTransitiveRClass=false
+android.nonFinalResIds=false
+
+android.suppressUnsupportedCompileSdk=34
+android.suppressUnsupportedOptionWarnings=android.enableR8,android.enableR8.fullMode,android.enableResourceOptimizations,android.enableProguard
+```
+
+**Do NOT include** these deprecated properties — they cause build failures with AGP 8.0+:
+- `android.enableIncrementalDesugaring`
+- `android.r8.failOnMissingClasses`
+- `android.enableNewResourceShrinker`
+- `android.enableAapt2`
+- `android.bundle.enableUncompressedNativeLibs`
+
+### android/build.gradle — SDK Version Block
+
+```groovy
+ext {
+    agp_version = '8.0.2'
+    kotlin_version = '2.2.0'   // Required by play-services-ads 24.x (Kotlin 2.x metadata)
+
+    compile_sdk = 34   // Must be 34 — 35 causes android.jar load failure on runners
+    min_sdk = 24
+    target_sdk = 34
+    build_tools_version = '34.0.0'
+}
+```
+
+### android/app/build.gradle — Debug BuildType + BuildConfig
+
+Add the **debug** buildType (required for instrumentation tests):
+
+```gradle
+buildTypes {
+    debug {
+        minifyEnabled false
+        buildConfigField "boolean", "ENABLE_LOGGING", "true"
+        buildConfigField "boolean", "ALLOW_CLEARTEXT", "true"
+    }
+    release {
+        minifyEnabled false
+        shrinkResources false
+        signingConfig signingConfigs.release
+    }
+}
+```
+
+Add this inside **`defaultConfig`** (NOT inside `buildTypes`):
+
+```gradle
+// Default false = safe (test creatives). CI can override via Gradle property:
+// ./gradlew assembleRelease -PREAL_ADS_ON_TEST_LAB=true
+buildConfigField "boolean", "REAL_ADS_ON_TEST_LAB", "${project.hasProperty('REAL_ADS_ON_TEST_LAB') ? project.getProperty('REAL_ADS_ON_TEST_LAB') : 'false'}"
+```
+
+---
+
+## Step 1 — GitHub Secrets
+
+Add all of these in your repo: **Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret name | What it is |
+|-------------|-----------|
+| `GCP_SA_KEY` | Base64-encoded GCP service account JSON key |
+| `GCP_PROJECT_ID` | Your GCP project ID (e.g., `babelwords-123456`) |
+| `ANDROID_KEYSTORE_BASE64` | Base64-encoded release keystore file |
+| `ANDROID_KEYSTORE_PASSWORD` | Keystore password |
+| `ANDROID_KEY_ALIAS` | Key alias inside the keystore |
+| `ANDROID_KEY_PASSWORD` | Key password |
+
+### Generate a release keystore (first time only)
+
+```bash
+keytool -genkey -v \
+  -keystore babelwords-release.jks \
+  -alias babelwords \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 36500 \
+  -dname "CN=BabelWords, OU=Mobile, O=YourCompany, L=City, S=State, C=US"
+```
+
+Then base64-encode it:
+
+```bash
+base64 -w 0 babelwords-release.jks
+```
+
+---
+
+## Step 2 — GCP / Firebase Project Setup
+
+### 2a. Create a Firebase project
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Create a new project (or use an existing one)
+3. Upgrade to **Blaze plan** (pay-as-you-go) — required for Firebase Test Lab
+4. Register your Android app in the project
+
+### 2b. Enable Firebase Test Lab
+
+Firebase Test Lab is enabled automatically on Blaze. No extra step needed.
+
+### 2c. Create a GCP Service Account
+
+Firebase Test Lab is called via the `gcloud` CLI, which needs a service account.
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) → IAM & Admin → Service Accounts
+2. Click **Create Service Account**
+   - Name: `babelwords-ci`
+   - Description: GitHub Actions CI for BabelWords
+3. Grant these roles:
+   - `Firebase Test Lab Admin` — runs tests
+   - `Storage Admin` — reads results from the auto-created bucket
+   - `Editor` (or `Cloud Testing Admin` + `Storage Object Admin` for narrower scope)
+4. Click **Done**, then open the service account
+5. Keys tab → **Add Key** → JSON → Download the key file
+6. Base64-encode it:
+   ```bash
+   base64 -w 0 babelwords-ci-key.json
+   ```
+7. Copy the output — this becomes the `GCP_SA_KEY` GitHub Secret
+
+### 2d. Note your GCP Project ID
+
+Find it in the GCP console header (e.g., `babelwords-123456`). This becomes `GCP_PROJECT_ID`.
+
+---
+
+## Step 3 — Register Test Device in AdMob
+
+**Critical:** Firebase Test Lab devices must be registered as AdMob test devices, or the CI will show **real ads** — which generates invalid traffic and can get your account suspended.
+
+1. Run your app on Firebase Test Lab once (without the impression verification gate)
+2. In Logcat, look for a line like:
+   ```
+   Use RequestConfiguration.Builder().setTestDeviceIds(Arrays.asList("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"))
+   ```
+3. Copy that device ID hash
+4. Go to AdMob → Settings → Test devices → Add test device
+5. Paste the hash
+
+In your Android code, add the registration in `BabelWordsApplication.kt`:
+
+```kotlin
+override fun onCreate() {
+    super.onCreate()
+    // Register Firebase Test Lab device as AdMob test device
+    val testDeviceIds = listOf("YOUR_TEST_DEVICE_HASH_HERE")
+    val config = RequestConfiguration.Builder()
+        .setTestDeviceIds(testDeviceIds)
+        .build()
+    MobileAds.setRequestConfiguration(config)
+
+    MobileAds.initialize(this) { }
+}
+```
+
+Log the registration so CI can detect it:
+
+```kotlin
+Log.d("BabelWords", "Firebase Test Lab detected — test-device registration applied")
+```
+
+---
+
+## Step 4 — Android Code Setup
+
+### Placeholder Map
+
+Replace these with your actual values before building:
+
+| Placeholder | Meaning | Example |
+|---|---|---|
+| `«BW_PACKAGE»` | Android package name | `com.example.babelwords` |
+| `«BW_Application»` | Application class name | `BabelWordsApplication` |
+| `«BW_MainActivity»` | MainActivity class name | `MainActivity` |
+| `«BW_AdPreloadManager»` | Ad preload manager class name | `AdPreloadManager` |
+| `«BW_AdMobBridge»` | AdMob bridge class name | `AdMobBridge` |
+| `«BW_workflow»` | GitHub Actions workflow file name | `babelwords-android-build` |
+| `«BW_APP_NAME»` | App name for artifacts / service accounts | `babelwords` |
+
+### Part A — Application-Level Test-Device Registration
+
+#### Add the `isTestDeviceRegistrationActive` flag to your Application class
+
+In `«BW_Application».kt`, add this to the `companion object`:
+
+```kotlin
+/**
+ * True ONLY after the AdMob test-device registration has SUCCESSFULLY applied on
+ * Firebase Test Lab. Auto-show must gate on this (not merely on Test Lab detection):
+ * if registration failed, we must NOT show ads, otherwise the run could render REAL
+ * creatives = invalid traffic. Fail-safe: prefer no impression over a risky impression.
+ */
+@Volatile
+var isTestDeviceRegistrationActive = false
+    private set
+```
+
+#### Add the registration function
+
+```kotlin
+import android.provider.Settings
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.MobileAds
+import com.google.android.gms.ads.RequestConfiguration
+
+private fun configureAdMobTestDeviceForTestLab() {
+    try {
+        val isTestLab = "true".equals(
+            Settings.System.getString(contentResolver, "firebase.test.lab"),
+            ignoreCase = true
+        )
+        if (!isTestLab) return
+
+        // Deliberate override: for a one-off real-fill verification, the CI can pass
+        // REAL_ADS_ON_TEST_LAB=true to skip the test-device registration. This makes
+        // Test Lab render REAL creatives on the production units. Use only briefly.
+        if (BuildConfig.REAL_ADS_ON_TEST_LAB) {
+            Log.w(TAG, "REAL_ADS_ON_TEST_LAB is true — Test Lab will use REAL creatives (not test). " +
+                    "This is a one-off fill check; do NOT leave enabled.")
+            isTestDeviceRegistrationActive = true
+            return
+        }
+
+        MobileAds.setRequestConfiguration(
+            RequestConfiguration.Builder()
+                .setTestDeviceIds(listOf(AdRequest.DEVICE_ID_EMULATOR))
+                .build()
+        )
+        isTestDeviceRegistrationActive = true
+        Log.i(TAG, "🧪 Firebase Test Lab detected — registered as AdMob test device " +
+                "(real ad units, test creatives, zero invalid traffic)")
+    } catch (e: Exception) {
+        // Never let ad config crash startup. Leave isTestDeviceRegistrationActive=false so
+        // auto-show is suppressed (fail-safe): better no impression than a real-creative one.
+        isTestDeviceRegistrationActive = false
+        Log.e(TAG, "🧪 Test Lab test-device registration FAILED — auto-show suppressed " +
+                "(invalid-traffic safeguard)", e)
+    }
+}
+```
+
+#### Register the Application class in AndroidManifest.xml
+
+If your app does **not** already use a custom `Application` subclass, you **must** register it. Without this, `onCreate()` never runs and test-device registration never happens.
+
+In `android/app/src/main/AndroidManifest.xml`, inside `<application>`:
+
+```xml
+<application
+    android:name="«BW_PACKAGE».«BW_Application»"
+    android:allowBackup="false"
+    android:icon="@mipmap/ic_launcher"
+    android:label="@string/app_name"
+    ... >
+```
+
+> **Critical:** The `android:name` attribute must point to your Application class. If it's missing or points to `android.app.Application`, `configureAdMobTestDeviceForTestLab()` never executes.
+
+#### Call the registration function early in onCreate()
+
+```kotlin
+override fun onCreate() {
+    try {
+        super.onCreate()
+        Log.d(TAG, "Application initialized")
+
+        // Must run BEFORE the first ad load; preload manager initializes later
+        configureAdMobTestDeviceForTestLab()
+
+        // ... rest of onCreate (WebView setup, exception handler, etc.)
+    } catch (e: Exception) {
+        Log.e(TAG, "Application onCreate failed", e)
+    }
+}
+```
+
+> **Why Application.onCreate?** The preload manager initializes later (after WebView page finishes loading), so setting the global RequestConfiguration here guarantees it's in place before any ad path tries to load.
+
+### Part B — MainActivity Test Lab Auto-Show Pipeline
+
+#### Add the auto-show gate fields
+
+In `«BW_MainActivity».kt`, add these fields:
+
+```kotlin
+// Auto-show is allowed ONLY when we are on Test Lab AND the AdMob test-device registration
+// actually succeeded — so a registration failure suppresses all auto-show (fail-safe against
+// rendering real creatives = invalid traffic).
+private val isTestLabAutoShow: Boolean
+    get() = isFirebaseTestLab() && «BW_Application».isTestDeviceRegistrationActive
+
+private var tlInterstitialShown = false
+private var tlInterstitialAttempts = 0
+private val tlMaxAttempts = 3
+
+private fun isFirebaseTestLab(): Boolean = try {
+    "true".equals(
+        android.provider.Settings.System.getString(contentResolver, "firebase.test.lab"),
+        ignoreCase = true)
+} catch (e: Exception) {
+    false
+}
+```
+
+#### Add the auto-show trigger
+
+```kotlin
+private fun maybeAutoShowInterstitialForTestLab() {
+    if (!isTestLabAutoShow || tlInterstitialShown || tlInterstitialAttempts >= tlMaxAttempts) return
+    runOnUiThread {
+        if (tlInterstitialShown) return@runOnUiThread
+        if (!«BW_AdPreloadManager».isInterstitialReady()) return@runOnUiThread
+        tlInterstitialAttempts++
+        Log.i(TAG, "🧪 Test Lab: auto-showing interstitial (attempt $tlInterstitialAttempts)")
+        if («BW_AdPreloadManager».showInterstitial(this)) tlInterstitialShown = true
+    }
+}
+```
+
+#### Add the dismiss callback
+
+```kotlin
+private fun onTestLabAdDismissed() {
+    // Interstitial-only: no ad follows interstitial dismiss
+    // (If you later add rewarded auto-show after interstitial dismiss, put it here.)
+}
+```
+
+### Part C — AdPreloadManager Integration
+
+#### Gate preload initialization on Test Lab
+
+In your `initializeNativeAdPreload()` method (called from `MainActivity.onCreate()`), wrap everything in the Test Lab gate:
+
+```kotlin
+private fun initializeNativeAdPreload() {
+    try {
+        // Only preload ads for Firebase Test Lab CI verification.
+        // On real devices, load fresh ads per request to avoid stale preloads.
+        if (!isTestLabAutoShow) {
+            Log.i(TAG, "Native Ad Preload: SKIPPED on real device (bridge loads fresh)")
+            return
+        }
+
+        Log.i(TAG, "Initializing Native Ad Preload Manager")
+
+        // Initialize the preload manager (triggers SDK init + ad preload)
+        «BW_AdPreloadManager».initialize(this)
+
+        // v58: Wire preload manager to InterstitialAdManager (if using unified manager)
+        // Skip this block if you are NOT porting the v58 InterstitialAdManager refactor.
+        if (::«BW_AdMobBridge».isInitialized) {
+            «BW_AdMobBridge».interstitialManager?.let { mgr ->
+                «BW_AdPreloadManager».setInterstitialManager(mgr)
+                Log.i(TAG, "AdPreloadManager wired to InterstitialAdManager")
+            }
+        }
+
+        // Setup callbacks
+        «BW_AdPreloadManager».onInterstitialReady = {
+            Log.i(TAG, "Native preload: Interstitial ready")
+            notifyWebViewAdReady("interstitial")
+            maybeAutoShowInterstitialForTestLab()
+        }
+
+        «BW_AdPreloadManager».onAdShown = {
+            Log.i(TAG, "Native preload: Ad shown")
+            setAdAudioActive(true)   // full media volume for ad sound
+        }
+
+        «BW_AdPreloadManager».onAdDismissed = {
+            Log.i(TAG, "Native preload: Ad dismissed")
+            setAdAudioActive(false)  // restore speech-translation audio mode
+            onTestLabAdDismissed()
+        }
+
+        «BW_AdPreloadManager».onAdImpression = { adType ->
+            Log.i(TAG, "Native preload: Impression - $adType")
+            notifyWebViewAdImpression(adType)
+        }
+
+        // Auditable record of the auto-show gate state
+        Log.i(TAG, "🧪 Test Lab auto-show gate: " +
+                if (isTestLabAutoShow) "ENABLED (Firebase Test Lab)" else "disabled (real device)")
+
+        Log.i(TAG, "Native Ad Preload Manager initialized")
+    } catch (e: Exception) {
+        Log.e(TAG, "Native Ad Preload init failed", e)
+    }
+}
+```
+
+#### If you are NOT using the v58 InterstitialAdManager refactor
+
+Omit the `setInterstitialManager()` wiring block entirely. `«BW_AdPreloadManager»` retains its own interstitial state and `«BW_AdMobBridge»` has its own. The auto-show pipeline still works; you just won't get the duplicate-load prevention benefit.
+
+---
+
+## Step 5 — GitHub Actions Workflow
+
+Create `.github/workflows/babelwords-android-build.yml`:
+
+```yaml
+name: BabelWords Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_code:
+        description: 'Version Code'
+        required: false
+        default: '1'
+        type: string
+      version_name:
+        description: 'Version Name (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+        type: string
+      create_release:
+        description: 'Create GitHub Release'
+        required: true
+        default: true
+        type: boolean
+      run_firebase_test:
+        description: 'Run Firebase Test Lab (Robo test + 8 gcloud instrumentation runs + Logcat + video). Requires GCP_SA_KEY and GCP_PROJECT_ID secrets + Blaze billing.'
+        required: false
+        default: false
+        type: boolean
+      real_ads_on_test_lab:
+        description: 'Real ads on Test Lab (test creatives disabled). ONLY for one-off real-fill verification — generates billable/invalid traffic on production units.'
+        required: false
+        default: false
+        type: boolean
+      test_locale:
+        description: 'Test Lab device locale (e.g., en_US, en_IN, hi_IN). Use en_IN for India user profile.'
+        required: false
+        default: 'en_IN'
+        type: string
+      test_device_model:
+        description: 'Test Lab device model (e.g., MediumPhone.arm, panther, oriole).'
+        required: false
+        default: 'MediumPhone.arm'
+        type: string
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  packages: write
+  actions: read
+
+env:
+  GRADLE_OPTS: "-Xmx8192m -Dfile.encoding=UTF-8"
+  VERSION_CODE: ${{ github.event.inputs.version_code || '1' }}
+  VERSION_NAME: ${{ github.event.inputs.version_name || '1.0.0' }}
+  TEST_LOCALE: ${{ github.event.inputs.test_locale || 'en_IN' }}
+  TEST_DEVICE_MODEL: ${{ github.event.inputs.test_device_model || 'MediumPhone.arm' }}
+  CREATE_RELEASE: ${{ github.event.inputs.create_release || 'true' }}
+  REAL_ADS_ON_TEST_LAB: ${{ github.event.inputs.real_ads_on_test_lab || 'false' }}
+  ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+  ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+  ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+  ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+  ANDROID_HOME: /tmp/android-sdk
+  ANDROID_SDK_ROOT: /tmp/android-sdk
+
+jobs:
+  build-android:
+    name: Build APK + AAB
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Install Android SDK
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip -d $ANDROID_HOME/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Bump version in build.gradle
+        run: |
+          sed -i "s/versionCode .*/versionCode $VERSION_CODE/" android/app/build.gradle
+          sed -i "s/versionName .*/versionName \"$VERSION_NAME\"/" android/app/build.gradle
+          echo "Version: $VERSION_NAME ($VERSION_CODE)"
+
+      - name: Build Debug APK + Debug AndroidTest APK
+        working-directory: android
+        run: |
+          ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon --stacktrace
+
+      - name: Upload Debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-debug-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Debug AndroidTest APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-debug-androidtest-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/apk/androidTest/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Decode keystore
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/babelwords-release.jks
+
+      - name: Build Release APK
+        working-directory: android
+        run: |
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/babelwords-release.jks \
+            -Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD
+
+      - name: Build Release AAB
+        working-directory: android
+        run: |
+          ./gradlew bundleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file=${{ github.workspace }}/android/app/babelwords-release.jks \
+            -Pandroid.injected.signing.store.password=$ANDROID_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$ANDROID_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$ANDROID_KEY_PASSWORD
+
+      - name: Upload Release APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-release-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Release AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-release-aab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: env.CREATE_RELEASE == 'true' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION_NAME }}
+          name: BabelWords v${{ env.VERSION_NAME }}
+          draft: false
+          prerelease: false
+          files: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  firebase-test-lab:
+    name: Firebase Test Lab (Robo + Instrumentation + Logcat + Video)
+    needs: build-android
+    if: ${{ github.event.inputs.run_firebase_test == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+    steps:
+      - name: Download Release APK artifact (for Robo test)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-release-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: apk
+
+      - name: Download Debug APK + AndroidTest APK artifacts
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-debug-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: apk-debug
+
+      - name: Download Debug AndroidTest APK
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-debug-androidtest-apk-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: apk-test
+
+      - name: Locate APK
+        id: find_apk
+        run: |
+          APK=$(find apk -name "*.apk" 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            echo "No release APK found — skipping Firebase Test Lab Robo."
+            echo "found=false" >> $GITHUB_OUTPUT
+          else
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "apk=$APK" >> $GITHUB_OUTPUT
+            echo "Found release APK: $APK"
+          fi
+
+      - name: Locate instrumentation APKs
+        id: find_instr_apks
+        run: |
+          APP=$(find apk-debug -name "*.apk" 2>/dev/null | head -1)
+          TEST=$(find apk-test -name "*.apk" 2>/dev/null | head -1)
+          if [ -n "$APP" ] && [ -n "$TEST" ]; then
+            echo "found=true" >> $GITHUB_OUTPUT
+            echo "app=$APP" >> $GITHUB_OUTPUT
+            echo "test=$TEST" >> $GITHUB_OUTPUT
+            echo "Found debug APK: $APP"
+            echo "Found test APK: $TEST"
+          else
+            echo "Instrumentation APKs missing — skipping gcloud --type instrumentation runs."
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.find_apk.outputs.found == 'true' || steps.find_instr_apks.outputs.found == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        if: steps.find_apk.outputs.found == 'true' || steps.find_instr_apks.outputs.found == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Run Firebase Test Lab Robo test
+        if: steps.find_apk.outputs.found == 'true'
+        continue-on-error: true
+        run: |
+          echo "Running Robo test on Firebase Test Lab (auto-launches app → triggers startup interstitial; records video + Logcat)"
+          echo "Locale: $TEST_LOCALE | Device: $TEST_DEVICE_MODEL"
+          gcloud firebase test android run \
+            --type robo \
+            --app "${{ steps.find_apk.outputs.apk }}" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 120s \
+            --record-video \
+            --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run.log
+
+      # v58: Blocking deterministic instrumentation tests (no network dependency)
+      - name: Run Test Lab — AdExperimentConfigTest
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.AdExperimentConfigTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 180s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-experimentconfig.log
+
+      - name: Run Test Lab — Rotation trio (AppOpen + AdMobBridge + AdPreload)
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.AppOpenAdManagerRotationTest,class com.babelwords.ads.AdMobBridgeRotationTest,class com.babelwords.ads.AdPreloadManagerRotationTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 240s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-adrotation.log
+
+      - name: Run Test Lab — Show telemetry + IsReady + Analytics
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.AdMobBridgeShowTelemetryTest,class com.babelwords.ads.AdMobBridgeIsReadyTest,class com.babelwords.analytics.FirebaseAnalyticsEventTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 240s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-showtelemetry.log
+
+      - name: Run Test Lab — Audio focus loss
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.AudioFocusLossInstrumentedTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 240s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-audiofocus.log
+
+      - name: Run Test Lab — Mic resume reconciliation
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.MicResumeReconciliationTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 240s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-micreconciliation.log
+
+      # v58: New blocking gates — Ad manager state machine tests (deterministic, no network)
+      - name: Run Test Lab — Ad manager state machines
+        if: steps.find_instr_apks.outputs.found == 'true'
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.InterstitialAdManagerStateMachineTest,class com.babelwords.ads.RewardedAdManagerStateMachineTest,class com.babelwords.ads.AppOpenAdManagerStateMachineTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 240s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-statemachine.log
+
+      # v58: Advisory (non-blocking) network-dependent tests
+      - name: Run Test Lab — Rewarded integration (advisory)
+        if: steps.find_instr_apks.outputs.found == 'true'
+        continue-on-error: true
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.RewardedAdIntegrationTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 300s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-rewarded-integration.log || true
+
+      - name: Run Test Lab — Cold start (advisory, assumeTrue skip on emulator)
+        if: steps.find_instr_apks.outputs.found == 'true'
+        continue-on-error: true
+        run: |
+          gcloud firebase test android run --type instrumentation \
+            --app "${{ steps.find_instr_apks.outputs.app }}" \
+            --test "${{ steps.find_instr_apks.outputs.test }}" \
+            --test-targets "class com.babelwords.ads.AdPreloadManagerColdStartTest" \
+            --device model=$TEST_DEVICE_MODEL,version=33,locale=$TEST_LOCALE,orientation=portrait \
+            --timeout 300s --project "$GCP_PROJECT_ID" 2>&1 | tee firebase-run-coldstart-suite.log || true
+
+      - name: Pull Logcat + video from results bucket (Robo)
+        if: always() && steps.find_apk.outputs.found == 'true'
+        run: |
+          mkdir -p firebase-results
+          # gcloud prints a storage browser URL — convert it to a gs:// path
+          GS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run.log | head -1 | sed 's#storage/browser/#gs://#')
+          GS_PATH="${GS_PATH%/}"
+          if [ -z "$GS_PATH" ]; then
+            echo "Could not determine results bucket path (test may not have started)."
+          else
+            echo "Results: $GS_PATH"
+            gsutil -m cp -r "$GS_PATH" firebase-results/ 2>/dev/null || echo "Could not copy results from $GS_PATH"
+          fi
+          mkdir -p firebase-artifact
+          cp firebase-run.log firebase-artifact/ 2>/dev/null || true
+          LOGCAT_SRC=$(find firebase-results -iname "logcat*" | head -1)
+          if [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat.txt; fi
+          VIDEO_SRC=$(find firebase-results -iname "video.mp4" | head -1)
+          if [ -n "$VIDEO_SRC" ]; then cp "$VIDEO_SRC" firebase-artifact/video.mp4; fi
+          echo "=== Artifact files ==="
+          find firebase-artifact -type f || true
+
+      # v58: Pull Logcat from state-machine instrumentation run
+      - name: Pull state-machine test Logcat from results bucket
+        if: always()
+        run: |
+          mkdir -p firebase-results-statemachine
+          GS_PATH=$(grep -oE 'storage/browser/[^" ]+' firebase-run-statemachine.log 2>/dev/null | head -1 | sed 's#storage/browser/#gs://#')
+          GS_PATH="${GS_PATH%/}"
+          if [ -z "$GS_PATH" ]; then
+            echo "Could not determine results bucket path for the state-machine run."
+          else
+            echo "Results path: $GS_PATH"
+            gsutil -m cp -r "$GS_PATH" firebase-results-statemachine/ || echo "Could not copy results"
+          fi
+          CONSOLE_URL=$(grep -oE 'https://console\.firebase\.google\.com/project/[^ ]+/testlab/histories/[^ ]+' firebase-run-statemachine.log | head -1)
+          if [ -n "$CONSOLE_URL" ]; then
+            echo "Firebase Console: $CONSOLE_URL"
+          fi
+          mkdir -p firebase-artifact
+          LOGCAT_SRC=$(find firebase-results-statemachine -iname "logcat*" | head -1)
+          if [ -n "$LOGCAT_SRC" ]; then cp "$LOGCAT_SRC" firebase-artifact/logcat-statemachine.txt; fi
+          find firebase-artifact -type f || true
+
+      - name: Scan Logcat for ad impression signature
+        if: always() && steps.find_apk.outputs.found == 'true'
+        run: |
+          echo "========================================="
+          echo "  AD FUNNEL SIGNATURE (from device Logcat)"
+          echo "========================================="
+          LOGCAT=$(find firebase-results -iname "logcat*" | head -1)
+          if [ -z "$LOGCAT" ]; then
+            echo "No logcat file found."
+          else
+            echo "Logcat: $LOGCAT"
+            echo "--- LOADED events ---"
+            grep -E "LOADED" "$LOGCAT" || echo "(none)"
+            echo "--- IMPRESSION events ---"
+            grep -E "IMPRESSION" "$LOGCAT" || echo "(none — ads never rendered)"
+            echo "--- Show attempts ---"
+            grep -E "Attempting to show|Auto-show" "$LOGCAT" || echo "(none — show was never called)"
+            echo "--- Guard rejections ---"
+            grep -E "cannot show|Activity not resumed|App in background|Already showing|Activity finishing|stale - reloading|show\(\) threw" "$LOGCAT" || echo "(none)"
+            echo "--- FailedToShow ---"
+            grep -E "FailedToShow|FAILED|watchdog" "$LOGCAT" || echo "(none)"
+            echo "--- Full context after first show attempt ---"
+            grep -A40 "Attempting to show" "$LOGCAT" | head -60 || echo "(none)"
+          fi
+          echo "========================================="
+
+      - name: Verify ad impression was served (fail CI if missing)
+        if: always() && steps.find_apk.outputs.found == 'true'
+        run: |
+          echo "========================================="
+          echo "  AD SERVING VERIFICATION"
+          echo "========================================="
+          LOGCAT=$(find firebase-results -iname "logcat*" | head -1)
+          if [ -z "$LOGCAT" ]; then
+            echo "::error::No logcat file — cannot verify ad serving."
+            exit 1
+          fi
+          PASS=1
+          # 0) Fail if real-ad override was active (invalid traffic risk)
+          if grep -qE "REAL_ADS_ON_TEST_LAB is true" "$LOGCAT"; then
+            echo "::error::Real-ad override ACTIVE — this run is not safe."
+            PASS=0
+          fi
+          # 1) SAFETY GATE: test-device registration must have applied
+          if grep -qE "test-device registration FAILED" "$LOGCAT"; then
+            echo "::error::Test-device registration FAILED — auto-show suppressed. No ad rendered."
+            PASS=0
+          elif grep -qE "Firebase Test Lab detected" "$LOGCAT"; then
+            echo "✅ Test Lab device registration applied."
+          else
+            echo "::error::Test Lab detection NOT found — registration did not apply. Invalid traffic risk."
+            PASS=0
+          fi
+          # 2) REQUIRED: at least one impression
+          if grep -qE "IMPRESSION" "$LOGCAT"; then
+            echo "✅ Ad impression confirmed:"
+            grep -E "IMPRESSION" "$LOGCAT" | head
+          else
+            echo "::error::No ad IMPRESSION in Logcat — no ad rendered."
+            PASS=0
+          fi
+          # 3) Informational: rewarded
+          if grep -qE "REWARDED IMPRESSION|Reward earned" "$LOGCAT"; then
+            echo "✅ Rewarded ad served."
+          else
+            echo "::warning::No rewarded impression (interstitial may still have shown)."
+          fi
+          if [ "$PASS" -ne 1 ]; then
+            echo "❌ Ad serving verification FAILED."
+            exit 1
+          fi
+          echo "✅ Ad serving verification PASSED."
+          echo "========================================="
+
+      - name: Upload Firebase Test Lab results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-testlab-v${{ env.VERSION_NAME }}-${{ env.VERSION_CODE }}
+          path: firebase-artifact/**
+          if-no-files-found: warn
+          retention-days: 30
+```
+
+---
+
+## Step 6 — Locale & Device Options
+
+### Locale notes
+
+Firebase Test Lab devices are physically in **Google's US data centers** — `locale` changes the device's language/region settings only, not its IP address. AdMob ad targeting is IP-based, so fill rates will reflect US inventory regardless of locale.
+
+| Locale | Use case |
+|--------|---------|
+| `en_IN` | English-India (default — best for Indian user profile) |
+| `hi_IN` | Hindi-India |
+| `en_US` | US English (baseline) |
+| `en_GB` | UK English |
+
+### Device model options
+
+List available devices:
+```bash
+gcloud firebase test android models list
+```
+
+Common choices:
+
+| Model ID | Device | Notes |
+|----------|--------|-------|
+| `MediumPhone.arm` | Generic ARM phone | Default — fast and reliable |
+| `panther` | Pixel 7 | ARM, Android 13 |
+| `oriole` | Pixel 6 | ARM, Android 12/13 |
+| `gracelte` | Samsung Galaxy S9 | Popular in India |
+| `a52sxq` | Samsung Galaxy A52s | Mid-range, popular in India |
+
+### OS version notes
+
+`version=33` = Android 13 (recommended — matches most active devices). Change to `34` for Android 14 testing.
+
+---
+
+## Step 7 — Running the Workflow
+
+### Manual trigger (GitHub UI)
+
+1. Go to your repo → **Actions** → **BabelWords Android Build**
+2. Click **Run workflow**
+3. Fill in the inputs:
+
+| Input | Typical values |
+|-------|---------------|
+| `version_code` | Increment by 1 each release |
+| `version_name` | Semantic version (e.g., `1.2.0`) |
+| `create_release` | `true` for releases, `false` for test builds |
+| `run_firebase_test` | `true` to run Test Lab |
+| `real_ads_on_test_lab` | Leave `false` — real ads = invalid traffic |
+| `test_locale` | `en_IN` (default) |
+| `test_device_model` | `MediumPhone.arm` (default) |
+
+### Auto triggers
+
+The workflow also runs automatically on:
+- Every push to `main` (build only — Firebase test is off by default)
+- Every pull request to `main` (build only)
+
+---
+
+## Step 8 — Reading the Results
+
+After a Firebase Test Lab run, download the artifact named `firebase-testlab-v<VERSION>-<CODE>` from the Actions run. It contains:
+
+| File | Contents |
+|------|---------|
+| `firebase-run.log` | Raw `gcloud` output including the results URL |
+| `logcat.txt` | Full device Logcat from the Robo test run |
+| `logcat-statemachine.txt` | **v58:** Full device Logcat from the state-machine instrumentation test run |
+| `video.mp4` | Screen recording of the Robo test |
+
+### Key Logcat signals
+
+| Signal | Meaning |
+|--------|---------|
+| `Firebase Test Lab detected` | ✅ Test device registered — safe to show ads |
+| `LOADED` | Ad loaded from AdMob |
+| `IMPRESSION` | Ad rendered on screen |
+| `REWARDED IMPRESSION` | Rewarded ad completed |
+| `Attempting to show` | Show was called |
+| `Activity not resumed` | Show was deferred (app in background) |
+| `Interstitial frequency capped` | 30s cap blocked a rapid second show |
+| `State machine test FAILED` | **v58:** Guard logic regression in ad-manager show/destroy/frequency flow |
+| `test-device registration FAILED` | ❌ Safety gate failed — no ad shown |
+
+### CI pass/fail logic
+
+| Result | Condition |
+|--------|-----------|
+| ✅ PASS | Test Lab detected + at least one IMPRESSION in Logcat |
+| ✅ PASS | **v58:** All 6 blocking instrumentation runs pass (deterministic, no network) |
+| ⚠️ ADVISORY | **v58:** Rewarded integration or cold-start test pass/fail (non-blocking) |
+| ❌ FAIL | No Logcat file, OR test-device registration failed, OR no IMPRESSION found |
+| ❌ FAIL | Real-ad override was active (`real_ads_on_test_lab = true`) |
+| ❌ FAIL | **v58:** Any blocking instrumentation run fails |
+
+---
+
+## Step 9 — Cost Estimate
+
+Firebase Test Lab pricing (Blaze plan):
+
+| Resource | Cost |
+|----------|------|
+| Physical device | ~$1.00 / device / hour |
+| Virtual device | ~$0.10 / device / hour |
+| `MediumPhone.arm` | Virtual — ~$0.05 per 30-minute run |
+| Video recording | Included |
+| GCS bucket egress | Minimal (<$0.01 per run) |
+
+A typical 3-minute Robo test on a virtual device costs **< $0.01**. 8 additional instrumentation runs add ~2–3 min each, costing roughly **$0.05–$0.10 per full CI cycle**. Running on every push would cost roughly **$3–8/month** depending on commit frequency.
+
+---
+
+## Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| `No release APK artifact found` | `assembleRelease` failed or was skipped | Check the build job logs |
+| `Permission denied` on GCS | Service account missing Storage role | Add `Storage Admin` role to the service account |
+| `INVALID_ARGUMENT: device model not found` | Invalid `test_device_model` input | Run `gcloud firebase test android models list` to see valid IDs |
+| `test-device registration FAILED` | AdMob test device hash not added | Get the hash from Logcat and add it in AdMob console |
+| `No ad IMPRESSION found` | Ad not showing during Robo test | Check guard rejections in Logcat — usually `Activity not resumed` or consent not granted |
+| `upload-artifact: path contains ':'` | Test Lab result folder has timestamp in name | Already handled by the `firebase-artifact/` flatten step |
+| `State machine test FAILED` | Guard logic regression (show after destroy, pendingShow/autoShow mismatch) | Check `logcat-statemachine.txt`; fix ad-manager state machine |
+| `IncompatibleClassChangeError` / Kotlin metadata mismatch | Kotlin version < 2.x with play-services-ads 24.x | Bump `kotlin_version` to `2.2.0` in root `build.gradle` |
+| Keystore decode fails | `ANDROID_KEYSTORE_BASE64` secret incorrect | Re-encode: `base64 -w 0 babelwords-release.jks` |
+| `failed to load include path .../android-35/android.jar` | compileSdk 35 not pre-installed | Use `compileSdk 34` in build.gradle |
+| `Expecting a top level declaration` (`.kt:1:1`) | Corrupted `.kt` file | Check file contents — likely truncated |
+| `Unresolved reference: SomeClass` | Class file missing or corrupted | Restore the referenced `.kt` file |
+| `Android resource linking failed` | Deprecated gradle properties still active | Remove deprecated properties from `gradle.properties` |
+| `Could not compile build file` | Syntax error in `build.gradle` | Check for unbalanced braces or bad `buildConfigField` quotes |
+
+---
+
+## Verification Checklist
+
+Before calling the migration complete:
+
+- [ ] `android/` directory exists at repo root
+- [ ] `namespace` set in `android/app/build.gradle` (required by AGP 8.x)
+- [ ] `compileSdk = 34` and `targetSdk = 34` in root `build.gradle`
+- [ ] No deprecated properties in `gradle.properties`
+- [ ] All 4 keystore secrets added to GitHub repo
+- [ ] `.kt` source files are not corrupted (not empty / truncated)
+- [ ] `gradlew` is executable (`chmod +x android/gradlew`)
+- [ ] **v58:** Debug buildType exists with `ENABLE_LOGGING=true`, `ALLOW_CLEARTEXT=true`
+- [ ] **v58:** `assembleDebug` + `assembleDebugAndroidTest` produce testable APK artifacts
+- [ ] **v58:** Kotlin version set to `2.2.0` (for play-services-ads 24.x compatibility)
+- [ ] `«BW_Application».kt` has `isTestDeviceRegistrationActive` companion flag
+- [ ] `configureAdMobTestDeviceForTestLab()` called in `Application.onCreate()`
+- [ ] `isTestLabAutoShow` gate uses BOTH `isFirebaseTestLab()` AND `isTestDeviceRegistrationActive`
+- [ ] `maybeAutoShowInterstitialForTestLab()` bounded by `tlMaxAttempts = 3`
+- [ ] `initializeNativeAdPreload()` SKIPPED on real devices (`if (!isTestLabAutoShow) return`)
+- [ ] `«BW_AdPreloadManager».onInterstitialReady` calls `maybeAutoShowInterstitialForTestLab()`
+- [ ] `BuildConfig.REAL_ADS_ON_TEST_LAB` field exists in `build.gradle` (default `false`)
+- [ ] **v58:** 8 gcloud instrumentation runs configured (6 blocking + 2 advisory)
+- [ ] **v58:** State machine test classes exist (`InterstitialAdManagerStateMachineTest`, `RewardedAdManagerStateMachineTest`, `AppOpenAdManagerStateMachineTest`)
+- [ ] **v58:** Test accessors (`getLastShowTimeForTest` / `setLastShowTimeForTest`) added to interstitial + rewarded managers
+- [ ] **v58:** Cold-start test uses `assumeTrue(!isTestLab)` to skip on emulators, runs on physical devices
+- [ ] **v58:** `android/testlab/rewarded-ad-robo-script.json` placeholder + `ROBO_SCRIPT_README.md` guide created
+- [ ] GitHub Secrets: `GCP_SA_KEY`, `GCP_PROJECT_ID` configured
+- [ ] CI workflow has `firebase-test-lab` job gated on `run_firebase_test == true`
+- [ ] CI Logcat scan checks: Test Lab detection → IMPRESSION → fail if either missing
+- [ ] CI hard-fails if `REAL_ADS_ON_TEST_LAB is true` appears in Logcat
+- [ ] No LinguaVibe-specific package names or ad unit IDs leaked into BabelWords code
+- [ ] First Test Lab run produces `Firebase Test Lab detected` + `IMPRESSION` in Logcat
+
+---
+
+## One-Time Keystore Generation
+
+Run this once locally to create your signing key:
+
+```bash
+keytool -genkeypair \
+  -v \
+  -keystore babelwords-release.keystore \
+  -alias babelwords-key \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000 \
+  -storepass YOUR_STORE_PASSWORD \
+  -keypass YOUR_KEY_PASSWORD \
+  -dname "CN=BabelWords, OU=Mobile, O=YourOrg, L=City, S=State, C=US"
+
+# Then encode it for GitHub Secrets:
+base64 -i babelwords-release.keystore | pbcopy   # macOS — pastes to clipboard
+base64 babelwords-release.keystore               # Linux — prints to terminal
+```
+
+Paste the output into the `ANDROID_KEYSTORE_BASE64` secret.
+
+---
+
+**Version:** LinguaVibe v58.0.0  
+**Last updated:** 2026-07-19  
+**Companion guides:** `BABELWORDS_ANDROID_AD_SETUP_GUIDE.md` (ad system), `BABELWORDS_ANDROID_V53_AD_MIGRATION_GUIDE.md` (ad migration), `BABELWORDS_ANDROID_V50_AD_MIGRATION_GUIDE.md` (AppOpen + ANR), `BABELWORDS_WEB_APP_AD_BRIDGE_GUIDE.md` (web bridge)  
+**Companion assets:** `android/testlab/ROBO_SCRIPT_README.md` (web-team calibration), `android/testlab/rewarded-ad-robo-script.json` (placeholder)
