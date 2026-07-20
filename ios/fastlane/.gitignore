@@ -1,0 +1,6 @@
+# Fastlane output
+report.xml
+Preview.html
+screenshots/**/*.png
+test_output
+build

@@ -1,4 +1,4 @@
-name: LinguaVibe iOS Build & Test
+name: iOS workflow
 
 on:
   push:
@@ -23,6 +23,7 @@ env:
 
 jobs:
   build-and-test:
+    name: Build and test on simulator
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -39,17 +40,16 @@ jobs:
           ruby-version: '3.2'
           bundler-cache: false
 
-      - name: Install CocoaPods
-        run: gem install cocoapods
+      - name: Install CocoaPods and XcodeGen
+        run: |
+          gem install cocoapods
+          if ! command -v xcodegen &> /dev/null; then
+            brew install xcodegen
+          fi
 
       - name: Generate Xcode project
         working-directory: ios
-        run: |
-          if command -v xcodegen &> /dev/null; then
-            xcodegen generate
-          else
-            echo "xcodegen not installed; project must be committed."
-          fi
+        run: xcodegen generate
 
       - name: Decode GoogleService-Info.plist
         if: env.GOOGLE_SERVICES_INFO_PLIST_BASE64 != ''
@@ -94,25 +94,37 @@ jobs:
             ${{ env.DERIVED_DATA }}/Logs/Test
 
   archive:
-    runs-on: macos-latest
+    name: Archive and export IPA
+    runs-on: self-hosted
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: build-and-test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '15.4'
+      - name: Decode App Store Connect API key
+        working-directory: ios
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -d -o app_store_connect_api_key.p8
 
-      - name: Install Ruby/CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-
-      - name: Install CocoaPods
-        run: gem install cocoapods
+      - name: Write App Store Connect API key JSON
+        working-directory: ios
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+        run: |
+          key=$(cat app_store_connect_api_key.p8 | sed 's/$/\\n/' | tr -d '\n')
+          cat > app_store_connect_api_key.json <<EOF
+          {
+            "key_id": "$KEY_ID",
+            "issuer_id": "$ISSUER_ID",
+            "key": "$key",
+            "duration": 1200,
+            "in_house": false
+          }
+          EOF
 
       - name: Generate Xcode project
         working-directory: ios
@@ -121,34 +133,22 @@ jobs:
             xcodegen generate
           fi
 
-      - name: Decode signing certificate
-        if: env.IOS_P12_BASE64 != '' && env.IOS_MOBILEPROVISION_BASE64 != ''
-        env:
-          IOS_P12_BASE64: ${{ secrets.IOS_P12_BASE64 }}
-          IOS_MOBILEPROVISION_BASE64: ${{ secrets.IOS_MOBILEPROVISION_BASE64 }}
-        run: |
-          mkdir -p certs
-          echo "$IOS_P12_BASE64" | base64 -d -o certs/dist.p12
-          echo "$IOS_MOBILEPROVISION_BASE64" | base64 -d -o certs/dist.mobileprovision
-
-      - name: Install Pods
+      - name: Install Pods and Fastlane
         working-directory: ios
-        run: pod install --repo-update
-
-      - name: Archive
-        if: env.IOS_P12_BASE64 != '' && env.IOS_MOBILEPROVISION_BASE64 != ''
         run: |
-          xcodebuild archive \
-            -workspace ${{ env.WORKSPACE }} \
-            -scheme ${{ env.SCHEME }} \
-            -destination 'generic/platform=iOS' \
-            -archivePath ${{ env.DERIVED_DATA }}/LinguaVibe.xcarchive \
-            DEVELOPMENT_TEAM=${{ secrets.IOS_DEVELOPMENT_TEAM }} \
-            PROVISIONING_PROFILE_SPECIFIER=${{ secrets.IOS_PROVISIONING_PROFILE_SPECIFIER }}
+          pod install --repo-update
+          gem install bundler
+          bundle install
 
-      - name: Upload archive
-        if: env.IOS_P12_BASE64 != '' && env.IOS_MOBILEPROVISION_BASE64 != ''
+      - name: Sync signing and build IPA
+        working-directory: ios
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: bundle exec fastlane build
+
+      - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: LinguaVibe.xcarchive
-          path: ${{ env.DERIVED_DATA }}/LinguaVibe.xcarchive
+          name: LinguaVibe.ipa
+          path: ios/build/LinguaVibe.ipa

@@ -1,0 +1,3 @@
+app_identifier("com.babelwords.LinguaVibe")
+apple_id("your-apple-id@example.com")
+team_id("YOUR_TEAM_ID")
