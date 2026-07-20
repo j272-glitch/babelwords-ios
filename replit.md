@@ -1,11 +1,13 @@
 # Overview
 
-LinguaVibe (formerly LinguaGT/LinguaLink) is an Android-based real-time speech translation application. The project wraps a web application (hosted at gtlingua.com/gtlingua.com) in a native Android WebView container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
+LinguaVibe (formerly LinguaGT/LinguaLink) is a real-time speech translation application. The project wraps a web application (hosted at gtlingua.com and linguagt.com) in a native iOS `WKWebView` container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
 
 The application is built using:
-- **Native Android (Kotlin)** - WebView wrapper with permission handling
-- **GitHub Actions** - Automated CI/CD for APK/AAB builds
-- **Capacitor** - Cross-platform mobile framework
+- **Native iOS (UIKit / Swift)** - WebView wrapper with permission handling
+- **GitHub Actions** - Automated CI/CD for iOS builds, tests, and archives
+- **CocoaPods** - Dependency management (Google Mobile Ads, Firebase, UMP)
+- **XcodeGen** - Xcode project generation from `project.yml`
+- **Capacitor** - Cross-platform mobile framework (web layer)
 - **Node.js** - Development tooling and web serving
 - **Google IMA SDK** - Video ad monetization
 
@@ -17,125 +19,94 @@ Preferred communication style: Simple, everyday language.
 
 ## Build System
 
-**Android Gradle Plugin (AGP)**: Currently on **AGP 8.5.1** (per the BabelWords Update Guide known-good toolchain). This was a deliberate upgrade from 8.0.2 — required so the project can run Kotlin 2.2.0, which play-services-ads 24.x mandates. The version is pinned in `android/build.gradle` (plugins + ext) AND `android/settings.gradle` (`resolutionStrategy.useModule`); both must agree or the build silently uses the wrong AGP.
+**Xcode + XcodeGen**: The iOS project is generated from `ios/project.yml`. This keeps the project file out of merge conflicts and makes the layout explicit. After editing `project.yml`, run `xcodegen generate` in `ios/` to regenerate the `.xcodeproj`.
 
-**Gradle Version**: Uses Gradle 8.3-8.9 with JDK 17. The build system is configured with legacy packaging mode and resource optimization disabled (legacy build configuration).
+**CocoaPods**: Native dependencies are managed in `ios/Podfile`:
+- Google Mobile Ads SDK (`Google-Mobile-Ads-SDK`) for AdMob interstitial / app open ads
+- Google User Messaging Platform (`GoogleUserMessagingPlatform`) for GDPR consent
+- Firebase Analytics + Crashlytics (`FirebaseAnalytics`, `FirebaseCrashlytics`)
+- StoreKit is built-in for subscriptions and in-app purchases
 
-**Build Configurations**: Supports both debug and release builds with signed APK/AAB generation. Release builds are signed with the BabelWords **upload key** (alias `babelwords`, SHA-256 `D4:1D:60:84:0C:13:6A:3B:95:9E:A7:11:6F:84:00:70:06:42:9B:11:8C:7F:96:31:14:7E:0D:05:D4:7A:AB:8B`). This is a fresh key generated for BabelWords (June 2026); the older LinguaGT-era keystores (`release.keystore`/`linguagt-release-key`, `my-release-key.jks`) were retired because their passwords had been committed to the repo in plaintext.
+**Build Configurations**: Supports both debug and release builds. Release archives require an Apple Developer Team, signing certificate, and provisioning profile configured via GitHub Actions secrets.
 
-**Two signing keys (Play App Signing)**: The app is published via Google **Play App Signing**, so there are two distinct fingerprints. The **upload key** (`D4:1D:…:AB:8B`) is what we sign the uploaded AAB with. Google then re-signs installed builds with the Play-managed **app signing key**, SHA-256 `15:5D:00:27:77:20:0B:EC:09:0A:8B:65:46:6C:D5:44:1D:ED:96:6A:4B:96:D8:E3:F4:FD:67:49:FE:24:5D:1B`. Because App Links verification is tied to the cert installed devices actually run, **production `assetlinks.json` must list the `15:5D:…` app signing key** (the served copy on linguagt.com already does). The repo's reference `assetlinks.json` lists both fingerprints — `15:5D:…` (Play installs) and `D4:1D:…` (sideloaded test APKs signed only with the upload key).
+## iOS Application Architecture
 
-## CI/CD Pipeline
-
-**GitHub Actions**: Multiple workflow iterations exist, with the most recent being "LinguaGT Android Build - AGP 8.5.1 + Gradle 8.9". The workflows handle:
-- Android SDK installation and configuration
-- Gradle wrapper setup and dependency caching
-- Multi-variant builds (debug/release, APK/AAB)
-- Automated versioning and GitHub releases
-- Artifact upload for distribution
-
-**Build Challenges**: The project documentation extensively covers GitHub Actions container limitations, particularly around Gradle wrapper network dependencies and Android build tool compatibility. Solutions implemented include pre-caching Gradle distributions and using stable AGP versions.
-
-**Signing Configuration**: The keystore is base64-encoded and stored ONLY in GitHub Actions secrets (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`) — never committed to the repo (see `.gitignore`). The BabelWords key uses RSA 2048-bit encryption and is valid until 2053. The base64 value is the only backup, so it must also be kept in a secure password manager; losing it after publishing means app updates can no longer be signed.
-
-## Android Application Architecture
-
-**WebView Container**: The MainActivity wraps the web application in a WebView with:
+**WKWebView Container**: `MainViewController` wraps the web app in a `WKWebView` with:
 - JavaScript enabled and modern web APIs
-- Microphone permission handling for speech recognition
-- Deep link support for gtlingua.com domain
-- SSL error handling and custom Chrome client
+- Microphone / camera permission grants via `WKUIDelegate`
+- Deep link support for `linguagt.com` and `gtlingua.com` via Universal Links (`LinguaVibe.entitlements`)
+- SSL error handling and an offline fallback page (`offline.html`)
+- Redirect-loop detection and a stale-mic watchdog
 
-**Permission Management**: Runtime permission requests for:
-- RECORD_AUDIO (speech translation)
-- INTERNET and ACCESS_NETWORK_STATE (connectivity)
-- MODIFY_AUDIO_SETTINGS (audio processing)
-- WAKE_LOCK (background operation)
+**Permission Management**: The web layer requests media capture permissions; the native layer grants them for the app's own microphone/camera usage. `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription`, and `NSCameraUsageDescription` are declared in `Info.plist`.
 
-**Deep Linking**: Configured with Android App Links for gtlingua.com domain using assetlinks.json verification. Supports both HTTPS and custom scheme (linguagt://) deep links.
+**Deep Linking**: Configured with Apple Universal Links for the `linguagt.com` and `gtlingua.com` domains. The `apple-app-site-association` file must be served by the web host; `LinguaVibe.entitlements` declares the associated domains.
 
-**Crash Prevention (91 Solutions)**: Comprehensive crash prevention system organized into 9 categories:
+**Crash Prevention**: Ported from the Android 91-solution crash-prevention system:
+- Mic safety watchdog (45s stale-lock reset)
+- WebView lifecycle state checks
+- Thread-safe `@MainActor` manager classes
+- Nullability guards and safe unwrapping
+- Ad state desynchronization guards (frequency cap, freshness checks, session invalidation)
+- JavaScript bridge timing via message handlers and page-load tracking
+- Activity lifecycle observation via `SceneDelegate`
+- Retry cancellation, network callback cleanup, and memory-leak prevention
 
-1. **Permission Flow Sequencing (22 solutions)**: Session-based queue with synchronized locking, MAX_SESSION_QUEUE_SIZE=10, duplicate detection, finalizeSession() for all state transitions, activity readiness checks before permission dialogs
-2. **WebView Lifecycle (15 solutions)**: State checking before operations, page load/unload tracking in WebAppBridge
-3. **Thread Safety (11 solutions)**: Synchronized access patterns with permissionLock, callbackLock, runnableLock
-4. **Nullability (9 solutions)**: Safe access with null checks, safeFindViewById, safe tracker operations
-5. **State Desynchronization (8 solutions)**: Validation and recovery, state preservation in onSaveInstanceState
-6. **JavaScript Bridge Timing (7 solutions)**: Page load state tracking in WebAppBridge, data encoding checks, size limits
-7. **Activity Lifecycle (6 solutions)**: Dialog tracking, isSafeToShowDialog, handler callback cleanup
-8. **Resource Leak & Exception (11 solutions)**: Cleanup in onDestroy, LifecycleAwareHandler with allPendingWrappers list, OOM protection
-9. **Appium Compatibility (3 solutions)**:
-   - Solution #89: IMA consent timing - deferred initialization until WebView fully loaded
-   - Solution #90: Window measurement safety - isWindowAttached(), isFullyReady() tracking, exception handler chain protection, content view tracking for Appium getCurrentWindowSize compatibility
-   - Solution #91: Permission dialog crash prevention - isFullyReady() check before showing permission dialog, deferred permission request if activity not ready
-
-Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActivity.kt, LifecycleAwareHandler.kt, LinguaLinkApplication.kt, IMAManager.kt, AdBridge.kt
+Key files: `MainViewController.swift`, `WebViewCoordinator.swift`, `AdBridge.swift`, `SubscriptionBridge.swift`, `AdMobManager.swift`, `AppOpenAdManager.swift`, `ConsentManager.swift`, `BillingManager.swift`, `AnalyticsManager.swift`, `AppDelegate.swift`, `SceneDelegate.swift`.
 
 ## Third-Party Integrations
 
-**Ad Integration (AdMob Only)**:
+**Ad Integration (AdMob)**:
 
-*AdMobBridge.kt* - Primary ad interface:
-- Registered as `window.AndroidAdBridge` for web app compatibility
-- Supports Interstitial and Rewarded ad types only (Banner disabled due to inappropriate content)
-- Uses preloaded ads from AdPreloadManager for fast display
+`AdBridge` - Primary ad interface exposed to JavaScript as `window.AdBridge`:
+- Supports interstitial and rewarded ad types (rewarded is a backward-compat alias to interstitial)
+- Events are dispatched via `window.onAdBridgeEvent`
 
-*AdMob Configuration*:
-- App ID (BabelWords): `ca-app-pub-9991891515643313~9480266747` (defined in `res/values/strings.xml` as `admob_app_id`)
-- Interstitial: /7320741331, Rewarded: /6313049833
-- AdBridge.kt handles UMP consent flow
+`AdMobManager`:
+- 45-minute ad expiry, 40-minute refresh threshold
+- 30-second frequency cap between shows
+- 15-second load timeout with exponential backoff retry
+- Atomic single-flight loading guard
+- Auto-show on stale/no ad with `pendingShow` flag
+- Network availability auto-reload
+- Test Lab auto-show gating (only when `FIREBASE_TEST_LAB` is true and test-device registration is active)
+- Audio session switching for ad playback ( playback → playAndRecord )
 
-*Native Ad Preload Strategy (AdPreloadManager.kt)*:
-- Singleton pattern loads ads immediately on MainActivity.onCreate() in parallel with WebView
-- Eliminates 300-1500ms WebView bridge latency for ad requests
-- Thread-safe AtomicBoolean flags track loading/ready states
-- Auto-reloads after ad dismissal using applicationContext (lifecycle-safe)
-- Event buffering: Ad ready notifications buffered until WebView fully loaded, then flushed
-- Callbacks cleared in onDestroy to prevent activity leaks
-- Ad expiration tracking (45-minute AD_EXPIRY_MS) with freshness checks
-- Network availability checks before loading
-- Exponential backoff retry (5s initial, 60s max) on network failures
-- ProcessLifecycleOwner integration for app foreground/background state
-- Consent-aware ad request building (non-personalized ads when consent not obtained)
+`AppOpenAdManager`:
+- `GADAppOpenAd` shown only after warm resume (≥ 5s in background)
+- 4-hour frequency cap persisted to `UserDefaults`
+- Blocks when mic is active or an interstitial is showing
+- 15s load timeout and retry limits
 
-*Ad Loading Priority*:
-1. Preloaded cached ads (fast path) - AdPreloadManager
-2. Local bridge-loaded ads (fallback) - AdMobBridge
+`ConsentManager`:
+- UMP consent info update
+- Loads and shows the consent form if required
+- Builds ad requests with the UMP consent context applied automatically by the Google Mobile Ads SDK
+- Gracefully falls back to non-personalized ads when consent is not obtained
 
-*Consent Flow*:
-1. AdBridge requests UMP consent via Google SDK
-2. On consent resolution, callback propagates GDPR status to AdMobBridge and AdPreloadManager
-3. AdPreloadManager preloads ads immediately with consent context
-4. AdMobBridge button-triggered loads inherit consent status
-5. Non-personalized ads (npa=1) requested when consent not obtained but checked
-6. **CRITICAL FIX**: UNKNOWN consent status now preloads immediately (doesn't wait for consent update)
+**Analytics**: Firebase Analytics + Crashlytics wrapper (`AnalyticsManager`). If `GoogleService-Info.plist` is not present, the app degrades gracefully and logs locally are suppressed. Custom events include translation, mic, ad, billing, and screen-view events.
 
-*Ad Loading Fixes (January 2026)*:
-- AdPreloadManager: UNKNOWN consent status now triggers immediate preload with non-personalized ads
-- AdMobBridge: showInterstitial/showRewarded now load with auto-show when no cached ad available
-- JS loading notifications: window.onInterstitialLoading() and window.onRewardedLoading() callbacks added
-- Stale ad handling: Stale ads now trigger reload with auto-show flag set
+**Billing**: StoreKit 2 (`BillingManager`) for subscriptions and consumables:
+- `purchaseProduct(productId)` for one-time products and subscriptions
+- `restorePurchases()` restores current entitlements and consumables
+- Server validation posts to `https://linguagt.com/api/iap/apple/verify`
+- Dispatches `subscription_event` CustomEvents to the web app
 
-*AdMob Best Practices Implemented*:
-- 15-second load timeouts with automatic retry
-- Window focus checks before showing ads (isAppInForeground)
-- Concurrent ad show prevention (isShowingAd flag)
-- Activity lifecycle checks before load/show operations
-- Foreground recovery after ad clicks to prevent Play Store redirect
-- Proper JavaScript callbacks for Promise-based web integration
-- Retry runnable tracking and cancellation to prevent duplicate loads
-
-**Analytics**: User activity tracking with conversation counting and session management.
-
-**Security**: ConversationSecurity module for data protection (referenced but implementation details not fully visible).
+**Security**: Conversation mode security remains at the web layer. The native iOS wrapper only persists the access token in memory; cookies are handled by `WKWebView`.
 
 # External Dependencies
 
-## Core Android Dependencies
-- **Android SDK**: Compile SDK 35, Min SDK 24, Target SDK 35
-- **Kotlin**: Version 2.2.0 (K2 compiler; required by play-services-ads 24.x)
-- **AndroidX Libraries**: Core, Activity, WebView components
-- **Capacitor CLI**: Version 7.4.3 for cross-platform mobile support
+## Core iOS Dependencies
+- **iOS SDK**: Deployment target 15.0+
+- **Swift**: Version 5.9+
+- **Xcode**: 15.0+
+- **CocoaPods**: Latest stable version
+
+## CocoaPods Dependencies
+- `Google-Mobile-Ads-SDK` ~> 11.0
+- `GoogleUserMessagingPlatform` ~> 2.2
+- `FirebaseAnalytics` ~> 11.0
+- `FirebaseCrashlytics` ~> 11.0
 
 ## Node.js Dependencies
 - **@anthropic-ai/sdk**: Version 0.60.0 (Claude AI integration)
@@ -143,14 +114,15 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 - **Puppeteer**: Version 24.17.1 (browser automation)
 
 ## Build Tools
-- **Gradle Wrapper**: Multiple versions tested (7.6, 8.3, 8.9)
-- **Android Build Tools**: Version 35.0.0
-- **JDK**: Version 17 (required for Gradle 8.x)
+- **XcodeGen**: For project generation from `project.yml`
+- **CocoaPods**: Native dependency resolution
+- **xcodebuild**: CI builds and tests
+- **GitHub Actions**: macOS runners for build/test/archive
 
 ## Cloud Services
-- **GitHub Actions**: Ubuntu 24.04 runners for CI/CD
-- **Web Hosting**: gtlingua.com and gtlingua.com domains
-- **Deep Link Verification**: Google Digital Asset Links API
+- **GitHub Actions**: macOS runners for CI/CD
+- **Web Hosting**: gtlingua.com and linguagt.com domains
+- **Universal Links**: Apple associated-domains verification
 
 ## Optional Integrations
 - **Twilio**: SMS notifications (referenced in attached assets)
@@ -161,3 +133,35 @@ Key files: MainActivity.kt, SafePermissionManager.kt, WebAppBridge.kt, BaseActiv
 - **Replit Database**: Key-value storage (@replit/database)
 - **Semgrep**: Security scanning with Bicep rules
 - **Docker**: Claude AI development environment with MCP servers
+
+# CI/CD
+
+The GitHub Actions workflow (`.github/workflows/ios-build.yml`) runs on macOS and:
+1. Selects Xcode 15.4
+2. Installs CocoaPods
+3. Generates the Xcode project with XcodeGen (if installed)
+4. Optionally decodes `GoogleService-Info.plist` from a base64 secret
+5. Runs `pod install`
+6. Builds the app for the iPhone 15 simulator
+7. Runs unit and UI tests
+8. On `main`/`master`, optionally archives the app for release distribution using signing secrets
+
+Required secrets for release archives:
+- `IOS_P12_BASE64` — distribution certificate
+- `IOS_P12_PASSWORD` — certificate password
+- `IOS_MOBILEPROVISION_BASE64` — App Store / Ad Hoc provisioning profile
+- `IOS_DEVELOPMENT_TEAM` — Apple Team ID
+- `IOS_PROVISIONING_PROFILE_SPECIFIER` — provisioning profile specifier
+
+Optional secret:
+- `GOOGLE_SERVICES_INFO_PLIST_BASE64` — Firebase configuration plist
+
+# Local Development
+
+1. `cd ios`
+2. `xcodegen generate` (if you change `project.yml`)
+3. `pod install`
+4. `open LinguaVibe.xcworkspace`
+5. Build and run on a simulator or device
+
+To enable Firebase locally, place `GoogleService-Info.plist` in `ios/LinguaVibe/Resources/`.

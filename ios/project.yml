@@ -1,0 +1,75 @@
+name: LinguaVibe
+options:
+  bundleIdPrefix: com.babelwords
+  deploymentTarget:
+    iOS: "15.0"
+  xcodeVersion: "15.0"
+  createIntermediateGroups: true
+
+targets:
+  LinguaVibe:
+    type: application
+    platform: iOS
+    sources:
+      - path: LinguaVibe
+        excludes:
+          - Resources/Info.plist
+          - Resources/*.entitlements
+    info:
+      path: LinguaVibe/Resources/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibe
+        DEVELOPMENT_TEAM: ""
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_VERSION: "5.9"
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
+        CODE_SIGN_ENTITLEMENTS: LinguaVibe/Resources/LinguaVibe.entitlements
+    dependencies:
+      - sdk: WebKit.framework
+      - sdk: StoreKit.framework
+      - sdk: AVFoundation.framework
+      - sdk: Network.framework
+
+  LinguaVibeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: LinguaVibeTests
+    dependencies:
+      - target: LinguaVibe
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibeTests
+        TEST_TARGET_NAME: LinguaVibe
+
+  LinguaVibeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LinguaVibeUITests
+    dependencies:
+      - target: LinguaVibe
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibeUITests
+        TEST_TARGET_NAME: LinguaVibe
+
+schemes:
+  LinguaVibe:
+    build:
+      targets:
+        LinguaVibe: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: true
+      targets:
+        - name: LinguaVibeTests
+        - name: LinguaVibeUITests
+    archive:
+      config: Release
+      revealArchiveInOrganizer: true

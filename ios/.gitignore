@@ -18,10 +18,10 @@ DerivedData/
 *.dSYM
 
 # CocoaPods
-ios/Pods/
-ios/Podfile.lock
-ios/*.xcworkspace/
-!ios/LinguaVibe.xcworkspace
+Pods/
+Podfile.lock
+*.xcworkspace/
+!LinguaVibe.xcworkspace
 
 # Carthage
 Carthage/Build/
@@ -49,9 +49,4 @@ fastlane/test_output
 
 # Environment
 .env
-.env.*
-
-# Replit
-.cache/
-.upm/
-.tmp/
+tmp/
