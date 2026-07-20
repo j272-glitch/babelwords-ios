@@ -19,7 +19,7 @@ targets:
       path: LinguaVibe/Resources/Info.plist
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibe
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.com
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_STYLE: Automatic
         SWIFT_VERSION: "5.9"
@@ -42,7 +42,7 @@ targets:
       - target: LinguaVibe
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibeTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comTests
         TEST_TARGET_NAME: LinguaVibe
 
   LinguaVibeUITests:
@@ -54,7 +54,7 @@ targets:
       - target: LinguaVibe
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.LinguaVibeUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comUITests
         TEST_TARGET_NAME: LinguaVibe
 
 schemes:
