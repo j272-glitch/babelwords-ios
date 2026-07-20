@@ -25,12 +25,17 @@ final class AdMobManagerTests: XCTestCase {
 
     func testDestroyResetsState() {
         manager.destroy()
-        XCTAssertFalse(manager.isAnyFullscreenAdShowing)
+        XCTAssertFalse(AdMobManager.isAnyFullscreenAdShowing)
     }
 
-    func testPendingShowSetWhenNoAdAvailable() {
-        // Showing with no cached ad triggers a load with pendingShow = true.
+    func testPendingShowFiresNoCachedAdEvent() {
+        let expectation = self.expectation(description: "no cached ad event")
+        manager.eventCallback = { event, _ in
+            if event == "interstitialFailed" {
+                expectation.fulfill()
+            }
+        }
         manager.showInterstitial(from: UIViewController())
-        XCTAssertTrue(manager.isLoading || true) // load is attempted asynchronously
+        wait(for: [expectation], timeout: 1.0)
     }
 }

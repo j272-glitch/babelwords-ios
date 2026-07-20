@@ -17,6 +17,32 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = mainVC
         window.makeKeyAndVisible()
         self.window = window
+
+        // Handle a universal link that launched the app.
+        if let userActivity = connectionOptions.userActivities.first,
+           userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+           let url = userActivity.webpageURL,
+           AppConfig.isTrusted(url: url) {
+            mainVC.route(url: url)
+        }
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        guard let url = URLContexts.first?.url,
+              AppConfig.isTrusted(url: url) else { return }
+        mainViewController?.route(url: url)
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        guard userActivity.activityType == NSUserActivityTypeBrowsingWeb,
+              let url = userActivity.webpageURL,
+              AppConfig.isTrusted(url: url) else { return }
+        mainViewController?.route(url: url)
+    }
+
+    func handleDeepLink(url: URL) {
+        guard AppConfig.isTrusted(url: url) else { return }
+        mainViewController?.route(url: url)
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {

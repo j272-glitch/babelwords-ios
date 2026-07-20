@@ -2,6 +2,7 @@ import Foundation
 import WebKit
 
 /// JavaScript bridge for StoreKit subscriptions. Replaces Android `SubscriptionBridge`.
+/// Only processes messages from the trusted main-frame origin.
 @MainActor
 final class SubscriptionBridge: NSObject {
     private let TAG = "SubscriptionBridge"
@@ -46,8 +47,18 @@ final class SubscriptionBridge: NSObject {
           window.AndroidSubscriptionBridge = bridge;
         })();
         """
-        let userScript = WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        let userScript = WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         webView.configuration.userContentController.addUserScript(userScript)
+    }
+
+    private var isTrustedMessage(_ message: WKScriptMessage) -> Bool {
+        guard let webView = coordinator?.webView,
+              let url = webView.url,
+              AppConfig.isTrusted(url: url),
+              message.frameInfo.isMainFrame else {
+            return false
+        }
+        return true
     }
 }
 
@@ -60,7 +71,13 @@ extension SubscriptionBridge: WKScriptMessageHandler {
     ) {
         guard message.name == "subscriptionBridge",
               let body = message.body as? [String: Any],
-              let action = body["action"] as? String else { return }
+              let action = body["action"] as? String,
+              isTrustedMessage(message) else {
+            if message.name == "subscriptionBridge" {
+                print("[\(TAG)] Ignored bridge action from untrusted origin or non-main frame")
+            }
+            return
+        }
 
         let billing = billingManager
 

@@ -28,7 +28,7 @@ final class ConsentManager: NSObject {
 
             if let error = error {
                 print("[\(self.TAG)] Consent info update failed: \(error.localizedDescription)")
-                onConsentReady(true)
+                onConsentReady(self.consentInformation.canRequestAds)
                 return
             }
 
@@ -38,7 +38,7 @@ final class ConsentManager: NSObject {
             if self.consentInformation.formStatus == .available {
                 self.loadAndShowConsentForm(from: viewController, onConsentReady: onConsentReady)
             } else {
-                onConsentReady(true)
+                onConsentReady(canRequestAds)
             }
         }
     }
@@ -51,12 +51,12 @@ final class ConsentManager: NSObject {
             guard let self = self else { return }
             if let error = error {
                 print("[\(self.TAG)] Consent form load failed: \(error.localizedDescription)")
-                onConsentReady(true)
+                onConsentReady(self.consentInformation.canRequestAds)
                 return
             }
 
             guard let form = form else {
-                onConsentReady(true)
+                onConsentReady(self.consentInformation.canRequestAds)
                 return
             }
 
@@ -70,7 +70,7 @@ final class ConsentManager: NSObject {
                     onConsentReady(self.consentInformation.canRequestAds)
                 }
             } else {
-                onConsentReady(true)
+                onConsentReady(self.consentInformation.canRequestAds)
             }
         }
     }

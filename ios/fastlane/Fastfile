@@ -1,12 +1,15 @@
 default_platform(:ios)
 
+# Replace the match repo URL or set the FASTLANE_MATCH_REPO_URL environment variable.
+match_repo_url = ENV["FASTLANE_MATCH_REPO_URL"] || "https://github.com/YOUR_ORG/linguavibe-match.git"
+
 platform :ios do
   desc "Sync signing certificates and provisioning profiles"
   lane :sync_signing do
     match(
       type: "appstore",
       app_identifier: "com.babelwords.LinguaVibe",
-      git_url: "https://github.com/YOUR_ORG/linguavibe-match.git",
+      git_url: match_repo_url,
       readonly: false,
       api_key_path: "./app_store_connect_api_key.json"
     )

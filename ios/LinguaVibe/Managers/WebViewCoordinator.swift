@@ -170,6 +170,23 @@ extension WebViewCoordinator: WKNavigationDelegate {
 
     func webView(
         _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        let requestURL = navigationAction.request.url
+        if AppConfig.isNavigationAllowed(url: requestURL) {
+            decisionHandler(.allow)
+        } else if let url = requestURL, navigationAction.targetFrame?.isMainFrame == true {
+            // Open external links in the system browser instead of inside the app.
+            decisionHandler(.cancel)
+            UIApplication.shared.open(url)
+        } else {
+            decisionHandler(.cancel)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
         decidePolicyFor navigationResponse: WKNavigationResponse,
         decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
     ) {
@@ -201,9 +218,11 @@ extension WebViewCoordinator: WKUIDelegate {
         type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void
     ) {
+        let host = origin.host?.lowercased() ?? ""
+        let isTrusted = AppConfig.trustedHosts.contains(host)
         switch type {
         case .microphone, .camera:
-            decisionHandler(.grant)
+            decisionHandler(isTrusted ? .grant : .deny)
         @unknown default:
             decisionHandler(.deny)
         }
@@ -218,6 +237,11 @@ extension WebViewCoordinator: WKScriptMessageHandler {
         didReceive message: WKScriptMessage
     ) {
         guard message.name == "micBridge" else { return }
+        guard message.frameInfo.isMainFrame,
+              AppConfig.isTrusted(url: webView.url) else {
+            print("[\(TAG)] Ignored mic bridge message from untrusted origin or non-main frame")
+            return
+        }
         if let active = message.body as? Bool {
             setMicState(active)
         }

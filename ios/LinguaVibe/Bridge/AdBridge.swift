@@ -3,6 +3,7 @@ import WebKit
 import UIKit
 
 /// JavaScript bridge for ad operations. Exposed to the web app as `window.AdBridge`.
+/// Only processes messages from the trusted main-frame origin.
 @MainActor
 final class AdBridge: NSObject {
     private let TAG = "AdBridge"
@@ -69,7 +70,7 @@ final class AdBridge: NSObject {
           };
         })();
         """
-        let userScript = WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+        let userScript = WKUserScript(source: script, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         webView.configuration.userContentController.addUserScript(userScript)
     }
 
@@ -90,6 +91,16 @@ final class AdBridge: NSObject {
         while let presented = vc.presentedViewController { vc = presented }
         return vc
     }
+
+    private var isTrustedMessage(_ message: WKScriptMessage) -> Bool {
+        guard let webView = coordinator?.webView,
+              let url = webView.url,
+              AppConfig.isTrusted(url: url),
+              message.frameInfo.isMainFrame else {
+            return false
+        }
+        return true
+    }
 }
 
 // MARK: - WKScriptMessageHandler
@@ -101,7 +112,13 @@ extension AdBridge: WKScriptMessageHandler {
     ) {
         guard message.name == "adBridge",
               let body = message.body as? [String: Any],
-              let action = body["action"] as? String else { return }
+              let action = body["action"] as? String,
+              isTrustedMessage(message) else {
+            if message.name == "adBridge" {
+                print("[\(TAG)] Ignored bridge action from untrusted origin or non-main frame")
+            }
+            return
+        }
 
         let mgr = adMobManager
         let consent = consentManager

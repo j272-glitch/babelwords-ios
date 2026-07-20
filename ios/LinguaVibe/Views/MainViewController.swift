@@ -180,9 +180,15 @@ final class MainViewController: UIViewController {
     private func requestConsentAndLoadAds() {
         consentManager.requestConsent(from: self) { [weak self] canRequestAds in
             print("[\(self?.TAG ?? "MainViewController")] Consent resolved: canRequestAds=\(canRequestAds)")
+            guard canRequestAds else { return }
             self?.adMobManager.preloadInterstitial()
             self?.appOpenAdManager.loadAd()
         }
+    }
+
+    /// Route a universal link or deep-link URL into the WebView.
+    func route(url: URL) {
+        webCoordinator.load(url: url)
     }
 
     private func loadInitialURL() {
