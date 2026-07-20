@@ -107,13 +107,11 @@ extension AdBridge: WKScriptMessageHandler {
         let consent = consentManager
 
         switch action {
-        case "notifyMicActive":
-            if let active = body["active"] as? Bool {
-                coordinator?.setMicState(active)
-            }
-
         case "requestConsent":
-            guard let vc = topViewController() else { return }
+            guard let vc = topViewController() else {
+                fireEvent("consentResolved", data: "false")
+                return
+            }
             consent?.requestConsent(from: vc) { [weak self] canRequestAds in
                 self?.fireEvent("consentResolved", data: canRequestAds ? "true" : "false")
             }
@@ -168,7 +166,10 @@ extension AdBridge: WKScriptMessageHandler {
             }
 
         case "testShowInterstitial":
-            guard let vc = topViewController() else { return }
+            guard let vc = topViewController() else {
+                fireEvent("interstitialFailed", data: "manager_not_ready")
+                return
+            }
             mgr?.showInterstitial(from: vc)
 
         case "logEvent":

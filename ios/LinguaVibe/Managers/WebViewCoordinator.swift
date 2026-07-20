@@ -55,7 +55,11 @@ final class WebViewCoordinator: NSObject {
 
     deinit {
         micWatchdogWorkItem?.cancel()
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "micBridge")
+        let contentController = webView.configuration.userContentController
+        contentController.removeScriptMessageHandler(forName: "micBridge")
+        contentController.removeScriptMessageHandler(forName: "adBridge")
+        contentController.removeScriptMessageHandler(forName: "subscriptionBridge")
+        contentController.removeAllUserScripts()
     }
 
     // MARK: - Navigation
