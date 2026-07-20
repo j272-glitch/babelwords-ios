@@ -944,13 +944,15 @@ jobs:
       - name: Generate debug keystore + Build Debug + AndroidTest APKs for Test Lab
         if: success() && (github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_instrumentation_test == 'true')
         run: |
+          cd android/app
           # GitHub Actions runners don't have the Android default debug.keystore.
-          # Gradle's default debug signing config looks for it at ~/.android/debug.keystore.
-          mkdir -p ~/.android
-          keytool -genkey -v -keystore ~/.android/debug.keystore -alias androiddebugkey \
+          # build.gradle always expects debug.keystore in this directory.
+          keytool -genkey -v -keystore debug.keystore -alias androiddebugkey \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US" \
             -storepass android -keypass android
+          ls -la debug.keystore
+          cd ../..
           cd android
           ./gradlew assembleDebug assembleDebugAndroidTest --no-daemon -x lint
 

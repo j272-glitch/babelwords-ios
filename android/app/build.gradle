@@ -80,10 +80,10 @@ android {
     // Signing configurations
     signingConfigs {
         debug {
-            // Use default debug keystore if custom one doesn't exist
-            if (file('debug.keystore').exists()) {
-                storeFile file('debug.keystore')
-            }
+            // Always use project-local debug.keystore; CI generates it before building.
+            // Do NOT make this conditional — AGP falls back to ~/.config/.android on
+            // XDG-based runners, causing validateSigningDebug to fail.
+            storeFile file('debug.keystore')
             storePassword 'android'
             keyAlias 'androiddebugkey'
             keyPassword 'android'
