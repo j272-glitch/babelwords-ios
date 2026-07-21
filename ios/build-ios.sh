@@ -15,16 +15,16 @@ pod install --repo-update
 
 echo "==> Building"
 xcodebuild build \
-  -workspace LinguaVibe.xcworkspace \
-  -scheme LinguaVibe \
+  -workspace BabelWords.xcworkspace \
+  -scheme BabelWords \
   -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO
 
 echo "==> Running tests"
 xcodebuild test \
-  -workspace LinguaVibe.xcworkspace \
-  -scheme LinguaVibe \
+  -workspace BabelWords.xcworkspace \
+  -scheme BabelWords \
   -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
   CODE_SIGN_IDENTITY="" \
   CODE_SIGNING_REQUIRED=NO

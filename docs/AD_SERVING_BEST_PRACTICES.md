@@ -1,7 +1,7 @@
 # Ad Serving Best Practices
 
 Lessons distilled from the **BabelWords** Android AdMob integration, written to be
-applied to the **LinguaVibe** project. Both are WebView-wrapped translation apps
+applied to the **BabelWords** project. Both are WebView-wrapped translation apps
 that monetize with AdMob **interstitial + rewarded** ads (no banners) and bridge
 events to a web app. These are the patterns that made ad serving fast, reliable,
 and crash-free in Firebase Test Lab.
@@ -134,7 +134,7 @@ documented in one place.
 
 > ⚠️ **Gap to close for production.** The current BabelWords manager requests ads
 > with a plain `AdRequest.Builder().build()` and does **not** run Google's UMP
-> consent flow. For EU/UK users and Play policy compliance, LinguaVibe should add
+> consent flow. For EU/UK users and Play policy compliance, BabelWords should add
 > it.
 
 Best practice:
@@ -260,7 +260,7 @@ wrong callback (§5).
 
 ---
 
-## 14. Quick adoption checklist for LinguaVibe
+## 14. Quick adoption checklist for BabelWords
 
 - [ ] Preload interstitial + rewarded at startup (§1)
 - [ ] Reload after every dismiss **and** failed show (§2)

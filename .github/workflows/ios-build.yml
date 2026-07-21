@@ -17,8 +17,8 @@ on:
           - Release
 
 env:
-  WORKSPACE: ios/LinguaVibe.xcworkspace
-  SCHEME: LinguaVibe
+  WORKSPACE: ios/BabelWords.xcworkspace
+  SCHEME: BabelWords
   DERIVED_DATA: derived_data
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
         if: env.GOOGLE_SERVICES_INFO_PLIST_BASE64 != ''
         working-directory: ios
         run: |
-          echo "${{ secrets.GOOGLE_SERVICES_INFO_PLIST_BASE64 }}" | base64 -d -o LinguaVibe/Resources/GoogleService-Info.plist
+          echo "${{ secrets.GOOGLE_SERVICES_INFO_PLIST_BASE64 }}" | base64 -d -o BabelWords/Resources/GoogleService-Info.plist
         env:
           GOOGLE_SERVICES_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICES_INFO_PLIST_BASE64 }}
 
@@ -150,5 +150,5 @@ jobs:
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: LinguaVibe.ipa
-          path: ios/build/LinguaVibe.ipa
+          name: BabelWords.ipa
+          path: ios/build/BabelWords.ipa

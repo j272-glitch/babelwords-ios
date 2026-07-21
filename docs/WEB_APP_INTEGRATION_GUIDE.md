@@ -1,4 +1,4 @@
-# Web App Integration Guide for LinguaVibe Android
+# Web App Integration Guide for BabelWords Android
 
 This guide documents the required JavaScript implementations for linguagt.com to work with the updated Android app ad system.
 

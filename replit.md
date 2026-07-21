@@ -1,6 +1,6 @@
 # Overview
 
-LinguaVibe (formerly LinguaGT/LinguaLink) is a real-time speech translation application. The project wraps a web application (hosted at gtlingua.com and linguagt.com) in a native iOS `WKWebView` container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
+BabelWords (formerly LinguaGT/LinguaLink) is a real-time speech translation application. The project wraps a web application (hosted at linguagt.com) in a native iOS `WKWebView` container, providing speech translation capabilities across 36 languages with microphone access and modern web features.
 
 The application is built using:
 - **Native iOS (UIKit / Swift)** - WebView wrapper with permission handling
@@ -34,13 +34,13 @@ Preferred communication style: Simple, everyday language.
 **WKWebView Container**: `MainViewController` wraps the web app in a `WKWebView` with:
 - JavaScript enabled and modern web APIs
 - Microphone / camera permission grants via `WKUIDelegate`
-- Deep link support for `linguagt.com` and `gtlingua.com` via Universal Links (`LinguaVibe.entitlements`)
+- Deep link support for `linguagt.com` via Universal Links (`BabelWords.entitlements`)
 - SSL error handling and an offline fallback page (`offline.html`)
 - Redirect-loop detection and a stale-mic watchdog
 
 **Permission Management**: The web layer requests media capture permissions; the native layer grants them for the app's own microphone/camera usage. `NSMicrophoneUsageDescription`, `NSSpeechRecognitionUsageDescription`, and `NSCameraUsageDescription` are declared in `Info.plist`.
 
-**Deep Linking**: Configured with Apple Universal Links for the `linguagt.com` and `gtlingua.com` domains. The `apple-app-site-association` file must be served by the web host; `LinguaVibe.entitlements` declares the associated domains.
+**Deep Linking**: Configured with Apple Universal Links for the `linguagt.com` domain. The `apple-app-site-association` file must be served by the web host; `BabelWords.entitlements` declares the associated domains.
 
 **Crash Prevention**: Ported from the Android 91-solution crash-prevention system:
 - Mic safety watchdog (45s stale-lock reset)
@@ -121,7 +121,7 @@ Key files: `MainViewController.swift`, `WebViewCoordinator.swift`, `AdBridge.swi
 
 ## Cloud Services
 - **GitHub Actions**: macOS runners for CI/CD
-- **Web Hosting**: gtlingua.com and linguagt.com domains
+- **Web Hosting**: linguagt.com domain
 - **Universal Links**: Apple associated-domains verification
 
 ## Optional Integrations
@@ -161,7 +161,7 @@ Optional secret:
 1. `cd ios`
 2. `xcodegen generate` (if you change `project.yml`)
 3. `pod install`
-4. `open LinguaVibe.xcworkspace`
+4. `open BabelWords.xcworkspace`
 5. Build and run on a simulator or device
 
-To enable Firebase locally, place `GoogleService-Info.plist` in `ios/LinguaVibe/Resources/`.
+To enable Firebase locally, place `GoogleService-Info.plist` in `ios/BabelWords/Resources/`.

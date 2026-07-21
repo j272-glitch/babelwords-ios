@@ -1,15 +1,15 @@
-# LinguaVibe
+# BabelWords
 
 Real-time speech translation, now as a native iOS app.
 
-This repository contains the **native iOS wrapper** for the LinguaVibe web app, hosted at `https://linguagt.com` and `https://gtlingua.com`. It embeds the web app in a `WKWebView` and provides native iOS integrations for ads, subscriptions, analytics, and consent.
+This repository contains the **native iOS wrapper** for the BabelWords web app, hosted at `https://linguagt.com`. It embeds the web app in a `WKWebView` and provides native iOS integrations for ads, subscriptions, analytics, and consent.
 
 ## Quick start
 
 1. `cd ios`
 2. `xcodegen generate` (if you changed `project.yml`)
 3. `pod install`
-4. `open LinguaVibe.xcworkspace`
+4. `open BabelWords.xcworkspace`
 5. Build and run on an iOS 15+ simulator or device.
 
 See [`ios/README.md`](ios/README.md) and [`replit.md`](replit.md) for full setup and architecture details.

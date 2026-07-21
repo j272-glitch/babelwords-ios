@@ -1,7 +1,7 @@
 .PHONY: setup generate pods build test clean archive
 
 setup: generate pods
-	@echo "Open LinguaVibe.xcworkspace in Xcode to build and run."
+	@echo "Open BabelWords.xcworkspace in Xcode to build and run."
 
 generate:
 	@if command -v xcodegen >/dev/null 2>&1; then \
@@ -16,26 +16,26 @@ pods:
 
 build:
 	xcodebuild build \
-		-workspace LinguaVibe.xcworkspace \
-		-scheme LinguaVibe \
+		-workspace BabelWords.xcworkspace \
+		-scheme BabelWords \
 		-destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
 		CODE_SIGN_IDENTITY="" \
 		CODE_SIGNING_REQUIRED=NO
 
 test:
 	xcodebuild test \
-		-workspace LinguaVibe.xcworkspace \
-		-scheme LinguaVibe \
+		-workspace BabelWords.xcworkspace \
+		-scheme BabelWords \
 		-destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
 		CODE_SIGN_IDENTITY="" \
 		CODE_SIGNING_REQUIRED=NO
 
 archive:
 	xcodebuild archive \
-		-workspace LinguaVibe.xcworkspace \
-		-scheme LinguaVibe \
+		-workspace BabelWords.xcworkspace \
+		-scheme BabelWords \
 		-destination 'generic/platform=iOS' \
-		-archivePath build/LinguaVibe.xcarchive
+		-archivePath build/BabelWords.xcarchive
 
 clean:
 	rm -rf build DerivedData

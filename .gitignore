@@ -21,7 +21,7 @@ DerivedData/
 ios/Pods/
 ios/Podfile.lock
 ios/*.xcworkspace/
-!ios/LinguaVibe.xcworkspace
+!ios/BabelWords.xcworkspace
 
 # Carthage
 Carthage/Build/

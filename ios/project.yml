@@ -1,4 +1,4 @@
-name: LinguaVibe
+name: BabelWords
 options:
   bundleIdPrefix: com.babelwords
   deploymentTarget:
@@ -7,16 +7,16 @@ options:
   createIntermediateGroups: true
 
 targets:
-  LinguaVibe:
+  BabelWords:
     type: application
     platform: iOS
     sources:
-      - path: LinguaVibe
+      - path: BabelWords
         excludes:
           - Resources/Info.plist
           - Resources/*.entitlements
     info:
-      path: LinguaVibe/Resources/Info.plist
+      path: BabelWords/Resources/Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.com
@@ -26,50 +26,50 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
-        CODE_SIGN_ENTITLEMENTS: LinguaVibe/Resources/LinguaVibe.entitlements
+        CODE_SIGN_ENTITLEMENTS: BabelWords/Resources/BabelWords.entitlements
     dependencies:
       - sdk: WebKit.framework
       - sdk: StoreKit.framework
       - sdk: AVFoundation.framework
       - sdk: Network.framework
 
-  LinguaVibeTests:
+  BabelWordsTests:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - path: LinguaVibeTests
+      - path: BabelWordsTests
     dependencies:
-      - target: LinguaVibe
+      - target: BabelWords
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comTests
-        TEST_TARGET_NAME: LinguaVibe
+        TEST_TARGET_NAME: BabelWords
 
-  LinguaVibeUITests:
+  BabelWordsUITests:
     type: bundle.ui-testing
     platform: iOS
     sources:
-      - path: LinguaVibeUITests
+      - path: BabelWordsUITests
     dependencies:
-      - target: LinguaVibe
+      - target: BabelWords
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comUITests
-        TEST_TARGET_NAME: LinguaVibe
+        TEST_TARGET_NAME: BabelWords
 
 schemes:
-  LinguaVibe:
+  BabelWords:
     build:
       targets:
-        LinguaVibe: all
+        BabelWords: all
     run:
       config: Debug
     test:
       config: Debug
       gatherCoverageData: true
       targets:
-        - name: LinguaVibeTests
-        - name: LinguaVibeUITests
+        - name: BabelWordsTests
+        - name: BabelWordsUITests
     archive:
       config: Release
       revealArchiveInOrganizer: true
