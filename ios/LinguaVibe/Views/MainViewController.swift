@@ -119,7 +119,7 @@ final class MainViewController: UIViewController {
         ])
 
         let titleLabel = UILabel()
-        titleLabel.text = "Unable to load LinguaVibe"
+        titleLabel.text = "Unable to load Babel Words"
         titleLabel.font = UIFont.preferredFont(forTextStyle: .headline)
         titleLabel.textAlignment = .center
 
