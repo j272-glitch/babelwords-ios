@@ -4,6 +4,7 @@ set -e
 # Automatic push script for the BabelWords iOS project.
 # Usage: ./push.sh "Your commit message"
 # If no message is provided, it uses a default message with a timestamp.
+# Run this from the repository root (or any directory); the script will cd to the repo root automatically.
 
 cd "$(dirname "$0")"
 
