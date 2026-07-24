@@ -10,7 +10,7 @@ This repository contains the **native iOS wrapper** for the BabelWords web app, 
 2. `xcodegen generate` (if you changed `project.yml`)
 3. `pod install`
 4. `open BabelWords.xcworkspace`
-5. Build and run on an iOS 15+ simulator or device.
+5. Build and run on an iOS 26+ simulator or device.
 
 See [`ios/README.md`](ios/README.md) and [`replit.md`](replit.md) for full setup and architecture details.
 

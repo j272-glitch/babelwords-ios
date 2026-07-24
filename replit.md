@@ -137,7 +137,7 @@ Key files: `MainViewController.swift`, `WebViewCoordinator.swift`, `AdBridge.swi
 # CI/CD
 
 The GitHub Actions workflow (`.github/workflows/ios-build.yml`) runs on macOS and:
-1. Selects Xcode 15.4
+1. Selects Xcode 26.0
 2. Installs CocoaPods
 3. Generates the Xcode project with XcodeGen (if installed)
 4. Optionally decodes `GoogleService-Info.plist` from a base64 secret

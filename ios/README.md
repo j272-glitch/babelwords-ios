@@ -4,8 +4,8 @@ UIKit iOS replacement for the former Android wrapper. It wraps the web app at `h
 
 ## Requirements
 
-- Xcode 15+
-- iOS 15.0+
+- Xcode 26+
+- iOS 26.0+
 - CocoaPods
 - Apple Developer Team (for device testing / App Store)
 
@@ -59,7 +59,7 @@ The `.github/workflows/ios-build.yml` workflow runs on every push and PR:
 
 ### Cloud Mac setup
 
-1. Create an Apple Developer account and App ID `com.babelwords.BabelWords`.
+1. Create an Apple Developer account and App ID `com.babelwords.com`.
 2. Generate an App Store Connect API key in a browser, download the `.p8` file, and add these GitHub Secrets:
    - `APP_STORE_CONNECT_API_KEY_KEY_ID`
    - `APP_STORE_CONNECT_API_KEY_ISSUER_ID`

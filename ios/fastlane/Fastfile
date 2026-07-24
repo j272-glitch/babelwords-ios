@@ -1,7 +1,7 @@
 default_platform(:ios)
 
 # Replace the match repo URL or set the FASTLANE_MATCH_REPO_URL environment variable.
-match_repo_url = ENV["FASTLANE_MATCH_REPO_URL"] || "https://github.com/YOUR_ORG/linguavibe-match.git"
+match_repo_url = ENV["FASTLANE_MATCH_REPO_URL"] || "https://github.com/YOUR_ORG/babelwords-match.git"
 
 platform :ios do
   desc "Sync signing certificates and provisioning profiles"
@@ -19,11 +19,11 @@ platform :ios do
   lane :build do
     sync_signing
     gym(
-      scheme: "LinguaVibe",
-      workspace: "LinguaVibe.xcworkspace",
+      scheme: "BabelWords",
+      workspace: "BabelWords.xcworkspace",
       export_method: "app-store",
       output_directory: "./build",
-      output_name: "LinguaVibe.ipa"
+      output_name: "BabelWords.ipa"
     )
   end
 end

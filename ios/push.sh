@@ -5,8 +5,7 @@ set -e
 # Usage: ./push.sh "Your commit message"
 # If no message is provided, it uses a default message with a timestamp.
 
-REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-cd "$REPO_ROOT"
+cd "$(dirname "$0")"
 
 COMMIT_MESSAGE="${1:-Update BabelWords iOS project $(date +%Y-%m-%d-%H:%M)}"
 
@@ -28,6 +27,9 @@ fi
 git commit -m "$COMMIT_MESSAGE"
 
 echo "==> Pushing to origin main"
-git push https://j272-glitch:${GITHUB_BW_TOKEN}@github.com/j272-glitch/babelwords-ios.git main
+# Use a credential helper so the token is not exposed in the remote URL.
+git config credential.helper '!/bin/sh -c "echo username=j272-glitch; echo password=$GITHUB_BW_TOKEN"'
+git push origin main
+git config --unset credential.helper
 
 echo "==> Push complete"
