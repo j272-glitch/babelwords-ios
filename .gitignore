@@ -55,3 +55,4 @@ fastlane/test_output
 .cache/
 .upm/
 .tmp/
+attached_assets/*.mov
