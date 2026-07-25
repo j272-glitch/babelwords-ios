@@ -17,6 +17,9 @@ DerivedData/
 *.dSYM.zip
 *.dSYM
 
+# Secrets scratch files (do not commit)
+.secrets/
+
 # CocoaPods
 ios/Pods/
 ios/Podfile.lock
