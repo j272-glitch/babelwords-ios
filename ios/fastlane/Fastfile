@@ -15,10 +15,21 @@ platform :ios do
     )
   end
 
-  desc "Sync development signing for Firebase Test Lab"
+  desc "Sync development signing for Firebase Test Lab simulator builds"
   lane :sync_signing_testlab do
     match(
       type: "development",
+      app_identifier: "com.babelwords.com",
+      git_url: match_repo_url,
+      readonly: false,
+      api_key_path: "./app_store_connect_api_key.json"
+    )
+  end
+
+  desc "Sync ad-hoc signing for Firebase Test Lab device builds"
+  lane :sync_signing_adhoc do
+    match(
+      type: "adhoc",
       app_identifier: "com.babelwords.com",
       git_url: match_repo_url,
       readonly: false,
@@ -33,6 +44,18 @@ platform :ios do
       scheme: "BabelWords",
       workspace: "BabelWords.xcworkspace",
       export_method: "app-store",
+      output_directory: "./build",
+      output_name: "BabelWords.ipa"
+    )
+  end
+
+  desc "Build and export ad-hoc IPA for Firebase Test Lab"
+  lane :build_adhoc do
+    sync_signing_adhoc
+    gym(
+      scheme: "BabelWords",
+      workspace: "BabelWords.xcworkspace",
+      export_method: "ad-hoc",
       output_directory: "./build",
       output_name: "BabelWords.ipa"
     )

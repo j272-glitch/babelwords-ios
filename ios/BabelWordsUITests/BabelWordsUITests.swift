@@ -14,10 +14,26 @@ final class BabelWordsUITests: XCTestCase {
         app = nil
     }
 
+    func testLaunchAndWebViewLoads() throws {
+        // Wait up to 15 seconds for the WebView to exist after launch.
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 15), "WebView did not appear")
+
+        // The loading overlay should disappear once the WebView is ready.
+        let loading = app.staticTexts["Loading..."]
+        XCTAssertFalse(loading.waitForExistence(timeout: 15), "Loading overlay stuck")
+    }
+
     func testLaunchDisplaysWebView() throws {
         // The web view is the main content; ensure it exists after launch.
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 5))
+    }
+
+    func testAdButtonsAreReachable() throws {
+        // If the web app exposes buttons with accessibility labels, verify they are reachable.
+        let translateButton = app.buttons["Translate"]
+        XCTAssertTrue(translateButton.waitForExistence(timeout: 15))
     }
 
     func testOfflineRetryButtonExistsOnError() throws {
