@@ -58,13 +58,11 @@ The `.github/workflows/ios-build.yml` workflow runs on every push and PR:
 - **Archive and export IPA** — runs on your self-hosted cloud Mac and uses `fastlane match` to download signing certificates from the encrypted match repo.
 - **Firebase Test Lab iOS** — runs the `BabelWordsUITests` UI test bundle on a physical iOS device in Firebase Test Lab, matching the Android CI’s Firebase Test Lab coverage.
 
-A separate manual workflow, `.github/workflows/ios-test-lab-v1.yml`, mirrors the Android CI structure more closely:
+The same workflow can also be triggered manually from the GitHub Actions tab with optional boolean inputs:
 
-- **Build iOS App + XCUITest Runner** — creates a signed ad-hoc `.ipa` and a zipped XCUITest runner on `macos-latest`.
-- **XCUITest on iOS Simulator** — runs the UI tests on a simulator.
-- **Firebase Test Lab iOS Device Test** — uploads the `.ipa` and XCUITest runner to Firebase Test Lab on a physical device, then downloads logs and video and scans for ad markers.
-
-Trigger the manual workflow from the GitHub Actions tab with the desired boolean inputs.
+- **Build ad-hoc IPA + XCUITest runner** — creates a signed ad-hoc `.ipa` and a zipped XCUITest runner on your self-hosted cloud Mac.
+- **Manual XCUITest on iOS Simulator** — runs the UI tests on a simulator.
+- **Manual Firebase Test Lab iOS** — uploads the `.ipa` and XCUITest runner to Firebase Test Lab on a physical device, then downloads logs and video and scans for ad markers.
 
 ### GitHub Secrets
 
