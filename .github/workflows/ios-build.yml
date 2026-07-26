@@ -49,6 +49,11 @@ jobs:
         with:
           xcode-version: '26'
 
+      - name: Set up writable tool cache
+        run: |
+          mkdir -p "$HOME/hostedtoolcache"
+          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
+
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
@@ -238,6 +243,11 @@ jobs:
         with:
           xcode-version: '26'
 
+      - name: Set up writable tool cache
+        run: |
+          mkdir -p "$HOME/hostedtoolcache"
+          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
+
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
@@ -402,6 +412,11 @@ jobs:
         with:
           xcode-version: '26'
 
+      - name: Set up writable tool cache
+        run: |
+          mkdir -p "$HOME/hostedtoolcache"
+          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
+
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
@@ -523,6 +538,11 @@ jobs:
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '26'
+
+      - name: Set up writable tool cache
+        run: |
+          mkdir -p "$HOME/hostedtoolcache"
+          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
 
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1

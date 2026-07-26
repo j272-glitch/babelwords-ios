@@ -52,7 +52,7 @@ final class SubscriptionBridge: NSObject {
         webView.configuration.userContentController.addUserScript(userScript)
     }
 
-    private var isTrustedMessage(_ message: WKScriptMessage) -> Bool {
+    private func isTrustedMessage(_ message: WKScriptMessage) -> Bool {
         guard let webView = coordinator?.webView,
               let url = webView.url,
               AppConfig.isTrusted(url: url),
