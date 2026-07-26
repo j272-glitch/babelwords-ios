@@ -10,7 +10,7 @@ set -e
 #   api_key_base64.txt  -> contains the base64-encoded .p8 key
 #
 # Then run:
-#   ./setup-app-store-connect-key-from-files.sh [INPUT_DIR]
+#   ./setup-key.sh [INPUT_DIR]
 #
 # If no INPUT_DIR is provided, it defaults to /tmp.
 

@@ -10,7 +10,7 @@ set -e
 #   match_password.txt -> contains MATCH_PASSWORD
 #
 # Then run:
-#   ./run-match-from-files.sh [INPUT_DIR]
+#   ./match.sh [INPUT_DIR]
 #
 # If no INPUT_DIR is provided, it defaults to /tmp.
 
