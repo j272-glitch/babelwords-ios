@@ -16,17 +16,29 @@ set -e
 
 INPUT_DIR="${1:-/tmp}"
 
+find_file() {
+  local dir="$1"
+  shift
+  for name in "$@"; do
+    local path="$dir/$name"
+    if [ -f "$path" ]; then
+      echo "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
 cd "$(dirname "$0")"
 
-AUTH_FILE="$INPUT_DIR/match_auth.txt"
-PASSWORD_FILE="$INPUT_DIR/match_password.txt"
-
-if [ ! -f "$AUTH_FILE" ] || [ ! -f "$PASSWORD_FILE" ]; then
-  echo "Error: Missing input files. Create these two plain text files:"
-  echo "  $AUTH_FILE"
-  echo "  $PASSWORD_FILE"
+AUTH_FILE=$(find_file "$INPUT_DIR" "match_auth.txt" "match-auth") || {
+  echo "Error: Missing match auth file. Create one of: $INPUT_DIR/match_auth.txt or $INPUT_DIR/match-auth"
   exit 1
-fi
+}
+PASSWORD_FILE=$(find_file "$INPUT_DIR" "match_password.txt" "match-password") || {
+  echo "Error: Missing match password file. Create one of: $INPUT_DIR/match_password.txt or $INPUT_DIR/match-password"
+  exit 1
+}
 
 MATCH_GIT_BASIC_AUTHORIZATION=$(cat "$AUTH_FILE" | tr -d '\n')
 MATCH_PASSWORD=$(cat "$PASSWORD_FILE" | tr -d '\n')

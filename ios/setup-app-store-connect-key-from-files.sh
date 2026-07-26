@@ -16,19 +16,33 @@ set -e
 
 INPUT_DIR="${1:-/tmp}"
 
+find_file() {
+  local dir="$1"
+  shift
+  for name in "$@"; do
+    local path="$dir/$name"
+    if [ -f "$path" ]; then
+      echo "$path"
+      return 0
+    fi
+  done
+  return 1
+}
+
 cd "$(dirname "$0")"
 
-KEY_ID_FILE="$INPUT_DIR/key_id.txt"
-ISSUER_ID_FILE="$INPUT_DIR/issuer_id.txt"
-B64_FILE="$INPUT_DIR/api_key_base64.txt"
-
-if [ ! -f "$KEY_ID_FILE" ] || [ ! -f "$ISSUER_ID_FILE" ] || [ ! -f "$B64_FILE" ]; then
-  echo "Error: Missing input files. Create these three files:"
-  echo "  $KEY_ID_FILE"
-  echo "  $ISSUER_ID_FILE"
-  echo "  $B64_FILE"
+KEY_ID_FILE=$(find_file "$INPUT_DIR" "key_id.txt" "key_id") || {
+  echo "Error: Missing key_id file. Create one of: $INPUT_DIR/key_id.txt or $INPUT_DIR/key_id"
   exit 1
-fi
+}
+ISSUER_ID_FILE=$(find_file "$INPUT_DIR" "issuer_id.txt" "issuer_id") || {
+  echo "Error: Missing issuer_id file. Create one of: $INPUT_DIR/issuer_id.txt or $INPUT_DIR/issuer_id"
+  exit 1
+}
+B64_FILE=$(find_file "$INPUT_DIR" "api_key_base64.txt" "api_key_base64") || {
+  echo "Error: Missing api_key_base64 file. Create one of: $INPUT_DIR/api_key_base64.txt or $INPUT_DIR/api_key_base64"
+  exit 1
+}
 
 KEY_ID=$(cat "$KEY_ID_FILE" | tr -d '\n')
 ISSUER_ID=$(cat "$ISSUER_ID_FILE" | tr -d '\n')
