@@ -78,12 +78,18 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
+      - name: Find available simulator
+        id: sim
+        run: |
+          xcrun simctl list devices available
+          echo "destination=platform=iOS Simulator,OS=latest" >> $GITHUB_OUTPUT
+
       - name: Build
         run: |
           xcodebuild build \
             -workspace ${{ env.WORKSPACE }} \
             -scheme ${{ env.SCHEME }} \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination '${{ steps.sim.outputs.destination }}' \
             -derivedDataPath ${{ env.DERIVED_DATA }} \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -94,7 +100,7 @@ jobs:
           xcodebuild test \
             -workspace ${{ env.WORKSPACE }} \
             -scheme ${{ env.SCHEME }} \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination '${{ steps.sim.outputs.destination }}' \
             -derivedDataPath ${{ env.DERIVED_DATA }} \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
