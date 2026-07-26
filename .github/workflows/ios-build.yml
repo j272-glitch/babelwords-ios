@@ -47,7 +47,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.0'
+          xcode-version: '26'
 
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
@@ -82,7 +82,27 @@ jobs:
         id: sim
         run: |
           xcrun simctl list devices available
-          echo "destination=platform=iOS Simulator,OS=latest" >> $GITHUB_OUTPUT
+          xcrun simctl list devices available -j > /tmp/simctl-devices.json
+          python3 -c "
+          import json, sys
+          with open('/tmp/simctl-devices.json') as f:
+              data = json.load(f)
+          udid = None
+          for runtime, devices in data['devices'].items():
+              if not runtime.startswith('com.apple.CoreSimulator.SimRuntime.iOS'):
+                  continue
+              for device in devices:
+                  if device.get('isAvailable') and 'iPhone' in device.get('name', ''):
+                      udid = device['udid']
+                      break
+              if udid:
+                  break
+          if not udid:
+              print('No available iPhone simulator found', file=sys.stderr)
+              sys.exit(1)
+          print(f'Selected simulator UDID: {udid}', file=sys.stderr)
+          print(f'destination=platform=iOS Simulator,id={udid}')
+          " >> $GITHUB_OUTPUT
 
       - name: Build
         run: |
@@ -216,7 +236,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.0'
+          xcode-version: '26'
 
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
@@ -380,7 +400,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.0'
+          xcode-version: '26'
 
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
@@ -502,7 +522,7 @@ jobs:
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.0'
+          xcode-version: '26'
 
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
@@ -533,13 +553,40 @@ jobs:
         working-directory: ios
         run: pod install --repo-update
 
+      - name: Find available simulator
+        id: sim
+        working-directory: ios
+        run: |
+          xcrun simctl list devices available
+          xcrun simctl list devices available -j > /tmp/simctl-devices.json
+          python3 -c "
+          import json, sys
+          with open('/tmp/simctl-devices.json') as f:
+              data = json.load(f)
+          udid = None
+          for runtime, devices in data['devices'].items():
+              if not runtime.startswith('com.apple.CoreSimulator.SimRuntime.iOS'):
+                  continue
+              for device in devices:
+                  if device.get('isAvailable') and 'iPhone' in device.get('name', ''):
+                      udid = device['udid']
+                      break
+              if udid:
+                  break
+          if not udid:
+              print('No available iPhone simulator found', file=sys.stderr)
+              sys.exit(1)
+          print(f'Selected simulator UDID: {udid}', file=sys.stderr)
+          print(f'destination=platform=iOS Simulator,id={udid}')
+          " >> $GITHUB_OUTPUT
+
       - name: Run XCUITest on simulator
         working-directory: ios
         run: |
           xcodebuild test \
             -workspace BabelWords.xcworkspace \
             -scheme BabelWords \
-            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+            -destination '${{ steps.sim.outputs.destination }}' \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
 
