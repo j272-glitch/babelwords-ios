@@ -1,0 +1,584 @@
+# BabelWords iOS — Firebase Test Lab + XCUITest Equivalent Playbook
+
+This guide is the iOS counterpart to the Android CI stack in `.github/workflows/android-sdk-update-v1.yml`. It explains how to run the same two kinds of tests on iOS:
+
+- **Firebase Test Lab** device/cloud testing (replaces the Android Robo + instrumentation runs)
+- **XCUITest** UI automation (replaces Espresso)
+
+> **Status:** iOS is not yet implemented in this repo. This guide is written as a ready-to-use blueprint once an `ios/` project is added. It mirrors the Android conventions, secrets, and CI gates where possible so the two platforms can share the same Firebase project and release workflow.
+
+---
+
+## Table of Contents
+
+1. [What iOS Replaces](#1-what-ios-replaces)
+2. [Prerequisites](#2-prerequisites)
+3. [Part A — Firebase Crashlytics + Analytics (iOS)](#3-part-a--firebase-crashlytics--analytics-ios)
+4. [Part B — Firebase Test Lab for iOS](#4-part-b--firebase-test-lab-for-ios)
+5. [Part C — XCUITest (Espresso Equivalent)](#5-part-c--xcuitest-espresso-equivalent)
+6. [GitHub Actions Workflow Example](#6-github-actions-workflow-example)
+7. [Required Secrets Summary](#7-required-secrets-summary)
+8. [Reading Results and Failing CI Correctly](#8-reading-results-and-failing-ci-correctly)
+9. [Gotchas](#9-gotchas)
+
+---
+
+## 1. What iOS Replaces
+
+| Android | iOS Equivalent | Notes |
+|---|---|---|
+| Espresso (`androidTest/`) | **XCUITest** (`YourAppUITests/`) | Black-box UI tests outside the app process |
+| Firebase Test Lab (Android) | **Firebase Test Lab (iOS)** | Same GCP project, same gcloud CLI |
+| Robo test (auto-explore) | **Game Loop / XCTest plan** | iOS has no Robo equivalent; use XCUITest or a Game Loop |
+| `google-services.json` | **`GoogleService-Info.plist`** | iOS Firebase config file |
+| `android/app/build.gradle` | **Xcode project + `Podfile` / SPM** | Build with `xcodebuild` |
+| Debug keystore | **iOS signing certificates + provisioning** | Match `bundleId` to app store record |
+
+### Recommended scope for an iOS pipeline
+
+Build the iOS app in GitHub Actions with the **same version/name** as the Android AAB, then optionally:
+
+1. Run **unit tests** (XCTest) on the macOS runner (fast, no device needed).
+2. Run **XCUITest** on a simulator or Firebase Test Lab device (catches UI/launch regressions).
+3. Run **Firebase Test Lab** with the built `.ipa` + test target to record video + Logcat-like device logs.
+
+---
+
+## 2. Prerequisites
+
+Before using the workflow below, you need:
+
+1. **Apple Developer account** (paid) — required for signing an `.ipa` that can run on physical devices in Firebase Test Lab.
+2. **An iOS Xcode project** in this repo, conventionally under `ios/BabelWords.xcworkspace`.
+3. **The same Firebase project** already used for Android (`FIREBASE_TEST_LAB_SETUP.md`).
+4. **A matching bundle ID** in the Apple Developer Portal and Firebase, e.g. `com.babelwords.com`.
+5. **GCP service account** with `Editor` role (reuse the same `GCP_SA_KEY` from Android).
+6. **App Store Connect API key** or **Certificate + Provisioning Profile** (as GitHub secrets) for signing.
+
+---
+
+## 3. Part A — Firebase Crashlytics + Analytics (iOS)
+
+### Add the iOS app to the same Firebase project
+
+1. Open the Firebase project from `FIREBASE_TEST_LAB_SETUP.md`.
+2. Project settings → **Add app** → **iOS**.
+3. **Bundle ID:** `com.babelwords.com` (must match the Xcode `PRODUCT_BUNDLE_IDENTIFIER`).
+4. Download **`GoogleService-Info.plist`**.
+
+### Store the config in GitHub Secrets
+
+Convert the plist to base64 (single line):
+
+```bash
+base64 -i GoogleService-Info.plist | tr -d '\n' > GoogleService-Info.plist.base64.txt
+```
+
+Add to repo secrets:
+
+| Secret | Value |
+|---|---|
+| `GOOGLE_SERVICE_INFO_PLIST_BASE64` | Base64 of `GoogleService-Info.plist` |
+
+The CI workflow will write it to `ios/BabelWords/GoogleService-Info.plist` before building. Keep `.gitignore` blocking the real plist.
+
+### Xcode / SPM integration
+
+Add the Firebase packages via Swift Package Manager in Xcode:
+
+- `FirebaseCrashlytics`
+- `FirebaseAnalytics`
+
+Or in `Package.swift` / Xcode project references:
+
+```swift
+.package(url: "https://github.com/firebase/firebase-ios-sdk.git", from: "11.0.0")
+```
+
+Target dependencies:
+
+```swift
+.product(name: "FirebaseCrashlytics", package: "firebase-ios-sdk"),
+.product(name: "FirebaseAnalytics", package: "firebase-ios-sdk")
+```
+
+In `AppDelegate.swift` (or `BabelWordsApp.swift` for SwiftUI):
+
+```swift
+import FirebaseCore
+import FirebaseCrashlytics
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        FirebaseApp.configure()
+        return true
+    }
+}
+```
+
+> **Privacy manifest:** iOS 17+ requires `PrivacyInfo.xcprivacy` if you use Firebase Analytics or Crashlytics. Add the required `NSPrivacyCollectedDataTypes` and `NSPrivacyAccessedAPITypes` declarations.
+
+---
+
+## 4. Part B — Firebase Test Lab for iOS
+
+Firebase Test Lab supports iOS physical devices. The CLI is the same `gcloud firebase test ios run` command, authenticated with the same GCP service account.
+
+### What you need to upload
+
+| File | Purpose |
+|---|---|
+| `BabelWords.ipa` | The app under test, signed for distribution/ad-hoc |
+| `BabelWordsUITestsRunner.zip` *(optional)* | XCUITest target built for device |
+
+### Test types on iOS
+
+| Type | Command | When to use |
+|---|---|---|
+| **XCTest** | `gcloud firebase test ios run --type xctest` | Run your XCUITest suite on real devices |
+| **Game Loop** | `gcloud firebase test ios run --type game-loop` | Drive the app via a custom URL scheme or delegate callback; good for ad auto-show |
+
+Because iOS has no automatic Robo explorer, the recommended path is:
+
+- **XCUITest** for UI/launch validation.
+- **Game Loop** if you want an Android-Robo-like auto-show flow (app detects Test Lab, shows an ad, then exits with a result code).
+
+### Minimal gcloud iOS command
+
+```bash
+gcloud firebase test ios run \
+  --type xctest \
+  --test \"/path/to/BabelWordsUITestsRunner.zip\" \
+  --app \"/path/to/BabelWords.ipa\" \
+  --device model=iphone14pro,version=17.4,locale=en_US,orientation=portrait \
+  --timeout 10m \
+  --record-video \
+  --project "${GCP_PROJECT_ID}"
+```
+
+Test Lab writes results to a `gs://test-lab-*` bucket, exactly like Android. The CI step parses the bucket URL, downloads `xcodebuild.log`, `logcat` (device syslog), and `video.mp4`, then verifies ad markers.
+
+---
+
+## 5. Part C — XCUITest (Espresso Equivalent)
+
+XCUITest lives in a separate test target and process from the app. It cannot directly access app internals, so it tests the same surface a user sees.
+
+### Create the test target
+
+In Xcode:
+
+1. **File → New → Target → iOS UI Testing Bundle**
+2. Name it `BabelWordsUITests`
+3. Add a test file, e.g. `BabelWordsUITests.swift`
+
+### Equivalent of the Android splash-screen test
+
+The Android Espresso test checks that the loading overlay disappears within 15 seconds. The iOS equivalent waits for the WebView to finish loading and checks that the main UI appears.
+
+```swift
+import XCTest
+
+final class BabelWordsUITests: XCTestCase {
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func testLaunchAndWebViewLoads() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        // Wait up to 15 seconds for the WebView to exist and no loading spinner
+        let webView = app.webViews.firstMatch
+        XCTAssertTrue(webView.waitForExistence(timeout: 15), "WebView did not appear")
+
+        // The loading overlay should disappear
+        let loading = app.staticTexts["Loading..."]
+        XCTAssertFalse(loading.waitForExistence(timeout: 15), "Loading overlay stuck")
+    }
+
+    func testAdButtonsAreReachable() throws {
+        let app = XCApplication()
+        app.launch()
+
+        // If your web app exposes buttons with accessibility labels:
+        let translateButton = app.buttons["Translate"]
+        XCTAssertTrue(translateButton.waitForExistence(timeout: 15))
+    }
+}
+```
+
+### Build the test runner for CI
+
+```bash
+cd ios
+
+xcodebuild build-for-testing \
+  -workspace BabelWords.xcworkspace \
+  -scheme BabelWords \
+  -destination 'generic/platform=iOS' \
+  -derivedDataPath DerivedData
+```
+
+The output to upload to Test Lab is usually found under:
+
+```
+DerivedData/Build/Products/Debug-iphoneos/BabelWordsUITests-Runner.app
+```
+
+Package it as a `.zip`:
+
+```bash
+cd DerivedData/Build/Products/Debug-iphoneos
+zip -r BabelWordsUITestsRunner.zip BabelWordsUITests-Runner.app
+```
+
+---
+
+## 6. GitHub Actions Workflow Example
+
+Create a new file `.github/workflows/ios-test-lab-v1.yml`. This is the iOS sibling of the existing Android workflow.
+
+```yaml
+name: BabelWords iOS — Test Lab + XCUITest
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_firebase_test:
+        description: 'Run Firebase Test Lab on a real iOS device'
+        required: false
+        default: false
+        type: boolean
+      run_xcui_test:
+        description: 'Run XCUITest on iOS simulator'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  # Same Firebase project as Android
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  # iOS signing secrets (replace with your certificate/profile workflow)
+  IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
+  IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+  IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+  IOS_KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+  # Firebase iOS config
+  GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+
+jobs:
+  build-ios:
+    name: Build iOS App + XCUITest Runner
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Decode GoogleService-Info.plist
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > ios/BabelWords/GoogleService-Info.plist
+            echo "✅ Wrote GoogleService-Info.plist"
+          else
+            echo "ℹ️ No GOOGLE_SERVICE_INFO_PLIST_BASE64 — building without Firebase"
+          fi
+
+      - name: Install dependencies (CocoaPods / SPM)
+        run: |
+          cd ios
+          if [ -f Podfile ]; then
+            pod install
+          fi
+
+      - name: Set up signing keychain
+        run: |
+          # Creates a temporary keychain, imports the distribution certificate,
+          # and installs the provisioning profile for ad-hoc/device signing.
+          cd ios
+          security create-keychain -p "$IOS_KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$IOS_KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -lut 1200 build.keychain
+
+          echo "$IOS_CERTIFICATE_BASE64" | base64 -d > certificate.p12
+          security import certificate.p12 -P "$IOS_CERTIFICATE_PASSWORD" -k build.keychain -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$IOS_KEYCHAIN_PASSWORD" build.keychain
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_PROVISIONING_PROFILE_BASE64" | base64 -d > ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: Build and archive iOS app
+        run: |
+          cd ios
+          xcodebuild clean archive \
+            -workspace BabelWords.xcworkspace \
+            -scheme BabelWords \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath BabelWords.xcarchive \
+            PROVISIONING_PROFILE_SPECIFIER='BabelWords Ad Hoc' \
+            CODE_SIGN_IDENTITY='iPhone Distribution' \
+            CODE_SIGN_STYLE='Manual' \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            MARKETING_VERSION=${{ github.ref_name }}
+
+      - name: Export .ipa
+        run: |
+          cd ios
+          cat > ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.babelwords.com</key>
+              <string>BabelWords Ad Hoc</string>
+            </dict>
+            <key>teamID</key>
+            <string>YOUR_TEAM_ID</string>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath BabelWords.xcarchive \
+            -exportPath BabelWords-IPA \
+            -exportOptionsPlist ExportOptions.plist
+
+      - name: Build XCUITest runner
+        if: github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_xcui_test == 'true'
+        run: |
+          cd ios
+          xcodebuild build-for-testing \
+            -workspace BabelWords.xcworkspace \
+            -scheme BabelWords \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath DerivedData
+          cd DerivedData/Build/Products/Debug-iphoneos
+          zip -r BabelWordsUITestsRunner.zip BabelWordsUITests-Runner.app
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-ios-ipa
+          path: ios/BabelWords-IPA/*.ipa
+          if-no-files-found: error
+
+      - name: Upload XCUITest runner
+        if: github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_xcui_test == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: babelwords-ios-xcui-runner
+          path: ios/DerivedData/Build/Products/Debug-iphoneos/BabelWordsUITestsRunner.zip
+          if-no-files-found: warn
+
+  xcui-simulator:
+    name: XCUITest on iOS Simulator
+    needs: build-ios
+    if: ${{ github.event.inputs.run_xcui_test == 'true' }}
+    runs-on: macos-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run XCUITest on simulator
+        run: |
+          cd ios
+          xcodebuild test \
+            -workspace BabelWords.xcworkspace \
+            -scheme BabelWords \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+            -testPlan BabelWordsUITests
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcui-simulator-results
+          path: ios/DerivedData/Logs/Test/
+          if-no-files-found: warn
+
+  firebase-test-lab-ios:
+    name: Firebase Test Lab iOS Device Test
+    needs: build-ios
+    if: ${{ github.event.inputs.run_firebase_test == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Download .ipa
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-ios-ipa
+          path: ios-ipa
+
+      - name: Download XCUITest runner
+        uses: actions/download-artifact@v4
+        with:
+          name: babelwords-ios-xcui-runner
+          path: ios-xcui
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Run iOS XCUITest on Firebase Test Lab
+        run: |
+          IPA=$(find ios-ipa -name "*.ipa" | head -n 1)
+          TEST=$(find ios-xcui -name "BabelWordsUITestsRunner.zip" | head -n 1)
+
+          if [ -z "$IPA" ]; then
+            echo "::error::No IPA found"
+            exit 1
+          fi
+          if [ -z "$TEST" ]; then
+            echo "::error::No XCUITest runner found"
+            exit 1
+          fi
+
+          gcloud firebase test ios run \
+            --type xctest \
+            --app "$IPA" \
+            --test "$TEST" \
+            --device model=iphone14pro,version=17.4,locale=en_US,orientation=portrait \
+            --timeout 10m \
+            --record-video \
+            --project "${GCP_PROJECT_ID}" 2>&1 | tee firebase-ios-run.log
+
+      - name: Pull device logs and video from results bucket
+        if: always()
+        run: |
+          RAW=$(grep -oE 'storage/browser/[^[:space:]"]+' firebase-ios-run.log | head -n 1 || echo "")
+          if [ -z "$RAW" ]; then
+            echo "⚠️ Could not parse results-bucket path"
+            exit 0
+          fi
+          GS_PATH="gs://$(echo "$RAW" | sed 's#storage/browser/##; s#].*##; s#?.*##; s#/*$##')"
+          mkdir -p firebase-ios-results
+          gsutil -m cp -r "${GS_PATH}/**" firebase-ios-results/ || \
+            gsutil -m cp -r "${GS_PATH}/*" firebase-ios-results/ || \
+            echo "⚠️ Could not copy results"
+
+      - name: Scan iOS device log for ad markers
+        if: always()
+        run: |
+          SYSLOG=$(find firebase-ios-results -name "*.log" -type f | head -n 1 || echo "")
+          if [ -n "$SYSLOG" ]; then
+            echo "--- Test Lab detection ---"
+            grep -E "Firebase Test Lab detected|Test Lab|test-lab" "$SYSLOG" || echo "(none)"
+            echo "--- Ad events ---"
+            grep -E "IMPRESSION|Interstitial shown|interstitialShown|App Open shown|appOpenShown" "$SYSLOG" || echo "(none)"
+          fi
+
+      - name: Stage colon-free artifact
+        if: always()
+        run: |
+          mkdir -p firebase-ios-artifact
+          cp firebase-ios-run.log firebase-ios-artifact/ 2>/dev/null || true
+          LOG=$(find firebase-ios-results -name "*.log" -type f | head -n 1 || echo "")
+          VIDEO=$(find firebase-ios-results -name "*.mp4" -type f | head -n 1 || echo "")
+          [ -n "$LOG" ] && cp "$LOG" firebase-ios-artifact/device-log.txt || true
+          [ -n "$VIDEO" ] && cp "$VIDEO" firebase-ios-artifact/video.mp4 || true
+          ls -la firebase-ios-artifact
+
+      - name: Upload Firebase Test Lab iOS artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-testlab-ios
+          path: firebase-ios-artifact
+          if-no-files-found: warn
+          retention-days: 14
+```
+
+---
+
+## 7. Required Secrets Summary
+
+| Secret | iOS | Android | Reuse? |
+|---|---|---|---|
+| `GCP_SA_KEY` | ✅ | ✅ | **Same** |
+| `GCP_PROJECT_ID` | ✅ | ✅ | **Same** |
+| `GOOGLE_SERVICE_INFO_PLIST_BASE64` | ✅ | — | iOS only |
+| `GOOGLE_SERVICES_JSON_BASE64` | — | ✅ | Android only |
+| `IOS_CERTIFICATE_BASE64` | ✅ | — | iOS only |
+| `IOS_CERTIFICATE_PASSWORD` | ✅ | — | iOS only |
+| `IOS_PROVISIONING_PROFILE_BASE64` | ✅ | — | iOS only |
+| `IOS_KEYCHAIN_PASSWORD` | ✅ | — | iOS only |
+
+---
+
+## 8. Reading Results and Failing CI Correctly
+
+### iOS log equivalents
+
+| Android | iOS | File to scan |
+|---|---|---|
+| `logcat.txt` | Device syslog / `xcodebuild.log` | Downloaded `*.log` from Test Lab |
+| `video.mp4` | Screen recording | `video.mp4` |
+| `firebase-run.log` | `gcloud firebase test ios run` stdout | `firebase-ios-run.log` |
+
+### Ad verification markers
+
+Use the same markers as Android, but remember iOS logs are from the Apple system log, not logcat. The app must log the same strings:
+
+```swift
+// Swift example of markers the CI will grep for
+Logger().info("Firebase Test Lab detected")
+Logger().info("Interstitial shown")
+Logger().info("IMPRESSION")
+```
+
+### Failure rules (same as Android)
+
+1. **No `IPA` or test runner** → hard fail.
+2. **Test Lab detection marker missing** → hard fail.
+3. **No ad event marker** (`IMPRESSION` / `Interstitial shown` / `App Open shown`) → hard fail.
+4. **Use the same job-status logic** as the Android workflow (`job.status` instead of file existence).
+
+---
+
+## 9. Gotchas
+
+1. **iOS has no Robo.** You must write an XCUITest or Game Loop. The closest "free" device test is running XCUITest on the Firebase console by hand.
+2. **Physical-device signing is mandatory.** Simulators are not accepted by Test Lab. You need a paid Apple Developer account and a valid provisioning profile.
+3. **Provisioning profile must match the Test Lab device.** Ad-hoc distribution is fine; you do not need an App Store distribution profile.
+4. **Privacy manifest.** Firebase Analytics and Crashlytics require `PrivacyInfo.xcprivacy`. Missing it will fail App Store review even if Test Lab passes.
+5. **Test Lab iOS free quota is limited.** Blaze billing is required for CI runs, same as Android.
+6. **No `androidTest/` APKs.** On iOS the test runner is an `.app` bundle zipped for upload; the gcloud `--test` argument points to the zip, not an APK pair.
+7. **Result path parsing.** The same `storage/browser/...` URL is wrapped in brackets by gcloud. Use the same `sed` cleanup the Android workflow uses.
+8. **Keep macOS runner for builds, Linux for gcloud.** Building the iOS app requires `macos-latest`. Running the gcloud Test Lab command can run on `ubuntu-latest`.
+
+---
+
+## Quick Reference: Android → iOS Command Mapping
+
+| Step | Android | iOS |
+|---|---|---|
+| Build app | `./gradlew bundleRelease assembleRelease` | `xcodebuild archive … -exportArchive` |
+| Build tests | `./gradlew assembleDebugAndroidTest` | `xcodebuild build-for-testing` + zip runner |
+| Run unit tests | `./gradlew testDebugUnitTest` | `xcodebuild test -destination 'platform=iOS Simulator…'` |
+| Run device test | `gcloud firebase test android run --type robo` | `gcloud firebase test ios run --type xctest` |
+| Firebase config | `google-services.json` | `GoogleService-Info.plist` |
+| Signing | `android.keystore` / `debug.keystore` | Certificate + provisioning profile |
+
+---
+
+*Once the `ios/` project is created, this file can be turned into a real workflow by copying `.github/workflows/ios-test-lab-v1.yml` and replacing the placeholder `YOUR_TEAM_ID`, scheme names, and provisioning profile names with the actual project values.*
