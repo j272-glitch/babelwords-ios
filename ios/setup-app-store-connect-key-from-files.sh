@@ -4,19 +4,23 @@ set -e
 # Creates app_store_connect_api_key.json from three text files.
 # This avoids interactive terminal prompts which can fail on mobile/NoMachine.
 #
-# Create these files on the cloud Mac using TextEdit:
-#   /tmp/key_id.txt          -> contains the Key ID
-#   /tmp/issuer_id.txt       -> contains the Issuer ID
-#   /tmp/api_key_base64.txt  -> contains the base64-encoded .p8 key
+# Create these files on the cloud Mac using TextEdit (any folder you like):
+#   key_id.txt          -> contains the Key ID
+#   issuer_id.txt       -> contains the Issuer ID
+#   api_key_base64.txt  -> contains the base64-encoded .p8 key
 #
 # Then run:
-#   ./setup-app-store-connect-key-from-files.sh
+#   ./setup-app-store-connect-key-from-files.sh [INPUT_DIR]
+#
+# If no INPUT_DIR is provided, it defaults to /tmp.
+
+INPUT_DIR="${1:-/tmp}"
 
 cd "$(dirname "$0")"
 
-KEY_ID_FILE="/tmp/key_id.txt"
-ISSUER_ID_FILE="/tmp/issuer_id.txt"
-B64_FILE="/tmp/api_key_base64.txt"
+KEY_ID_FILE="$INPUT_DIR/key_id.txt"
+ISSUER_ID_FILE="$INPUT_DIR/issuer_id.txt"
+B64_FILE="$INPUT_DIR/api_key_base64.txt"
 
 if [ ! -f "$KEY_ID_FILE" ] || [ ! -f "$ISSUER_ID_FILE" ] || [ ! -f "$B64_FILE" ]; then
   echo "Error: Missing input files. Create these three files:"
