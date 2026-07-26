@@ -412,16 +412,19 @@ jobs:
         with:
           xcode-version: '26'
 
-      - name: Set up writable tool cache
+      - name: Set up Ruby
         run: |
-          mkdir -p "$HOME/hostedtoolcache"
-          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
-
-      - name: Install Ruby/CocoaPods
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: false
+          ruby_version=$(ruby -e 'puts RUBY_VERSION' 2>/dev/null || echo "")
+          echo "Current Ruby: $ruby_version"
+          if [[ ! "$ruby_version" =~ ^3\.2 ]]; then
+            echo "Installing Ruby 3.2 via Homebrew..."
+            brew install ruby@3.2
+            BREW_PREFIX=$(brew --prefix)
+            echo "$BREW_PREFIX/opt/ruby@3.2/bin" >> $GITHUB_PATH
+            echo "$BREW_PREFIX/opt/ruby@3.2/lib/ruby/gems/3.2.0/bin" >> $GITHUB_PATH
+          fi
+          ruby -v
+          gem -v
 
       - name: Install CocoaPods and XcodeGen
         run: |
