@@ -1,0 +1,162 @@
+﻿2026-07-26T23:38:47.9102770Z Current runner version: '2.336.0'
+2026-07-26T23:38:47.9106350Z Runner name: 'SDMM468'
+2026-07-26T23:38:47.9106800Z Runner group name: 'Default'
+2026-07-26T23:38:47.9107410Z Machine name: 'SDMM468'
+2026-07-26T23:38:47.9109150Z ##[group]GITHUB_TOKEN Permissions
+2026-07-26T23:38:47.9110350Z Contents: read
+2026-07-26T23:38:47.9110710Z Metadata: read
+2026-07-26T23:38:47.9111050Z Packages: read
+2026-07-26T23:38:47.9111400Z ##[endgroup]
+2026-07-26T23:38:47.9112570Z Secret source: Actions
+2026-07-26T23:38:47.9113170Z Prepare workflow directory
+2026-07-26T23:38:47.9670850Z Prepare all required actions
+2026-07-26T23:38:47.9700360Z Getting action download info
+2026-07-26T23:38:48.2847070Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-07-26T23:38:48.8640730Z Download action repository 'maxim-lobanov/setup-xcode@v1' (SHA:ed7a3b1fda3918c0306d1b724322adc0b8cc0a90)
+2026-07-26T23:38:49.2964500Z Download action repository 'ruby/setup-ruby@v1' (SHA:95ef2b042f9d7a56d8268cba8559e2842e2ad01b)
+2026-07-26T23:38:49.8407560Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-07-26T23:38:50.6466800Z Complete job name: Build ad-hoc IPA + XCUITest runner
+2026-07-26T23:38:50.6833020Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T23:38:50.6838440Z ##[group]Run actions/checkout@v4
+2026-07-26T23:38:50.6838720Z with:
+2026-07-26T23:38:50.6838870Z   fetch-depth: 1
+2026-07-26T23:38:50.6839030Z   repository: j272-glitch/babelwords-ios
+2026-07-26T23:38:50.6841090Z   token: ***
+2026-07-26T23:38:50.6841240Z   ssh-strict: true
+2026-07-26T23:38:50.6841400Z   ssh-user: git
+2026-07-26T23:38:50.6841580Z   persist-credentials: true
+2026-07-26T23:38:50.6841760Z   clean: true
+2026-07-26T23:38:50.6841990Z   sparse-checkout-cone-mode: true
+2026-07-26T23:38:50.6842210Z   fetch-tags: false
+2026-07-26T23:38:50.6857570Z   show-progress: true
+2026-07-26T23:38:50.6857780Z   lfs: false
+2026-07-26T23:38:50.6857960Z   submodules: false
+2026-07-26T23:38:50.6858140Z   set-safe-directory: true
+2026-07-26T23:38:50.6858340Z   allow-unsafe-pr-checkout: false
+2026-07-26T23:38:50.6858780Z env:
+2026-07-26T23:38:50.6858950Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-26T23:38:50.6859170Z   SCHEME: BabelWords
+2026-07-26T23:38:50.6859350Z   DERIVED_DATA: derived_data
+2026-07-26T23:38:50.6859540Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-26T23:38:50.6859760Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-26T23:38:50.6859970Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-26T23:38:50.6860160Z   GCP_PROJECT_ID: 
+2026-07-26T23:38:50.6870900Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-26T23:38:50.6871110Z ##[endgroup]
+2026-07-26T23:38:50.9059010Z Syncing repository: j272-glitch/babelwords-ios
+2026-07-26T23:38:50.9060040Z ##[group]Getting Git version info
+2026-07-26T23:38:50.9060450Z Working directory is '/Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios'
+2026-07-26T23:38:50.9061020Z [command]/usr/bin/git version
+2026-07-26T23:38:50.9210450Z git version 2.50.1 (Apple Git-155)
+2026-07-26T23:38:50.9219800Z ##[endgroup]
+2026-07-26T23:38:50.9226960Z Temporarily overriding HOME='/Users/jesse/actions-runner/_work/_temp/d13ff9d4-9677-4004-a305-5cf441607314' before making global git config changes
+2026-07-26T23:38:50.9227640Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T23:38:50.9229470Z [command]/usr/bin/git config --global --add safe.directory /Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios
+2026-07-26T23:38:50.9374260Z [command]/usr/bin/git config --local --get remote.origin.url
+2026-07-26T23:38:50.9502120Z https://github.com/j272-glitch/babelwords-ios
+2026-07-26T23:38:50.9510840Z ##[group]Removing previously created refs, to avoid conflicts
+2026-07-26T23:38:50.9512940Z [command]/usr/bin/git rev-parse --symbolic-full-name --verify --quiet HEAD
+2026-07-26T23:38:50.9652990Z refs/heads/main
+2026-07-26T23:38:50.9657410Z [command]/usr/bin/git checkout --detach
+2026-07-26T23:38:51.1926950Z HEAD is now at f4e45b8 Set iOS deployment target to 16.0
+2026-07-26T23:38:51.2075320Z [command]/usr/bin/git branch --delete --force main
+2026-07-26T23:38:51.2224400Z Deleted branch main (was f4e45b8).
+2026-07-26T23:38:51.2369670Z ##[endgroup]
+2026-07-26T23:38:51.2371390Z [command]/usr/bin/git submodule status
+2026-07-26T23:38:51.3152030Z ##[group]Cleaning the repository
+2026-07-26T23:38:51.3154350Z [command]/usr/bin/git clean -ffdx
+2026-07-26T23:38:51.3318610Z [command]/usr/bin/git reset --hard HEAD
+2026-07-26T23:38:51.3481170Z HEAD is now at f4e45b8 Set iOS deployment target to 16.0
+2026-07-26T23:38:51.3483740Z ##[endgroup]
+2026-07-26T23:38:51.3484620Z ##[group]Disabling automatic garbage collection
+2026-07-26T23:38:51.3487000Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-26T23:38:51.3633030Z ##[endgroup]
+2026-07-26T23:38:51.3633370Z ##[group]Setting up auth
+2026-07-26T23:38:51.3636870Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T23:38:51.3765280Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T23:38:51.4568980Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T23:38:51.4698830Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T23:38:51.5455870Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T23:38:51.5590000Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T23:38:51.6301430Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-26T23:38:51.6440090Z ##[endgroup]
+2026-07-26T23:38:51.6440490Z ##[group]Fetching the repository
+2026-07-26T23:38:51.6444170Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +87b1625c493e91eca092ccf1dbe15896cda794dc:refs/remotes/origin/main
+2026-07-26T23:38:51.9524130Z From https://github.com/j272-glitch/babelwords-ios
+2026-07-26T23:38:51.9524670Z  + f4e45b8...87b1625 87b1625c493e91eca092ccf1dbe15896cda794dc -> origin/main  (forced update)
+2026-07-26T23:38:51.9576090Z ##[endgroup]
+2026-07-26T23:38:51.9576430Z ##[group]Determining the checkout info
+2026-07-26T23:38:51.9577050Z ##[endgroup]
+2026-07-26T23:38:51.9579590Z [command]/usr/bin/git sparse-checkout disable
+2026-07-26T23:38:51.9728340Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-26T23:38:51.9859950Z ##[group]Checking out the ref
+2026-07-26T23:38:51.9862650Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-26T23:38:52.0010840Z Warning: you are leaving 1 commit behind, not connected to
+2026-07-26T23:38:52.0011240Z any of your branches:
+2026-07-26T23:38:52.0011370Z 
+2026-07-26T23:38:52.0011480Z   f4e45b8 Set iOS deployment target to 16.0
+2026-07-26T23:38:52.0011660Z 
+2026-07-26T23:38:52.0011840Z If you want to keep it by creating a new branch, this may be a good time
+2026-07-26T23:38:52.0012180Z to do so with:
+2026-07-26T23:38:52.0012300Z 
+2026-07-26T23:38:52.0012430Z  git branch <new-branch-name> f4e45b8
+2026-07-26T23:38:52.0012590Z 
+2026-07-26T23:38:52.0038600Z Switched to a new branch 'main'
+2026-07-26T23:38:52.0043080Z branch 'main' set up to track 'origin/main'.
+2026-07-26T23:38:52.0047640Z ##[endgroup]
+2026-07-26T23:38:52.0193300Z [command]/usr/bin/git log -1 --format=%H
+2026-07-26T23:38:52.0326990Z 87b1625c493e91eca092ccf1dbe15896cda794dc
+2026-07-26T23:38:52.0469070Z ##[group]Run maxim-lobanov/setup-xcode@v1
+2026-07-26T23:38:52.0469310Z with:
+2026-07-26T23:38:52.0469440Z   xcode-version: 26
+2026-07-26T23:38:52.0469590Z env:
+2026-07-26T23:38:52.0469730Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-26T23:38:52.0469940Z   SCHEME: BabelWords
+2026-07-26T23:38:52.0470120Z   DERIVED_DATA: derived_data
+2026-07-26T23:38:52.0470310Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-26T23:38:52.0470520Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-26T23:38:52.0470730Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-26T23:38:52.0470930Z   GCP_PROJECT_ID: 
+2026-07-26T23:38:52.0481680Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-26T23:38:52.0481870Z ##[endgroup]
+2026-07-26T23:38:52.1153790Z Switching Xcode to version '26'...
+2026-07-26T23:38:52.2534730Z Xcode is set to 26.6.0 (17F113)
+2026-07-26T23:38:52.2614240Z ##[group]Run ruby/setup-ruby@v1
+2026-07-26T23:38:52.2614490Z with:
+2026-07-26T23:38:52.2614640Z   ruby-version: 3.2
+2026-07-26T23:38:52.2614870Z   bundler-cache: false
+2026-07-26T23:38:52.2616810Z   token: ***
+2026-07-26T23:38:52.2616970Z env:
+2026-07-26T23:38:52.2617130Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-26T23:38:52.2617370Z   SCHEME: BabelWords
+2026-07-26T23:38:52.2617570Z   DERIVED_DATA: derived_data
+2026-07-26T23:38:52.2617770Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-26T23:38:52.2618020Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-26T23:38:52.2618260Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-26T23:38:52.2618480Z   GCP_PROJECT_ID: 
+2026-07-26T23:38:52.2629180Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-26T23:38:52.2629450Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-26T23:38:52.2629700Z ##[endgroup]
+2026-07-26T23:38:52.3636770Z ##[group]Modifying PATH
+2026-07-26T23:38:52.3637170Z Entries added to PATH to use selected Ruby:
+2026-07-26T23:38:52.3637730Z   /Users/runner/hostedtoolcache/Ruby/3.2.11/arm64/bin
+2026-07-26T23:38:52.3641500Z ##[endgroup]
+2026-07-26T23:38:52.3660880Z ##[error]Error: EACCES: permission denied, mkdir '/Users/runner'
+    at async Object.mkdir (node:internal/fs/promises:859:10)
+2026-07-26T23:38:52.3794380Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-26T23:38:52.3795280Z Post job cleanup.
+2026-07-26T23:38:52.4569530Z [command]/usr/bin/git version
+2026-07-26T23:38:52.4700930Z git version 2.50.1 (Apple Git-155)
+2026-07-26T23:38:52.4718640Z Temporarily overriding HOME='/Users/jesse/actions-runner/_work/_temp/dec8b9d4-5f14-4c95-b838-fed8e49c08b6' before making global git config changes
+2026-07-26T23:38:52.4719400Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-26T23:38:52.4721410Z [command]/usr/bin/git config --global --add safe.directory /Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios
+2026-07-26T23:38:52.4856820Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-26T23:38:52.4984530Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-26T23:38:52.5699070Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-26T23:38:52.5823750Z http.https://github.com/.extraheader
+2026-07-26T23:38:52.5829090Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-26T23:38:52.5962620Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-26T23:38:52.6665460Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-26T23:38:52.6800390Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-26T23:38:52.7636780Z Cleaning up orphan processes
+2026-07-26T23:38:52.8171830Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
