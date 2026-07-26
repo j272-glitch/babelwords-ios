@@ -1,7 +1,15 @@
 default_platform(:ios)
 
-# Replace the match repo URL or set the FASTLANE_MATCH_REPO_URL environment variable.
-match_repo_url = ENV["FASTLANE_MATCH_REPO_URL"] || "https://github.com/YOUR_ORG/babelwords-match.git"
+# Match repo URL must be provided via the FASTLANE_MATCH_REPO_URL environment variable.
+match_repo_url = ENV["FASTLANE_MATCH_REPO_URL"]
+
+unless match_repo_url
+  UI.user_error!(
+    "FASTLANE_MATCH_REPO_URL is not set. " \
+    "Set it to your encrypted certificates repo, e.g. " \
+    "https://github.com/YOUR_ORG/babelwords-match.git"
+  )
+end
 
 platform :ios do
   desc "Sync signing certificates and provisioning profiles"
