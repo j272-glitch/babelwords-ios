@@ -2,7 +2,7 @@ name: BabelWords
 options:
   bundleIdPrefix: com.babelwords
   deploymentTarget:
-    iOS: "18.0"
+    iOS: "16.0"
   xcodeVersion: "26.0"
   createIntermediateGroups: true
 

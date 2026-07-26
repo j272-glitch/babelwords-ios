@@ -5,7 +5,7 @@ UIKit iOS replacement for the former Android wrapper. It wraps the web app at `h
 ## Requirements
 
 - Xcode 26+
-- iOS 18.0+
+- iOS 16.0+
 - CocoaPods
 - Apple Developer Team (for device testing / App Store)
 
