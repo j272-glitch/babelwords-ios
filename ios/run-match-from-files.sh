@@ -31,12 +31,12 @@ find_file() {
 
 cd "$(dirname "$0")"
 
-AUTH_FILE=$(find_file "$INPUT_DIR" "match_auth.txt" "match-auth") || {
-  echo "Error: Missing match auth file. Create one of: $INPUT_DIR/match_auth.txt or $INPUT_DIR/match-auth"
+AUTH_FILE=$(find_file "$INPUT_DIR" "match_auth.txt" "match-auth.txt" "match-auth") || {
+  echo "Error: Missing match auth file. Create one of: $INPUT_DIR/match_auth.txt, $INPUT_DIR/match-auth.txt, or $INPUT_DIR/match-auth"
   exit 1
 }
-PASSWORD_FILE=$(find_file "$INPUT_DIR" "match_password.txt" "match-password") || {
-  echo "Error: Missing match password file. Create one of: $INPUT_DIR/match_password.txt or $INPUT_DIR/match-password"
+PASSWORD_FILE=$(find_file "$INPUT_DIR" "match_password.txt" "match-password.txt" "match-password") || {
+  echo "Error: Missing match password file. Create one of: $INPUT_DIR/match_password.txt, $INPUT_DIR/match-password.txt, or $INPUT_DIR/match-password"
   exit 1
 }
 
