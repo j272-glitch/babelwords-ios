@@ -55,7 +55,7 @@ The web app receives the same events as the Android build:
 The `.github/workflows/ios-build.yml` workflow runs on every push and PR:
 
 - **Build and test on simulator** — runs on GitHub’s `macos-latest` runner, no signing required.
-- **Archive and export IPA** — runs on GitHub’s `macos-latest` runner and uses `fastlane match` to download signing certificates from the encrypted match repo.
+- **Archive and export IPA** — runs on your self-hosted cloud Mac and uses `fastlane match` to download signing certificates from the encrypted match repo.
 - **Firebase Test Lab iOS** — runs the `BabelWordsUITests` UI test bundle on a physical iOS device in Firebase Test Lab, matching the Android CI’s Firebase Test Lab coverage.
 
 A separate manual workflow, `.github/workflows/ios-test-lab-v1.yml`, mirrors the Android CI structure more closely:

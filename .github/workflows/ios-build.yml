@@ -98,7 +98,7 @@ jobs:
 
   archive:
     name: Archive and export IPA
-    runs-on: macos-latest
+    runs-on: self-hosted
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     needs: build-and-test
     steps:
