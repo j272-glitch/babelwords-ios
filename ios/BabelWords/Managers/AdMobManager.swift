@@ -186,7 +186,7 @@ final class AdMobManager: NSObject {
             withAdUnitID: interstitialAdUnitID,
             request: request
         ) { [weak self] ad, error in
-            Task { @MainActor [weak self] in
+            MainActor.assumeIsolated {
                 guard let self = self else { return }
                 self.loadTimeoutTask?.cancel()
                 self.isLoading = false

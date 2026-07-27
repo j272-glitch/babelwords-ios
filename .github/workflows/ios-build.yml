@@ -412,11 +412,12 @@ jobs:
         with:
           xcode-version: '26'
 
-      - name: Point xcode-select to selected Xcode
+      - name: Set selected Xcode for non-interactive tools
         run: |
-          echo "Current xcode-select: $(xcode-select -p)"
-          sudo xcode-select -s "$MD_APPLE_SDK_ROOT/Contents/Developer"
-          echo "Updated xcode-select: $(xcode-select -p)"
+          echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$MD_APPLE_SDK_ROOT/Contents/Developer"
+          echo "Using Xcode at: $DEVELOPER_DIR"
+          xcodebuild -version
 
       - name: Set up Ruby and tools
         run: |
