@@ -1,5 +1,5 @@
 import Foundation
-import GoogleMobileAds
+@preconcurrency import GoogleMobileAds
 import UIKit
 import AVFoundation
 
@@ -190,7 +190,6 @@ final class AppOpenAdManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
-@preconcurrency
 extension AppOpenAdManager: GADFullScreenContentDelegate {
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("[\(TAG)] App Open shown")

@@ -412,23 +412,27 @@ jobs:
         with:
           xcode-version: '26'
 
-      - name: Set up writable tool cache
+      - name: Set up Ruby and tools
         run: |
-          mkdir -p "$HOME/hostedtoolcache"
-          echo "RUNNER_TOOL_CACHE=$HOME/hostedtoolcache" >> $GITHUB_ENV
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: '3.2'
-          bundler-cache: false
-
-      - name: Install CocoaPods and XcodeGen
-        run: |
-          gem install cocoapods
+          BREW_PREFIX=$(brew --prefix)
+          if [ ! -d "$BREW_PREFIX/opt/ruby@3.2" ]; then
+            echo "Installing Ruby 3.2 via Homebrew..."
+            brew install ruby@3.2
+          fi
+          RUBY_BIN="$BREW_PREFIX/opt/ruby@3.2/bin"
+          GEM_BIN="$BREW_PREFIX/opt/ruby@3.2/lib/ruby/gems/3.2.0/bin"
+          echo "$RUBY_BIN" >> $GITHUB_PATH
+          echo "$GEM_BIN" >> $GITHUB_PATH
+          export PATH="$RUBY_BIN:$GEM_BIN:$PATH"
+          ruby -v
+          gem -v
+          pod --version
+          bundle -v
+          fastlane --version
           if ! command -v xcodegen &> /dev/null; then
             brew install xcodegen
           fi
+          xcodegen --version
 
       - name: Decode App Store Connect API key
         working-directory: ios

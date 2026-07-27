@@ -1,5 +1,5 @@
 import Foundation
-import GoogleMobileAds
+@preconcurrency import GoogleMobileAds
 import Network
 import UIKit
 import AVFoundation
@@ -379,7 +379,6 @@ final class AdMobManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
-@preconcurrency
 extension AdMobManager: GADFullScreenContentDelegate {
     func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
         AdMobManager.isAnyFullscreenAdShowing = true
