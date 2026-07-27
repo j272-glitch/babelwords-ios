@@ -412,6 +412,12 @@ jobs:
         with:
           xcode-version: '26'
 
+      - name: Point xcode-select to selected Xcode
+        run: |
+          echo "Current xcode-select: $(xcode-select -p)"
+          sudo xcode-select -s "$MD_APPLE_SDK_ROOT/Contents/Developer"
+          echo "Updated xcode-select: $(xcode-select -p)"
+
       - name: Set up Ruby and tools
         run: |
           BREW_PREFIX=$(brew --prefix)
