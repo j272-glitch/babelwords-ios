@@ -23,7 +23,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         configureFirebase()
         AnalyticsManager.logAppOpen()
         configureAdMobTestDeviceForTestLab()
-        MobileAds.shared.start { _ in
+        GADMobileAds.sharedInstance().start { _ in
             AnalyticsManager.logEvent("admob_initialized")
         }
         return true
@@ -66,9 +66,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        let requestConfiguration = RequestConfiguration()
+        let requestConfiguration = GADMobileAds.sharedInstance().requestConfiguration
         requestConfiguration.testDeviceIdentifiers = [GADSimulatorID]
-        MobileAds.shared.requestConfiguration = requestConfiguration
         AppDelegate.isTestDeviceRegistrationActive = true
         #else
         AppDelegate.isTestDeviceRegistrationActive = false

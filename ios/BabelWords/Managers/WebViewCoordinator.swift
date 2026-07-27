@@ -53,7 +53,7 @@ final class WebViewCoordinator: NSObject {
         subscriptionBridge.setup(in: webView)
     }
 
-    deinit {
+    func cleanup() {
         micWatchdogWorkItem?.cancel()
         let contentController = webView.configuration.userContentController
         contentController.removeScriptMessageHandler(forName: "micBridge")
@@ -61,6 +61,8 @@ final class WebViewCoordinator: NSObject {
         contentController.removeScriptMessageHandler(forName: "subscriptionBridge")
         contentController.removeAllUserScripts()
     }
+
+    deinit {}
 
     // MARK: - Navigation
 
@@ -218,7 +220,7 @@ extension WebViewCoordinator: WKUIDelegate {
         type: WKMediaCaptureType,
         decisionHandler: @escaping (WKPermissionDecision) -> Void
     ) {
-        let host = origin.host?.lowercased() ?? ""
+        let host = origin.host.lowercased()
         let isTrusted = AppConfig.trustedHosts.contains(host)
         switch type {
         case .microphone, .camera:

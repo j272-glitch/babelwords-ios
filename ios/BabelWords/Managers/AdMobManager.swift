@@ -65,10 +65,6 @@ final class AdMobManager: NSObject {
         super.init()
     }
 
-    deinit {
-        destroy()
-    }
-
     // MARK: - Freshness
 
     private func isFresh() -> Bool {

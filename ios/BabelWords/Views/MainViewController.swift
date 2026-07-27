@@ -53,10 +53,13 @@ final class MainViewController: UIViewController {
         adMobManager.onActivityPaused()
     }
 
-    deinit {
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        guard isMovingFromParent || isBeingDismissed else { return }
         adMobManager.unregisterNetworkCallback()
         adMobManager.destroy()
         appOpenAdManager.cleanup()
+        webCoordinator.cleanup()
     }
 
     // MARK: - Setup
