@@ -379,7 +379,7 @@ final class AdMobManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
-@MainActor
+@preconcurrency
 extension AdMobManager: GADFullScreenContentDelegate {
     func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
         AdMobManager.isAnyFullscreenAdShowing = true
