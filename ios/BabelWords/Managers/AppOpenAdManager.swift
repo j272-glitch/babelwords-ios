@@ -190,8 +190,9 @@ final class AppOpenAdManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
+@MainActor
 extension AppOpenAdManager: GADFullScreenContentDelegate {
-    func adDidPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("[\(TAG)] App Open shown")
         AdMobManager.isAnyFullscreenAdShowing = true
         UserDefaults.standard.set(Date(), forKey: AppOpenAdManager.prefsLastShow)

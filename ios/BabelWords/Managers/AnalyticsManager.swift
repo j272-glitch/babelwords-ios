@@ -7,8 +7,8 @@ import FirebaseCrashlytics
 final class AnalyticsManager {
     private static let TAG = "AnalyticsManager"
     private static let lock = NSLock()
-    private static var isInitialized = false
-    private static var isCollectionEnabled = false
+    nonisolated(unsafe) private static var isInitialized = false
+    nonisolated(unsafe) private static var isCollectionEnabled = false
 
     static func configure() {
         lock.lock()

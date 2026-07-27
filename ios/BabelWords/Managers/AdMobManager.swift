@@ -379,6 +379,7 @@ final class AdMobManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
+@MainActor
 extension AdMobManager: GADFullScreenContentDelegate {
     func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
         AdMobManager.isAnyFullscreenAdShowing = true
@@ -388,7 +389,7 @@ extension AdMobManager: GADFullScreenContentDelegate {
         AnalyticsManager.logAdClicked(adUnit: interstitialAdUnitID, adFormat: "interstitial")
     }
 
-    func adDidPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("[\(TAG)] Interstitial shown")
         AdMobManager.isAnyFullscreenAdShowing = true
         hasAutoShownInterstitial = true
