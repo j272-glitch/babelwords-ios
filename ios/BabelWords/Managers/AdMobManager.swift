@@ -185,49 +185,65 @@ final class AdMobManager: NSObject {
         GADInterstitialAd.load(
             withAdUnitID: interstitialAdUnitID,
             request: request
-        ) { ad, error in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                self.loadTimeoutTask?.cancel()
-                self.isLoading = false
-
-                if let error = error {
-                    print("[\(self.TAG)] Interstitial load failed: \(error.localizedDescription)")
+        ) { [weak self] ad, error in
+            guard let self = self else { return }
+            guard Thread.isMainThread else {
+                assertionFailure("GADInterstitialAd.load callback not on main thread")
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    self.loadTimeoutTask?.cancel()
+                    self.isLoading = false
                     self.interstitial = nil
-                    self.eventCallback?("interstitialFailed", error.localizedDescription)
-                    let code = (error as NSError).code
-                    let delay: TimeInterval
-                    switch code {
-                    case -2 where self.retryCount == 0:
-                        delay = 0
-                    case -2:
-                        delay = min(AdMobManager.retryInitial * pow(2.0, Double(self.retryCount)), AdMobManager.retryMax)
-                    case 3:
-                        delay = 30
-                    default:
-                        delay = AdMobManager.retryInitial
-                    }
-                    self.scheduleRetry(delay: delay)
-                    return
+                    self.scheduleRetry(delay: AdMobManager.retryInitial)
                 }
-
-                guard let ad = ad else { return }
-                print("[\(self.TAG)] Interstitial loaded")
-                self.interstitial = ad
-                self.loadTime = Date()
-                self.retryCount = 0
-                ad.fullScreenContentDelegate = self
-                self.eventCallback?("interstitialLoaded", nil)
-
-                if self.pendingShow {
-                    self.pendingShow = false
-                    if let vc = self.topViewController() {
-                        self.showInterstitial(from: vc)
-                    }
-                } else {
-                    self.maybeAutoShowInterstitial()
-                }
+                return
             }
+
+            MainActor.assumeIsolated {
+                self.handleInterstitialLoadResult(ad, error)
+            }
+        }
+    }
+
+    private func handleInterstitialLoadResult(_ ad: GADInterstitialAd?, _ error: Error?) {
+        loadTimeoutTask?.cancel()
+        isLoading = false
+
+        if let error = error {
+            print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
+            interstitial = nil
+            eventCallback?("interstitialFailed", error.localizedDescription)
+            let code = (error as NSError).code
+            let delay: TimeInterval
+            switch code {
+            case -2 where retryCount == 0:
+                delay = 0
+            case -2:
+                delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
+            case 3:
+                delay = 30
+            default:
+                delay = AdMobManager.retryInitial
+            }
+            scheduleRetry(delay: delay)
+            return
+        }
+
+        guard let ad = ad else { return }
+        print("[\(TAG)] Interstitial loaded")
+        interstitial = ad
+        loadTime = Date()
+        retryCount = 0
+        ad.fullScreenContentDelegate = self
+        eventCallback?("interstitialLoaded", nil)
+
+        if pendingShow {
+            pendingShow = false
+            if let vc = topViewController() {
+                showInterstitial(from: vc)
+            }
+        } else {
+            maybeAutoShowInterstitial()
         }
     }
 

@@ -97,32 +97,48 @@ final class AppOpenAdManager: NSObject {
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
         GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
-            Task { @MainActor [weak self] in
-                guard let self = self else { return }
-                self.loadTimeoutTask?.cancel()
-                self.isLoading = false
-
-                if let error = error {
-                    print("[\(self.TAG)] App Open load failed: \(error.localizedDescription)")
+            guard let self = self else { return }
+            guard Thread.isMainThread else {
+                assertionFailure("GADAppOpenAd.load callback not on main thread")
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    self.loadTimeoutTask?.cancel()
+                    self.isLoading = false
                     self.appOpenAd = nil
-                    let code = (error as NSError).code
-                    let delay: TimeInterval
-                    switch code {
-                    case 3: delay = AppOpenAdManager.retryNoFill
-                    case -2: delay = AppOpenAdManager.retryTimeout
-                    default: delay = AppOpenAdManager.retryNetwork
-                    }
-                    self.scheduleRetry(delay: delay)
-                    return
+                    self.scheduleRetry(delay: AppOpenAdManager.retryNetwork)
                 }
+                return
+            }
 
-                guard let ad = ad else { return }
-                print("[\(self.TAG)] App Open ad loaded")
-                self.appOpenAd = ad
-                self.retryCount = 0
-                ad.fullScreenContentDelegate = self
+            MainActor.assumeIsolated {
+                self.handleAppOpenLoadResult(ad, error)
             }
         }
+    }
+
+    private func handleAppOpenLoadResult(_ ad: GADAppOpenAd?, _ error: Error?) {
+        loadTimeoutTask?.cancel()
+        isLoading = false
+
+        if let error = error {
+            print("[\(TAG)] App Open load failed: \(error.localizedDescription)")
+            appOpenAd = nil
+            let code = (error as NSError).code
+            let delay: TimeInterval
+            switch code {
+            case 3: delay = AppOpenAdManager.retryNoFill
+            case -2: delay = AppOpenAdManager.retryTimeout
+            default: delay = AppOpenAdManager.retryNetwork
+            }
+            scheduleRetry(delay: delay)
+            return
+        }
+
+        guard let ad = ad else { return }
+        print("[\(TAG)] App Open ad loaded")
+        appOpenAd = ad
+        retryCount = 0
+        ad.fullScreenContentDelegate = self
     }
 
     // MARK: - Show

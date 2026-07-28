@@ -14,3 +14,9 @@ For self-hosted macOS CI, pin Bundler 2.5.23 and invoke it explicitly after sele
 **Why:** The runner can retain an old tool-cache Bundler even after Ruby is upgraded, causing fastlane to fail before the build begins.
 
 **How to apply:** Install the pinned Bundler in the selected Ruby environment, use `bundle _2.5.23_ ...` for dependency and fastlane commands, and verify `ruby -v`, `which ruby`, and `bundle -v` in CI logs.
+
+Google Mobile Ads load callbacks require a split isolation strategy under Swift 6: use `MainActor.assumeIsolated` inline only after confirming the callback is on the main thread; use a real `Task { @MainActor }` hop for off-main recovery without carrying the non-Sendable ad object.
+
+**Why:** Moving `GADInterstitialAd`/`GADAppOpenAd` into a new actor task triggers data-race diagnostics, while calling `assumeIsolated` off-main is unsafe.
+
+**How to apply:** Keep SDK callback payload handling synchronous on the main thread, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
