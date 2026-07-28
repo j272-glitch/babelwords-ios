@@ -199,7 +199,9 @@ final class AdMobManager: NSObject {
                 return
             }
 
-            self.handleInterstitialLoadResult(ad, error)
+            MainActor.assumeIsolated {
+                self.handleInterstitialLoadResult(ad, error)
+            }
         }
     }
 
