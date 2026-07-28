@@ -210,6 +210,8 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
         run: |
           missing=()
           for secret in APP_STORE_CONNECT_API_KEY_BASE64 APP_STORE_CONNECT_API_KEY_KEY_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID MATCH_PASSWORD MATCH_GIT_BASIC_AUTHORIZATION; do
@@ -219,6 +221,10 @@ jobs:
           done
           if [ ${#missing[@]} -ne 0 ]; then
             echo "Missing required secrets: ${missing[*]}"
+            exit 1
+          fi
+          if [ -z "$FASTLANE_APPLE_ID" ] || [ -z "$FASTLANE_TEAM_ID" ]; then
+            echo "Set FASTLANE_APPLE_ID and FASTLANE_TEAM_ID repository variables for archive signing."
             exit 1
           fi
           echo "All required secrets are present."
