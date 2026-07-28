@@ -190,6 +190,7 @@ final class AppOpenAdManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
+@MainActor
 extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         print("[\(TAG)] App Open shown")
