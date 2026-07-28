@@ -165,6 +165,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26'
+
+      - name: Set selected Xcode for non-interactive tools
+        run: |
+          echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+          export DEVELOPER_DIR="$MD_APPLE_SDK_ROOT/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install Ruby/CocoaPods and XcodeGen
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: false
+
+      - name: Install build tools
+        run: |
+          gem install cocoapods
+          gem install bundler -v 2.5.23
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
       - name: Reject credential artifacts
         run: |
           forbidden=$(find . -type f \
@@ -232,10 +257,7 @@ jobs:
 
       - name: Generate Xcode project
         working-directory: ios
-        run: |
-          if command -v xcodegen &> /dev/null; then
-            xcodegen generate
-          fi
+        run: xcodegen generate
 
       - name: Install Pods and Fastlane
         working-directory: ios
@@ -249,6 +271,8 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
         run: bundle _2.5.23_ exec fastlane build
 
       - name: Upload IPA
@@ -381,6 +405,8 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
         run: bundle _2.5.23_ exec fastlane sync_signing_testlab
 
       - name: Build for testing
@@ -404,7 +430,7 @@ jobs:
           fi
           echo "Found test build products: $BUILD_DIR"
           cd "$BUILD_DIR"
-          zip -r "../../../BabelWordsUITests.zip" .
+          zip -r "$GITHUB_WORKSPACE/ios/BabelWordsUITests.zip" .
 
       - name: Decode GCP service account key
         id: gcp
@@ -435,7 +461,7 @@ jobs:
           fi
           gcloud firebase test ios run \
             --type xctest \
-            --test BabelWordsUITests.zip \
+            --test "${GITHUB_WORKSPACE}/ios/BabelWordsUITests.zip" \
             --device model=${{ env.FIREBASE_TEST_LAB_DEVICE }},version=${{ env.FIREBASE_TEST_LAB_OS_VERSION }},locale=en_US,orientation=portrait \
             --results-bucket "gs://${BUCKET}" \
             --results-dir ios-test-${{ github.run_id }} \
@@ -528,6 +554,35 @@ jobs:
         run: |
           echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -d -o app_store_connect_api_key.p8
 
+      - name: Validate ad-hoc signing inputs
+        env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
+        run: |
+          missing=()
+          for secret in APP_STORE_CONNECT_API_KEY_BASE64 APP_STORE_CONNECT_API_KEY_KEY_ID APP_STORE_CONNECT_API_KEY_ISSUER_ID MATCH_PASSWORD MATCH_GIT_BASIC_AUTHORIZATION; do
+            if [ -z "${!secret}" ]; then
+              missing+=("$secret")
+            fi
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "Missing required ad-hoc signing inputs: ${missing[*]}"
+            exit 1
+          fi
+          if [ -z "$FASTLANE_APPLE_ID" ] || [ -z "$FASTLANE_TEAM_ID" ]; then
+            echo "Set FASTLANE_APPLE_ID and FASTLANE_TEAM_ID repository variables for ad-hoc signing."
+            exit 1
+          fi
+          if grep -qE 'your-apple-id@example\.com|YOUR_TEAM_ID' ios/fastlane/Appfile; then
+            echo "ios/fastlane/Appfile still contains signing placeholders."
+            exit 1
+          fi
+
       - name: Write App Store Connect API key JSON
         working-directory: ios
         env:
@@ -580,6 +635,8 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
         run: bundle _2.5.23_ exec fastlane build_adhoc
 
       - name: Build XCUITest runner
@@ -588,6 +645,8 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+          FASTLANE_APPLE_ID: ${{ vars.FASTLANE_APPLE_ID }}
+          FASTLANE_TEAM_ID: ${{ vars.FASTLANE_TEAM_ID }}
         run: |
           bundle _2.5.23_ exec fastlane sync_signing_adhoc
           xcodebuild build-for-testing \
