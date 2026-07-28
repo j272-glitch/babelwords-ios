@@ -1,0 +1,584 @@
+﻿2026-07-27T22:30:21.9926520Z Current runner version: '2.336.0'
+2026-07-27T22:30:21.9930010Z Runner name: 'SDMM468'
+2026-07-27T22:30:21.9930460Z Runner group name: 'Default'
+2026-07-27T22:30:21.9931070Z Machine name: 'SDMM468'
+2026-07-27T22:30:21.9932780Z ##[group]GITHUB_TOKEN Permissions
+2026-07-27T22:30:21.9933940Z Contents: read
+2026-07-27T22:30:21.9934290Z Metadata: read
+2026-07-27T22:30:21.9934650Z Packages: read
+2026-07-27T22:30:21.9934990Z ##[endgroup]
+2026-07-27T22:30:21.9936120Z Secret source: Actions
+2026-07-27T22:30:21.9936720Z Prepare workflow directory
+2026-07-27T22:30:22.0457120Z Prepare all required actions
+2026-07-27T22:30:22.0489930Z Getting action download info
+2026-07-27T22:30:22.3667310Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-07-27T22:30:22.9333510Z Download action repository 'maxim-lobanov/setup-xcode@v1' (SHA:ed7a3b1fda3918c0306d1b724322adc0b8cc0a90)
+2026-07-27T22:30:23.3535090Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-07-27T22:30:24.1279230Z Complete job name: Build ad-hoc IPA + XCUITest runner
+2026-07-27T22:30:24.1855740Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-27T22:30:24.1862780Z ##[group]Run actions/checkout@v4
+2026-07-27T22:30:24.1863500Z with:
+2026-07-27T22:30:24.1864010Z   fetch-depth: 1
+2026-07-27T22:30:24.1864590Z   repository: j272-glitch/babelwords-ios
+2026-07-27T22:30:24.1869990Z   token: ***
+2026-07-27T22:30:24.1870510Z   ssh-strict: true
+2026-07-27T22:30:24.1871050Z   ssh-user: git
+2026-07-27T22:30:24.1871600Z   persist-credentials: true
+2026-07-27T22:30:24.1872200Z   clean: true
+2026-07-27T22:30:24.1872750Z   sparse-checkout-cone-mode: true
+2026-07-27T22:30:24.1873390Z   fetch-tags: false
+2026-07-27T22:30:24.1873970Z   show-progress: true
+2026-07-27T22:30:24.1874530Z   lfs: false
+2026-07-27T22:30:24.1875070Z   submodules: false
+2026-07-27T22:30:24.1875630Z   set-safe-directory: true
+2026-07-27T22:30:24.1876270Z   allow-unsafe-pr-checkout: false
+2026-07-27T22:30:24.1877000Z env:
+2026-07-27T22:30:24.1877560Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:24.1878250Z   SCHEME: BabelWords
+2026-07-27T22:30:24.1878810Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:24.1879450Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:24.1880140Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:24.1880810Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:24.1881430Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:24.1913720Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:24.1914430Z ##[endgroup]
+2026-07-27T22:30:24.4014710Z Syncing repository: j272-glitch/babelwords-ios
+2026-07-27T22:30:24.4016570Z ##[group]Getting Git version info
+2026-07-27T22:30:24.4017630Z Working directory is '/Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios'
+2026-07-27T22:30:24.4019220Z [command]/usr/bin/git version
+2026-07-27T22:30:24.4162450Z git version 2.50.1 (Apple Git-155)
+2026-07-27T22:30:24.4174120Z ##[endgroup]
+2026-07-27T22:30:24.4181200Z Temporarily overriding HOME='/Users/jesse/actions-runner/_work/_temp/256f8d3b-067a-4cd4-890f-ed0f01b50ac8' before making global git config changes
+2026-07-27T22:30:24.4183070Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-27T22:30:24.4184770Z [command]/usr/bin/git config --global --add safe.directory /Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios
+2026-07-27T22:30:24.4332040Z [command]/usr/bin/git config --local --get remote.origin.url
+2026-07-27T22:30:24.4460110Z https://github.com/j272-glitch/babelwords-ios
+2026-07-27T22:30:24.4469190Z ##[group]Removing previously created refs, to avoid conflicts
+2026-07-27T22:30:24.4471210Z [command]/usr/bin/git rev-parse --symbolic-full-name --verify --quiet HEAD
+2026-07-27T22:30:24.4606700Z refs/heads/main
+2026-07-27T22:30:24.4610850Z [command]/usr/bin/git checkout --detach
+2026-07-27T22:30:24.5160980Z HEAD is now at 589b4ae Fix Swift 6 lifecycle and Google Mobile Ads APIs
+2026-07-27T22:30:24.5307120Z [command]/usr/bin/git branch --delete --force main
+2026-07-27T22:30:24.5450350Z Deleted branch main (was 589b4ae).
+2026-07-27T22:30:24.5592310Z ##[endgroup]
+2026-07-27T22:30:24.5593020Z [command]/usr/bin/git submodule status
+2026-07-27T22:30:24.6390510Z ##[group]Cleaning the repository
+2026-07-27T22:30:24.6393820Z [command]/usr/bin/git clean -ffdx
+2026-07-27T22:30:24.6581920Z [command]/usr/bin/git reset --hard HEAD
+2026-07-27T22:30:24.6799250Z HEAD is now at 589b4ae Fix Swift 6 lifecycle and Google Mobile Ads APIs
+2026-07-27T22:30:24.6800780Z ##[endgroup]
+2026-07-27T22:30:24.6802420Z ##[group]Disabling automatic garbage collection
+2026-07-27T22:30:24.6805090Z [command]/usr/bin/git config --local gc.auto 0
+2026-07-27T22:30:24.6944180Z ##[endgroup]
+2026-07-27T22:30:24.6944560Z ##[group]Setting up auth
+2026-07-27T22:30:24.6948080Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-27T22:30:24.7087450Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-27T22:30:24.7881540Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-27T22:30:24.8016820Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-27T22:30:24.8753140Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-27T22:30:24.8886500Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-27T22:30:24.9603230Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-07-27T22:30:24.9742820Z ##[endgroup]
+2026-07-27T22:30:24.9743260Z ##[group]Fetching the repository
+2026-07-27T22:30:24.9747290Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +8c475ebcf0fd0d77c352b180e9b67dc5dd15dc00:refs/remotes/origin/main
+2026-07-27T22:30:25.5290400Z From https://github.com/j272-glitch/babelwords-ios
+2026-07-27T22:30:25.5290930Z  + 589b4ae...8c475eb 8c475ebcf0fd0d77c352b180e9b67dc5dd15dc00 -> origin/main  (forced update)
+2026-07-27T22:30:25.5342070Z ##[endgroup]
+2026-07-27T22:30:25.5342440Z ##[group]Determining the checkout info
+2026-07-27T22:30:25.5342870Z ##[endgroup]
+2026-07-27T22:30:25.5347010Z [command]/usr/bin/git sparse-checkout disable
+2026-07-27T22:30:25.5504050Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-07-27T22:30:25.5649500Z ##[group]Checking out the ref
+2026-07-27T22:30:25.5651320Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-07-27T22:30:25.5860590Z Warning: you are leaving 1 commit behind, not connected to
+2026-07-27T22:30:25.5861030Z any of your branches:
+2026-07-27T22:30:25.5861140Z 
+2026-07-27T22:30:25.5861310Z   589b4ae Fix Swift 6 lifecycle and Google Mobile Ads APIs
+2026-07-27T22:30:25.5861510Z 
+2026-07-27T22:30:25.5861690Z If you want to keep it by creating a new branch, this may be a good time
+2026-07-27T22:30:25.5862010Z to do so with:
+2026-07-27T22:30:25.5862130Z 
+2026-07-27T22:30:25.5862250Z  git branch <new-branch-name> 589b4ae
+2026-07-27T22:30:25.5862400Z 
+2026-07-27T22:30:25.5888750Z Switched to a new branch 'main'
+2026-07-27T22:30:25.5893260Z branch 'main' set up to track 'origin/main'.
+2026-07-27T22:30:25.5897040Z ##[endgroup]
+2026-07-27T22:30:25.6035340Z [command]/usr/bin/git log -1 --format=%H
+2026-07-27T22:30:25.6165990Z 8c475ebcf0fd0d77c352b180e9b67dc5dd15dc00
+2026-07-27T22:30:25.6287890Z ##[group]Run maxim-lobanov/setup-xcode@v1
+2026-07-27T22:30:25.6288280Z with:
+2026-07-27T22:30:25.6288450Z   xcode-version: 26
+2026-07-27T22:30:25.6288610Z env:
+2026-07-27T22:30:25.6288770Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:25.6289000Z   SCHEME: BabelWords
+2026-07-27T22:30:25.6289200Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:25.6289410Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:25.6289640Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:25.6289900Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:25.6290090Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:25.6300620Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:25.6300850Z ##[endgroup]
+2026-07-27T22:30:25.6925740Z Switching Xcode to version '26'...
+2026-07-27T22:30:25.7231960Z Xcode is set to 26.6.0 (17F113)
+2026-07-27T22:30:25.7286760Z ##[group]Run echo "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"
+2026-07-27T22:30:25.7287330Z [36;1mecho "DEVELOPER_DIR=$MD_APPLE_SDK_ROOT/Contents/Developer" >> "$GITHUB_ENV"[0m
+2026-07-27T22:30:25.7287790Z [36;1mexport DEVELOPER_DIR="$MD_APPLE_SDK_ROOT/Contents/Developer"[0m
+2026-07-27T22:30:25.7288120Z [36;1mecho "Using Xcode at: $DEVELOPER_DIR"[0m
+2026-07-27T22:30:25.7288360Z [36;1mxcodebuild -version[0m
+2026-07-27T22:30:25.7300320Z shell: /bin/bash -e {0}
+2026-07-27T22:30:25.7300500Z env:
+2026-07-27T22:30:25.7300700Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:25.7300930Z   SCHEME: BabelWords
+2026-07-27T22:30:25.7301140Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:25.7301340Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:25.7301580Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:25.7301810Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:25.7302020Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:25.7312700Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:25.7312940Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:25.7313190Z ##[endgroup]
+2026-07-27T22:30:25.7573120Z Using Xcode at: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:26.1407720Z Xcode 26.6
+2026-07-27T22:30:26.1407950Z Build version 17F113
+2026-07-27T22:30:26.1441500Z ##[group]Run BREW_PREFIX=$(brew --prefix)
+2026-07-27T22:30:26.1441770Z [36;1mBREW_PREFIX=$(brew --prefix)[0m
+2026-07-27T22:30:26.1442030Z [36;1mif [ ! -d "$BREW_PREFIX/opt/ruby@3.2" ]; then[0m
+2026-07-27T22:30:26.1442320Z [36;1m  echo "Installing Ruby 3.2 via Homebrew..."[0m
+2026-07-27T22:30:26.1442570Z [36;1m  brew install ruby@3.2[0m
+2026-07-27T22:30:26.1442760Z [36;1mfi[0m
+2026-07-27T22:30:26.1442960Z [36;1mRUBY_BIN="$BREW_PREFIX/opt/ruby@3.2/bin"[0m
+2026-07-27T22:30:26.1443270Z [36;1mGEM_BIN="$BREW_PREFIX/opt/ruby@3.2/lib/ruby/gems/3.2.0/bin"[0m
+2026-07-27T22:30:26.1443570Z [36;1mecho "$RUBY_BIN" >> $GITHUB_PATH[0m
+2026-07-27T22:30:26.1443800Z [36;1mecho "$GEM_BIN" >> $GITHUB_PATH[0m
+2026-07-27T22:30:26.1444050Z [36;1mexport PATH="$RUBY_BIN:$GEM_BIN:$PATH"[0m
+2026-07-27T22:30:26.1444290Z [36;1mruby -v[0m
+2026-07-27T22:30:26.1444450Z [36;1mgem -v[0m
+2026-07-27T22:30:26.1444630Z [36;1mpod --version[0m
+2026-07-27T22:30:26.1444810Z [36;1mbundle -v[0m
+2026-07-27T22:30:26.1445030Z [36;1mfastlane --version[0m
+2026-07-27T22:30:26.1445260Z [36;1mif ! command -v xcodegen &> /dev/null; then[0m
+2026-07-27T22:30:26.1445530Z [36;1m  brew install xcodegen[0m
+2026-07-27T22:30:26.1445740Z [36;1mfi[0m
+2026-07-27T22:30:26.1445910Z [36;1mxcodegen --version[0m
+2026-07-27T22:30:26.1478110Z shell: /bin/bash -e {0}
+2026-07-27T22:30:26.1478290Z env:
+2026-07-27T22:30:26.1478470Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:26.1478720Z   SCHEME: BabelWords
+2026-07-27T22:30:26.1478930Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:26.1479140Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:26.1479410Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:26.1479660Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:26.1479890Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:26.1490450Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:26.1490710Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:26.1491220Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:26.1491480Z ##[endgroup]
+2026-07-27T22:30:26.2162380Z ruby 3.2.11 (2026-03-27 revision 5483bfc1ae) [arm64-darwin25]
+2026-07-27T22:30:26.2785640Z 4.0.9
+2026-07-27T22:30:26.8722920Z 1.16.2
+2026-07-27T22:30:26.9744790Z 4.0.17
+2026-07-27T22:30:27.1787260Z fastlane installation at path:
+2026-07-27T22:30:27.1787810Z /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/bin/fastlane
+2026-07-27T22:30:27.1788270Z -----------------------------
+2026-07-27T22:30:27.6274310Z [15:30:27]: [33mWARNING: Support for your Ruby version (3.2.11) is going away. fastlane will soon require Ruby 3.3.0 or newer.[0m
+2026-07-27T22:30:27.9996420Z fastlane 2.237.0
+2026-07-27T22:30:27.9997440Z [15:30:27]: [33mWARNING: Support for your Ruby version (3.2.11) is going away. fastlane will soon require Ruby 3.3.0 or newer.[0m
+2026-07-27T22:30:28.0135520Z Version: 2.46.0
+2026-07-27T22:30:28.0170110Z ##[group]Run echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -d -o app_store_connect_api_key.p8
+2026-07-27T22:30:28.0170690Z [36;1mecho "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 -d -o app_store_connect_api_key.p8[0m
+2026-07-27T22:30:28.0182210Z shell: /bin/bash -e {0}
+2026-07-27T22:30:28.0182410Z env:
+2026-07-27T22:30:28.0182570Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:28.0182800Z   SCHEME: BabelWords
+2026-07-27T22:30:28.0182980Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:28.0183180Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:28.0183410Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:28.0183640Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:28.0183840Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:28.0194360Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:28.0194600Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:28.0194900Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:28.0196730Z   APP_STORE_CONNECT_API_KEY_BASE64: ***
+2026-07-27T22:30:28.0196940Z ##[endgroup]
+2026-07-27T22:30:28.0494560Z ##[group]Run key=$(cat app_store_connect_api_key.p8 | sed 's/$/\\n/' | tr -d '\n')
+2026-07-27T22:30:28.0495070Z [36;1mkey=$(cat app_store_connect_api_key.p8 | sed 's/$/\\n/' | tr -d '\n')[0m
+2026-07-27T22:30:28.0495440Z [36;1mcat > app_store_connect_api_key.json <<EOF[0m
+2026-07-27T22:30:28.0495680Z [36;1m{[0m
+2026-07-27T22:30:28.0495850Z [36;1m  "key_id": "$KEY_ID",[0m
+2026-07-27T22:30:28.0496080Z [36;1m  "issuer_id": "$ISSUER_ID",[0m
+2026-07-27T22:30:28.0496320Z [36;1m  "key": "$key",[0m
+2026-07-27T22:30:28.0496500Z [36;1m  "duration": 1200,[0m
+2026-07-27T22:30:28.0496720Z [36;1m  "in_house": false[0m
+2026-07-27T22:30:28.0496920Z [36;1m}[0m
+2026-07-27T22:30:28.0497070Z [36;1mEOF[0m
+2026-07-27T22:30:28.0506490Z shell: /bin/bash -e {0}
+2026-07-27T22:30:28.0506660Z env:
+2026-07-27T22:30:28.0506850Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:28.0507080Z   SCHEME: BabelWords
+2026-07-27T22:30:28.0507280Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:28.0507560Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:28.0507800Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:28.0508040Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:28.0508230Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:28.0518820Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:28.0519070Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:28.0519370Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:28.0519640Z   KEY_ID: ***
+2026-07-27T22:30:28.0519850Z   ISSUER_ID: ***
+2026-07-27T22:30:28.0520010Z ##[endgroup]
+2026-07-27T22:30:28.0870230Z ##[group]Run echo "$GOOGLE_SERVICES_INFO_PLIST_BASE64" | base64 -d -o BabelWords/Resources/GoogleService-Info.plist
+2026-07-27T22:30:28.0870880Z [36;1mecho "$GOOGLE_SERVICES_INFO_PLIST_BASE64" | base64 -d -o BabelWords/Resources/GoogleService-Info.plist[0m
+2026-07-27T22:30:28.0871310Z [36;1mecho "✅ Wrote GoogleService-Info.plist"[0m
+2026-07-27T22:30:28.0892370Z shell: /bin/bash -e {0}
+2026-07-27T22:30:28.0892550Z env:
+2026-07-27T22:30:28.0892700Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:28.0892910Z   SCHEME: BabelWords
+2026-07-27T22:30:28.0893090Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:28.0893300Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:28.0893520Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:28.0893720Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:28.0893920Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:28.0904360Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:28.0904600Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:28.0904890Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:28.0905140Z ##[endgroup]
+2026-07-27T22:30:28.1181420Z ✅ Wrote GoogleService-Info.plist
+2026-07-27T22:30:28.1205470Z ##[group]Run xcodegen generate
+2026-07-27T22:30:28.1205700Z [36;1mxcodegen generate[0m
+2026-07-27T22:30:28.1215020Z shell: /bin/bash -e {0}
+2026-07-27T22:30:28.1215230Z env:
+2026-07-27T22:30:28.1215390Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:28.1215620Z   SCHEME: BabelWords
+2026-07-27T22:30:28.1215800Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:28.1215990Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:28.1216220Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:28.1216440Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:28.1216640Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:28.1227120Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:28.1227370Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:28.1227660Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:28.1228000Z ##[endgroup]
+2026-07-27T22:30:28.1590350Z ⚙️  Generating plists...
+2026-07-27T22:30:28.1597790Z ⚙️  Generating project...
+2026-07-27T22:30:28.1707580Z ⚙️  Writing project...
+2026-07-27T22:30:28.1773410Z Created project at /Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios/ios/BabelWords.xcodeproj
+2026-07-27T22:30:28.1803430Z ##[group]Run pod install --repo-update
+2026-07-27T22:30:28.1803680Z [36;1mpod install --repo-update[0m
+2026-07-27T22:30:28.1803900Z [36;1mgem install bundler[0m
+2026-07-27T22:30:28.1804190Z [36;1mbundle install[0m
+2026-07-27T22:30:28.1814640Z shell: /bin/bash -e {0}
+2026-07-27T22:30:28.1814800Z env:
+2026-07-27T22:30:28.1814970Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:28.1815190Z   SCHEME: BabelWords
+2026-07-27T22:30:28.1815370Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:28.1815570Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:28.1815790Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:28.1816010Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:28.1816200Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:28.1826810Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:28.1827060Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:28.1827360Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:28.1827660Z ##[endgroup]
+2026-07-27T22:30:29.0402110Z Updating local specs repositories
+2026-07-27T22:30:30.4867190Z Analyzing dependencies
+2026-07-27T22:30:30.4867470Z Downloading dependencies
+2026-07-27T22:30:30.4867690Z Installing FirebaseAnalytics (11.15.0)
+2026-07-27T22:30:30.4867920Z Installing FirebaseCore (11.15.0)
+2026-07-27T22:30:30.4868150Z Installing FirebaseCoreExtension (11.15.0)
+2026-07-27T22:30:30.4868400Z Installing FirebaseCoreInternal (11.15.0)
+2026-07-27T22:30:30.4868650Z Installing FirebaseCrashlytics (11.15.0)
+2026-07-27T22:30:30.4868880Z Installing FirebaseInstallations (11.15.0)
+2026-07-27T22:30:30.4869150Z Installing FirebaseRemoteConfigInterop (11.15.0)
+2026-07-27T22:30:30.4869410Z Installing FirebaseSessions (11.15.0)
+2026-07-27T22:30:30.4869660Z Installing Google-Mobile-Ads-SDK (11.13.0)
+2026-07-27T22:30:30.4869970Z Installing GoogleAdsOnDeviceConversion (2.1.0)
+2026-07-27T22:30:30.4870230Z Installing GoogleAppMeasurement (11.15.0)
+2026-07-27T22:30:30.4870520Z Installing GoogleDataTransport (10.1.0)
+2026-07-27T22:30:30.4871150Z Installing GoogleUserMessagingPlatform (2.7.0)
+2026-07-27T22:30:30.4871400Z Installing GoogleUtilities (8.1.2)
+2026-07-27T22:30:30.4871610Z Installing PromisesObjC (2.4.1)
+2026-07-27T22:30:30.4871820Z Installing PromisesSwift (2.4.1)
+2026-07-27T22:30:30.4872020Z Installing nanopb (3.30910.0)
+2026-07-27T22:30:30.4872210Z Generating Pods project
+2026-07-27T22:30:30.4872390Z Integrating client project
+2026-07-27T22:30:30.4872510Z 
+2026-07-27T22:30:30.4872780Z [!] Please close any current Xcode sessions and use `BabelWords.xcworkspace` for this project from now on.
+2026-07-27T22:30:30.4873350Z Pod installation complete! There are 4 dependencies from the Podfile and 17 total pods installed.
+2026-07-27T22:30:30.8801390Z Successfully installed bundler-4.0.17
+2026-07-27T22:30:30.8801690Z 1 gem installed
+2026-07-27T22:30:32.9422580Z Fetching gem metadata from https://rubygems.org/........
+2026-07-27T22:30:33.2510020Z Resolving dependencies...
+2026-07-27T22:30:33.7044600Z Fetching aws-partitions 1.1274.0
+2026-07-27T22:30:33.7556650Z Installing aws-partitions 1.1274.0
+2026-07-27T22:30:33.7625000Z Bundle complete! 1 Gemfile dependency, 97 gems now installed.
+2026-07-27T22:30:33.7625460Z Use `bundle info [gemname]` to see where a bundled gem is installed.
+2026-07-27T22:30:33.8042280Z ##[group]Run if [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_BASIC_AUTHORIZATION" ]; then
+2026-07-27T22:30:33.8042750Z [36;1mif [ -z "$MATCH_PASSWORD" ] || [ -z "$MATCH_GIT_BASIC_AUTHORIZATION" ]; then[0m
+2026-07-27T22:30:33.8043130Z [36;1m  echo "Missing MATCH_PASSWORD or MATCH_GIT_BASIC_AUTHORIZATION"[0m
+2026-07-27T22:30:33.8043410Z [36;1m  exit 1[0m
+2026-07-27T22:30:33.8043570Z [36;1mfi[0m
+2026-07-27T22:30:33.8054020Z shell: /bin/bash -e {0}
+2026-07-27T22:30:33.8054200Z env:
+2026-07-27T22:30:33.8054360Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:33.8054600Z   SCHEME: BabelWords
+2026-07-27T22:30:33.8054780Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:33.8054990Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:33.8055210Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:33.8055420Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:33.8055620Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:33.8066450Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:33.8066730Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:33.8067040Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:33.8067350Z   MATCH_PASSWORD: ***
+2026-07-27T22:30:33.8067720Z   MATCH_GIT_BASIC_AUTHORIZATION: ***
+2026-07-27T22:30:33.8067930Z ##[endgroup]
+2026-07-27T22:30:33.8398550Z ##[group]Run bundle exec fastlane build_adhoc
+2026-07-27T22:30:33.8398900Z [36;1mbundle exec fastlane build_adhoc[0m
+2026-07-27T22:30:33.8409360Z shell: /bin/bash -e {0}
+2026-07-27T22:30:33.8409540Z env:
+2026-07-27T22:30:33.8409730Z   WORKSPACE: ios/BabelWords.xcworkspace
+2026-07-27T22:30:33.8409980Z   SCHEME: BabelWords
+2026-07-27T22:30:33.8410180Z   DERIVED_DATA: derived_data
+2026-07-27T22:30:33.8410390Z   FIREBASE_TEST_LAB_DEVICE: iphone14pro
+2026-07-27T22:30:33.8410730Z   FIREBASE_TEST_LAB_OS_VERSION: 26.0
+2026-07-27T22:30:33.8410940Z   FIREBASE_TEST_LAB_TIMEOUT: 30m
+2026-07-27T22:30:33.8411160Z   GCP_PROJECT_ID: 
+2026-07-27T22:30:33.8421980Z   GOOGLE_SERVICES_INFO_PLIST_BASE64: ***
+2026-07-27T22:30:33.8422250Z   MD_APPLE_SDK_ROOT: /Applications/Xcode.app
+2026-07-27T22:30:33.8422540Z   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+2026-07-27T22:30:33.8422850Z   MATCH_PASSWORD: ***
+2026-07-27T22:30:33.8423260Z   MATCH_GIT_BASIC_AUTHORIZATION: ***
+2026-07-27T22:30:33.8423500Z ##[endgroup]
+2026-07-27T22:30:34.4141040Z [15:30:34]: [33mWARNING: Support for your Ruby version (3.2.11) is going away. fastlane will soon require Ruby 3.3.0 or newer.[0m
+2026-07-27T22:30:34.8670810Z [15:30:34]: [32m------------------------------[0m
+2026-07-27T22:30:34.8671190Z [15:30:34]: [32m--- Step: default_platform ---[0m
+2026-07-27T22:30:34.8671500Z [15:30:34]: [32m------------------------------[0m
+2026-07-27T22:30:34.8672430Z [15:30:34]: [32mDriving the lane 'ios build_adhoc' 🚀[0m
+2026-07-27T22:30:34.8686500Z [15:30:34]: [32m---------------------------------------------------[0m
+2026-07-27T22:30:34.8686900Z [15:30:34]: [32m--- Step: Switch to ios sync_signing_adhoc lane ---[0m
+2026-07-27T22:30:34.8687290Z [15:30:34]: [32m---------------------------------------------------[0m
+2026-07-27T22:30:34.8687680Z [15:30:34]: Cruising over to lane 'ios sync_signing_adhoc' 🚖
+2026-07-27T22:30:34.9403300Z [15:30:34]: [32m-------------------[0m
+2026-07-27T22:30:34.9403640Z [15:30:34]: [32m--- Step: match ---[0m
+2026-07-27T22:30:34.9403950Z [15:30:34]: [32m-------------------[0m
+2026-07-27T22:30:34.9405360Z 
+2026-07-27T22:30:34.9414120Z +----------------------------------------------------------------------------------------------+
+2026-07-27T22:30:34.9414660Z |                                  [32mSummary for match 2.237.0[0m                                   |
+2026-07-27T22:30:34.9415110Z +----------------------------------------+-----------------------------------------------------+
+2026-07-27T22:30:34.9415530Z | type                                   | adhoc                                               |
+2026-07-27T22:30:34.9415940Z | app_identifier                         | ["com.babelwords.com"]                              |
+2026-07-27T22:30:34.9416410Z | git_url                                | https://github.com/j272-glitch/babelwords-match.git |
+2026-07-27T22:30:34.9416830Z | readonly                               | false                                               |
+2026-07-27T22:30:34.9417250Z | api_key_path                           | ./app_store_connect_api_key.json                    |
+2026-07-27T22:30:34.9417660Z | generate_apple_certs                   | true                                                |
+2026-07-27T22:30:34.9418110Z | skip_provisioning_profiles             | false                                               |
+2026-07-27T22:30:34.9418560Z | username                               | your-apple-id@example.com                           |
+2026-07-27T22:30:34.9418970Z | team_id                                | YOUR_TEAM_ID                                        |
+2026-07-27T22:30:34.9419350Z | storage_mode                           | git                                                 |
+2026-07-27T22:30:34.9419720Z | git_branch                             | master                                              |
+2026-07-27T22:30:34.9420100Z | shallow_clone                          | false                                               |
+2026-07-27T22:30:34.9420900Z | clone_branch_directly                  | false                                               |
+2026-07-27T22:30:34.9421330Z | git_basic_authorization                | ********                                            |
+2026-07-27T22:30:34.9421790Z | skip_google_cloud_account_confirmation | false                                               |
+2026-07-27T22:30:34.9422250Z | s3_skip_encryption                     | false                                               |
+2026-07-27T22:30:34.9422710Z | gitlab_host                            | https://gitlab.com                                  |
+2026-07-27T22:30:34.9423120Z | keychain_name                          | login.keychain                                      |
+2026-07-27T22:30:34.9423500Z | force                                  | false                                               |
+2026-07-27T22:30:34.9423880Z | force_for_new_devices                  | false                                               |
+2026-07-27T22:30:34.9424280Z | include_mac_in_profiles                | false                                               |
+2026-07-27T22:30:34.9424700Z | include_all_certificates               | false                                               |
+2026-07-27T22:30:34.9425130Z | force_for_new_certificates             | false                                               |
+2026-07-27T22:30:34.9425560Z | renew_expired_certs                    | false                                               |
+2026-07-27T22:30:34.9426170Z | skip_confirmation                      | false                                               |
+2026-07-27T22:30:34.9426580Z | safe_remove_certs                      | false                                               |
+2026-07-27T22:30:34.9426960Z | skip_docs                              | false                                               |
+2026-07-27T22:30:34.9427330Z | platform                               | ios                                                 |
+2026-07-27T22:30:34.9427750Z | derive_catalyst_app_identifier         | false                                               |
+2026-07-27T22:30:34.9428170Z | fail_on_name_taken                     | false                                               |
+2026-07-27T22:30:34.9428590Z | skip_certificate_matching              | false                                               |
+2026-07-27T22:30:34.9429020Z | skip_set_partition_list                | false                                               |
+2026-07-27T22:30:34.9429460Z | force_legacy_encryption                | false                                               |
+2026-07-27T22:30:34.9429850Z | verbose                                | false                                               |
+2026-07-27T22:30:34.9430260Z +----------------------------------------+-----------------------------------------------------+
+2026-07-27T22:30:34.9430520Z 
+2026-07-27T22:30:34.9430610Z [15:30:34]: Cloning remote git repo...
+2026-07-27T22:30:34.9431020Z [15:30:34]: If cloning the repo takes too long, you can use the `clone_branch_directly` option in match.
+2026-07-27T22:30:35.6503940Z [15:30:35]: Checking out branch master...
+2026-07-27T22:30:35.6973370Z [15:30:35]: [32m🔓  Successfully decrypted certificates repo[0m
+2026-07-27T22:30:35.7001950Z +------------------------------------+
+2026-07-27T22:30:35.7002300Z |            [33mLane Context[0m            |
+2026-07-27T22:30:35.7002550Z +------------------+-----------------+
+2026-07-27T22:30:35.7002770Z | DEFAULT_PLATFORM | ios             |
+2026-07-27T22:30:35.7003050Z | PLATFORM_NAME    | ios             |
+2026-07-27T22:30:35.7003290Z | LANE_NAME        | ios build_adhoc |
+2026-07-27T22:30:35.7003510Z +------------------+-----------------+
+2026-07-27T22:30:35.7005510Z [15:30:35]: [31mCalled from Fastfile at line 31[0m
+2026-07-27T22:30:35.7007410Z [15:30:35]: [31m```[0m
+2026-07-27T22:30:35.7007790Z [15:30:35]: [31m    29:	  desc "Sync ad-hoc signing for Firebase Test Lab device builds"[0m
+2026-07-27T22:30:35.7008470Z [15:30:35]: [31m    30:	  lane :sync_signing_adhoc do[0m
+2026-07-27T22:30:35.7008790Z [15:30:35]: [31m => 31:	    match([0m
+2026-07-27T22:30:35.7009080Z [15:30:35]: [31m    32:	      type: "adhoc",[0m
+2026-07-27T22:30:35.7009420Z [15:30:35]: [31m    33:	      app_identifier: "com.babelwords.com",[0m
+2026-07-27T22:30:35.7009740Z [15:30:35]: [31m```[0m
+2026-07-27T22:30:35.7039850Z 
+2026-07-27T22:30:35.7042630Z +------------------------------------------------------------+
+2026-07-27T22:30:35.7043050Z |                      [32mfastlane summary[0m                      |
+2026-07-27T22:30:35.7043370Z +------+---------------------------------------+-------------+
+2026-07-27T22:30:35.7043700Z | Step | Action                                | Time (in s) |
+2026-07-27T22:30:35.7044010Z +------+---------------------------------------+-------------+
+2026-07-27T22:30:35.7044340Z | 1    | default_platform                      | 0           |
+2026-07-27T22:30:35.7044630Z | 2    | Switch to ios sync_signing_adhoc lane | 0           |
+2026-07-27T22:30:35.7045020Z | 💥   | [31mmatch[0m                                 | 0           |
+2026-07-27T22:30:35.7045360Z +------+---------------------------------------+-------------+
+2026-07-27T22:30:35.7045560Z 
+2026-07-27T22:30:35.7045680Z [15:30:35]: [31mfastlane finished with errors[0m
+2026-07-27T22:30:35.7077000Z 
+2026-07-27T22:30:35.7077280Z Looking for related GitHub issues on fastlane/fastlane...
+2026-07-27T22:30:35.7077500Z 
+2026-07-27T22:30:36.2312970Z ➡️  [33m invalid curve name after brew upgrade?[0m
+2026-07-27T22:30:36.2412740Z bundler: failed to load command: fastlane (/opt/homebrew/lib/ruby/gems/3.2.0/bin/fastlane)
+2026-07-27T22:30:36.2414610Z     https://github.com/fastlane/fastlane/issues/20553 [[32mclosed[0m] 16 💬
+2026-07-27T22:30:36.2476730Z /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `initialize': [31m[!] invalid curve name[0m (OpenSSL::PKey::ECError)
+2026-07-27T22:30:36.2478220Z     3 weeks ago
+2026-07-27T22:30:36.2478480Z 
+2026-07-27T22:30:36.2478880Z ➡️  [33mi am unable to publish app to AppStore[0m
+2026-07-27T22:30:36.2479910Z     https://github.com/fastlane/fastlane/issues/22183 [[32mclosed[0m] 4 💬
+2026-07-27T22:30:36.2480620Z     3 weeks ago
+2026-07-27T22:30:36.2480870Z 
+2026-07-27T22:30:36.2481510Z ➡️  [33mTrying to Deploy IOS App on Test-flight via Azure DevOps - I'm facing build error[0m
+2026-07-27T22:30:36.2482700Z     https://github.com/fastlane/fastlane/issues/21531 [[31mopen[0m] 8 💬
+2026-07-27T22:30:36.2483480Z     4 weeks ago
+2026-07-27T22:30:36.2483700Z 
+2026-07-27T22:30:36.2484380Z and 11 more at: https://github.com/fastlane/fastlane/search?q=invalid%20curve%20name&type=Issues&utf8=✓
+2026-07-27T22:30:36.2485140Z 
+2026-07-27T22:30:36.2485880Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `new'
+2026-07-27T22:30:36.2487460Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `create'
+2026-07-27T22:30:36.2489190Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:49:in `from_json_file'
+2026-07-27T22:30:36.2490810Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:34:in `from'
+2026-07-27T22:30:36.2492310Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/match/lib/match/runner.rb:142:in `api_token'
+2026-07-27T22:30:36.2493650Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/match/lib/match/runner.rb:58:in `run'
+2026-07-27T22:30:36.2495110Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/actions/sync_code_signing.rb:19:in `run'
+2026-07-27T22:30:36.2496790Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:263:in `block (2 levels) in execute_action'
+2026-07-27T22:30:36.2499190Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/actions/actions_helper.rb:69:in `execute_action'
+2026-07-27T22:30:36.2500910Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:255:in `block in execute_action'
+2026-07-27T22:30:36.2502470Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:229:in `chdir'
+2026-07-27T22:30:36.2503900Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:229:in `execute_action'
+2026-07-27T22:30:36.2505460Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:157:in `trigger_action_by_name'
+2026-07-27T22:30:36.2506970Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing'
+2026-07-27T22:30:36.2508100Z 	from Fastfile:31:in `block (2 levels) in parsing_binding'
+2026-07-27T22:30:36.2509090Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane.rb:41:in `call'
+2026-07-27T22:30:36.2510520Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:204:in `try_switch_to_lane'
+2026-07-27T22:30:36.2511740Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:146:in `trigger_action_by_name'
+2026-07-27T22:30:36.2512730Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing'
+2026-07-27T22:30:36.2513450Z 	from Fastfile:54:in `block (2 levels) in parsing_binding'
+2026-07-27T22:30:36.2514460Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane.rb:41:in `call'
+2026-07-27T22:30:36.2515410Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:49:in `block in execute'
+2026-07-27T22:30:36.2516310Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:45:in `chdir'
+2026-07-27T22:30:36.2517230Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:45:in `execute'
+2026-07-27T22:30:36.2518160Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane_manager.rb:46:in `cruise_lane'
+2026-07-27T22:30:36.2519200Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/command_line_handler.rb:34:in `handle'
+2026-07-27T22:30:36.2520280Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:110:in `block (2 levels) in run'
+2026-07-27T22:30:36.2521280Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/command.rb:187:in `call'
+2026-07-27T22:30:36.2522110Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/command.rb:157:in `run'
+2026-07-27T22:30:36.2522980Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/runner.rb:444:in `run_active_command'
+2026-07-27T22:30:36.2523990Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane_core/lib/fastlane_core/ui/fastlane_runner.rb:124:in `run!'
+2026-07-27T22:30:36.2524950Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/delegates.rb:18:in `run!'
+2026-07-27T22:30:36.2525880Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:363:in `run'
+2026-07-27T22:30:36.2526940Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:43:in `start'
+2026-07-27T22:30:36.2528010Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/cli_tools_distributor.rb:132:in `take_off'
+2026-07-27T22:30:36.2528990Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/bin/fastlane:23:in `<top (required)>'
+2026-07-27T22:30:36.2529800Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `load'
+2026-07-27T22:30:36.2530580Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `activate_and_load_bin_path'
+2026-07-27T22:30:36.2531490Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/bin/fastlane:25:in `<top (required)>'
+2026-07-27T22:30:36.2532240Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:61:in `load'
+2026-07-27T22:30:36.2533070Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:61:in `kernel_load'
+2026-07-27T22:30:36.2533870Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:24:in `run'
+2026-07-27T22:30:36.2534650Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:508:in `exec'
+2026-07-27T22:30:36.2535510Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/command.rb:28:in `run'
+2026-07-27T22:30:36.2536550Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in `invoke_command'
+2026-07-27T22:30:36.2537560Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor.rb:538:in `dispatch'
+2026-07-27T22:30:36.2538420Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:35:in `dispatch'
+2026-07-27T22:30:36.2539250Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/base.rb:584:in `start'
+2026-07-27T22:30:36.2540100Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:29:in `start'
+2026-07-27T22:30:36.2540970Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/exe/bundle:28:in `block in <top (required)>'
+2026-07-27T22:30:36.2542120Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/friendly_errors.rb:118:in `with_friendly_errors'
+2026-07-27T22:30:36.2542960Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/exe/bundle:20:in `<top (required)>'
+2026-07-27T22:30:36.2543710Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `load'
+2026-07-27T22:30:36.2544470Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `activate_and_load_bin_path'
+2026-07-27T22:30:36.2545140Z 	from /opt/homebrew/opt/ruby@3.2/bin/bundle:25:in `<main>'
+2026-07-27T22:30:36.2546090Z /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `initialize': invalid curve name (OpenSSL::PKey::ECError)
+2026-07-27T22:30:36.2547250Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `new'
+2026-07-27T22:30:36.2548250Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:71:in `create'
+2026-07-27T22:30:36.2549340Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:49:in `from_json_file'
+2026-07-27T22:30:36.2550380Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/spaceship/lib/spaceship/connect_api/token.rb:34:in `from'
+2026-07-27T22:30:36.2551450Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/match/lib/match/runner.rb:142:in `api_token'
+2026-07-27T22:30:36.2552290Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/match/lib/match/runner.rb:58:in `run'
+2026-07-27T22:30:36.2553200Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/actions/sync_code_signing.rb:19:in `run'
+2026-07-27T22:30:36.2554340Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:263:in `block (2 levels) in execute_action'
+2026-07-27T22:30:36.2556020Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/actions/actions_helper.rb:69:in `execute_action'
+2026-07-27T22:30:36.2557640Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:255:in `block in execute_action'
+2026-07-27T22:30:36.2559100Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:229:in `chdir'
+2026-07-27T22:30:36.2560810Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:229:in `execute_action'
+2026-07-27T22:30:36.2562320Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:157:in `trigger_action_by_name'
+2026-07-27T22:30:36.2563820Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing'
+2026-07-27T22:30:36.2564900Z 	from Fastfile:31:in `block (2 levels) in parsing_binding'
+2026-07-27T22:30:36.2565940Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane.rb:41:in `call'
+2026-07-27T22:30:36.2567330Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:204:in `try_switch_to_lane'
+2026-07-27T22:30:36.2568810Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:146:in `trigger_action_by_name'
+2026-07-27T22:30:36.2570270Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/fast_file.rb:159:in `method_missing'
+2026-07-27T22:30:36.2571370Z 	from Fastfile:54:in `block (2 levels) in parsing_binding'
+2026-07-27T22:30:36.2572340Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane.rb:41:in `call'
+2026-07-27T22:30:36.2573670Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:49:in `block in execute'
+2026-07-27T22:30:36.2575010Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:45:in `chdir'
+2026-07-27T22:30:36.2576610Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/runner.rb:45:in `execute'
+2026-07-27T22:30:36.2578020Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/lane_manager.rb:46:in `cruise_lane'
+2026-07-27T22:30:36.2579510Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/command_line_handler.rb:34:in `handle'
+2026-07-27T22:30:36.2581100Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:110:in `block (2 levels) in run'
+2026-07-27T22:30:36.2582590Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/command.rb:187:in `call'
+2026-07-27T22:30:36.2583820Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/command.rb:157:in `run'
+2026-07-27T22:30:36.2585070Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/runner.rb:444:in `run_active_command'
+2026-07-27T22:30:36.2586520Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane_core/lib/fastlane_core/ui/fastlane_runner.rb:124:in `run!'
+2026-07-27T22:30:36.2587930Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/commander-4.6.0/lib/commander/delegates.rb:18:in `run!'
+2026-07-27T22:30:36.2589240Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:363:in `run'
+2026-07-27T22:30:36.2590670Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/commands_generator.rb:43:in `start'
+2026-07-27T22:30:36.2592140Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/fastlane/lib/fastlane/cli_tools_distributor.rb:132:in `take_off'
+2026-07-27T22:30:36.2593480Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/fastlane-2.237.0/bin/fastlane:23:in `<top (required)>'
+2026-07-27T22:30:36.2594570Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `load'
+2026-07-27T22:30:36.2595690Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `activate_and_load_bin_path'
+2026-07-27T22:30:36.2596770Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/bin/fastlane:25:in `<top (required)>'
+2026-07-27T22:30:36.2597800Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:61:in `load'
+2026-07-27T22:30:36.2599000Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:61:in `kernel_load'
+2026-07-27T22:30:36.2600400Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli/exec.rb:24:in `run'
+2026-07-27T22:30:36.2601530Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:508:in `exec'
+2026-07-27T22:30:36.2602760Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/command.rb:28:in `run'
+2026-07-27T22:30:36.2604240Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/invocation.rb:127:in `invoke_command'
+2026-07-27T22:30:36.2605690Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor.rb:538:in `dispatch'
+2026-07-27T22:30:36.2606920Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:35:in `dispatch'
+2026-07-27T22:30:36.2608170Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/vendor/thor/lib/thor/base.rb:584:in `start'
+2026-07-27T22:30:36.2609400Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/cli.rb:29:in `start'
+2026-07-27T22:30:36.2610570Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/exe/bundle:28:in `block in <top (required)>'
+2026-07-27T22:30:36.2611900Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/lib/bundler/friendly_errors.rb:118:in `with_friendly_errors'
+2026-07-27T22:30:36.2613180Z 	from /opt/homebrew/lib/ruby/gems/3.2.0/gems/bundler-4.0.17/exe/bundle:20:in `<top (required)>'
+2026-07-27T22:30:36.2614530Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `load'
+2026-07-27T22:30:36.2615700Z 	from /opt/homebrew/Cellar/ruby@3.2/3.2.11/lib/ruby/3.2.0/rubygems.rb:304:in `activate_and_load_bin_path'
+2026-07-27T22:30:36.2616720Z 	from /opt/homebrew/opt/ruby@3.2/bin/bundle:25:in `<main>'
+2026-07-27T22:30:36.2617740Z 🔗  You can ⌘ + double-click on links to open them directly in your browser.
+2026-07-27T22:30:36.2619160Z [15:30:36]: [33mWARNING: Support for your Ruby version (3.2.11) is going away. fastlane will soon require Ruby 3.3.0 or newer.[0m
+2026-07-27T22:30:36.2645910Z ##[error]Process completed with exit code 1.
+2026-07-27T22:30:36.2880110Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-07-27T22:30:36.2882010Z Post job cleanup.
+2026-07-27T22:30:36.3791480Z [command]/usr/bin/git version
+2026-07-27T22:30:36.3925750Z git version 2.50.1 (Apple Git-155)
+2026-07-27T22:30:36.3943740Z Temporarily overriding HOME='/Users/jesse/actions-runner/_work/_temp/3d12e0c6-bddb-4e6a-b3df-aad737e5b293' before making global git config changes
+2026-07-27T22:30:36.3944440Z Adding repository directory to the temporary git global config as a safe directory
+2026-07-27T22:30:36.3946310Z [command]/usr/bin/git config --global --add safe.directory /Users/jesse/actions-runner/_work/babelwords-ios/babelwords-ios
+2026-07-27T22:30:36.4859850Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-07-27T22:30:36.4993900Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-07-27T22:30:36.6421180Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-07-27T22:30:36.6546640Z http.https://github.com/.extraheader
+2026-07-27T22:30:36.6551860Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-07-27T22:30:36.6686480Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-07-27T22:30:36.7396370Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-07-27T22:30:36.7532320Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-07-27T22:30:36.8320850Z Cleaning up orphan processes
+2026-07-27T22:30:37.1666960Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
