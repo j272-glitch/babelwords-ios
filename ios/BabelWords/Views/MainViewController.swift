@@ -45,12 +45,10 @@ final class MainViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        adMobManager.onActivityResumed(self)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        adMobManager.onActivityPaused()
     }
 
     override func viewDidDisappear(_ animated: Bool) {

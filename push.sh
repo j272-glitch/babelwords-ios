@@ -10,6 +10,11 @@ cd "$(dirname "$0")"
 
 COMMIT_MESSAGE="${1:-Update BabelWords iOS project $(date +%Y-%m-%d-%H:%M)}"
 
+if [ "$(git branch --show-current)" != "main" ]; then
+  echo "Error: push.sh only pushes the main branch."
+  exit 1
+fi
+
 if [ -z "${GITHUB_BW_TOKEN:-}" ]; then
   echo "Error: GITHUB_BW_TOKEN environment variable is not set."
   echo "Add it to your Replit Secrets or export it before running this script."
@@ -18,6 +23,13 @@ fi
 
 echo "==> Adding all changes"
 git add -A
+
+if git diff --cached --name-only | grep -Eiq '(^|/)(.*(AuthKey|service-account|credentials|secret|key).*(p8|pem|json|plist|txt)|.*\.(p8|pem|key))$'; then
+  echo "Error: refusing to commit a credential-looking file."
+  git diff --cached --name-only
+  git reset
+  exit 1
+fi
 
 echo "==> Committing with message: $COMMIT_MESSAGE"
 if git diff --cached --quiet; then
@@ -33,6 +45,12 @@ cleanup_credentials() {
   git config --unset credential.helper >/dev/null 2>&1 || true
 }
 trap cleanup_credentials EXIT
+
+git fetch origin main --quiet
+if ! git merge-base --is-ancestor origin/main HEAD; then
+  echo "Error: local main is behind or diverged from origin/main."
+  exit 1
+fi
 
 git push origin main
 

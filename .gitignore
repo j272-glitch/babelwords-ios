@@ -38,10 +38,17 @@ Package.resolved
 *.mobileprovision
 *.p12
 *.cer
+*.p8
+*.pem
+*.key
 
 # Firebase / secrets
 GoogleService-Info.plist
 google-service-info.plist.base64.txt
+google-services*.json
+*service-account*.json
+*credentials*.json
+*key*.txt
 ios-secrets-setup.md
 
 # Fastlane
@@ -59,3 +66,7 @@ fastlane/test_output
 .upm/
 .tmp/
 attached_assets/*.mov
+attached_assets/*AuthKey*
+attached_assets/*GoogleService*
+attached_assets/google-services*.json
+attached_assets/*key*.txt

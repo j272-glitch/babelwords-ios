@@ -13,9 +13,11 @@ final class ConsentManager: NSObject {
     }
 
     private var isProcessing = false
+    private var pendingCallbacks: [(Bool) -> Void] = []
 
     /// Request consent info, show the form if required, and call back when ads can proceed.
     func requestConsent(from viewController: UIViewController, onConsentReady: @escaping (Bool) -> Void) {
+        pendingCallbacks.append(onConsentReady)
         guard !isProcessing else { return }
         isProcessing = true
 
@@ -24,11 +26,10 @@ final class ConsentManager: NSObject {
 
         consentInformation.requestConsentInfoUpdate(with: parameters) { [weak self] error in
             guard let self = self else { return }
-            self.isProcessing = false
 
             if let error = error {
                 print("[\(self.TAG)] Consent info update failed: \(error.localizedDescription)")
-                onConsentReady(self.consentInformation.canRequestAds)
+                self.completeConsent(self.consentInformation.canRequestAds)
                 return
             }
 
@@ -36,27 +37,24 @@ final class ConsentManager: NSObject {
             print("[\(self.TAG)] Consent info updated. canRequestAds=\(canRequestAds), formAvailable=\(self.consentInformation.formStatus == .available)")
 
             if self.consentInformation.formStatus == .available {
-                self.loadAndShowConsentForm(from: viewController, onConsentReady: onConsentReady)
+                self.loadAndShowConsentForm(from: viewController)
             } else {
-                onConsentReady(canRequestAds)
+                self.completeConsent(canRequestAds)
             }
         }
     }
 
-    private func loadAndShowConsentForm(
-        from viewController: UIViewController,
-        onConsentReady: @escaping (Bool) -> Void
-    ) {
+    private func loadAndShowConsentForm(from viewController: UIViewController) {
         UMPConsentForm.load { [weak self] form, error in
             guard let self = self else { return }
             if let error = error {
                 print("[\(self.TAG)] Consent form load failed: \(error.localizedDescription)")
-                onConsentReady(self.consentInformation.canRequestAds)
+                self.completeConsent(self.consentInformation.canRequestAds)
                 return
             }
 
             guard let form = form else {
-                onConsentReady(self.consentInformation.canRequestAds)
+                self.completeConsent(self.consentInformation.canRequestAds)
                 return
             }
 
@@ -67,12 +65,19 @@ final class ConsentManager: NSObject {
                         print("[\(self.TAG)] Consent form show error: \(error.localizedDescription)")
                     }
                     print("[\(self.TAG)] Consent form dismissed. canRequestAds=\(self.consentInformation.canRequestAds)")
-                    onConsentReady(self.consentInformation.canRequestAds)
+                    self.completeConsent(self.consentInformation.canRequestAds)
                 }
             } else {
-                onConsentReady(self.consentInformation.canRequestAds)
+                self.completeConsent(self.consentInformation.canRequestAds)
             }
         }
+    }
+
+    private func completeConsent(_ canRequestAds: Bool) {
+        isProcessing = false
+        let callbacks = pendingCallbacks
+        pendingCallbacks.removeAll()
+        callbacks.forEach { $0(canRequestAds) }
     }
 
     /// Build a GADRequest with the appropriate consent context.
