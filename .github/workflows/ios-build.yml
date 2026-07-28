@@ -457,6 +457,7 @@ jobs:
   build-adhoc-ipa:
     name: Build ad-hoc IPA + XCUITest runner
     runs-on: self-hosted
+    needs: build-and-test
     if: github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_xcui_test == 'true'
     timeout-minutes: 45
 
@@ -511,7 +512,6 @@ jobs:
           openssl version
           pod --version
           bundle _2.5.23_ -v
-          fastlane --version
           if ! command -v xcodegen &> /dev/null; then
             brew install xcodegen
           fi
