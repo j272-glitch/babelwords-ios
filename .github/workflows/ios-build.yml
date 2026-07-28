@@ -237,15 +237,15 @@ jobs:
         working-directory: ios
         run: |
           pod install --repo-update
-          gem install bundler
-          bundle install
+          gem install bundler -v 2.5.23
+          bundle _2.5.23_ install
 
       - name: Sync signing and build IPA
         working-directory: ios
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-        run: bundle exec fastlane build
+        run: bundle _2.5.23_ exec fastlane build
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
@@ -369,15 +369,15 @@ jobs:
         working-directory: ios
         run: |
           pod install --repo-update
-          gem install bundler
-          bundle install
+          gem install bundler -v 2.5.23
+          bundle _2.5.23_ install
 
       - name: Sync development signing
         working-directory: ios
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-        run: bundle exec fastlane sync_signing_testlab
+        run: bundle _2.5.23_ exec fastlane sync_signing_testlab
 
       - name: Build for testing
         working-directory: ios
@@ -503,13 +503,14 @@ jobs:
           echo "$RUBY_BIN" >> $GITHUB_PATH
           echo "$GEM_BIN" >> $GITHUB_PATH
           export PATH="$RUBY_BIN:$GEM_BIN:$PATH"
+          gem install bundler -v 2.5.23
           ruby -v
           which ruby
           gem -v
           gem env
           openssl version
           pod --version
-          bundle -v
+          bundle _2.5.23_ -v
           fastlane --version
           if ! command -v xcodegen &> /dev/null; then
             brew install xcodegen
@@ -557,8 +558,7 @@ jobs:
         working-directory: ios
         run: |
           pod install --repo-update
-          gem install bundler
-          bundle install
+          bundle _2.5.23_ install
 
       - name: Validate match secrets
         working-directory: ios
@@ -576,7 +576,7 @@ jobs:
         env:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
-        run: bundle exec fastlane build_adhoc
+        run: bundle _2.5.23_ exec fastlane build_adhoc
 
       - name: Build XCUITest runner
         if: github.event.inputs.run_firebase_test == 'true' || github.event.inputs.run_xcui_test == 'true'
@@ -585,7 +585,7 @@ jobs:
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
         run: |
-          bundle exec fastlane sync_signing_adhoc
+          bundle _2.5.23_ exec fastlane sync_signing_adhoc
           xcodebuild build-for-testing \
             -workspace BabelWords.xcworkspace \
             -scheme BabelWords \
