@@ -110,9 +110,7 @@ final class AppOpenAdManager: NSObject {
                 return
             }
 
-            MainActor.assumeIsolated {
-                self.handleAppOpenLoadResult(ad, error)
-            }
+            self.handleAppOpenLoadResult(ad, error)
         }
     }
 

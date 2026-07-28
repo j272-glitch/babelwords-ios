@@ -15,8 +15,8 @@ For self-hosted macOS CI, pin Bundler 2.5.23 and invoke it explicitly after sele
 
 **How to apply:** Install the pinned Bundler in the selected Ruby environment, use `bundle _2.5.23_ ...` for dependency and fastlane commands, and verify `ruby -v`, `which ruby`, and `bundle -v` in CI logs.
 
-Google Mobile Ads load callbacks require a split isolation strategy under Swift 6: use `MainActor.assumeIsolated` inline only after confirming the callback is on the main thread; use a real `Task { @MainActor }` hop for off-main recovery without carrying the non-Sendable ad object.
+Google Mobile Ads load callbacks require a split isolation strategy under Swift 6: consume the ad object directly in the callback's main-thread path, and use a real `Task { @MainActor }` hop only for off-main recovery without carrying the non-Sendable ad object.
 
-**Why:** Moving `GADInterstitialAd`/`GADAppOpenAd` into a new actor task triggers data-race diagnostics, while calling `assumeIsolated` off-main is unsafe.
+**Why:** Moving `GADInterstitialAd`/`GADAppOpenAd` into a new actor task or nested `MainActor.assumeIsolated` closure triggers data-race diagnostics; calling `assumeIsolated` off-main is unsafe.
 
-**How to apply:** Keep SDK callback payload handling synchronous on the main thread, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
+**How to apply:** Keep SDK callback payload handling synchronous and direct on the main-thread callback path, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
