@@ -129,6 +129,7 @@ jobs:
             -scheme ${{ env.SCHEME }} \
             -destination '${{ steps.sim.outputs.destination }}' \
             -derivedDataPath ${{ env.DERIVED_DATA }} \
+            -resultBundlePath "${{ env.DERIVED_DATA }}/Build.xcresult" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             ONLY_ACTIVE_ARCH=YES
@@ -140,6 +141,7 @@ jobs:
             -scheme ${{ env.SCHEME }} \
             -destination '${{ steps.sim.outputs.destination }}' \
             -derivedDataPath ${{ env.DERIVED_DATA }} \
+            -resultBundlePath "${{ env.DERIVED_DATA }}/Test.xcresult" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
 
@@ -151,6 +153,8 @@ jobs:
           path: |
             ${{ env.DERIVED_DATA }}/Logs/Build
             ${{ env.DERIVED_DATA }}/Logs/Test
+            ${{ env.DERIVED_DATA }}/Build.xcresult
+            ${{ env.DERIVED_DATA }}/Test.xcresult
 
   archive:
     name: Archive and export IPA
@@ -264,7 +268,7 @@ jobs:
     name: Firebase Test Lab iOS
     runs-on: macos-latest
     needs: build-and-test
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_firebase_test == 'true'
     env:
       FIREBASE_TEST_LAB_BUCKET: ${{ secrets.FIREBASE_TEST_LAB_BUCKET || format('test-lab-{0}', secrets.GCP_PROJECT_ID) }}
     steps:

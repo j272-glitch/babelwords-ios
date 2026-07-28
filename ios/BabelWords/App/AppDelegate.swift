@@ -66,8 +66,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             return
         }
 
-        let requestConfiguration = GADMobileAds.sharedInstance().requestConfiguration
-        requestConfiguration.testDeviceIdentifiers = [GADSimulatorID]
         AppDelegate.isTestDeviceRegistrationActive = true
         #else
         AppDelegate.isTestDeviceRegistrationActive = false

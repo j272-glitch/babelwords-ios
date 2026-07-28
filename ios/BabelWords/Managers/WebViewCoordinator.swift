@@ -222,7 +222,7 @@ extension WebViewCoordinator: WKUIDelegate {
         let host = origin.host.lowercased()
         let isTrusted = AppConfig.trustedHosts.contains(host)
         switch type {
-        case .microphone, .camera:
+        case .microphone, .camera, .cameraAndMicrophone:
             decisionHandler(isTrusted ? .grant : .deny)
         @unknown default:
             decisionHandler(.deny)

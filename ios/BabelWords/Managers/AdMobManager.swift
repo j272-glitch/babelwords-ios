@@ -68,7 +68,7 @@ final class AdMobManager: NSObject {
     // MARK: - Freshness
 
     private func isFresh() -> Bool {
-        guard let interstitial = interstitial, let loadTime = loadTime else { return false }
+        guard interstitial != nil, let loadTime = loadTime else { return false }
         return Date().timeIntervalSince(loadTime) < AdMobManager.adExpiry
     }
 
@@ -96,7 +96,7 @@ final class AdMobManager: NSObject {
             return
         }
 
-        if let ad = interstitial, !isFresh() {
+        if interstitial != nil, !isFresh() {
             print("[\(TAG)] Ad stale — reloading with auto-show")
             eventCallback?("interstitialFailed", "ad_stale_reloading")
             pendingShow = true
@@ -122,7 +122,7 @@ final class AdMobManager: NSObject {
     }
 
     func loadInterstitialAndShow(from viewController: UIViewController) {
-        if let ad = interstitial, isFresh() {
+        if interstitial != nil, isFresh() {
             showInterstitial(from: viewController)
             load(presentingViewController: nil, isPreload: true)
             return
@@ -200,50 +200,44 @@ final class AdMobManager: NSObject {
             }
 
             MainActor.assumeIsolated {
-                self.handleInterstitialLoadResult(ad, error)
+                loadTimeoutTask?.cancel()
+                isLoading = false
+
+                if let error = error {
+                    print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
+                    interstitial = nil
+                    eventCallback?("interstitialFailed", error.localizedDescription)
+                    let code = (error as NSError).code
+                    let delay: TimeInterval
+                    switch code {
+                    case -2 where retryCount == 0:
+                        delay = 0
+                    case -2:
+                        delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
+                    case 3:
+                        delay = 30
+                    default:
+                        delay = AdMobManager.retryInitial
+                    }
+                    scheduleRetry(delay: delay)
+                } else if let ad = ad {
+                    print("[\(TAG)] Interstitial loaded")
+                    interstitial = ad
+                    loadTime = Date()
+                    retryCount = 0
+                    ad.fullScreenContentDelegate = self
+                    eventCallback?("interstitialLoaded", nil)
+
+                    if pendingShow {
+                        pendingShow = false
+                        if let vc = topViewController() {
+                            showInterstitial(from: vc)
+                        }
+                    } else {
+                        maybeAutoShowInterstitial()
+                    }
+                }
             }
-        }
-    }
-
-    private func handleInterstitialLoadResult(_ ad: GADInterstitialAd?, _ error: Error?) {
-        loadTimeoutTask?.cancel()
-        isLoading = false
-
-        if let error = error {
-            print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
-            interstitial = nil
-            eventCallback?("interstitialFailed", error.localizedDescription)
-            let code = (error as NSError).code
-            let delay: TimeInterval
-            switch code {
-            case -2 where retryCount == 0:
-                delay = 0
-            case -2:
-                delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
-            case 3:
-                delay = 30
-            default:
-                delay = AdMobManager.retryInitial
-            }
-            scheduleRetry(delay: delay)
-            return
-        }
-
-        guard let ad = ad else { return }
-        print("[\(TAG)] Interstitial loaded")
-        interstitial = ad
-        loadTime = Date()
-        retryCount = 0
-        ad.fullScreenContentDelegate = self
-        eventCallback?("interstitialLoaded", nil)
-
-        if pendingShow {
-            pendingShow = false
-            if let vc = topViewController() {
-                showInterstitial(from: vc)
-            }
-        } else {
-            maybeAutoShowInterstitial()
         }
     }
 
