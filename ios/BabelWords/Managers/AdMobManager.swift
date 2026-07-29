@@ -199,43 +199,41 @@ final class AdMobManager: NSObject {
                 return
             }
 
-            MainActor.assumeIsolated {
-                loadTimeoutTask?.cancel()
-                isLoading = false
+            loadTimeoutTask?.cancel()
+            isLoading = false
 
-                if let error = error {
-                    print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
-                    interstitial = nil
-                    eventCallback?("interstitialFailed", error.localizedDescription)
-                    let code = (error as NSError).code
-                    let delay: TimeInterval
-                    switch code {
-                    case -2 where retryCount == 0:
-                        delay = 0
-                    case -2:
-                        delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
-                    case 3:
-                        delay = 30
-                    default:
-                        delay = AdMobManager.retryInitial
-                    }
-                    scheduleRetry(delay: delay)
-                } else if let ad = ad {
-                    print("[\(TAG)] Interstitial loaded")
-                    interstitial = ad
-                    loadTime = Date()
-                    retryCount = 0
-                    ad.fullScreenContentDelegate = self
-                    eventCallback?("interstitialLoaded", nil)
+            if let error = error {
+                print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
+                interstitial = nil
+                eventCallback?("interstitialFailed", error.localizedDescription)
+                let code = (error as NSError).code
+                let delay: TimeInterval
+                switch code {
+                case -2 where retryCount == 0:
+                    delay = 0
+                case -2:
+                    delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
+                case 3:
+                    delay = 30
+                default:
+                    delay = AdMobManager.retryInitial
+                }
+                scheduleRetry(delay: delay)
+            } else if let ad = ad {
+                print("[\(TAG)] Interstitial loaded")
+                interstitial = ad
+                loadTime = Date()
+                retryCount = 0
+                ad.fullScreenContentDelegate = self
+                eventCallback?("interstitialLoaded", nil)
 
-                    if pendingShow {
-                        pendingShow = false
-                        if let vc = topViewController() {
-                            showInterstitial(from: vc)
-                        }
-                    } else {
-                        maybeAutoShowInterstitial()
+                if pendingShow {
+                    pendingShow = false
+                    if let vc = topViewController() {
+                        showInterstitial(from: vc)
                     }
+                } else {
+                    maybeAutoShowInterstitial()
                 }
             }
         }

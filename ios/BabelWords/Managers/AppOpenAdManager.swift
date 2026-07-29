@@ -110,27 +110,25 @@ final class AppOpenAdManager: NSObject {
                 return
             }
 
-            MainActor.assumeIsolated {
-                loadTimeoutTask?.cancel()
-                isLoading = false
+            loadTimeoutTask?.cancel()
+            isLoading = false
 
-                if let error = error {
-                    print("[\(TAG)] App Open load failed: \(error.localizedDescription)")
-                    appOpenAd = nil
-                    let code = (error as NSError).code
-                    let delay: TimeInterval
-                    switch code {
-                    case 3: delay = AppOpenAdManager.retryNoFill
-                    case -2: delay = AppOpenAdManager.retryTimeout
-                    default: delay = AppOpenAdManager.retryNetwork
-                    }
-                    scheduleRetry(delay: delay)
-                } else if let ad = ad {
-                    print("[\(TAG)] App Open ad loaded")
-                    appOpenAd = ad
-                    retryCount = 0
-                    ad.fullScreenContentDelegate = self
+            if let error = error {
+                print("[\(TAG)] App Open load failed: \(error.localizedDescription)")
+                appOpenAd = nil
+                let code = (error as NSError).code
+                let delay: TimeInterval
+                switch code {
+                case 3: delay = AppOpenAdManager.retryNoFill
+                case -2: delay = AppOpenAdManager.retryTimeout
+                default: delay = AppOpenAdManager.retryNetwork
                 }
+                scheduleRetry(delay: delay)
+            } else if let ad = ad {
+                print("[\(TAG)] App Open ad loaded")
+                appOpenAd = ad
+                retryCount = 0
+                ad.fullScreenContentDelegate = self
             }
         }
     }
