@@ -1,6 +1,6 @@
 import Foundation
 import GoogleMobileAds
-import UserMessagingPlatform
+@preconcurrency import UserMessagingPlatform
 
 /// UMP (User Messaging Platform) consent manager for GDPR/EEA compliance.
 /// Mirrors the Android `ConsentManager` behavior.
@@ -24,7 +24,7 @@ final class ConsentManager: NSObject {
         let parameters = UMPRequestParameters()
         parameters.tagForUnderAgeOfConsent = false
 
-        consentInformation.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+        consentInformation.requestConsentInfoUpdate(with: parameters) { @MainActor [weak self] error in
             guard let self = self else { return }
 
             if let error = error {
@@ -45,7 +45,7 @@ final class ConsentManager: NSObject {
     }
 
     private func loadAndShowConsentForm(from viewController: UIViewController) {
-        UMPConsentForm.load { [weak self] form, error in
+        UMPConsentForm.load { @MainActor [weak self] form, error in
             guard let self = self else { return }
             if let error = error {
                 print("[\(self.TAG)] Consent form load failed: \(error.localizedDescription)")
@@ -59,7 +59,7 @@ final class ConsentManager: NSObject {
             }
 
             if self.consentInformation.consentStatus == .required {
-                form.present(from: viewController) { [weak self] error in
+                form.present(from: viewController) { @MainActor [weak self] error in
                     guard let self = self else { return }
                     if let error = error {
                         print("[\(self.TAG)] Consent form show error: \(error.localizedDescription)")

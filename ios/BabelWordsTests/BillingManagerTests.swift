@@ -16,7 +16,7 @@ final class BillingManagerTests: XCTestCase {
         super.tearDown()
     }
 
-    func testEventDispatcherReceivesError() {
+    func testEventDispatcherReceivesError() async {
         let expectation = self.expectation(description: "error dispatched")
         billing.eventDispatcher = { detail in
             if let event = detail["event"] as? String, event == "purchase_error" {
@@ -24,10 +24,8 @@ final class BillingManagerTests: XCTestCase {
             }
         }
 
-        Task {
-            await billing.purchaseProduct("nonexistent_product")
-        }
+        await billing.purchaseProduct("nonexistent_product")
 
-        wait(for: [expectation], timeout: 3.0)
+        await fulfillment(of: [expectation], timeout: 3.0)
     }
 }

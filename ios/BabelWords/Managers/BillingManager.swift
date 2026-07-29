@@ -61,7 +61,7 @@ final class BillingManager: NSObject {
             guard await validateWithServer(
                 productId: productId,
                 transactionId: transaction.id,
-                signedTransaction: transaction.jwsRepresentation
+                signedTransaction: verification.jwsRepresentation
             ) else {
                 dispatchError(productId: productId, message: "server_validation_failed")
                 return
