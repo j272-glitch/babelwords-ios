@@ -26,3 +26,9 @@ GitHub Actions Xcode 26 simulator jobs should include an explicit `arch=arm64` d
 **Why:** Xcode reports ambiguous destination warnings when multiple architecture variants match, while hosted runners now warn when older action majors target deprecated Node 20.
 
 **How to apply:** Add `,arch=arm64` to simulator destinations and keep checkout/artifact actions on current Node 24-native majors; do not edit dependency-generated Pod warnings in vendored sources.
+
+StoreKit 2 signed transaction payloads must be read from the `VerificationResult<Transaction>` wrapper, not from `Transaction` itself.
+
+**Why:** Xcode 26 no longer exposes `jwsRepresentation` on `Transaction`; using the transaction object directly causes a simulator compile failure.
+
+**How to apply:** Preserve the verified `Transaction` for its ID and `finish()` call, but pass the verification wrapper's signed JWS to server-side receipt validation.
