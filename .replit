@@ -16,3 +16,7 @@ integrations = ["javascript_stripe:1.0.0"]
 
 [deployment]
 deploymentTarget = "cloudrun"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000
