@@ -30,7 +30,8 @@ final class AdBridgeTests: XCTestCase {
         let expectation = self.expectation(description: "JS evaluated")
         coordinator.evaluateJavaScript("window.onAdBridgeEvent = function(e, d) { window.__lastEvent = e; window.__lastData = d; }") { _, _ in
             self.bridge.fireEvent("testEvent", data: "a'b\\c")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 self.coordinator.evaluateJavaScript("window.__lastData") { result, _ in
                     XCTAssertEqual(result as? String, "a\\'b\\\\c")
                     expectation.fulfill()
