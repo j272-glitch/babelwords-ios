@@ -41,7 +41,7 @@ final class WebViewCoordinator: NSObject {
             resetMicWatchdog()
         }
     }
-    private var micWatchdogWorkItem: DispatchWorkItem?
+    private var micWatchdogTask: Task<Void, Never>?
     private let micWatchdogInterval: TimeInterval = 45
 
     override init() {
@@ -53,7 +53,7 @@ final class WebViewCoordinator: NSObject {
     }
 
     func cleanup() {
-        micWatchdogWorkItem?.cancel()
+        micWatchdogTask?.cancel()
         let contentController = webView.configuration.userContentController
         contentController.removeScriptMessageHandler(forName: "micBridge")
         contentController.removeScriptMessageHandler(forName: "adBridge")
@@ -93,15 +93,19 @@ final class WebViewCoordinator: NSObject {
     }
 
     private func resetMicWatchdog() {
-        micWatchdogWorkItem?.cancel()
-        micWatchdogWorkItem = nil
+        micWatchdogTask?.cancel()
+        micWatchdogTask = nil
         guard isMicActive else { return }
-        let workItem = DispatchWorkItem { [weak self] in
+        let interval = micWatchdogInterval
+        micWatchdogTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            } catch {
+                return  // Task was cancelled; do not mutate state.
+            }
             self?.isMicActive = false
             print("[WebViewCoordinator] Mic state reset after watchdog timeout")
         }
-        micWatchdogWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + micWatchdogInterval, execute: workItem)
     }
 
     // MARK: - Loading state
