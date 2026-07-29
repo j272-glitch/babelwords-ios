@@ -85,18 +85,18 @@ extension SubscriptionBridge: WKScriptMessageHandler {
         switch action {
         case "purchaseProduct":
             guard let productId = body["productId"] as? String else { return }
-            Task {
+            Task { @MainActor in
                 await billing?.purchaseProduct(productId)
             }
 
         case "subscribe":
             guard let productId = body["productId"] as? String else { return }
-            Task {
+            Task { @MainActor in
                 await billing?.purchaseProduct(productId)
             }
 
         case "restorePurchases":
-            Task {
+            Task { @MainActor in
                 await billing?.restorePurchases()
             }
 

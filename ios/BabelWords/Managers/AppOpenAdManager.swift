@@ -92,7 +92,7 @@ final class AppOpenAdManager: NSObject {
         }
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
-        GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { @MainActor [weak self] ad, error in
+        GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
             guard let self = self else { return }
             guard Thread.isMainThread else {
                 assertionFailure("GADAppOpenAd.load callback not on main thread")

@@ -185,7 +185,7 @@ final class AdMobManager: NSObject {
         GADInterstitialAd.load(
             withAdUnitID: interstitialAdUnitID,
             request: request
-        ) { @MainActor [weak self] ad, error in
+        ) { [weak self] ad, error in
             guard let self = self else { return }
             guard Thread.isMainThread else {
                 assertionFailure("GADInterstitialAd.load callback not on main thread")
