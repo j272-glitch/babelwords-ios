@@ -19,7 +19,7 @@ Google Mobile Ads load callbacks require a split isolation strategy under Swift 
 
 **Why:** Moving `GADInterstitialAd`/`GADAppOpenAd` into a new actor task or nested `MainActor.assumeIsolated` closure triggers data-race diagnostics; calling `assumeIsolated` off-main is unsafe.
 
-**How to apply:** Keep SDK callback payload handling synchronous and direct on the main-thread callback path, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
+**How to apply:** Keep SDK callback closures nonisolated, consume payloads synchronously on the callback's main-thread path, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
 
 GitHub Actions Xcode 26 simulator jobs should include an explicit `arch=arm64` destination when selecting a device by UDID, and repository workflows should use Node 24-native action major versions.
 
