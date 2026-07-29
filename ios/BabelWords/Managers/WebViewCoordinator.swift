@@ -98,7 +98,11 @@ final class WebViewCoordinator: NSObject {
         guard isMicActive else { return }
         let interval = micWatchdogInterval
         micWatchdogTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            do {
+                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            } catch {
+                return  // Task was cancelled; do not mutate state.
+            }
             self?.isMicActive = false
             print("[WebViewCoordinator] Mic state reset after watchdog timeout")
         }
