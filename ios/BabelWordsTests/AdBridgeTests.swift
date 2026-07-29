@@ -26,18 +26,22 @@ final class AdBridgeTests: XCTestCase {
         XCTAssertFalse(handlers.isEmpty)
     }
 
-    func testFireEventEscapesStrings() {
+    func testFireEventEscapesStrings() async {
         let expectation = self.expectation(description: "JS evaluated")
         coordinator.evaluateJavaScript("window.onAdBridgeEvent = function(e, d) { window.__lastEvent = e; window.__lastData = d; }") { _, _ in
             self.bridge.fireEvent("testEvent", data: "a'b\\c")
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 200_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: 200_000_000)
+                } catch {
+                    return
+                }
                 self.coordinator.evaluateJavaScript("window.__lastData") { result, _ in
                     XCTAssertEqual(result as? String, "a\\'b\\\\c")
                     expectation.fulfill()
                 }
             }
         }
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 }

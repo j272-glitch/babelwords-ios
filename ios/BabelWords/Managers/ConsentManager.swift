@@ -24,11 +24,12 @@ final class ConsentManager: NSObject {
         let parameters = UMPRequestParameters()
         parameters.tagForUnderAgeOfConsent = false
 
-        consentInformation.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+        consentInformation.requestConsentInfoUpdate(with: parameters) { @MainActor [weak self] error in
+            let errorDescription = error?.localizedDescription
             guard let self = self else { return }
 
-            if let error = error {
-                print("[\(self.TAG)] Consent info update failed: \(error.localizedDescription)")
+            if let errorDescription = errorDescription {
+                print("[\(self.TAG)] Consent info update failed: \(errorDescription)")
                 self.completeConsent(self.consentInformation.canRequestAds)
                 return
             }
@@ -45,31 +46,44 @@ final class ConsentManager: NSObject {
     }
 
     private func loadAndShowConsentForm(from viewController: UIViewController) {
-        UMPConsentForm.load { [weak self] form, error in
-            guard let self = self else { return }
-            if let error = error {
-                print("[\(self.TAG)] Consent form load failed: \(error.localizedDescription)")
-                self.completeConsent(self.consentInformation.canRequestAds)
-                return
-            }
+        UMPConsentForm.load { @MainActor [weak self] form, error in
+            let errorDescription = error?.localizedDescription
+            self?.presentLoadedForm(
+                form,
+                errorDescription: errorDescription,
+                from: viewController
+            )
+        }
+    }
 
-            guard let form = form else {
-                self.completeConsent(self.consentInformation.canRequestAds)
-                return
-            }
+    private func presentLoadedForm(
+        _ form: UMPConsentForm?,
+        errorDescription: String?,
+        from viewController: UIViewController
+    ) {
+        if let errorDescription = errorDescription {
+            print("[\(self.TAG)] Consent form load failed: \(errorDescription)")
+            self.completeConsent(self.consentInformation.canRequestAds)
+            return
+        }
 
-            if self.consentInformation.consentStatus == .required {
-                form.present(from: viewController) { [weak self] error in
-                    guard let self = self else { return }
-                    if let error = error {
-                        print("[\(self.TAG)] Consent form show error: \(error.localizedDescription)")
-                    }
-                    print("[\(self.TAG)] Consent form dismissed. canRequestAds=\(self.consentInformation.canRequestAds)")
-                    self.completeConsent(self.consentInformation.canRequestAds)
+        guard let form = form else {
+            self.completeConsent(self.consentInformation.canRequestAds)
+            return
+        }
+
+        if consentInformation.consentStatus == .required {
+            form.present(from: viewController) { @MainActor [weak self] error in
+                let errorDescription = error?.localizedDescription
+                guard let self = self else { return }
+                if let errorDescription = errorDescription {
+                    print("[\(self.TAG)] Consent form show error: \(errorDescription)")
                 }
-            } else {
+                print("[\(self.TAG)] Consent form dismissed. canRequestAds=\(self.consentInformation.canRequestAds)")
                 self.completeConsent(self.consentInformation.canRequestAds)
             }
+        } else {
+            completeConsent(consentInformation.canRequestAds)
         }
     }
 

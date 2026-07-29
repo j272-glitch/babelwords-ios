@@ -83,7 +83,11 @@ final class AppOpenAdManager: NSObject {
 
         loadTimeoutTask?.cancel()
         loadTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(AppOpenAdManager.loadTimeout * 1_000_000_000))
+            do {
+                try await Task.sleep(nanoseconds: UInt64(AppOpenAdManager.loadTimeout * 1_000_000_000))
+            } catch {
+                return
+            }
             guard let self = self, self.isLoading else { return }
             print("[\(self.TAG)] App Open load timed out")
             self.isLoading = false
@@ -93,7 +97,6 @@ final class AppOpenAdManager: NSObject {
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
         GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
-            guard let self = self else { return }
             guard Thread.isMainThread else {
                 assertionFailure("GADAppOpenAd.load callback not on main thread")
                 Task { @MainActor [weak self] in
@@ -105,6 +108,7 @@ final class AppOpenAdManager: NSObject {
                 }
                 return
             }
+            guard let self = self else { return }
 
             loadTimeoutTask?.cancel()
             isLoading = false
@@ -163,7 +167,11 @@ final class AppOpenAdManager: NSObject {
         }
         retryTask?.cancel()
         retryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            } catch {
+                return
+            }
             self?.loadAd()
         }
         print("[\(TAG)] Retrying App Open load in \(delay)s (attempt \(retryCount)/\(AppOpenAdManager.retryMaxCount))")

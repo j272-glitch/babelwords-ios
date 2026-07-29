@@ -37,7 +37,7 @@ final class WebViewCoordinatorTests: XCTestCase {
         coordinator.onLoadingChange = { isLoading in
             if isLoading { expectation.fulfill() }
         }
-        coordinator.load(url: URL(string: "https://linguagt.com")!)
+        coordinator.loadHTMLString("<html><body>fixture</body></html>")
         wait(for: [expectation], timeout: 1.0)
     }
 

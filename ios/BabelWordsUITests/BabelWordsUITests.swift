@@ -7,6 +7,7 @@ final class BabelWordsUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchEnvironment["BABELWORDS_UI_TEST_MODE"] = "true"
         app.launch()
     }
 
@@ -19,6 +20,9 @@ final class BabelWordsUITests: XCTestCase {
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 15), "WebView did not appear")
 
+        let fixtureMarker = app.staticTexts["BabelWords Test Fixture"]
+        XCTAssertTrue(fixtureMarker.waitForExistence(timeout: 15), "Test fixture did not load")
+
         // The loading overlay should disappear once the WebView is ready.
         let loading = app.staticTexts["Loading..."]
         XCTAssertFalse(loading.waitForExistence(timeout: 15), "Loading overlay stuck")
@@ -28,26 +32,25 @@ final class BabelWordsUITests: XCTestCase {
         // The web view is the main content; ensure it exists after launch.
         let webView = app.webViews.firstMatch
         XCTAssertTrue(webView.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["BabelWords Test Fixture"].waitForExistence(timeout: 5))
     }
 
     func testAdButtonsAreReachable() throws {
-        // If the web app exposes buttons with accessibility labels, verify they are reachable.
         let translateButton = app.buttons["Translate"]
         XCTAssertTrue(translateButton.waitForExistence(timeout: 15))
     }
 
     func testOfflineRetryButtonExistsOnError() throws {
-        // Simulate an unreachable URL by toggling airplane mode is not reliable in UI tests;
-        // this test simply verifies the error overlay buttons exist if they are shown.
+        app.terminate()
+        app.launchEnvironment["BABELWORDS_UI_TEST_ERROR"] = "true"
+        app.launch()
+
         let retryButton = app.buttons["Retry"]
         let offlineButton = app.buttons["Offline mode"]
 
-        // If an error occurs, the buttons should be present and tappable.
-        if retryButton.waitForExistence(timeout: 3) {
-            XCTAssertTrue(retryButton.isHittable)
-        }
-        if offlineButton.waitForExistence(timeout: 3) {
-            XCTAssertTrue(offlineButton.isHittable)
-        }
+        XCTAssertTrue(retryButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(offlineButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(retryButton.isHittable)
+        XCTAssertTrue(offlineButton.isHittable)
     }
 }

@@ -21,6 +21,12 @@ Google Mobile Ads load callbacks require a split isolation strategy under Swift 
 
 **How to apply:** Keep SDK callback closures nonisolated, consume payloads synchronously on the callback's main-thread path, isolate manager helpers with `@MainActor`, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it.
 
+User Messaging Platform consent-info, form-load, and form-dismiss callbacks should be explicitly `@MainActor`; consume the non-Sendable form on that callback path rather than capturing it into a nested actor task.
+
+**Why:** Consent callbacks may arrive off the main thread, while the form object must not be transferred across an actor boundary under Swift 6.
+
+**How to apply:** Normalize each UMP callback at its closure boundary, transfer only plain error text or booleans when recovery must hop actors, and keep retry/timeout sleeps cancellation-safe.
+
 GitHub Actions Xcode 26 simulator jobs should include an explicit `arch=arm64` destination when selecting a device by UDID, and repository workflows should use Node 24-native action major versions.
 
 **Why:** Xcode reports ambiguous destination warnings when multiple architecture variants match, while hosted runners now warn when older action majors target deprecated Node 20.

@@ -193,6 +193,20 @@ final class MainViewController: UIViewController {
     }
 
     private func loadInitialURL() {
+        if ProcessInfo.processInfo.environment["BABELWORDS_UI_TEST_ERROR"] == "true" {
+            let error = NSError(
+                domain: NSURLErrorDomain,
+                code: NSURLErrorNotConnectedToInternet,
+                userInfo: [NSLocalizedDescriptionKey: "UI test offline fixture"]
+            )
+            webCoordinator.onError?(error)
+            return
+        }
+        if ProcessInfo.processInfo.environment["BABELWORDS_UI_TEST_MODE"] == "true",
+           let fixtureURL = Bundle.main.url(forResource: "ui-test-fixture", withExtension: "html") {
+            webCoordinator.load(url: fixtureURL)
+            return
+        }
         webCoordinator.load(url: AppConfig.initialURL)
     }
 

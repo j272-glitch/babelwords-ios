@@ -150,7 +150,11 @@ final class AdMobManager: NSObject {
             isLoading = false
             let delay = AdMobManager.loadThrottle - now.timeIntervalSince(last)
             retryTask = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                do {
+                    try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                } catch {
+                    return
+                }
                 guard let self = self, !self.isLoading else { return }
                 self.load(presentingViewController: presentingViewController, isPreload: isPreload)
             }
@@ -174,7 +178,11 @@ final class AdMobManager: NSObject {
 
         loadTimeoutTask?.cancel()
         loadTimeoutTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(AdMobManager.loadTimeout * 1_000_000_000))
+            do {
+                try await Task.sleep(nanoseconds: UInt64(AdMobManager.loadTimeout * 1_000_000_000))
+            } catch {
+                return
+            }
             guard let self = self, self.isLoading else { return }
             print("[\(self.TAG)] Interstitial load timed out")
             self.isLoading = false
@@ -186,7 +194,6 @@ final class AdMobManager: NSObject {
             withAdUnitID: interstitialAdUnitID,
             request: request
         ) { [weak self] ad, error in
-            guard let self = self else { return }
             guard Thread.isMainThread else {
                 assertionFailure("GADInterstitialAd.load callback not on main thread")
                 Task { @MainActor [weak self] in
@@ -198,6 +205,7 @@ final class AdMobManager: NSObject {
                 }
                 return
             }
+            guard let self = self else { return }
 
             loadTimeoutTask?.cancel()
             isLoading = false
@@ -250,7 +258,11 @@ final class AdMobManager: NSObject {
         }
         retryTask?.cancel()
         retryTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            } catch {
+                return
+            }
             guard let self = self, !self.isLoading else { return }
             self.load(presentingViewController: nil, isPreload: true)
         }

@@ -70,7 +70,7 @@ jobs:
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: '3.3'
           bundler-cache: false
 
       - name: Install CocoaPods and XcodeGen
@@ -180,7 +180,7 @@ jobs:
       - name: Install Ruby/CocoaPods and XcodeGen
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: '3.3'
           bundler-cache: false
 
       - name: Install build tools
@@ -300,7 +300,7 @@ jobs:
     name: Firebase Test Lab iOS
     runs-on: macos-latest
     needs: build-and-test
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_firebase_test == 'true'
+    if: ${{ false }}
     env:
       FIREBASE_TEST_LAB_BUCKET: ${{ secrets.FIREBASE_TEST_LAB_BUCKET || format('test-lab-{0}', secrets.GCP_PROJECT_ID) }}
     steps:
@@ -333,7 +333,7 @@ jobs:
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: '3.3'
           bundler-cache: false
 
       - name: Install CocoaPods and XcodeGen
@@ -455,19 +455,22 @@ jobs:
             echo "::error::GCP_PROJECT_ID is required for Firebase Test Lab."
             exit 1
           fi
-          echo "key<<EOF" >> $GITHUB_OUTPUT
-          echo "$GCP_SERVICE_ACCOUNT_KEY_BASE64" | base64 -d >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ steps.gcp.outputs.key }}
+          umask 077
+          echo "$GCP_SERVICE_ACCOUNT_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/firebase-service-account.json"
+          test -s "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Authenticate to Google Cloud
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          gcloud auth activate-service-account \
+            --key-file="$RUNNER_TEMP/firebase-service-account.json"
+          gcloud config set project "$GCP_PROJECT_ID"
 
       - name: Validate Firebase Test Lab target
         env:
@@ -511,10 +514,7 @@ jobs:
       - name: Remove generated credentials
         if: always()
         run: |
-          rm -f ios/app_store_connect_api_key.p8
-          rm -f ios/app_store_connect_api_key.json
-          rm -f ios/BabelWords/Resources/GoogleService-Info.plist
-          rm -f /tmp/firebase-service-account.json
+          rm -f "$RUNNER_TEMP/firebase-service-account.json"
 
   build-adhoc-ipa:
     name: Build ad-hoc IPA + XCUITest runner
@@ -690,8 +690,25 @@ jobs:
             -scheme BabelWords \
             -destination 'generic/platform=iOS' \
             -derivedDataPath DerivedData
-          cd DerivedData/Build/Products/Debug-iphoneos
-          zip -r BabelWordsUITestsRunner.zip *
+          PRODUCTS_DIR="DerivedData/Build/Products"
+          XCTESTRUN=$(find "$PRODUCTS_DIR" -type f -name '*.xctestrun' -print -quit)
+          TEST_APP=$(find "$PRODUCTS_DIR" -type d \( -name 'BabelWordsUITests-Runner.app' -o -name 'BabelWordsUITests.app' \) -print -quit)
+          HOST_APP=$(find "$PRODUCTS_DIR" -type d -name 'BabelWords.app' -print -quit)
+          if [ -z "$XCTESTRUN" ] || [ -z "$TEST_APP" ] || [ -z "$HOST_APP" ]; then
+            echo "::error::Missing required XCUITest package contents."
+            echo "xctestrun=$XCTESTRUN"
+            echo "test_app=$TEST_APP"
+            echo "host_app=$HOST_APP"
+            find "$PRODUCTS_DIR" -maxdepth 3 -print
+            exit 1
+          fi
+          rm -rf FTLTestPackage
+          mkdir -p FTLTestPackage
+          cp "$XCTESTRUN" FTLTestPackage/
+          cp -R "$TEST_APP" FTLTestPackage/
+          cp -R "$HOST_APP" FTLTestPackage/
+          (cd FTLTestPackage && zip -qry "$GITHUB_WORKSPACE/ios/BabelWordsUITestsRunner.zip" .)
+          unzip -l "$GITHUB_WORKSPACE/ios/BabelWordsUITestsRunner.zip"
 
       - name: Upload .ipa artifact
         uses: actions/upload-artifact@v5
@@ -705,8 +722,8 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: babelwords-ios-xcui-runner
-          path: ios/DerivedData/Build/Products/Debug-iphoneos/BabelWordsUITestsRunner.zip
-          if-no-files-found: warn
+          path: ios/BabelWordsUITestsRunner.zip
+          if-no-files-found: error
 
       - name: Remove generated credentials
         if: always()
@@ -739,7 +756,7 @@ jobs:
       - name: Install Ruby/CocoaPods
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.2'
+          ruby-version: '3.3'
           bundler-cache: false
 
       - name: Install CocoaPods and XcodeGen
@@ -846,19 +863,22 @@ jobs:
             echo "::error::GCP_PROJECT_ID is required for Firebase Test Lab."
             exit 1
           fi
-          echo "key<<EOF" >> $GITHUB_OUTPUT
-          echo "$GCP_SERVICE_ACCOUNT_KEY_BASE64" | base64 -d >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ steps.gcp.outputs.key }}
+          umask 077
+          echo "$GCP_SERVICE_ACCOUNT_KEY_BASE64" | base64 -d > "$RUNNER_TEMP/firebase-service-account.json"
+          test -s "$RUNNER_TEMP/firebase-service-account.json"
 
       - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Authenticate to Google Cloud
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          gcloud auth activate-service-account \
+            --key-file="$RUNNER_TEMP/firebase-service-account.json"
+          gcloud config set project "$GCP_PROJECT_ID"
 
       - name: Validate Firebase Test Lab target
         env:
@@ -945,3 +965,7 @@ jobs:
           path: firebase-ios-artifact
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Remove generated credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-service-account.json"
