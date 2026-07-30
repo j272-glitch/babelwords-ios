@@ -16,8 +16,8 @@ private final class MockConsentInformation: ConsentInformationProviding {
     var didReset = false
 
     func requestConsentInfoUpdate(
-        with parameters: UMPRequestParameters,
-        completionHandler: @escaping (Error?) -> Void
+        with parameters: UMPRequestParameters?,
+        completionHandler: @escaping @Sendable (Error?) -> Void
     ) {
         // Call synchronously so tests can use XCTestExpectation with timeout 0.
         completionHandler(stubbedError)
@@ -35,8 +35,8 @@ private final class MockConsentForm: ConsentFormPresenting {
     var presentCallCount = 0
 
     func present(
-        from viewController: UIViewController,
-        completionHandler: ((Error?) -> Void)?
+        from viewController: UIViewController?,
+        completionHandler: (@Sendable (Error?) -> Void)?
     ) {
         presentCallCount += 1
         completionHandler?(stubbedPresentError)

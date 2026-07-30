@@ -11,7 +11,19 @@ private final class MockAdLoader: AdLoader {
     func load(
         withAdUnitID adUnitID: String,
         request: GADRequest,
-        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+        completionHandler: @escaping @Sendable (GADAppOpenAd?, Error?) -> Void
+    ) {
+        DispatchQueue.global().async {
+            completionHandler(nil, nil)
+        }
+    }
+}
+
+private final class MockInterstitialAdLoader: InterstitialAdLoading {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
     ) {
         DispatchQueue.global().async {
             completionHandler(nil, nil)
@@ -21,24 +33,18 @@ private final class MockAdLoader: AdLoader {
 
 // MARK: - AppOpenAdManagerThreadingTests
 
-/// Tests for the threading guarantee inside `AppOpenAdManager`.
+/// Tests the runtime thread-confinement recovery inside `AppOpenAdManager`.
 ///
-/// The runtime `Thread.isMainThread` guard inside `loadAd()` protects against
-/// the Google Mobile Ads SDK calling its completion handler on a background
-/// thread.  `MockAdLoader` provides the injectable seam that makes this
-/// directly exercisable without a live network request.
+/// `AppOpenAdManager` is intentionally main-thread confined at runtime rather
+/// than globally `@MainActor`-isolated because the Google Mobile Ads callback
+/// API is nonisolated and returns non-Sendable ad objects. `MockAdLoader`
+/// makes the background-callback path directly exercisable without a network
+/// request.
 @MainActor
 final class AppOpenAdManagerThreadingTests: XCTestCase {
 
-    /// Verifies at compile time that `AppOpenAdManager` is `@MainActor`-isolated.
-    ///
-    /// Constructing `AppOpenAdManager` from an `@MainActor` test method is only
-    /// valid when the class itself carries `@MainActor` isolation.  If anyone
-    /// removes the annotation, this test file will **not compile**, making the
-    /// regression impossible to ship unnoticed.
-    func testManagerIsMainActorIsolated() {
+    func testManagerCanBeConstructedWithInjectedLoader() {
         let manager = AppOpenAdManager()
-        // Retain to prevent the "result of 'AppOpenAdManager' initializer is unused" warning.
         _ = manager
     }
 
@@ -49,7 +55,7 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
     /// `offMainThreadHandler`.  If the guard is ever removed the handler will
     /// not fire, the expected failure will be missing, and the test will fail —
     /// turning a silent threading regression into a build-breaking failure.
-    func testOffMainThreadCallbackTriggersAssertionFailure() {
+    func testOffMainThreadCallbackTriggersThreadingGuard() {
         let manager = AppOpenAdManager(adLoader: MockAdLoader())
 
         let handlerFired = expectation(description: "offMainThreadHandler called")
@@ -63,6 +69,21 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
 
         XCTExpectFailure("off-main-thread GAD callback must trigger the threading guard") {
             manager.loadAd()
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testInterstitialOffMainThreadCallbackTriggersThreadingGuard() {
+        let manager = AdMobManager(adLoader: MockInterstitialAdLoader())
+        let handlerFired = expectation(description: "interstitial off-main handler called")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        XCTExpectFailure("off-main-thread interstitial callback must trigger the threading guard") {
+            manager.preloadInterstitial()
             wait(for: [handlerFired], timeout: 2.0)
         }
     }
@@ -94,7 +115,7 @@ final class AdMobManagerTests: XCTestCase {
 
     func testDestroyResetsState() {
         manager.destroy()
-        XCTAssertFalse(AdMobManager.isAnyFullscreenAdShowing)
+        XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing)
     }
 
     func testPendingShowFiresNoCachedAdEvent() {

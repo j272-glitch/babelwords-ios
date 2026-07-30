@@ -8,8 +8,8 @@ import GoogleMobileAds
 /// the live UMP SDK.
 protocol ConsentInformationProviding: AnyObject {
     func requestConsentInfoUpdate(
-        with parameters: UMPRequestParameters,
-        completionHandler: @escaping (Error?) -> Void
+        with parameters: UMPRequestParameters?,
+        completionHandler: @escaping @Sendable (Error?) -> Void
     )
     var canRequestAds: Bool { get }
     var formStatus: UMPFormStatus { get }
@@ -20,15 +20,15 @@ protocol ConsentInformationProviding: AnyObject {
 /// Abstracts `UMPConsentForm` presentation so tests can inject a mock form.
 protocol ConsentFormPresenting: AnyObject {
     func present(
-        from viewController: UIViewController,
-        completionHandler: ((Error?) -> Void)?
+        from viewController: UIViewController?,
+        completionHandler: (@Sendable (Error?) -> Void)?
     )
 }
 
 /// Closure type that loads a consent form and calls back with a
 /// `ConsentFormPresenting` (or an error).  In production this wraps
 /// `UMPConsentForm.load`; in tests a stub closure is injected.
-typealias ConsentFormLoader = (@escaping (ConsentFormPresenting?, Error?) -> Void) -> Void
+typealias ConsentFormLoader = (@escaping @Sendable (ConsentFormPresenting?, Error?) -> Void) -> Void
 
 // Production conformances (no additional implementation needed).
 extension UMPConsentInformation: ConsentInformationProviding {}
@@ -99,8 +99,11 @@ final class ConsentManager: NSObject, @unchecked Sendable {
         isProcessing = true
         pendingViewController = viewController
 
-        let parameters = UMPRequestParameters()
-        parameters.tagForUnderAgeOfConsent = false
+        let parameters: UMPRequestParameters? = {
+            let parameters = UMPRequestParameters()
+            parameters.tagForUnderAgeOfConsent = false
+            return parameters
+        }()
 
         consentInformation.requestConsentInfoUpdate(with: parameters) { [weak self] error in
             let errorDescription = error?.localizedDescription

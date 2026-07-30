@@ -10,7 +10,7 @@ protocol AdLoader {
     func load(
         withAdUnitID adUnitID: String,
         request: GADRequest,
-        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+        completionHandler: @escaping @Sendable (GADAppOpenAd?, Error?) -> Void
     )
 }
 
@@ -19,7 +19,7 @@ struct GADAppOpenAdLoader: AdLoader {
     func load(
         withAdUnitID adUnitID: String,
         request: GADRequest,
-        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+        completionHandler: @escaping @Sendable (GADAppOpenAd?, Error?) -> Void
     ) {
         GADAppOpenAd.load(
             withAdUnitID: adUnitID,
@@ -60,8 +60,14 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     private var adLoader: AdLoader
 
     /// Called when the SDK's completion handler arrives on a background thread.
-    /// Defaults to `assertionFailure`; tests may replace it with `XCTFail`.
-    var offMainThreadHandler: (String) -> Void = { assertionFailure($0) }
+    /// Debug builds assert for early detection; Release builds recover safely.
+    var offMainThreadHandler: (String) -> Void = {
+        #if DEBUG
+        assertionFailure($0)
+        #else
+        print("[AppOpenAdManager] \($0)")
+        #endif
+    }
 
     private var isTestLab: Bool {
         ProcessInfo.processInfo.environment["FIREBASE_TEST_LAB"] == "true"
@@ -196,7 +202,7 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
 
     func showAdIfAvailable(from viewController: UIViewController) {
         guard !isShowingAd, let ad = appOpenAd else { return }
-        guard !AdMobManager.isAnyFullscreenAdShowing else {
+        guard !AdMobManager.fullscreenAdState.isShowing else {
             print("[\(TAG)] Blocked — interstitial is showing")
             return
         }
@@ -211,7 +217,7 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         }
 
         isShowingAd = true
-        AdMobManager.isAnyFullscreenAdShowing = true
+        AdMobManager.fullscreenAdState.setShowing(true)
         setAudioModeForAd()
         ad.present(fromRootViewController: viewController)
     }
@@ -257,13 +263,13 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         retryTask?.cancel()
         appOpenAd?.fullScreenContentDelegate = nil
         appOpenAd = nil
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
     }
 }
 
 // MARK: - GADFullScreenContentDelegate
 
-extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
+extension AppOpenAdManager: GADFullScreenContentDelegate {
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
         guardMainThread { [weak self] in
             self?.adWillPresentOnMain()
@@ -272,7 +278,7 @@ extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
 
     private func adWillPresentOnMain() {
         print("[\(TAG)] App Open shown")
-        AdMobManager.isAnyFullscreenAdShowing = true
+        AdMobManager.fullscreenAdState.setShowing(true)
         UserDefaults.standard.set(Date(), forKey: AppOpenAdManager.prefsLastShow)
         appOpenAd = nil
     }
@@ -286,7 +292,7 @@ extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     private func adDidDismissOnMain() {
         print("[\(TAG)] App Open dismissed")
         isShowingAd = false
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
         restoreAudioMode()
         loadAd()
     }
@@ -301,7 +307,7 @@ extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     private func adDidFailToPresentOnMain(description: String) {
         print("[\(TAG)] App Open show failed: \(description)")
         isShowingAd = false
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
         restoreAudioMode()
         appOpenAd = nil
         loadAd()

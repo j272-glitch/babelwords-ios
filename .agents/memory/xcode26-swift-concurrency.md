@@ -27,6 +27,12 @@ User Messaging Platform consent-info, form-load, and form-dismiss callbacks shou
 
 **How to apply:** Normalize each UMP callback at its closure boundary, transfer only plain error text or booleans when recovery must hop queues, and keep retry/timeout sleeps cancellation-safe.
 
+Under Xcode 26's UMP overlay, protocol seams must match the SDK exactly: consent-info parameters and form view controllers are optional, and completion handlers are `@Sendable`.
+
+**Why:** Swift 6 checks Objective-C overlay conformance precisely; equivalent-looking nonoptional or non-Sendable protocol signatures fail during module emission.
+
+**How to apply:** Mirror the imported UMP signatures in test protocols and mocks, including `UMPRequestParameters?`, `UIViewController?`, and `@Sendable` completion closures.
+
 GitHub Actions Xcode 26 simulator jobs should include an explicit `arch=arm64` destination when selecting a device by UDID, and repository workflows should use Node 24-native action major versions.
 
 **Why:** Xcode reports ambiguous destination warnings when multiple architecture variants match, while hosted runners now warn when older action majors target deprecated Node 20.

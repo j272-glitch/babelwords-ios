@@ -4,6 +4,49 @@ import Network
 import UIKit
 import AVFoundation
 
+// MARK: - Ad loading
+
+protocol InterstitialAdLoading {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
+    )
+}
+
+struct GADInterstitialAdLoader: InterstitialAdLoading {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
+    ) {
+        GADInterstitialAd.load(
+            withAdUnitID: adUnitID,
+            request: request,
+            completionHandler: completionHandler
+        )
+    }
+}
+
+// MARK: - Shared fullscreen state
+
+final class FullscreenAdState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var showing = false
+
+    var isShowing: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return showing
+    }
+
+    func setShowing(_ showing: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.showing = showing
+    }
+}
+
 /// Unified interstitial ad manager for iOS. Replaces the Android `AdMobManager`.
 final class AdMobManager: NSObject, @unchecked Sendable {
     private let TAG = "AdMobManager"
@@ -19,11 +62,22 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     private static let retryMax: TimeInterval = 60
     private static let retryMaxCount = 10
 
-    /// Cross-manager flag so `AppOpenAdManager` can avoid colliding with a showing interstitial.
-    static var isAnyFullscreenAdShowing = false
+    /// Cross-manager state so App Open ads cannot collide with interstitials.
+    static let fullscreenAdState = FullscreenAdState()
 
     var eventCallback: ((String, String?) -> Void)?
     private var getConsentManager: () -> ConsentManager?
+    private var adLoader: InterstitialAdLoading
+
+    /// Called when the SDK's completion handler arrives on a background thread.
+    /// Debug builds assert for early detection; Release builds recover safely.
+    var offMainThreadHandler: (String) -> Void = {
+        #if DEBUG
+        assertionFailure($0)
+        #else
+        print("[AdMobManager] \($0)")
+        #endif
+    }
 
     private var interstitial: GADInterstitialAd?
     private var loadTime: Date?
@@ -59,8 +113,12 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         isTestLab ? AdMobManager.testInterstitialID : "ca-app-pub-9991891515643313/7320741331"
     }
 
-    init(getConsentManager: @escaping () -> ConsentManager? = { nil }) {
+    init(
+        getConsentManager: @escaping () -> ConsentManager? = { nil },
+        adLoader: InterstitialAdLoading = GADInterstitialAdLoader()
+    ) {
         self.getConsentManager = getConsentManager
+        self.adLoader = adLoader
         super.init()
     }
 
@@ -83,7 +141,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     }
 
     func showInterstitial(from viewController: UIViewController) {
-        if isShowingAd || AdMobManager.isAnyFullscreenAdShowing {
+        if isShowingAd || AdMobManager.fullscreenAdState.isShowing {
             print("[\(TAG)] showInterstitial: already showing")
             eventCallback?("interstitialFailed", "already_showing")
             return
@@ -112,7 +170,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         }
 
         isShowingAd = true
-        AdMobManager.isAnyFullscreenAdShowing = true
+        AdMobManager.fullscreenAdState.setShowing(true)
         lastShowTime = Date()
         setAudioModeForAd()
 
@@ -193,13 +251,16 @@ final class AdMobManager: NSObject, @unchecked Sendable {
             }
         }
 
-        GADInterstitialAd.load(
+        adLoader.load(
             withAdUnitID: interstitialAdUnitID,
             request: request
         ) { [weak self] ad, error in
             let errorDescription = error?.localizedDescription
             let errorCode = (error as NSError?)?.code
             guard Thread.isMainThread else {
+                self?.offMainThreadHandler(
+                    "[\(self?.TAG ?? "AdMobManager")] GADInterstitialAd completion called off main thread"
+                )
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     self.handleOffMainInterstitialCallback(
@@ -408,7 +469,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         interstitial = nil
         isLoading = false
         pendingShow = false
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
         isShowingAd = false
     }
 
@@ -421,7 +482,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
 
 // MARK: - GADFullScreenContentDelegate
 
-extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
+extension AdMobManager: GADFullScreenContentDelegate {
     func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
         guardMainThread { [weak self] in
             self?.adDidRecordImpressionOnMain()
@@ -429,7 +490,7 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     }
 
     private func adDidRecordImpressionOnMain() {
-        AdMobManager.isAnyFullscreenAdShowing = true
+        AdMobManager.fullscreenAdState.setShowing(true)
     }
 
     func adDidRecordClick(_ ad: GADFullScreenPresentingAd) {
@@ -447,7 +508,7 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
 
     private func adWillPresentFullScreenContentOnMain() {
         print("[\(TAG)] Interstitial shown")
-        AdMobManager.isAnyFullscreenAdShowing = true
+        AdMobManager.fullscreenAdState.setShowing(true)
         hasAutoShownInterstitial = true
         interstitial = nil
         eventCallback?("interstitialShown", nil)
@@ -463,7 +524,7 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     private func adDidDismissFullScreenContentOnMain() {
         print("[\(TAG)] Interstitial dismissed")
         isShowingAd = false
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
         restoreAudioMode()
         eventCallback?("interstitialClosed", nil)
         load(presentingViewController: nil, isPreload: true)
@@ -480,7 +541,7 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     private func adDidFailToPresentOnMain(description: String, adUnitID: String) {
         print("[\(TAG)] Interstitial show failed: \(description)")
         isShowingAd = false
-        AdMobManager.isAnyFullscreenAdShowing = false
+        AdMobManager.fullscreenAdState.setShowing(false)
         restoreAudioMode()
         interstitial = nil
         eventCallback?("interstitialFailed", description)
