@@ -1,47 +1,32 @@
 import XCTest
 @testable import BabelWords
+@preconcurrency import GoogleMobileAds
+
+// MARK: - MockAdLoader
+
+/// Test double that calls the completion handler synchronously on a global
+/// (background) queue, simulating the threading bug the guard is designed to
+/// catch.
+private final class MockAdLoader: AdLoader {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+    ) {
+        DispatchQueue.global().async {
+            completionHandler(nil, nil)
+        }
+    }
+}
 
 // MARK: - AppOpenAdManagerThreadingTests
 
 /// Tests for the threading guarantee inside `AppOpenAdManager`.
 ///
-/// ## Background
-///
-/// `AppOpenAdManager` is annotated `@MainActor`, which means Swift Concurrency
-/// enforces at **compile time** that every public method is called from the
-/// main actor.  That covers every caller we write.
-///
-/// The runtime `Thread.isMainThread` / `assertionFailure` guard inside
-/// `loadAd()` exists for exactly one scenario that Swift Concurrency cannot
-/// guard against: the Google Mobile Ads SDK calling the
-/// `GADAppOpenAd.load(withAdUnitID:request:completionHandler:)` completion
-/// handler on a background thread.  The guard fires `assertionFailure` (which
-/// terminates the process in Debug/TestFlight builds) and then recovers by
-/// hopping back to `@MainActor` via a `Task { @MainActor in … }`.
-///
-/// ## Why there is no direct assertionFailure test here
-///
-/// `GADAppOpenAd.load` is a **static Objective-C method** on the real SDK.
-/// There is no protocol, virtual-dispatch seam, or injectable closure that
-/// would let a unit test substitute a fake loader that calls the handler off
-/// the main thread — without linking the real AdMob framework and actually
-/// sending a network request.  `XCTExpectFailure` can only catch an
-/// `assertionFailure` that the test itself triggers synchronously; it cannot
-/// reach inside the SDK closure.
-///
-/// ## How to strengthen this in the future
-///
-/// Introduce an `AdLoader` protocol that wraps `GADAppOpenAd.load`.  The
-/// production conformance calls the real SDK; a test conformance can
-/// immediately call the completion handler on a background queue, letting
-/// `XCTExpectFailure` assert the guard fires.  Files to update:
-///
-///   - `ios/BabelWords/Managers/AppOpenAdManager.swift`
-///     Inject an `AdLoader` through the `init` (alongside the existing
-///     `getConsentManager` and `getMicActive` closures).
-///   - `ios/BabelWordsTests/AdMobManagerTests.swift`
-///     Add a `MockAdLoader` conformance and a test that calls the completion
-///     handler on `DispatchQueue.global()` inside `XCTExpectFailure { … }`.
+/// The runtime `Thread.isMainThread` guard inside `loadAd()` protects against
+/// the Google Mobile Ads SDK calling its completion handler on a background
+/// thread.  `MockAdLoader` provides the injectable seam that makes this
+/// directly exercisable without a live network request.
 @MainActor
 final class AppOpenAdManagerThreadingTests: XCTestCase {
 
@@ -55,6 +40,31 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
         let manager = AppOpenAdManager()
         // Retain to prevent the "result of 'AppOpenAdManager' initializer is unused" warning.
         _ = manager
+    }
+
+    /// Asserts that the off-main-thread handler fires when the ad loader calls
+    /// its completion handler on a background thread.
+    ///
+    /// `XCTExpectFailure` records the XCTest failure produced by the injected
+    /// `offMainThreadHandler`.  If the guard is ever removed the handler will
+    /// not fire, the expected failure will be missing, and the test will fail —
+    /// turning a silent threading regression into a build-breaking failure.
+    func testOffMainThreadCallbackTriggersAssertionFailure() {
+        let manager = AppOpenAdManager(adLoader: MockAdLoader())
+
+        let handlerFired = expectation(description: "offMainThreadHandler called")
+
+        // Replace the default assertionFailure with an XCTFail so the test
+        // process is not terminated and XCTExpectFailure can intercept it.
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        XCTExpectFailure("off-main-thread GAD callback must trigger the threading guard") {
+            manager.loadAd()
+            wait(for: [handlerFired], timeout: 2.0)
+        }
     }
 }
 

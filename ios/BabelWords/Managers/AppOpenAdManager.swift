@@ -3,6 +3,34 @@ import Foundation
 import UIKit
 import AVFoundation
 
+// MARK: - AdLoader
+
+/// Seam that wraps `GADAppOpenAd.load` so tests can inject a double.
+protocol AdLoader {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+    )
+}
+
+/// Production conformance — delegates straight to the real SDK.
+struct GADAppOpenAdLoader: AdLoader {
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping (GADAppOpenAd?, Error?) -> Void
+    ) {
+        GADAppOpenAd.load(
+            withAdUnitID: adUnitID,
+            request: request,
+            completionHandler: completionHandler
+        )
+    }
+}
+
+// MARK: - AppOpenAdManager
+
 /// App Open ad manager for iOS. Replaces the Android `AppOpenAdManager`.
 final class AppOpenAdManager: NSObject, @unchecked Sendable {
     private let TAG = "AppOpenAdManager"
@@ -29,6 +57,11 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
 
     private var getConsentManager: () -> ConsentManager?
     private var getMicActive: () -> Bool
+    private var adLoader: AdLoader
+
+    /// Called when the SDK's completion handler arrives on a background thread.
+    /// Defaults to `assertionFailure`; tests may replace it with `XCTFail`.
+    var offMainThreadHandler: (String) -> Void = { assertionFailure($0) }
 
     private var isTestLab: Bool {
         ProcessInfo.processInfo.environment["FIREBASE_TEST_LAB"] == "true"
@@ -40,10 +73,12 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
 
     init(
         getConsentManager: @escaping () -> ConsentManager? = { nil },
-        getMicActive: @escaping () -> Bool = { false }
+        getMicActive: @escaping () -> Bool = { false },
+        adLoader: AdLoader = GADAppOpenAdLoader()
     ) {
         self.getConsentManager = getConsentManager
         self.getMicActive = getMicActive
+        self.adLoader = adLoader
         super.init()
     }
 
@@ -97,10 +132,13 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         }
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
-        GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
+        adLoader.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
             let errorDescription = error?.localizedDescription
             let errorCode = (error as NSError?)?.code
             guard Thread.isMainThread else {
+                self?.offMainThreadHandler(
+                    "[\(self?.TAG ?? "AppOpenAdManager")] GADAppOpenAd completion called off main thread"
+                )
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     self.handleOffMainLoadCallback(
