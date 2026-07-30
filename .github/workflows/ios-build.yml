@@ -475,14 +475,18 @@ jobs:
       - name: Validate Firebase Test Lab target
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          FIREBASE_TEST_LAB_DEVICE: ${{ env.FIREBASE_TEST_LAB_DEVICE }}
+          FIREBASE_TEST_LAB_OS_VERSION: ${{ env.FIREBASE_TEST_LAB_OS_VERSION }}
         run: |
           if ! gcloud firebase test ios models list \
             --project "$GCP_PROJECT_ID" \
-            --format='value(model,version)' | grep -Eq '^iphone14pro[[:space:]]+26\.0$'; then
-            echo "::error::Firebase Test Lab target iphone14pro / iOS 26.0 is unavailable."
+            --format='value(model,version)' |
+            awk -v model="$FIREBASE_TEST_LAB_DEVICE" -v version="$FIREBASE_TEST_LAB_OS_VERSION" \
+              '$1 == model && $2 == version { found = 1 } END { exit found ? 0 : 1 }'; then
+            echo "::error::Firebase Test Lab target ${FIREBASE_TEST_LAB_DEVICE} / ${FIREBASE_TEST_LAB_OS_VERSION} is unavailable."
             gcloud firebase test ios models list \
               --project "$GCP_PROJECT_ID" \
-              --format='table(model,version,state)' | grep -i 'iphone14pro' || true
+              --format='table(model,version,state)' | grep -i "$FIREBASE_TEST_LAB_DEVICE" || true
             exit 1
           fi
 
@@ -883,14 +887,20 @@ jobs:
       - name: Validate Firebase Test Lab target
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          FIREBASE_TEST_LAB_DEVICE: ${{ env.FIREBASE_TEST_LAB_DEVICE }}
+          FIREBASE_TEST_LAB_OS_VERSION: ${{ env.FIREBASE_TEST_LAB_OS_VERSION }}
         run: |
-          if ! gcloud firebase test ios models list \
+          if gcloud firebase test ios models list \
             --project "$GCP_PROJECT_ID" \
-            --format='value(model,version)' | grep -Eq '^iphone14pro[[:space:]]+26\.0$'; then
-            echo "::error::Firebase Test Lab target iphone14pro / iOS 26.0 is unavailable."
+            --format='value(model,version)' |
+            awk -v model="$FIREBASE_TEST_LAB_DEVICE" -v version="$FIREBASE_TEST_LAB_OS_VERSION" \
+              '$1 == model && $2 == version { found = 1 } END { exit found ? 0 : 1 }'; then
+            echo "Firebase Test Lab target is available."
+          else
+            echo "::error::Firebase Test Lab target ${FIREBASE_TEST_LAB_DEVICE} / ${FIREBASE_TEST_LAB_OS_VERSION} is unavailable."
             gcloud firebase test ios models list \
               --project "$GCP_PROJECT_ID" \
-              --format='table(model,version,state)' | grep -i 'iphone14pro' || true
+              --format='table(model,version,state)' | grep -i "$FIREBASE_TEST_LAB_DEVICE" || true
             exit 1
           fi
 
@@ -915,7 +925,7 @@ jobs:
             --type xctest \
             --app "$IPA" \
             --test "$TEST" \
-            --device model=iphone14pro,version=26.0,locale=en_US,orientation=portrait \
+            --device model=${{ env.FIREBASE_TEST_LAB_DEVICE }},version=${{ env.FIREBASE_TEST_LAB_OS_VERSION }},locale=en_US,orientation=portrait \
             --timeout 10m \
             --record-video \
             --project "${GCP_PROJECT_ID}" 2>&1 | tee firebase-ios-run.log

@@ -40,24 +40,17 @@ extension UMPConsentForm: ConsentFormPresenting {}
 /// Mirrors the Android `ConsentManager` behavior.
 ///
 /// ## Thread safety
-/// This class is `@MainActor`-isolated. Every UMP completion closure is annotated
-/// `@MainActor`, which instructs Swift's concurrency runtime to always hop to the
-/// main actor before executing the body — providing the same guarantee as the
-/// explicit `Thread.isMainThread` guard used in `AdMobManager` and
-/// `AppOpenAdManager`, but via Swift's type system rather than a runtime assertion.
+/// This class is main-thread confined. UMP completion closures remain
+/// nonisolated at the SDK boundary because the SDK does not accept actor-isolated
+/// function values; their state/UI work is normalized onto the main queue below.
 ///
 /// The `@preconcurrency import UserMessagingPlatform` suppresses Swift 6
-/// "Sendable" diagnostics on UMP closure types that the SDK has not yet annotated;
-/// it does **not** weaken the `@MainActor` isolation enforced on each callback
-/// below.
+/// "Sendable" diagnostics on UMP closure types that the SDK has not yet annotated.
 ///
 /// ## Off-main-thread guard
-/// Because thread safety is enforced by `@MainActor` at the Swift type-system
-/// level rather than by a runtime `assertionFailure`, there is no executable
-/// branch to unit-test from a background thread.  Any caller that is not already
-/// on the main actor will receive a Swift concurrency warning at compile time.
-@MainActor
-final class ConsentManager: NSObject {
+/// SDK callbacks that arrive off-main complete with payload-free recovery; the
+/// non-Sendable form is never transferred into a detached actor task.
+final class ConsentManager: NSObject, @unchecked Sendable {
     private let TAG = "ConsentManager"
 
     // MARK: - Dependencies (injectable for testing)
@@ -69,6 +62,7 @@ final class ConsentManager: NSObject {
 
     private var isProcessing = false
     private var pendingCallbacks: [(Bool) -> Void] = []
+    private var pendingViewController: UIViewController?
 
     // MARK: - Initializers
 
@@ -99,26 +93,34 @@ final class ConsentManager: NSObject {
 
     /// Request consent info, show the form if required, and call back when ads can proceed.
     func requestConsent(from viewController: UIViewController, onConsentReady: @escaping (Bool) -> Void) {
+        precondition(Thread.isMainThread, "ConsentManager must be used on the main thread")
         pendingCallbacks.append(onConsentReady)
         guard !isProcessing else { return }
         isProcessing = true
+        pendingViewController = viewController
 
         let parameters = UMPRequestParameters()
         parameters.tagForUnderAgeOfConsent = false
 
-        // @MainActor annotation ensures this closure is always dispatched on the
-        // main actor regardless of the thread the UMP SDK uses internally.
-        consentInformation.requestConsentInfoUpdate(with: parameters) { @MainActor [weak self] error in
-            guard let self = self else { return }
-            self.handleConsentInfoUpdateResult(error: error, viewController: viewController)
+        consentInformation.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+            let errorDescription = error?.localizedDescription
+            guard Thread.isMainThread else {
+                DispatchQueue.main.async { [weak self] in
+                    self?.handleConsentInfoUpdateResult(errorDescription: errorDescription)
+                }
+                return
+            }
+            self?.handleConsentInfoUpdateResult(errorDescription: errorDescription)
         }
     }
 
     // MARK: - Consent-info update result
 
-    private func handleConsentInfoUpdateResult(error: Error?, viewController: UIViewController) {
-        if let error = error {
-            print("[\(TAG)] Consent info update failed: \(error.localizedDescription)")
+    private func handleConsentInfoUpdateResult(
+        errorDescription: String?
+    ) {
+        if let errorDescription = errorDescription {
+            print("[\(TAG)] Consent info update failed: \(errorDescription)")
             completeConsent(consentInformation.canRequestAds)
             return
         }
@@ -127,6 +129,10 @@ final class ConsentManager: NSObject {
         print("[\(TAG)] Consent info updated. canRequestAds=\(canRequestAds), formAvailable=\(consentInformation.formStatus == .available)")
 
         if consentInformation.formStatus == .available {
+            guard let viewController = pendingViewController else {
+                completeConsent(canRequestAds)
+                return
+            }
             loadAndShowConsentForm(from: viewController)
         } else {
             completeConsent(canRequestAds)
@@ -136,17 +142,31 @@ final class ConsentManager: NSObject {
     // MARK: - Form load + present
 
     private func loadAndShowConsentForm(from viewController: UIViewController) {
-        // @MainActor annotation ensures this closure is always dispatched on the
-        // main actor regardless of the thread the UMP SDK uses internally.
-        formLoader { @MainActor [weak self] form, error in
-            guard let self = self else { return }
-            self.handleFormLoadResult(form: form, error: error, viewController: viewController)
+        formLoader { [weak self] form, error in
+            let errorDescription = error?.localizedDescription
+            if Thread.isMainThread {
+                self?.handleFormLoadResult(
+                    form: form,
+                    errorDescription: errorDescription,
+                    viewController: viewController
+                )
+            } else {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    print("[\(self.TAG)] Consent form loaded off-main; completing without presenting")
+                    self.completeConsent(self.consentInformation.canRequestAds)
+                }
+            }
         }
     }
 
-    private func handleFormLoadResult(form: ConsentFormPresenting?, error: Error?, viewController: UIViewController) {
-        if let error = error {
-            print("[\(TAG)] Consent form load failed: \(error.localizedDescription)")
+    private func handleFormLoadResult(
+        form: ConsentFormPresenting?,
+        errorDescription: String?,
+        viewController: UIViewController
+    ) {
+        if let errorDescription = errorDescription {
+            print("[\(TAG)] Consent form load failed: \(errorDescription)")
             completeConsent(consentInformation.canRequestAds)
             return
         }
@@ -157,20 +177,24 @@ final class ConsentManager: NSObject {
         }
 
         if consentInformation.consentStatus == .required {
-            // @MainActor annotation ensures this closure is always dispatched on
-            // the main actor regardless of the thread the UMP SDK uses internally.
-            form.present(from: viewController) { @MainActor [weak self] error in
-                guard let self = self else { return }
-                self.handleFormPresentResult(error: error)
+            form.present(from: viewController) { [weak self] error in
+                let errorDescription = error?.localizedDescription
+                guard Thread.isMainThread else {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.handleFormPresentResult(errorDescription: errorDescription)
+                    }
+                    return
+                }
+                self?.handleFormPresentResult(errorDescription: errorDescription)
             }
         } else {
             completeConsent(consentInformation.canRequestAds)
         }
     }
 
-    private func handleFormPresentResult(error: Error?) {
-        if let error = error {
-            print("[\(TAG)] Consent form show error: \(error.localizedDescription)")
+    private func handleFormPresentResult(errorDescription: String?) {
+        if let errorDescription = errorDescription {
+            print("[\(TAG)] Consent form show error: \(errorDescription)")
         }
         print("[\(TAG)] Consent form dismissed. canRequestAds=\(consentInformation.canRequestAds)")
         completeConsent(consentInformation.canRequestAds)
@@ -180,6 +204,7 @@ final class ConsentManager: NSObject {
 
     private func completeConsent(_ canRequestAds: Bool) {
         isProcessing = false
+        pendingViewController = nil
         let callbacks = pendingCallbacks
         pendingCallbacks.removeAll()
         callbacks.forEach { $0(canRequestAds) }
@@ -195,6 +220,7 @@ final class ConsentManager: NSObject {
     }
 
     func resetConsent() {
+        precondition(Thread.isMainThread, "ConsentManager must be used on the main thread")
         consentInformation.reset()
     }
 

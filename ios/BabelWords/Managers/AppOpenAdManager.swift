@@ -4,8 +4,7 @@ import UIKit
 import AVFoundation
 
 /// App Open ad manager for iOS. Replaces the Android `AppOpenAdManager`.
-@MainActor
-final class AppOpenAdManager: NSObject {
+final class AppOpenAdManager: NSObject, @unchecked Sendable {
     private let TAG = "AppOpenAdManager"
 
     private static let loadTimeout: TimeInterval = 15
@@ -88,48 +87,70 @@ final class AppOpenAdManager: NSObject {
             } catch {
                 return
             }
-            guard let self = self, self.isLoading else { return }
-            print("[\(self.TAG)] App Open load timed out")
-            self.isLoading = false
-            self.appOpenAd = nil
-            self.scheduleRetry(delay: AppOpenAdManager.retryTimeout)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.isLoading else { return }
+                print("[\(self.TAG)] App Open load timed out")
+                self.isLoading = false
+                self.appOpenAd = nil
+                self.scheduleRetry(delay: AppOpenAdManager.retryTimeout)
+            }
         }
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
         GADAppOpenAd.load(withAdUnitID: adUnitID, request: request) { [weak self] ad, error in
+            let errorDescription = error?.localizedDescription
+            let errorCode = (error as NSError?)?.code
             guard Thread.isMainThread else {
-                assertionFailure("GADAppOpenAd.load callback not on main thread")
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
-                    self.loadTimeoutTask?.cancel()
-                    self.isLoading = false
-                    self.appOpenAd = nil
-                    self.scheduleRetry(delay: AppOpenAdManager.retryNetwork)
+                    self.handleOffMainLoadCallback(
+                        errorDescription: errorDescription,
+                        errorCode: errorCode
+                    )
                 }
                 return
             }
-            guard let self = self else { return }
+            self?.handleLoad(
+                ad: ad,
+                errorDescription: errorDescription,
+                errorCode: errorCode
+            )
+        }
+    }
 
-            loadTimeoutTask?.cancel()
-            isLoading = false
+    private func handleOffMainLoadCallback(errorDescription: String?, errorCode: Int?) {
+        print("[\(TAG)] Ignoring off-main App Open callback\(errorDescription.map { ": \($0)" } ?? "")")
+        loadTimeoutTask?.cancel()
+        isLoading = false
+        appOpenAd = nil
+        scheduleRetry(delay: retryDelay(for: errorCode))
+    }
 
-            if let error = error {
-                print("[\(TAG)] App Open load failed: \(error.localizedDescription)")
-                appOpenAd = nil
-                let code = (error as NSError).code
-                let delay: TimeInterval
-                switch code {
-                case 3: delay = AppOpenAdManager.retryNoFill
-                case -2: delay = AppOpenAdManager.retryTimeout
-                default: delay = AppOpenAdManager.retryNetwork
-                }
-                scheduleRetry(delay: delay)
-            } else if let ad = ad {
-                print("[\(TAG)] App Open ad loaded")
-                appOpenAd = ad
-                retryCount = 0
-                ad.fullScreenContentDelegate = self
-            }
+    private func handleLoad(
+        ad: GADAppOpenAd?,
+        errorDescription: String?,
+        errorCode: Int?
+    ) {
+        loadTimeoutTask?.cancel()
+        isLoading = false
+
+        if let errorDescription = errorDescription {
+            print("[\(TAG)] App Open load failed: \(errorDescription)")
+            appOpenAd = nil
+            scheduleRetry(delay: retryDelay(for: errorCode))
+        } else if let ad = ad {
+            print("[\(TAG)] App Open ad loaded")
+            appOpenAd = ad
+            retryCount = 0
+            ad.fullScreenContentDelegate = self
+        }
+    }
+
+    private func retryDelay(for code: Int?) -> TimeInterval {
+        switch code {
+        case 3: return AppOpenAdManager.retryNoFill
+        case -2: return AppOpenAdManager.retryTimeout
+        default: return AppOpenAdManager.retryNetwork
         }
     }
 
@@ -172,7 +193,9 @@ final class AppOpenAdManager: NSObject {
             } catch {
                 return
             }
-            self?.loadAd()
+            DispatchQueue.main.async { [weak self] in
+                self?.loadAd()
+            }
         }
         print("[\(TAG)] Retrying App Open load in \(delay)s (attempt \(retryCount)/\(AppOpenAdManager.retryMaxCount))")
     }
@@ -202,9 +225,14 @@ final class AppOpenAdManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
-@MainActor
 extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        guardMainThread { [weak self] in
+            self?.adWillPresentOnMain()
+        }
+    }
+
+    private func adWillPresentOnMain() {
         print("[\(TAG)] App Open shown")
         AdMobManager.isAnyFullscreenAdShowing = true
         UserDefaults.standard.set(Date(), forKey: AppOpenAdManager.prefsLastShow)
@@ -212,6 +240,12 @@ extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     }
 
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        guardMainThread { [weak self] in
+            self?.adDidDismissOnMain()
+        }
+    }
+
+    private func adDidDismissOnMain() {
         print("[\(TAG)] App Open dismissed")
         isShowingAd = false
         AdMobManager.isAnyFullscreenAdShowing = false
@@ -220,11 +254,26 @@ extension AppOpenAdManager: @preconcurrency GADFullScreenContentDelegate {
     }
 
     func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        print("[\(TAG)] App Open show failed: \(error.localizedDescription)")
+        let description = error.localizedDescription
+        guardMainThread { [weak self] in
+            self?.adDidFailToPresentOnMain(description: description)
+        }
+    }
+
+    private func adDidFailToPresentOnMain(description: String) {
+        print("[\(TAG)] App Open show failed: \(description)")
         isShowingAd = false
         AdMobManager.isAnyFullscreenAdShowing = false
         restoreAudioMode()
         appOpenAd = nil
         loadAd()
+    }
+
+    private func guardMainThread(_ operation: @escaping @Sendable () -> Void) {
+        if Thread.isMainThread {
+            operation()
+        } else {
+            DispatchQueue.main.async(execute: operation)
+        }
     }
 }

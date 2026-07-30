@@ -5,8 +5,7 @@ import UIKit
 import AVFoundation
 
 /// Unified interstitial ad manager for iOS. Replaces the Android `AdMobManager`.
-@MainActor
-final class AdMobManager: NSObject {
+final class AdMobManager: NSObject, @unchecked Sendable {
     private let TAG = "AdMobManager"
 
     private static let testInterstitialID = "ca-app-pub-3940256099942544/4411468910"
@@ -155,8 +154,10 @@ final class AdMobManager: NSObject {
                 } catch {
                     return
                 }
-                guard let self = self, !self.isLoading else { return }
-                self.load(presentingViewController: presentingViewController, isPreload: isPreload)
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self, !self.isLoading else { return }
+                    self.load(presentingViewController: presentingViewController, isPreload: isPreload)
+                }
             }
             return
         }
@@ -183,67 +184,89 @@ final class AdMobManager: NSObject {
             } catch {
                 return
             }
-            guard let self = self, self.isLoading else { return }
-            print("[\(self.TAG)] Interstitial load timed out")
-            self.isLoading = false
-            self.interstitial = nil
-            self.scheduleRetry(delay: AdMobManager.retryInitial)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, self.isLoading else { return }
+                print("[\(self.TAG)] Interstitial load timed out")
+                self.isLoading = false
+                self.interstitial = nil
+                self.scheduleRetry(delay: AdMobManager.retryInitial)
+            }
         }
 
         GADInterstitialAd.load(
             withAdUnitID: interstitialAdUnitID,
             request: request
         ) { [weak self] ad, error in
+            let errorDescription = error?.localizedDescription
+            let errorCode = (error as NSError?)?.code
             guard Thread.isMainThread else {
-                assertionFailure("GADInterstitialAd.load callback not on main thread")
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
-                    self.loadTimeoutTask?.cancel()
-                    self.isLoading = false
-                    self.interstitial = nil
-                    self.scheduleRetry(delay: AdMobManager.retryInitial)
+                    self.handleOffMainInterstitialCallback(
+                        errorDescription: errorDescription,
+                        errorCode: errorCode
+                    )
                 }
                 return
             }
-            guard let self = self else { return }
+            self?.handleInterstitialLoad(
+                ad: ad,
+                errorDescription: errorDescription,
+                errorCode: errorCode
+            )
+        }
+    }
 
-            loadTimeoutTask?.cancel()
-            isLoading = false
+    private func handleOffMainInterstitialCallback(errorDescription: String?, errorCode: Int?) {
+        print("[\(TAG)] Ignoring off-main interstitial callback\(errorDescription.map { ": \($0)" } ?? "")")
+        loadTimeoutTask?.cancel()
+        isLoading = false
+        interstitial = nil
+        scheduleRetry(delay: retryDelay(for: errorCode))
+    }
 
-            if let error = error {
-                print("[\(TAG)] Interstitial load failed: \(error.localizedDescription)")
-                interstitial = nil
-                eventCallback?("interstitialFailed", error.localizedDescription)
-                let code = (error as NSError).code
-                let delay: TimeInterval
-                switch code {
-                case -2 where retryCount == 0:
-                    delay = 0
-                case -2:
-                    delay = min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
-                case 3:
-                    delay = 30
-                default:
-                    delay = AdMobManager.retryInitial
+    private func handleInterstitialLoad(
+        ad: GADInterstitialAd?,
+        errorDescription: String?,
+        errorCode: Int?
+    ) {
+        loadTimeoutTask?.cancel()
+        isLoading = false
+
+        if let errorDescription = errorDescription {
+            print("[\(TAG)] Interstitial load failed: \(errorDescription)")
+            interstitial = nil
+            eventCallback?("interstitialFailed", errorDescription)
+            scheduleRetry(delay: retryDelay(for: errorCode))
+        } else if let ad = ad {
+            print("[\(TAG)] Interstitial loaded")
+            interstitial = ad
+            loadTime = Date()
+            retryCount = 0
+            ad.fullScreenContentDelegate = self
+            eventCallback?("interstitialLoaded", nil)
+
+            if pendingShow {
+                pendingShow = false
+                if let vc = topViewController() {
+                    showInterstitial(from: vc)
                 }
-                scheduleRetry(delay: delay)
-            } else if let ad = ad {
-                print("[\(TAG)] Interstitial loaded")
-                interstitial = ad
-                loadTime = Date()
-                retryCount = 0
-                ad.fullScreenContentDelegate = self
-                eventCallback?("interstitialLoaded", nil)
-
-                if pendingShow {
-                    pendingShow = false
-                    if let vc = topViewController() {
-                        showInterstitial(from: vc)
-                    }
-                } else {
-                    maybeAutoShowInterstitial()
-                }
+            } else {
+                maybeAutoShowInterstitial()
             }
+        }
+    }
+
+    private func retryDelay(for code: Int?) -> TimeInterval {
+        switch code {
+        case -2 where retryCount == 0:
+            return 0
+        case -2:
+            return min(AdMobManager.retryInitial * pow(2.0, Double(retryCount)), AdMobManager.retryMax)
+        case 3:
+            return 30
+        default:
+            return AdMobManager.retryInitial
         }
     }
 
@@ -263,8 +286,10 @@ final class AdMobManager: NSObject {
             } catch {
                 return
             }
-            guard let self = self, !self.isLoading else { return }
-            self.load(presentingViewController: nil, isPreload: true)
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, !self.isLoading else { return }
+                self.load(presentingViewController: nil, isPreload: true)
+            }
         }
         print("[\(TAG)] Retrying interstitial load in \(delay)s (attempt \(retryCount)/\(AdMobManager.retryMaxCount))")
     }
@@ -311,7 +336,8 @@ final class AdMobManager: NSObject {
         monitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
-                if path.status == .satisfied, self.interstitial == nil || !self.isFresh() {
+                if path.status == .satisfied,
+                   self.interstitial == nil || !self.isFresh() {
                     print("[\(self.TAG)] Network available — auto-reloading")
                     self.load(presentingViewController: nil, isPreload: true)
                 }
@@ -395,17 +421,31 @@ final class AdMobManager: NSObject {
 
 // MARK: - GADFullScreenContentDelegate
 
-@MainActor
 extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+        guardMainThread { [weak self] in
+            self?.adDidRecordImpressionOnMain()
+        }
+    }
+
+    private func adDidRecordImpressionOnMain() {
         AdMobManager.isAnyFullscreenAdShowing = true
     }
 
     func adDidRecordClick(_ ad: GADFullScreenPresentingAd) {
-        AnalyticsManager.logAdClicked(adUnit: interstitialAdUnitID, adFormat: "interstitial")
+        let adUnitID = interstitialAdUnitID
+        guardMainThread {
+            AnalyticsManager.logAdClicked(adUnit: adUnitID, adFormat: "interstitial")
+        }
     }
 
     func adWillPresentFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        guardMainThread { [weak self] in
+            self?.adWillPresentFullScreenContentOnMain()
+        }
+    }
+
+    private func adWillPresentFullScreenContentOnMain() {
         print("[\(TAG)] Interstitial shown")
         AdMobManager.isAnyFullscreenAdShowing = true
         hasAutoShownInterstitial = true
@@ -415,6 +455,12 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     }
 
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+        guardMainThread { [weak self] in
+            self?.adDidDismissFullScreenContentOnMain()
+        }
+    }
+
+    private func adDidDismissFullScreenContentOnMain() {
         print("[\(TAG)] Interstitial dismissed")
         isShowingAd = false
         AdMobManager.isAnyFullscreenAdShowing = false
@@ -424,13 +470,29 @@ extension AdMobManager: @preconcurrency GADFullScreenContentDelegate {
     }
 
     func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
-        print("[\(TAG)] Interstitial show failed: \(error.localizedDescription)")
+        let description = error.localizedDescription
+        let adUnitID = interstitialAdUnitID
+        guardMainThread { [weak self] in
+            self?.adDidFailToPresentOnMain(description: description, adUnitID: adUnitID)
+        }
+    }
+
+    private func adDidFailToPresentOnMain(description: String, adUnitID: String) {
+        print("[\(TAG)] Interstitial show failed: \(description)")
         isShowingAd = false
         AdMobManager.isAnyFullscreenAdShowing = false
         restoreAudioMode()
         interstitial = nil
-        eventCallback?("interstitialFailed", error.localizedDescription)
-        AnalyticsManager.logAdFailed(adUnit: interstitialAdUnitID, error: error.localizedDescription)
+        eventCallback?("interstitialFailed", description)
+        AnalyticsManager.logAdFailed(adUnit: adUnitID, error: description)
         load(presentingViewController: nil, isPreload: true)
+    }
+
+    private func guardMainThread(_ operation: @escaping @Sendable () -> Void) {
+        if Thread.isMainThread {
+            operation()
+        } else {
+            DispatchQueue.main.async(execute: operation)
+        }
     }
 }

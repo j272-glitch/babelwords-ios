@@ -6,7 +6,6 @@ import XCTest
 
 /// Synchronously calls its completion handler on `requestConsentInfoUpdate`,
 /// simulating the UMP SDK calling back immediately on the main thread.
-@MainActor
 private final class MockConsentInformation: ConsentInformationProviding {
 
     // Configure before each test
@@ -31,7 +30,6 @@ private final class MockConsentInformation: ConsentInformationProviding {
 
 /// A mock consent form that immediately calls its completion handler when
 /// `present` is invoked.
-@MainActor
 private final class MockConsentForm: ConsentFormPresenting {
     var stubbedPresentError: Error? = nil
     var presentCallCount = 0
@@ -51,12 +49,10 @@ private final class MockConsentForm: ConsentFormPresenting {
 /// path for `ConsentManager` using synchronous mocks, so every branch can be
 /// driven without touching the live UMP SDK.
 ///
-/// ### Off-main-thread guard
-/// The `@MainActor` type annotation on `ConsentManager` enforces thread safety
-/// at the Swift type-system level rather than via a runtime `assertionFailure`.
-/// Swift concurrency rejects calls from non-isolated contexts at compile time,
-/// so there is no executable background-thread branch to test at runtime; this
-/// is noted here as a documented known gap rather than a missing test.
+/// ### Thread confinement
+/// ConsentManager is deliberately main-thread confined because UMP's callback
+/// types are nonisolated and its form object is not Sendable. Off-main SDK
+/// callbacks transfer only plain error text to the main queue.
 @MainActor
 final class ConsentManagerTests: XCTestCase {
 
@@ -103,6 +99,26 @@ final class ConsentManagerTests: XCTestCase {
         let manager = makeManager(info: info)
         manager.resetConsent()
         XCTAssertTrue(info.didReset)
+    }
+
+    func testResetThenRequestConsentStartsANewFlow() {
+        let info = MockConsentInformation()
+        info.formStatus = .unknown
+        info.canRequestAds = false
+        let manager = makeManager(info: info)
+        var callbackCount = 0
+
+        manager.resetConsent()
+        info.canRequestAds = true
+        var receivedCanRequestAds: Bool?
+        manager.requestConsent(from: UIViewController()) { canRequestAds in
+            callbackCount += 1
+            receivedCanRequestAds = canRequestAds
+        }
+
+        XCTAssertTrue(info.didReset)
+        XCTAssertEqual(callbackCount, 1, "Consent should be requestable again after reset")
+        XCTAssertEqual(receivedCanRequestAds, true)
     }
 
     // MARK: - Form-not-required branch
