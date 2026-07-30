@@ -4,9 +4,10 @@ import Network
 import UIKit
 import AVFoundation
 
-// MARK: - Ad loading
+// MARK: - InterstitialAdLoader
 
-protocol InterstitialAdLoading {
+/// Seam that wraps `GADInterstitialAd.load` so tests can inject a double.
+protocol InterstitialAdLoader {
     func load(
         withAdUnitID adUnitID: String,
         request: GADRequest,
@@ -14,7 +15,8 @@ protocol InterstitialAdLoading {
     )
 }
 
-struct GADInterstitialAdLoader: InterstitialAdLoading {
+/// Production conformance — delegates straight to the real SDK.
+struct GADInterstitialAdLoader: InterstitialAdLoader {
     func load(
         withAdUnitID adUnitID: String,
         request: GADRequest,
@@ -47,6 +49,8 @@ final class FullscreenAdState: @unchecked Sendable {
     }
 }
 
+// MARK: - AdMobManager
+
 /// Unified interstitial ad manager for iOS. Replaces the Android `AdMobManager`.
 final class AdMobManager: NSObject, @unchecked Sendable {
     private let TAG = "AdMobManager"
@@ -66,11 +70,11 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     static let fullscreenAdState = FullscreenAdState()
 
     var eventCallback: ((String, String?) -> Void)?
-    private var getConsentManager: () -> ConsentManager?
-    private var adLoader: InterstitialAdLoading
 
-    /// Called when the SDK's completion handler arrives on a background thread.
+    /// Called when the SDK's load completion handler arrives on a background thread.
+    /// Called when the SDK's load completion handler arrives on a background thread.
     /// Debug builds assert for early detection; Release builds recover safely.
+    /// Tests may replace this with `XCTFail`.
     var offMainThreadHandler: (String) -> Void = {
         #if DEBUG
         assertionFailure($0)
@@ -78,6 +82,9 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         print("[AdMobManager] \($0)")
         #endif
     }
+
+    private var getConsentManager: () -> ConsentManager?
+    private var adLoader: InterstitialAdLoader
 
     private var interstitial: GADInterstitialAd?
     private var loadTime: Date?
@@ -115,7 +122,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
 
     init(
         getConsentManager: @escaping () -> ConsentManager? = { nil },
-        adLoader: InterstitialAdLoading = GADInterstitialAdLoader()
+        adLoader: InterstitialAdLoader = GADInterstitialAdLoader()
     ) {
         self.getConsentManager = getConsentManager
         self.adLoader = adLoader
