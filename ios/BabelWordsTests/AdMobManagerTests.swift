@@ -19,18 +19,6 @@ private final class MockAdLoader: AdLoader {
     }
 }
 
-private final class MockInterstitialAdLoader: InterstitialAdLoading {
-    func load(
-        withAdUnitID adUnitID: String,
-        request: GADRequest,
-        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
-    ) {
-        DispatchQueue.global().async {
-            completionHandler(nil, nil)
-        }
-    }
-}
-
 // MARK: - AppOpenAdManagerThreadingTests
 
 /// Tests the runtime thread-confinement recovery inside `AppOpenAdManager`.
@@ -103,6 +91,42 @@ private final class MockInterstitialAdLoader: InterstitialAdLoader {
         DispatchQueue.global().async {
             completionHandler(nil, nil)
         }
+    }
+}
+
+// MARK: - CountingInterstitialAdLoader
+
+/// Test double that records every `load` call but never invokes the completion
+/// handler, keeping the manager in the `isLoading` state so tests can inspect
+/// the side-effects of cache-invalidation without needing a real `GADInterstitialAd`.
+private final class CountingInterstitialAdLoader: InterstitialAdLoader {
+    var loadCallCount = 0
+
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
+    ) {
+        loadCallCount += 1
+        // intentionally never calls completionHandler
+    }
+}
+
+// MARK: - DelayedInterstitialAdLoader
+
+/// Test double that captures the most-recent completion handler without calling
+/// it, allowing tests to fire it at a chosen point in time (e.g. after
+/// `onConsentChanged()`) to exercise the consent-epoch race-condition guard.
+private final class DelayedInterstitialAdLoader: InterstitialAdLoader {
+    /// Holds the completion block from the most-recent `load` call.
+    var capturedCompletion: (@Sendable (GADInterstitialAd?, Error?) -> Void)?
+
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADInterstitialAd?, Error?) -> Void
+    ) {
+        capturedCompletion = completionHandler
     }
 }
 
@@ -207,5 +231,77 @@ final class AdMobManagerTests: XCTestCase {
         }
         manager.showInterstitial(from: UIViewController())
         wait(for: [expectation], timeout: 1.0)
+    }
+
+    // MARK: - Consent-change cache invalidation
+
+    /// Verifies that `onConsentChanged()` immediately invalidates any cached
+    /// interstitial so that `isInterstitialReady()` returns `false` and a fresh
+    /// load is triggered with the updated consent signal.
+    func testOnConsentChangedInvalidatesCacheAndTriggersReload() {
+        let countingLoader = CountingInterstitialAdLoader()
+        let localManager = AdMobManager(adLoader: countingLoader)
+        defer { localManager.destroy() }
+
+        // Baseline — no cached ad yet.
+        XCTAssertFalse(localManager.isInterstitialReady(), "should start with no ready interstitial")
+
+        // Trigger a preload so the manager enters the loading state (loadCallCount == 1).
+        localManager.preloadInterstitial()
+        let loadsBefore = countingLoader.loadCallCount
+
+        // Simulate consent changing mid-session.
+        localManager.onConsentChanged()
+
+        // The cache must be empty immediately.
+        XCTAssertFalse(localManager.isInterstitialReady(),
+                       "isInterstitialReady() must be false immediately after onConsentChanged()")
+
+        // A fresh load must have been kicked off (loadCallCount incremented).
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBefore,
+                             "onConsentChanged() must trigger a fresh load")
+    }
+
+    /// Verifies the consent-epoch race-condition guard: a `GADInterstitialAd.load`
+    /// callback that was dispatched *before* `onConsentChanged()` but arrives
+    /// *after* it must be silently dropped so the stale ad never enters the cache.
+    ///
+    /// `DelayedInterstitialAdLoader` captures the completion handler without
+    /// calling it, letting the test fire it at a controlled point in time.
+    func testPreConsentInFlightCallbackDroppedAfterConsentChanged() {
+        let delayedLoader = DelayedInterstitialAdLoader()
+        let localManager = AdMobManager(adLoader: delayedLoader)
+        defer { localManager.destroy() }
+
+        // 1. Start a load under the *original* consent context.
+        localManager.preloadInterstitial()
+        guard let staleCompletion = delayedLoader.capturedCompletion else {
+            XCTFail("AdMobManager must have called adLoader.load() during preloadInterstitial()")
+            return
+        }
+
+        // 2. Consent changes mid-session — epoch increments, cache cleared, new load starts.
+        localManager.onConsentChanged()
+
+        // 3. Arm the event callback *after* the consent change so any spurious event
+        //    that leaks from the stale callback is detectable.
+        var staleEventFired = false
+        localManager.eventCallback = { event, _ in
+            // Both "interstitialFailed" and "interstitialLoaded" would indicate the
+            // stale callback was not dropped.
+            staleEventFired = true
+        }
+
+        // 4. Fire the old (pre-consent-change) completion handler on the main thread,
+        //    simulating the real SDK delivering its response late.  Passing a non-nil
+        //    error exercises the error branch; with the epoch guard the handler must
+        //    return before reaching any eventCallback or state-mutation code.
+        staleCompletion(nil, NSError(domain: "com.test.stale", code: -1, userInfo: nil))
+
+        // 5. Assert the stale callback was silently dropped.
+        XCTAssertFalse(staleEventFired,
+                       "A pre-consent-change load callback must be silently dropped after onConsentChanged()")
+        XCTAssertFalse(localManager.isInterstitialReady(),
+                       "isInterstitialReady() must remain false after a dropped stale callback")
     }
 }

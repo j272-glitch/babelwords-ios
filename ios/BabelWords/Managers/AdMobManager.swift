@@ -99,6 +99,12 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     private var pendingShow = false
     private var isActivityResumed = false
 
+    /// Incremented each time consent changes so that any in-flight `GADInterstitialAd.load`
+    /// callback that was dispatched before the change is silently ignored.  The value is
+    /// captured as a local constant at the start of every `load()` call and compared to
+    /// the current epoch inside every completion-handler path.
+    private var consentEpoch: Int = 0
+
     private var retryCount = 0
     private var retryTask: Task<Void, Never>?
     private var loadTimeoutTask: Task<Void, Never>?
@@ -242,6 +248,10 @@ final class AdMobManager: NSObject, @unchecked Sendable {
 
         let request = getConsentManager()?.buildAdRequest() ?? GADRequest()
 
+        // Capture the epoch at call time; callbacks that arrive after a consent
+        // change (which increments consentEpoch) will be dropped on the guard below.
+        let capturedEpoch = consentEpoch
+
         loadTimeoutTask?.cancel()
         loadTimeoutTask = Task { [weak self] in
             do {
@@ -250,7 +260,9 @@ final class AdMobManager: NSObject, @unchecked Sendable {
                 return
             }
             DispatchQueue.main.async { [weak self] in
-                guard let self = self, self.isLoading else { return }
+                guard let self = self,
+                      self.isLoading,
+                      self.consentEpoch == capturedEpoch else { return }
                 print("[\(self.TAG)] Interstitial load timed out")
                 self.isLoading = false
                 self.interstitial = nil
@@ -272,7 +284,8 @@ final class AdMobManager: NSObject, @unchecked Sendable {
                     guard let self = self else { return }
                     self.handleOffMainInterstitialCallback(
                         errorDescription: errorDescription,
-                        errorCode: errorCode
+                        errorCode: errorCode,
+                        epoch: capturedEpoch
                     )
                 }
                 return
@@ -280,12 +293,17 @@ final class AdMobManager: NSObject, @unchecked Sendable {
             self?.handleInterstitialLoad(
                 ad: ad,
                 errorDescription: errorDescription,
-                errorCode: errorCode
+                errorCode: errorCode,
+                epoch: capturedEpoch
             )
         }
     }
 
-    private func handleOffMainInterstitialCallback(errorDescription: String?, errorCode: Int?) {
+    private func handleOffMainInterstitialCallback(errorDescription: String?, errorCode: Int?, epoch: Int) {
+        guard epoch == consentEpoch else {
+            print("[\(TAG)] Dropping stale off-main callback (epoch \(epoch), current \(consentEpoch))")
+            return
+        }
         print("[\(TAG)] Ignoring off-main interstitial callback\(errorDescription.map { ": \($0)" } ?? "")")
         loadTimeoutTask?.cancel()
         isLoading = false
@@ -296,8 +314,13 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     private func handleInterstitialLoad(
         ad: GADInterstitialAd?,
         errorDescription: String?,
-        errorCode: Int?
+        errorCode: Int?,
+        epoch: Int
     ) {
+        guard epoch == consentEpoch else {
+            print("[\(TAG)] Dropping stale load callback (epoch \(epoch), current \(consentEpoch))")
+            return
+        }
         loadTimeoutTask?.cancel()
         isLoading = false
 
@@ -465,6 +488,25 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     private func restoreAudioMode() {
         try? AVAudioSession.sharedInstance().setCategory(.playAndRecord, mode: .voiceChat, options: [.defaultToSpeaker])
         try? AVAudioSession.sharedInstance().setActive(true)
+    }
+
+    // MARK: - Consent
+
+    /// Called by `ConsentManager` whenever the user's consent state changes.
+    /// Drops the cached interstitial (which was built with the old consent signal)
+    /// and immediately kicks off a fresh preload so the next load uses the
+    /// updated UMP consent string.
+    func onConsentChanged() {
+        print("[\(TAG)] Consent changed — invalidating cached interstitial")
+        // Increment the epoch FIRST so any in-flight GADInterstitialAd.load callback
+        // that was dispatched before the consent change is dropped by the epoch guard
+        // in handleInterstitialLoad / handleOffMainInterstitialCallback.
+        consentEpoch += 1
+        cancelRetries()
+        interstitial = nil
+        loadTime = nil
+        isLoading = false
+        load(presentingViewController: nil, isPreload: true)
     }
 
     // MARK: - Destroy

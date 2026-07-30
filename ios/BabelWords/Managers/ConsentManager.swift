@@ -64,6 +64,13 @@ final class ConsentManager: NSObject, @unchecked Sendable {
     private var pendingCallbacks: [(Bool) -> Void] = []
     private var pendingViewController: UIViewController?
 
+    // MARK: - Consent-change notification
+
+    /// Assigned by the owner (e.g. AppDelegate) to receive a notification
+    /// whenever consent completes.  The canonical use-case is invalidating
+    /// any ad cache that was built with the previous consent signal.
+    var onConsentUpdated: (() -> Void)?
+
     // MARK: - Initializers
 
     /// Production initializer — uses the live UMP SDK.
@@ -211,6 +218,7 @@ final class ConsentManager: NSObject, @unchecked Sendable {
         let callbacks = pendingCallbacks
         pendingCallbacks.removeAll()
         callbacks.forEach { $0(canRequestAds) }
+        onConsentUpdated?()
     }
 
     // MARK: - Helpers
