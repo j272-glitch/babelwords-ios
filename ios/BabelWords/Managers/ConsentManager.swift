@@ -2,6 +2,40 @@ import Foundation
 import GoogleMobileAds
 @preconcurrency import UserMessagingPlatform
 
+// MARK: - Testability protocols
+
+/// Abstracts `UMPConsentInformation` so tests can inject a mock without hitting
+/// the live UMP SDK.
+protocol ConsentInformationProviding: AnyObject {
+    func requestConsentInfoUpdate(
+        with parameters: UMPRequestParameters,
+        completionHandler: @escaping (Error?) -> Void
+    )
+    var canRequestAds: Bool { get }
+    var formStatus: UMPFormStatus { get }
+    var consentStatus: UMPConsentStatus { get }
+    func reset()
+}
+
+/// Abstracts `UMPConsentForm` presentation so tests can inject a mock form.
+protocol ConsentFormPresenting: AnyObject {
+    func present(
+        from viewController: UIViewController,
+        completionHandler: ((Error?) -> Void)?
+    )
+}
+
+/// Closure type that loads a consent form and calls back with a
+/// `ConsentFormPresenting` (or an error).  In production this wraps
+/// `UMPConsentForm.load`; in tests a stub closure is injected.
+typealias ConsentFormLoader = (@escaping (ConsentFormPresenting?, Error?) -> Void) -> Void
+
+// Production conformances (no additional implementation needed).
+extension UMPConsentInformation: ConsentInformationProviding {}
+extension UMPConsentForm: ConsentFormPresenting {}
+
+// MARK: -
+
 /// UMP (User Messaging Platform) consent manager for GDPR/EEA compliance.
 /// Mirrors the Android `ConsentManager` behavior.
 ///
@@ -16,16 +50,52 @@ import GoogleMobileAds
 /// "Sendable" diagnostics on UMP closure types that the SDK has not yet annotated;
 /// it does **not** weaken the `@MainActor` isolation enforced on each callback
 /// below.
+///
+/// ## Off-main-thread guard
+/// Because thread safety is enforced by `@MainActor` at the Swift type-system
+/// level rather than by a runtime `assertionFailure`, there is no executable
+/// branch to unit-test from a background thread.  Any caller that is not already
+/// on the main actor will receive a Swift concurrency warning at compile time.
 @MainActor
 final class ConsentManager: NSObject {
     private let TAG = "ConsentManager"
 
-    private var consentInformation: UMPConsentInformation {
-        UMPConsentInformation.sharedInstance
-    }
+    // MARK: - Dependencies (injectable for testing)
+
+    private let consentInformation: ConsentInformationProviding
+    private let formLoader: ConsentFormLoader
+
+    // MARK: - State
 
     private var isProcessing = false
     private var pendingCallbacks: [(Bool) -> Void] = []
+
+    // MARK: - Initializers
+
+    /// Production initializer — uses the live UMP SDK.
+    override init() {
+        self.consentInformation = UMPConsentInformation.sharedInstance
+        self.formLoader = { completion in
+            UMPConsentForm.load { form, error in
+                completion(form, error)
+            }
+        }
+        super.init()
+    }
+
+    /// Testing initializer — allows injecting mock consent information and a
+    /// stub form loader so the full request → load → present → completeConsent
+    /// path can be exercised without hitting the live UMP SDK.
+    init(
+        consentInformation: ConsentInformationProviding,
+        formLoader: @escaping ConsentFormLoader
+    ) {
+        self.consentInformation = consentInformation
+        self.formLoader = formLoader
+        super.init()
+    }
+
+    // MARK: - Public API
 
     /// Request consent info, show the form if required, and call back when ads can proceed.
     func requestConsent(from viewController: UIViewController, onConsentReady: @escaping (Bool) -> Void) {
@@ -68,13 +138,13 @@ final class ConsentManager: NSObject {
     private func loadAndShowConsentForm(from viewController: UIViewController) {
         // @MainActor annotation ensures this closure is always dispatched on the
         // main actor regardless of the thread the UMP SDK uses internally.
-        UMPConsentForm.load { @MainActor [weak self] form, error in
+        formLoader { @MainActor [weak self] form, error in
             guard let self = self else { return }
             self.handleFormLoadResult(form: form, error: error, viewController: viewController)
         }
     }
 
-    private func handleFormLoadResult(form: UMPConsentForm?, error: Error?, viewController: UIViewController) {
+    private func handleFormLoadResult(form: ConsentFormPresenting?, error: Error?, viewController: UIViewController) {
         if let error = error {
             print("[\(TAG)] Consent form load failed: \(error.localizedDescription)")
             completeConsent(consentInformation.canRequestAds)
@@ -125,7 +195,7 @@ final class ConsentManager: NSObject {
     }
 
     func resetConsent() {
-        UMPConsentInformation.sharedInstance.reset()
+        consentInformation.reset()
     }
 
     func isConsentAvailable() -> Bool {
