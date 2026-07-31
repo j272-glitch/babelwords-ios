@@ -21,6 +21,12 @@ Google Mobile Ads load callbacks require a split isolation strategy under Swift 
 
 **How to apply:** Keep SDK callback closures nonisolated, consume payloads synchronously on the callback's main-thread path, keep SDK-bound managers main-thread confined, and make off-main fallbacks discard the ad and retry rather than crossing the actor boundary with it. Route timeout/retry continuations back to the main queue before touching manager state.
 
+Ad managers must default to no ad requests and receive an explicit `canRequestAds` result from consent before loading, showing, retrying, or reloading cached ads.
+
+**Why:** Consent revocation can occur mid-session, and direct bridge/retry paths otherwise bypass the consent callback and recreate ad requests after permission is unavailable.
+
+**How to apply:** Make consent transitions require an explicit Boolean, invalidate caches and epochs on every change, and gate every load/show entry point plus retry and dismissal reloads.
+
 User Messaging Platform consent-info, form-load, and form-dismiss callbacks should remain nonisolated at the SDK boundary; consume the non-Sendable form synchronously when the callback is on main, and use payload-free main-queue recovery otherwise.
 
 **Why:** Consent callbacks may arrive off the main thread, while the form object must not be transferred across an actor boundary under Swift 6.

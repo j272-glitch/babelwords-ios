@@ -66,10 +66,10 @@ final class ConsentManager: NSObject, @unchecked Sendable {
 
     // MARK: - Consent-change notification
 
-    /// Assigned by the owner (e.g. AppDelegate) to receive a notification
+    /// Assigned by the owner (e.g. MainViewController) to receive a notification
     /// whenever consent completes.  The canonical use-case is invalidating
     /// any ad cache that was built with the previous consent signal.
-    var onConsentUpdated: (() -> Void)?
+    var onConsentUpdated: ((Bool) -> Void)?
 
     // MARK: - Initializers
 
@@ -218,7 +218,7 @@ final class ConsentManager: NSObject, @unchecked Sendable {
         let callbacks = pendingCallbacks
         pendingCallbacks.removeAll()
         callbacks.forEach { $0(canRequestAds) }
-        onConsentUpdated?()
+        onConsentUpdated?(canRequestAds)
     }
 
     // MARK: - Helpers

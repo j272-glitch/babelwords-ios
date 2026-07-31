@@ -155,6 +155,12 @@ final class MainViewController: UIViewController {
     }
 
     private func wireManagers() {
+        consentManager.onConsentUpdated = { [weak self] canRequestAds in
+            guard let self = self else { return }
+            self.adMobManager.onConsentChanged(canRequestAds: canRequestAds)
+            self.appOpenAdManager.onConsentChanged(canRequestAds: canRequestAds)
+        }
+
         webCoordinator.onLoadingChange = { [weak self] isLoading in
             self?.loadingContainer.isHidden = !isLoading
             if isLoading { self?.errorContainer.isHidden = true }
@@ -181,9 +187,6 @@ final class MainViewController: UIViewController {
     private func requestConsentAndLoadAds() {
         consentManager.requestConsent(from: self) { [weak self] canRequestAds in
             print("[\(self?.TAG ?? "MainViewController")] Consent resolved: canRequestAds=\(canRequestAds)")
-            guard canRequestAds else { return }
-            self?.adMobManager.preloadInterstitial()
-            self?.appOpenAdManager.loadAd()
         }
     }
 

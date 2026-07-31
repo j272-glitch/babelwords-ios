@@ -48,6 +48,7 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     private var isLoading = false
     private var isShowingAd = false
     private var retryCount = 0
+    private var canRequestAds = false
     private var loadStartTime: Date?
     private var lastBackgroundTime: Date?
     private var hasEnteredBackground = false
@@ -118,6 +119,10 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     // MARK: - Load
 
     func loadAd() {
+        guard canRequestAds else {
+            print("[\(TAG)] Load skipped — ad consent unavailable")
+            return
+        }
         guard !isLoading, appOpenAd == nil else { return }
 
         let lastShow = UserDefaults.standard.object(forKey: AppOpenAdManager.prefsLastShow) as? Date ?? .distantPast
@@ -142,7 +147,9 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
                 return
             }
             DispatchQueue.main.async { [weak self] in
-                guard let self = self, self.isLoading else { return }
+                guard let self = self,
+                      self.isLoading,
+                      self.consentEpoch == capturedEpoch else { return }
                 print("[\(self.TAG)] App Open load timed out")
                 self.isLoading = false
                 self.appOpenAd = nil
@@ -197,8 +204,6 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     ) {
         guard epoch == consentEpoch else {
             print("[\(TAG)] Dropping stale App Open load callback (epoch \(epoch), current \(consentEpoch))")
-            loadTimeoutTask?.cancel()
-            isLoading = false
             return
         }
         loadTimeoutTask?.cancel()
@@ -222,16 +227,19 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     /// Drops the cached app-open ad (which was built with the old consent signal)
     /// and immediately kicks off a fresh preload so the next show uses the
     /// updated UMP consent string.
-    func onConsentChanged() {
+    func onConsentChanged(canRequestAds: Bool) {
         print("[\(TAG)] Consent changed — invalidating cached App Open ad")
+        self.canRequestAds = canRequestAds
         // Increment the epoch FIRST so any in-flight GADAppOpenAd.load callback
         // dispatched before the consent change is dropped by the epoch guard.
         consentEpoch += 1
         loadTimeoutTask?.cancel()
         retryTask?.cancel()
+        appOpenAd?.fullScreenContentDelegate = nil
         appOpenAd = nil
         isLoading = false
         retryCount = 0
+        guard canRequestAds else { return }
         loadAd()
     }
 
@@ -246,6 +254,10 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     // MARK: - Show
 
     func showAdIfAvailable(from viewController: UIViewController) {
+        guard canRequestAds else {
+            print("[\(TAG)] Show skipped — ad consent unavailable")
+            return
+        }
         guard !isShowingAd, let ad = appOpenAd else { return }
         guard !AdMobManager.fullscreenAdState.isShowing else {
             print("[\(TAG)] Blocked — interstitial is showing")

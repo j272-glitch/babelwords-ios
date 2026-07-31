@@ -72,7 +72,6 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     var eventCallback: ((String, String?) -> Void)?
 
     /// Called when the SDK's load completion handler arrives on a background thread.
-    /// Called when the SDK's load completion handler arrives on a background thread.
     /// Debug builds assert for early detection; Release builds recover safely.
     /// Tests may replace this with `XCTFail`.
     var offMainThreadHandler: (String) -> Void = {
@@ -98,6 +97,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     private var isShowingAd = false
     private var pendingShow = false
     private var isActivityResumed = false
+    private var canRequestAds = false
 
     /// Incremented each time consent changes so that any in-flight `GADInterstitialAd.load`
     /// callback that was dispatched before the change is silently ignored.  The value is
@@ -150,10 +150,18 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     // MARK: - Preload / Show / Load-and-show
 
     func preloadInterstitial() {
+        guard canRequestAds else {
+            print("[\(TAG)] Preload skipped — ad consent unavailable")
+            return
+        }
         load(presentingViewController: nil, isPreload: true)
     }
 
     func showInterstitial(from viewController: UIViewController) {
+        guard canRequestAds else {
+            eventCallback?("interstitialFailed", "consent_unavailable")
+            return
+        }
         if isShowingAd || AdMobManager.fullscreenAdState.isShowing {
             print("[\(TAG)] showInterstitial: already showing")
             eventCallback?("interstitialFailed", "already_showing")
@@ -192,6 +200,10 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     }
 
     func loadInterstitialAndShow(from viewController: UIViewController) {
+        guard canRequestAds else {
+            eventCallback?("interstitialFailed", "consent_unavailable")
+            return
+        }
         if interstitial != nil, isFresh() {
             showInterstitial(from: viewController)
             load(presentingViewController: nil, isPreload: true)
@@ -209,6 +221,11 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     // MARK: - Core load
 
     private func load(presentingViewController: UIViewController?, isPreload: Bool = false) {
+        guard canRequestAds else {
+            print("[\(TAG)] Load skipped — ad consent unavailable")
+            pendingShow = false
+            return
+        }
         guard !isLoading else {
             print("[\(TAG)] Already loading — skipping duplicate request")
             return
@@ -339,11 +356,12 @@ final class AdMobManager: NSObject, @unchecked Sendable {
 
             if pendingShow {
                 pendingShow = false
-                if let vc = topViewController() {
-                    showInterstitial(from: vc)
+                Task { @MainActor [weak self] in
+                    guard let self = self, let vc = self.topViewController() else { return }
+                    self.showInterstitial(from: vc)
                 }
             } else {
-                maybeAutoShowInterstitial()
+                scheduleAutoShowInterstitial()
             }
         }
     }
@@ -453,9 +471,16 @@ final class AdMobManager: NSObject, @unchecked Sendable {
 
     // MARK: - Test Lab auto-show
 
+    private func scheduleAutoShowInterstitial() {
+        Task { @MainActor [weak self] in
+            self?.maybeAutoShowInterstitial()
+        }
+    }
+
+    @MainActor
     private func maybeAutoShowInterstitial() {
         guard isTestLab else { return }
-        guard AppDelegate.isTestDeviceRegistrationActive else {
+        guard AppDelegate.testDeviceRegistrationState.isActive else {
             print("[\(TAG)] Test Lab: auto-show suppressed — test-device registration not active")
             return
         }
@@ -470,6 +495,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         }
     }
 
+    @MainActor
     private func topViewController() -> UIViewController? {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let root = windowScene.windows.first?.rootViewController else { return nil }
@@ -496,8 +522,9 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     /// Drops the cached interstitial (which was built with the old consent signal)
     /// and immediately kicks off a fresh preload so the next load uses the
     /// updated UMP consent string.
-    func onConsentChanged() {
+    func onConsentChanged(canRequestAds: Bool) {
         print("[\(TAG)] Consent changed — invalidating cached interstitial")
+        self.canRequestAds = canRequestAds
         // Increment the epoch FIRST so any in-flight GADInterstitialAd.load callback
         // that was dispatched before the consent change is dropped by the epoch guard
         // in handleInterstitialLoad / handleOffMainInterstitialCallback.
@@ -506,6 +533,10 @@ final class AdMobManager: NSObject, @unchecked Sendable {
         interstitial = nil
         loadTime = nil
         isLoading = false
+        guard canRequestAds else {
+            pendingShow = false
+            return
+        }
         load(presentingViewController: nil, isPreload: true)
     }
 

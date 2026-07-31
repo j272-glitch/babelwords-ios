@@ -45,7 +45,6 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
     /// turning a silent threading regression into a build-breaking failure.
     func testOffMainThreadCallbackTriggersThreadingGuard() {
         let manager = AppOpenAdManager(adLoader: MockAdLoader())
-
         let handlerFired = expectation(description: "offMainThreadHandler called")
 
         // Replace the default assertionFailure with an XCTFail so the test
@@ -56,7 +55,7 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
         }
 
         XCTExpectFailure("off-main-thread GAD callback must trigger the threading guard") {
-            manager.loadAd()
+            manager.onConsentChanged(canRequestAds: true)
             wait(for: [handlerFired], timeout: 2.0)
         }
     }
@@ -71,7 +70,7 @@ final class AppOpenAdManagerThreadingTests: XCTestCase {
         }
 
         XCTExpectFailure("off-main-thread interstitial callback must trigger the threading guard") {
-            manager.preloadInterstitial()
+            manager.onConsentChanged(canRequestAds: true)
             wait(for: [handlerFired], timeout: 2.0)
         }
     }
@@ -149,7 +148,6 @@ final class InterstitialAdManagerThreadingTests: XCTestCase {
     /// turning a silent threading regression into a build-breaking failure.
     func testInterstitialOffMainThreadCallbackTriggersHandler() {
         let manager = AdMobManager(adLoader: MockInterstitialAdLoader())
-
         let handlerFired = expectation(description: "offMainThreadHandler called for interstitial")
 
         manager.offMainThreadHandler = { message in
@@ -158,7 +156,7 @@ final class InterstitialAdManagerThreadingTests: XCTestCase {
         }
 
         XCTExpectFailure("off-main-thread GAD interstitial callback must trigger the threading guard") {
-            manager.preloadInterstitial()
+            manager.onConsentChanged(canRequestAds: true)
             wait(for: [handlerFired], timeout: 2.0)
         }
     }
@@ -177,7 +175,6 @@ final class RewardedAdManagerThreadingTests: XCTestCase {
     /// (which delegates to the interstitial loader).
     func testRewardedOffMainThreadCallbackTriggersHandler() {
         let manager = AdMobManager(adLoader: MockInterstitialAdLoader())
-
         let handlerFired = expectation(description: "offMainThreadHandler called for rewarded")
 
         manager.offMainThreadHandler = { message in
@@ -186,8 +183,9 @@ final class RewardedAdManagerThreadingTests: XCTestCase {
         }
 
         XCTExpectFailure("off-main-thread GAD rewarded callback must trigger the threading guard") {
-            // loadRewardedAndShow -> loadInterstitialAndShow -> load()
-            manager.loadRewardedAndShow(from: UIViewController())
+            // Granting consent starts the preload through the same load()
+            // internals used by loadRewardedAndShow.
+            manager.onConsentChanged(canRequestAds: true)
             wait(for: [handlerFired], timeout: 2.0)
         }
     }
@@ -254,6 +252,32 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
     func testAdDidFailToPresentDelegateOffMainFiresHandler() {
         let manager = makeManager()
         let handlerFired = expectation(description: "offMainThreadHandler fired for didFailToPresentFullScreenContentWithError")
+        let stateReset = expectation(description: "fullscreen state reset after failed app-open presentation")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        AdMobManager.fullscreenAdState.setShowing(true)
+        let mockAd = MockFullScreenPresentingAd()
+        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
+        XCTExpectFailure("off-main delegate callback didFailToPresentFullScreenContentWithError must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+        DispatchQueue.main.async {
+            XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing)
+            stateReset.fulfill()
+        }
+        wait(for: [stateReset], timeout: 2.0)
+    }
+
+    func testAdDidRecordImpressionDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adDidRecordImpression")
 
         manager.offMainThreadHandler = { message in
             XCTFail(message)
@@ -261,10 +285,27 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
         }
 
         let mockAd = MockFullScreenPresentingAd()
-        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
-        XCTExpectFailure("off-main delegate callback didFailToPresentFullScreenContentWithError must trigger the threading guard") {
+        XCTExpectFailure("off-main delegate callback adDidRecordImpression must trigger the threading guard") {
             DispatchQueue.global().async {
-                manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+                manager.adDidRecordImpression(mockAd)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testAdDidRecordClickDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adDidRecordClick")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        XCTExpectFailure("off-main delegate callback adDidRecordClick must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.adDidRecordClick(mockAd)
             }
             wait(for: [handlerFired], timeout: 2.0)
         }
@@ -289,6 +330,22 @@ private final class CountingAdLoader: AdLoader {
     }
 }
 
+// MARK: - DelayedAppOpenAdLoader
+
+/// Retains each completion so a pre-consent callback can be delivered after
+/// the manager has started its replacement load.
+private final class DelayedAppOpenAdLoader: AdLoader {
+    var completions: [@Sendable (GADAppOpenAd?, Error?) -> Void] = []
+
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADAppOpenAd?, Error?) -> Void
+    ) {
+        completions.append(completionHandler)
+    }
+}
+
 // MARK: - AppOpenAdManagerConsentTests
 
 /// Verifies that `AppOpenAdManager.onConsentChanged()` immediately invalidates
@@ -306,11 +363,12 @@ final class AppOpenAdManagerConsentTests: XCTestCase {
         XCTAssertFalse(manager.isAdAvailable, "should start with no available app-open ad")
 
         // Trigger a preload so the manager enters the loading state (loadCallCount == 1).
+        manager.onConsentChanged(canRequestAds: true)
         manager.loadAd()
         let loadsBefore = countingLoader.loadCallCount
 
         // Simulate consent changing mid-session.
-        manager.onConsentChanged()
+        manager.onConsentChanged(canRequestAds: true)
 
         // The cache must be empty immediately.
         XCTAssertFalse(manager.isAdAvailable,
@@ -319,6 +377,48 @@ final class AppOpenAdManagerConsentTests: XCTestCase {
         // A fresh load must have been kicked off (loadCallCount incremented).
         XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBefore,
                              "onConsentChanged() must trigger a fresh load")
+    }
+
+    func testRevokedConsentInvalidatesCacheWithoutReloading() {
+        let countingLoader = CountingAdLoader()
+        let manager = AppOpenAdManager(adLoader: countingLoader)
+
+        manager.onConsentChanged(canRequestAds: true)
+        let loadsBeforeRevoke = countingLoader.loadCallCount
+        manager.onConsentChanged(canRequestAds: false)
+
+        XCTAssertFalse(manager.isAdAvailable)
+        XCTAssertEqual(
+            countingLoader.loadCallCount,
+            loadsBeforeRevoke,
+            "revoked consent must not start an App Open ad request"
+        )
+    }
+
+    func testPreConsentInFlightCallbackCannotInterruptReplacementLoad() {
+        let delayedLoader = DelayedAppOpenAdLoader()
+        let manager = AppOpenAdManager(adLoader: delayedLoader)
+
+        manager.onConsentChanged(canRequestAds: true)
+        manager.loadAd()
+        XCTAssertEqual(delayedLoader.completions.count, 1)
+
+        manager.onConsentChanged(canRequestAds: true)
+        XCTAssertEqual(delayedLoader.completions.count, 2)
+
+        // The old request completes after the replacement request is active.
+        // It must not cancel the replacement load or change its state.
+        delayedLoader.completions[0](
+            nil,
+            NSError(domain: "com.test.stale-app-open", code: -1, userInfo: nil)
+        )
+
+        manager.loadAd()
+        XCTAssertEqual(
+            delayedLoader.completions.count,
+            2,
+            "A stale app-open callback must not clear the replacement load state"
+        )
     }
 }
 
@@ -355,12 +455,14 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
     func testAdDidDismissDelegateOffMainFiresHandler() {
         let manager = makeManager()
         let handlerFired = expectation(description: "offMainThreadHandler fired for adDidDismissFullScreenContent")
+        let stateReset = expectation(description: "fullscreen state reset after dismiss")
 
         manager.offMainThreadHandler = { message in
             XCTFail(message)
             handlerFired.fulfill()
         }
 
+        AdMobManager.fullscreenAdState.setShowing(true)
         let mockAd = MockFullScreenPresentingAd()
         XCTExpectFailure("off-main delegate callback adDidDismissFullScreenContent must trigger the threading guard") {
             DispatchQueue.global().async {
@@ -368,17 +470,24 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
             }
             wait(for: [handlerFired], timeout: 2.0)
         }
+        DispatchQueue.main.async {
+            XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing)
+            stateReset.fulfill()
+        }
+        wait(for: [stateReset], timeout: 2.0)
     }
 
     func testAdDidFailToPresentDelegateOffMainFiresHandler() {
         let manager = makeManager()
         let handlerFired = expectation(description: "offMainThreadHandler fired for didFailToPresentFullScreenContentWithError")
+        let stateReset = expectation(description: "fullscreen state reset after failed app-open presentation")
 
         manager.offMainThreadHandler = { message in
             XCTFail(message)
             handlerFired.fulfill()
         }
 
+        AdMobManager.fullscreenAdState.setShowing(true)
         let mockAd = MockFullScreenPresentingAd()
         let error = NSError(domain: "com.test", code: -1, userInfo: nil)
         XCTExpectFailure("off-main delegate callback didFailToPresentFullScreenContentWithError must trigger the threading guard") {
@@ -387,6 +496,11 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
             }
             wait(for: [handlerFired], timeout: 2.0)
         }
+        DispatchQueue.main.async {
+            XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing)
+            stateReset.fulfill()
+        }
+        wait(for: [stateReset], timeout: 2.0)
     }
 }
 
@@ -444,11 +558,12 @@ final class AdMobManagerTests: XCTestCase {
         XCTAssertFalse(localManager.isInterstitialReady(), "should start with no ready interstitial")
 
         // Trigger a preload so the manager enters the loading state (loadCallCount == 1).
+        localManager.onConsentChanged(canRequestAds: true)
         localManager.preloadInterstitial()
         let loadsBefore = countingLoader.loadCallCount
 
         // Simulate consent changing mid-session.
-        localManager.onConsentChanged()
+        localManager.onConsentChanged(canRequestAds: true)
 
         // The cache must be empty immediately.
         XCTAssertFalse(localManager.isInterstitialReady(),
@@ -471,6 +586,7 @@ final class AdMobManagerTests: XCTestCase {
         defer { localManager.destroy() }
 
         // 1. Start a load under the *original* consent context.
+        localManager.onConsentChanged(canRequestAds: true)
         localManager.preloadInterstitial()
         guard let staleCompletion = delayedLoader.capturedCompletion else {
             XCTFail("AdMobManager must have called adLoader.load() during preloadInterstitial()")
@@ -478,7 +594,7 @@ final class AdMobManagerTests: XCTestCase {
         }
 
         // 2. Consent changes mid-session — epoch increments, cache cleared, new load starts.
-        localManager.onConsentChanged()
+        localManager.onConsentChanged(canRequestAds: true)
 
         // 3. Arm the event callback *after* the consent change so any spurious event
         //    that leaks from the stale callback is detectable.
@@ -500,5 +616,22 @@ final class AdMobManagerTests: XCTestCase {
                        "A pre-consent-change load callback must be silently dropped after onConsentChanged()")
         XCTAssertFalse(localManager.isInterstitialReady(),
                        "isInterstitialReady() must remain false after a dropped stale callback")
+    }
+
+    func testRevokedConsentInvalidatesCacheWithoutReloading() {
+        let countingLoader = CountingInterstitialAdLoader()
+        let localManager = AdMobManager(adLoader: countingLoader)
+        defer { localManager.destroy() }
+
+        localManager.onConsentChanged(canRequestAds: true)
+        let loadsBeforeRevoke = countingLoader.loadCallCount
+        localManager.onConsentChanged(canRequestAds: false)
+
+        XCTAssertFalse(localManager.isInterstitialReady())
+        XCTAssertEqual(
+            countingLoader.loadCallCount,
+            loadsBeforeRevoke,
+            "revoked consent must not start an interstitial request"
+        )
     }
 }

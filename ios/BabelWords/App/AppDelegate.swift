@@ -1,8 +1,26 @@
 import UIKit
+import Foundation
 import FirebaseCore
 import FirebaseAnalytics
 import FirebaseCrashlytics
 import GoogleMobileAds
+
+final class TestDeviceRegistrationState: @unchecked Sendable {
+    private let lock = NSLock()
+    private var active = false
+
+    var isActive: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return active
+    }
+
+    func setActive(_ active: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.active = active
+    }
+}
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -12,9 +30,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UIApplication.shared.delegate as? AppDelegate
     }
 
-    /// True only after AdMob test-device registration has been applied on Firebase Test Lab.
-    @MainActor
-    static var isTestDeviceRegistrationActive = false
+    /// Thread-safe state for the Firebase Test Lab AdMob safeguard.
+    static let testDeviceRegistrationState = TestDeviceRegistrationState()
 
     func application(
         _ application: UIApplication,
@@ -62,13 +79,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard isTestLab else { return }
 
         if useRealAds {
-            AppDelegate.isTestDeviceRegistrationActive = true
+            AppDelegate.testDeviceRegistrationState.setActive(true)
             return
         }
 
-        AppDelegate.isTestDeviceRegistrationActive = true
+        AppDelegate.testDeviceRegistrationState.setActive(true)
         #else
-        AppDelegate.isTestDeviceRegistrationActive = false
+        AppDelegate.testDeviceRegistrationState.setActive(false)
         #endif
     }
 }
