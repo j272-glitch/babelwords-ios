@@ -44,3 +44,9 @@ StoreKit 2 signed transaction payloads must be read from the `VerificationResult
 **Why:** Xcode 26 no longer exposes `jwsRepresentation` on `Transaction`; using the transaction object directly causes a simulator compile failure.
 
 **How to apply:** Preserve the verified `Transaction` for its ID and `finish()` call, but pass the verification wrapper's signed JWS to server-side receipt validation.
+
+Static UIKit/AppDelegate state annotated `@MainActor` cannot be read from nonisolated ad-manager helpers, even when those helpers are normally called on the main queue.
+
+**Why:** Xcode 26 diagnoses the declaration's global-actor isolation at compile time; runtime call-site conventions do not make a nonisolated reference legal.
+
+**How to apply:** Keep the caller and UIKit access consistently `@MainActor`, or move cross-manager/test flags behind an explicitly synchronized non-actor state abstraction rather than reading a `@MainActor` static from callback-driven code.
