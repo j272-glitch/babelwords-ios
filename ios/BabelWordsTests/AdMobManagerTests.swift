@@ -311,6 +311,57 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
         }
     }
 
+    /// Verifies that the marshalled main-thread work inside
+    /// `ad(_:didFailToPresentFullScreenContentWithError:)` actually completes
+    /// when the callback arrives off the main thread.
+    ///
+    /// The test dispatches the delegate callback on a global queue (simulating an
+    /// off-main SDK delivery), silences the threading-guard handler so the test is
+    /// not failed by it, then drains the main run loop long enough for the
+    /// `DispatchQueue.main.async` marshal to execute.  After that window the test
+    /// asserts:
+    /// - `fullscreenAdState.isShowing` is `false` (the shared flag is cleared)
+    /// - the "interstitialFailed" event was fired through `eventCallback`
+    /// - a fresh load was triggered (the counting loader was called)
+    func testAdDidFailToPresentDelegateOffMainResetsStateAndTriggersLoad() {
+        let countingLoader = CountingInterstitialAdLoader()
+        let manager = AdMobManager(adLoader: countingLoader)
+        defer { manager.destroy() }
+
+        // Enable ads so that the load guard inside adDidFailToPresentOnMain passes
+        // and the counting loader records the fresh preload attempt.
+        manager.onConsentChanged(canRequestAds: true)
+
+        // Silence the threading-guard so it doesn't XCTFail; the handler-fires
+        // path is already covered by testAdDidFailToPresentDelegateOffMainFiresHandler.
+        manager.offMainThreadHandler = { _ in }
+
+        // Put the shared flag into the "ad is showing" state so the fail-to-present
+        // handler has something meaningful to clear.
+        AdMobManager.fullscreenAdState.setShowing(true)
+
+        var failedEventFired = false
+        manager.eventCallback = { event, _ in
+            if event == "interstitialFailed" { failedEventFired = true }
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
+        DispatchQueue.global().async {
+            manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+        }
+
+        // Drain the main run loop so the DispatchQueue.main.async marshal executes.
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.5))
+
+        XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing,
+                       "fullscreenAdState.isShowing must be false after off-main fail-to-present is marshalled to main")
+        XCTAssertTrue(failedEventFired,
+                      "interstitialFailed event must fire after off-main fail-to-present is marshalled to main")
+        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+                             "A fresh load must be triggered after off-main fail-to-present is marshalled to main")
+    }
+
     /// Verifies that the marshalled main-thread work inside `adDidDismissFullScreenContent`
     /// actually completes when the callback arrives off the main thread.
     ///
@@ -583,6 +634,49 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
                        "fullscreenAdState.isShowing must be false after off-main App Open dismiss is marshalled to main")
         XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
                              "A fresh load must be triggered after off-main App Open dismiss is marshalled to main")
+    }
+
+    /// Verifies that the marshalled main-thread work inside
+    /// `ad(_:didFailToPresentFullScreenContentWithError:)` actually completes
+    /// when the callback arrives off the main thread for the App Open ad path.
+    ///
+    /// The test dispatches the delegate callback on a global queue (simulating an
+    /// off-main SDK delivery), silences the threading-guard handler so the test is
+    /// not failed by it, then drains the main run loop long enough for the
+    /// `DispatchQueue.main.async` marshal to execute.  After that window the test
+    /// asserts:
+    /// - `fullscreenAdState.isShowing` is `false` (the shared flag is cleared)
+    /// - a fresh load was triggered (the counting loader was called)
+    func testAdDidFailToPresentDelegateOffMainResetsStateAndTriggersLoad() {
+        let countingLoader = CountingAdLoader()
+        let manager = AppOpenAdManager(adLoader: countingLoader)
+        defer { manager.cleanup() }
+
+        // Enable ads so that the loadAd() guard inside adDidFailToPresentOnMain
+        // passes and the counting loader records the fresh load attempt.
+        manager.onConsentChanged(canRequestAds: true)
+
+        // Silence the threading-guard so it doesn't XCTFail; the handler-fires
+        // path is already covered by testAdDidFailToPresentDelegateOffMainFiresHandler.
+        manager.offMainThreadHandler = { _ in }
+
+        // Put the shared flag into the "ad is showing" state so the fail-to-present
+        // handler has something meaningful to clear.
+        AdMobManager.fullscreenAdState.setShowing(true)
+
+        let mockAd = MockFullScreenPresentingAd()
+        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
+        DispatchQueue.global().async {
+            manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+        }
+
+        // Drain the main run loop so the DispatchQueue.main.async marshal executes.
+        RunLoop.main.run(until: Date(timeIntervalSinceNow: 0.5))
+
+        XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing,
+                       "fullscreenAdState.isShowing must be false after off-main App Open fail-to-present is marshalled to main")
+        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+                             "A fresh load must be triggered after off-main App Open fail-to-present is marshalled to main")
     }
 }
 
