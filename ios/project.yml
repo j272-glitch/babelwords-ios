@@ -44,6 +44,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comTests
         TEST_TARGET_NAME: BabelWords
+        GENERATE_INFOPLIST_FILE: YES
 
   BabelWordsUITests:
     type: bundle.ui-testing
@@ -56,6 +57,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.babelwords.comUITests
         TEST_TARGET_NAME: BabelWords
+        GENERATE_INFOPLIST_FILE: YES
 
 schemes:
   BabelWords:

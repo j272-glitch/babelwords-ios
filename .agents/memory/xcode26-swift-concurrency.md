@@ -56,3 +56,9 @@ Static UIKit/AppDelegate state annotated `@MainActor` cannot be read from noniso
 **Why:** Xcode 26 diagnoses the declaration's global-actor isolation at compile time; runtime call-site conventions do not make a nonisolated reference legal.
 
 **How to apply:** Keep the caller and UIKit access consistently `@MainActor`, or move cross-manager/test flags behind an explicitly synchronized non-actor state abstraction rather than reading a `@MainActor` static from callback-driven code.
+
+Xcode 26.6 test bundles need an Info.plist generated or configured explicitly in XcodeGen.
+
+**Why:** `xcodebuild test` can fail during test-bundle signing with “no Info.plist file and one is not being generated automatically,” even when code signing is disabled in CI.
+
+**How to apply:** Set `GENERATE_INFOPLIST_FILE: YES` on every unit/UI test target in the XcodeGen target settings.

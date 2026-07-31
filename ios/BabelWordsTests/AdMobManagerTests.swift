@@ -339,6 +339,7 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
         // Put the shared flag into the "ad is showing" state so the fail-to-present
         // handler has something meaningful to clear.
         AdMobManager.fullscreenAdState.setShowing(true)
+        let loadsBeforeCallback = countingLoader.loadCallCount
 
         var failedEventFired = false
         manager.eventCallback = { event, _ in
@@ -358,7 +359,7 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
                        "fullscreenAdState.isShowing must be false after off-main fail-to-present is marshalled to main")
         XCTAssertTrue(failedEventFired,
                       "interstitialFailed event must fire after off-main fail-to-present is marshalled to main")
-        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBeforeCallback,
                              "A fresh load must be triggered after off-main fail-to-present is marshalled to main")
     }
 
@@ -378,6 +379,10 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
         let manager = AdMobManager(adLoader: countingLoader)
         defer { manager.destroy() }
 
+        // Enable ads so that the dismiss handler's replacement load is allowed
+        // to run and the test can prove it triggered a new request.
+        manager.onConsentChanged(canRequestAds: true)
+
         // Silence the threading-guard so it doesn't XCTFail; the handler-fires
         // path is already covered by testAdDidDismissDelegateOffMainFiresHandler.
         manager.offMainThreadHandler = { _ in }
@@ -385,6 +390,7 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
         // Put the shared flag into the "ad is showing" state so the dismiss
         // handler has something meaningful to clear.
         AdMobManager.fullscreenAdState.setShowing(true)
+        let loadsBeforeCallback = countingLoader.loadCallCount
 
         var closedEventFired = false
         manager.eventCallback = { event, _ in
@@ -403,7 +409,7 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
                        "fullscreenAdState.isShowing must be false after off-main dismiss is marshalled to main")
         XCTAssertTrue(closedEventFired,
                       "interstitialClosed event must fire after off-main dismiss is marshalled to main")
-        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBeforeCallback,
                              "A fresh load must be triggered after off-main dismiss is marshalled to main")
     }
 }
@@ -614,6 +620,10 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
         let manager = AppOpenAdManager(adLoader: countingLoader)
         defer { manager.cleanup() }
 
+        // Enable ads so that the dismiss handler's replacement load is allowed
+        // to run and the test can prove it triggered a new request.
+        manager.onConsentChanged(canRequestAds: true)
+
         // Silence the threading-guard so it doesn't XCTFail; the handler-fires
         // path is already covered by testAdDidDismissDelegateOffMainFiresHandler.
         manager.offMainThreadHandler = { _ in }
@@ -621,6 +631,7 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
         // Put the shared flag into the "ad is showing" state so the dismiss
         // handler has something meaningful to clear.
         AdMobManager.fullscreenAdState.setShowing(true)
+        let loadsBeforeCallback = countingLoader.loadCallCount
 
         let mockAd = MockFullScreenPresentingAd()
         DispatchQueue.global().async {
@@ -632,7 +643,7 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
 
         XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing,
                        "fullscreenAdState.isShowing must be false after off-main App Open dismiss is marshalled to main")
-        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBeforeCallback,
                              "A fresh load must be triggered after off-main App Open dismiss is marshalled to main")
     }
 
@@ -663,6 +674,7 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
         // Put the shared flag into the "ad is showing" state so the fail-to-present
         // handler has something meaningful to clear.
         AdMobManager.fullscreenAdState.setShowing(true)
+        let loadsBeforeCallback = countingLoader.loadCallCount
 
         let mockAd = MockFullScreenPresentingAd()
         let error = NSError(domain: "com.test", code: -1, userInfo: nil)
@@ -675,7 +687,7 @@ final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
 
         XCTAssertFalse(AdMobManager.fullscreenAdState.isShowing,
                        "fullscreenAdState.isShowing must be false after off-main App Open fail-to-present is marshalled to main")
-        XCTAssertGreaterThan(countingLoader.loadCallCount, 0,
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBeforeCallback,
                              "A fresh load must be triggered after off-main App Open fail-to-present is marshalled to main")
     }
 }
