@@ -480,7 +480,7 @@ final class AdMobManager: NSObject, @unchecked Sendable {
     @MainActor
     private func maybeAutoShowInterstitial() {
         guard isTestLab else { return }
-        guard AppDelegate.testDeviceRegistrationState.isActive else {
+        guard testDeviceRegistrationState.isActive else {
             print("[\(TAG)] Test Lab: auto-show suppressed — test-device registration not active")
             return
         }

@@ -22,6 +22,12 @@ final class TestDeviceRegistrationState: @unchecked Sendable {
     }
 }
 
+/// Module-level singleton so ad managers can read it from any isolation domain
+/// without going through the `@MainActor`-inferred `AppDelegate` type.
+/// `TestDeviceRegistrationState` is thread-safe via `NSLock`, so no actor
+/// isolation is required at the access site.
+let testDeviceRegistrationState = TestDeviceRegistrationState()
+
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -29,9 +35,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     static var shared: AppDelegate? {
         UIApplication.shared.delegate as? AppDelegate
     }
-
-    /// Thread-safe state for the Firebase Test Lab AdMob safeguard.
-    static let testDeviceRegistrationState = TestDeviceRegistrationState()
 
     func application(
         _ application: UIApplication,
@@ -79,13 +82,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         guard isTestLab else { return }
 
         if useRealAds {
-            AppDelegate.testDeviceRegistrationState.setActive(true)
+            testDeviceRegistrationState.setActive(true)
             return
         }
 
-        AppDelegate.testDeviceRegistrationState.setActive(true)
+        testDeviceRegistrationState.setActive(true)
         #else
-        AppDelegate.testDeviceRegistrationState.setActive(false)
+        testDeviceRegistrationState.setActive(false)
         #endif
     }
 }
