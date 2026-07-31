@@ -271,6 +271,57 @@ final class AdMobManagerDelegateThreadingTests: XCTestCase {
     }
 }
 
+// MARK: - CountingAdLoader
+
+/// Test double that records every `load` call but never invokes the completion
+/// handler, keeping the manager in the `isLoading` state so tests can inspect
+/// the side-effects of cache-invalidation without needing a real `GADAppOpenAd`.
+private final class CountingAdLoader: AdLoader {
+    var loadCallCount = 0
+
+    func load(
+        withAdUnitID adUnitID: String,
+        request: GADRequest,
+        completionHandler: @escaping @Sendable (GADAppOpenAd?, Error?) -> Void
+    ) {
+        loadCallCount += 1
+        // intentionally never calls completionHandler
+    }
+}
+
+// MARK: - AppOpenAdManagerConsentTests
+
+/// Verifies that `AppOpenAdManager.onConsentChanged()` immediately invalidates
+/// any cached app-open ad and kicks off a fresh preload.
+@MainActor
+final class AppOpenAdManagerConsentTests: XCTestCase {
+
+    /// Verifies that `onConsentChanged()` immediately makes `isAdAvailable`
+    /// return `false` and triggers a fresh load with the updated consent signal.
+    func testOnConsentChangedInvalidatesCacheAndTriggersReload() {
+        let countingLoader = CountingAdLoader()
+        let manager = AppOpenAdManager(adLoader: countingLoader)
+
+        // Baseline — no cached ad yet.
+        XCTAssertFalse(manager.isAdAvailable, "should start with no available app-open ad")
+
+        // Trigger a preload so the manager enters the loading state (loadCallCount == 1).
+        manager.loadAd()
+        let loadsBefore = countingLoader.loadCallCount
+
+        // Simulate consent changing mid-session.
+        manager.onConsentChanged()
+
+        // The cache must be empty immediately.
+        XCTAssertFalse(manager.isAdAvailable,
+                       "isAdAvailable must be false immediately after onConsentChanged()")
+
+        // A fresh load must have been kicked off (loadCallCount incremented).
+        XCTAssertGreaterThan(countingLoader.loadCallCount, loadsBefore,
+                             "onConsentChanged() must trigger a fresh load")
+    }
+}
+
 // MARK: - AppOpenAdManagerDelegateThreadingTests
 
 /// Verifies that `guardMainThread` in `AppOpenAdManager`'s `GADFullScreenContentDelegate`

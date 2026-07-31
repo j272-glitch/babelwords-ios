@@ -59,6 +59,10 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     private var getMicActive: () -> Bool
     private var adLoader: AdLoader
 
+    /// Incremented each time consent changes so that any in-flight
+    /// `GADAppOpenAd.load` callback dispatched before the change is dropped.
+    private var consentEpoch: Int = 0
+
     /// Called when the SDK's completion handler arrives on a background thread.
     /// Debug builds assert for early detection; Release builds recover safely.
     var offMainThreadHandler: (String) -> Void = {
@@ -106,6 +110,11 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         }
     }
 
+    // MARK: - Queries
+
+    /// `true` when a loaded ad is cached and ready to present.
+    var isAdAvailable: Bool { appOpenAd != nil }
+
     // MARK: - Load
 
     func loadAd() {
@@ -120,6 +129,10 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         isLoading = true
         loadStartTime = Date()
         print("[\(TAG)] Loading App Open ad…")
+
+        // Capture the epoch at load-time so any completion callback that arrives
+        // after a consent change (which increments consentEpoch) is dropped.
+        let capturedEpoch = consentEpoch
 
         loadTimeoutTask?.cancel()
         loadTimeoutTask = Task { [weak self] in
@@ -148,6 +161,7 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
                 Task { @MainActor [weak self] in
                     guard let self = self else { return }
                     self.handleOffMainLoadCallback(
+                        epoch: capturedEpoch,
                         errorDescription: errorDescription,
                         errorCode: errorCode
                     )
@@ -155,6 +169,7 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
                 return
             }
             self?.handleLoad(
+                epoch: capturedEpoch,
                 ad: ad,
                 errorDescription: errorDescription,
                 errorCode: errorCode
@@ -162,7 +177,11 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
         }
     }
 
-    private func handleOffMainLoadCallback(errorDescription: String?, errorCode: Int?) {
+    private func handleOffMainLoadCallback(epoch: Int, errorDescription: String?, errorCode: Int?) {
+        guard epoch == consentEpoch else {
+            print("[\(TAG)] Dropping stale off-main App Open callback (epoch \(epoch), current \(consentEpoch))")
+            return
+        }
         print("[\(TAG)] Ignoring off-main App Open callback\(errorDescription.map { ": \($0)" } ?? "")")
         loadTimeoutTask?.cancel()
         isLoading = false
@@ -171,10 +190,17 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
     }
 
     private func handleLoad(
+        epoch: Int,
         ad: GADAppOpenAd?,
         errorDescription: String?,
         errorCode: Int?
     ) {
+        guard epoch == consentEpoch else {
+            print("[\(TAG)] Dropping stale App Open load callback (epoch \(epoch), current \(consentEpoch))")
+            loadTimeoutTask?.cancel()
+            isLoading = false
+            return
+        }
         loadTimeoutTask?.cancel()
         isLoading = false
 
@@ -188,6 +214,25 @@ final class AppOpenAdManager: NSObject, @unchecked Sendable {
             retryCount = 0
             ad.fullScreenContentDelegate = self
         }
+    }
+
+    // MARK: - Consent
+
+    /// Called by `ConsentManager` whenever the user's consent state changes.
+    /// Drops the cached app-open ad (which was built with the old consent signal)
+    /// and immediately kicks off a fresh preload so the next show uses the
+    /// updated UMP consent string.
+    func onConsentChanged() {
+        print("[\(TAG)] Consent changed — invalidating cached App Open ad")
+        // Increment the epoch FIRST so any in-flight GADAppOpenAd.load callback
+        // dispatched before the consent change is dropped by the epoch guard.
+        consentEpoch += 1
+        loadTimeoutTask?.cancel()
+        retryTask?.cancel()
+        appOpenAd = nil
+        isLoading = false
+        retryCount = 0
+        loadAd()
     }
 
     private func retryDelay(for code: Int?) -> TimeInterval {
