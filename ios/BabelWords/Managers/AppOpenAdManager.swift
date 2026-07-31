@@ -317,6 +317,7 @@ extension AppOpenAdManager: GADFullScreenContentDelegate {
         if Thread.isMainThread {
             operation()
         } else {
+            offMainThreadHandler("[\(TAG)] GADFullScreenContentDelegate callback called off main thread")
             DispatchQueue.main.async(execute: operation)
         }
     }

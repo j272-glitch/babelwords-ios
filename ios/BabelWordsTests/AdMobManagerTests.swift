@@ -193,6 +193,152 @@ final class RewardedAdManagerThreadingTests: XCTestCase {
     }
 }
 
+// MARK: - MockFullScreenPresentingAd
+
+/// Minimal conformer so tests can call delegate methods without a real ad object.
+private final class MockFullScreenPresentingAd: NSObject, GADFullScreenPresentingAd {}
+
+// MARK: - AdMobManagerDelegateThreadingTests
+
+/// Verifies that `guardMainThread` in `AdMobManager`'s `GADFullScreenContentDelegate`
+/// extension fires `offMainThreadHandler` when a delegate callback arrives off the
+/// main thread.
+///
+/// Each test dispatches the relevant delegate method onto `DispatchQueue.global()`
+/// and wraps the wait inside `XCTExpectFailure` so that the injected `XCTFail`
+/// is recorded rather than failing the suite — turning a future threading
+/// regression into a build-breaking failure.
+@MainActor
+final class AdMobManagerDelegateThreadingTests: XCTestCase {
+
+    private func makeManager() -> AdMobManager {
+        AdMobManager(adLoader: MockInterstitialAdLoader())
+    }
+
+    func testAdWillPresentDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adWillPresentFullScreenContent")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        XCTExpectFailure("off-main delegate callback adWillPresentFullScreenContent must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.adWillPresentFullScreenContent(mockAd)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testAdDidDismissDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adDidDismissFullScreenContent")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        XCTExpectFailure("off-main delegate callback adDidDismissFullScreenContent must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.adDidDismissFullScreenContent(mockAd)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testAdDidFailToPresentDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for didFailToPresentFullScreenContentWithError")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
+        XCTExpectFailure("off-main delegate callback didFailToPresentFullScreenContentWithError must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+}
+
+// MARK: - AppOpenAdManagerDelegateThreadingTests
+
+/// Verifies that `guardMainThread` in `AppOpenAdManager`'s `GADFullScreenContentDelegate`
+/// extension fires `offMainThreadHandler` when a delegate callback arrives off the
+/// main thread.
+@MainActor
+final class AppOpenAdManagerDelegateThreadingTests: XCTestCase {
+
+    private func makeManager() -> AppOpenAdManager {
+        AppOpenAdManager(adLoader: MockAdLoader())
+    }
+
+    func testAdWillPresentDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adWillPresentFullScreenContent")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        XCTExpectFailure("off-main delegate callback adWillPresentFullScreenContent must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.adWillPresentFullScreenContent(mockAd)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testAdDidDismissDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for adDidDismissFullScreenContent")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        XCTExpectFailure("off-main delegate callback adDidDismissFullScreenContent must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.adDidDismissFullScreenContent(mockAd)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+
+    func testAdDidFailToPresentDelegateOffMainFiresHandler() {
+        let manager = makeManager()
+        let handlerFired = expectation(description: "offMainThreadHandler fired for didFailToPresentFullScreenContentWithError")
+
+        manager.offMainThreadHandler = { message in
+            XCTFail(message)
+            handlerFired.fulfill()
+        }
+
+        let mockAd = MockFullScreenPresentingAd()
+        let error = NSError(domain: "com.test", code: -1, userInfo: nil)
+        XCTExpectFailure("off-main delegate callback didFailToPresentFullScreenContentWithError must trigger the threading guard") {
+            DispatchQueue.global().async {
+                manager.ad(mockAd, didFailToPresentFullScreenContentWithError: error)
+            }
+            wait(for: [handlerFired], timeout: 2.0)
+        }
+    }
+}
+
 // MARK: - AdMobManagerTests
 
 @MainActor
